@@ -963,8 +963,8 @@ assert(
   clearOpeningCache();
   newGame({ sandbox: true });
   G = getG();
-  assert(Math.abs(dragRatio(G.law, G.econ) - 1) < 0.01, "Kingdom opens at full real allowance");
-  assert(G.econ.allowBase === 12570, "Kingdom allowBase is the UK opening allowance");
+  assert(Math.abs(dragRatio(G.law, G.econ) - 1) < 0.01, "UK opens at full real allowance");
+  assert(G.econ.allowBase === 12570, "UK allowBase is the UK opening allowance");
   assert(Math.abs((G.econ.cpiIndex || 1) - 1) < 1e-9, "cpiIndex opens at 1");
 
   G.law.income.uprate = true;
@@ -1161,7 +1161,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   newGame();
   G = getG();
   assert(PARTNERS.length === 27, `twenty-seven sovereign partners incl. kingdom (got ${PARTNERS.length})`);
-  assert(activePartners("home").length === 26, "twenty-six partners when playing as The Kingdom");
+  assert(activePartners("home").length === 26, "twenty-six partners when playing as United Kingdom");
   assert(
     PARTNERS.some((p) => p.id === "russia"),
     "Russia is a trade partner"
@@ -1192,7 +1192,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(
     PARTNERS.some((p) => p.id === "kingdom"),
-    "The Kingdom is a displaceable partner seat"
+    "United Kingdom is a displaceable partner seat"
   );
   const homePartners = activePartners("home");
   const named = homePartners.reduce((s, p) => s + partnerShare("home", p.id), 0);
@@ -1202,7 +1202,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(!!G.econ.nations, "opening econ carries partner nation books");
   assert(G.rel.russia === 38, "Northern Reach opens with frosty relations");
-  assert(G.rel.india === 54, "Lotus Republic opens with warmish relations");
+  assert(G.rel.india === 54, "India opens with warmish relations");
   assert(G.rel.nigeria === 48, "Nigeria opens mid-table");
   assert(G.rel.brazil === 50, "Brazil opens mid-table");
   for (const p of homePartners) {
@@ -1290,7 +1290,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.log.length === beforeLen + 1, "first live step appends without wiping history");
   assert(!G.log[G.log.length - 1].pre, "live quarter is not pre-term");
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "Federated States" });
+  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
   G = getG();
   assert(G.econ.debt === 126, `united_states opens at debt 126 (got ${G.econ.debt})`);
   assert(Math.abs(G.econ.inflation - 2.4) < 0.01, `united_states inflation 2.4 (got ${G.econ.inflation})`);
@@ -1305,11 +1305,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(
     partnerForIso("826", "840", "united_states") === "kingdom",
-    "UK coastline is The Kingdom partner when sitting in Federated States"
+    "UK coastline is United Kingdom partner when sitting in United States"
   );
   assert(
     partnerForIso("826", "826", "home") === "home",
-    "UK coastline is home when sitting as The Kingdom"
+    "UK coastline is home when sitting as United Kingdom"
   );
   const fedPartners = activePartners("united_states");
   assert(
@@ -1322,12 +1322,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     Math.abs(G.econ.nations.kingdom.debt - 94) < 0.01,
     "kingdom partner opens at UK debt"
   );
-  assert(!G.law.taxes.vat.on, "Federated States open without a federal VAT");
-  assert(G.law.taxes.corpTax.rate === 21, "Federated States open at 21% corporation tax");
-  assert(G.law.spend.defence === 3.5, "Federated States open with higher defence share");
-  assert(G.law.vice.cannabis === "legal", "Federated States open with legal cannabis");
-  assert(!!G.law.policies.planning && !!G.law.policies.dereg, "Federated States open with planning and labour deregulation");
-  assert(!G.law.taxes.digitalTax.on, "Federated States do not open with a digital services tax");
+  assert(!G.law.taxes.vat.on, "United States open without a federal VAT");
+  assert(G.law.taxes.corpTax.rate === 21, "United States open at 21% corporation tax");
+  assert(G.law.spend.defence === 3.5, "United States open with higher defence share");
+  assert(G.law.vice.cannabis === "legal", "United States open with legal cannabis");
+  assert(!!G.law.policies.planning && !!G.law.policies.dereg, "United States open with planning and labour deregulation");
+  assert(!G.law.taxes.digitalTax.on, "United States do not open with a digital services tax");
 
   newGame({ homeRole: "saudi", homeIso: "682", country: "Gulf Investors" });
   G = getG();
@@ -1342,7 +1342,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!!G.law.policies.swf, "Saudi opens with a sovereign wealth fund");
   assert(G.law.spend.defence === 5.0, "Saudi opens with a high defence share");
 
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   assert(G.law.taxes.vat.rate === 21, "France opens at ~21% VAT");
   assert(G.law.spend.welfare >= 15, "France opens with a large welfare share");
@@ -1350,17 +1350,17 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!!G.law.policies.netZero && !!G.law.policies.cbam, "France opens on a net-zero / CBAM footing");
   assert(!!G.law.policies.socialCare, "France opens with free personal social care");
 
-  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
   const adj0 = G.econ.otherRevAdj;
   const yRel0 = G.econ.yRel;
   project(4);
   assert(G.econ.otherRevAdj === adj0 && G.econ.yRel === yRel0, "project leaves opening plugs / supply intact");
-  assert(G.law.spend.infra >= 5, "Eastern Republic opens with heavy infrastructure spend");
-  assert(G.law.taxes.vat.rate === 13, "Eastern Republic opens at 13% VAT");
-  assert(G.law.spend.research >= 1.3, "Eastern Republic opens with high research spend");
-  assert(!!G.law.policies.rnd && !!G.law.policies.closeBorders, "Eastern Republic opens with industrial strategy and strict borders");
-  assert(G.law.vice.gambling === "banned", "Eastern Republic opens with gambling banned");
+  assert(G.law.spend.infra >= 5, "China opens with heavy infrastructure spend");
+  assert(G.law.taxes.vat.rate === 13, "China opens at 13% VAT");
+  assert(G.law.spend.research >= 1.3, "China opens with high research spend");
+  assert(!!G.law.policies.rnd && !!G.law.policies.closeBorders, "China opens with industrial strategy and strict borders");
+  assert(G.law.vice.gambling === "banned", "China opens with gambling banned");
   /* pinOpeningHeadlines must keep the seat's income schedule, not UK defaults. */
   assert(G.law.income.allowance === 8000, "Eastern income allowance survives settle pins");
   assert(G.law.ni.erRate === 16, "Eastern employer NI survives settle pins");
@@ -1374,13 +1374,13 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.law.vice.alcohol === "liberal", "Northern Reach opens with liberalised alcohol");
   assert(!!G.law.policies.conscript && !!G.law.policies.closeBorders, "Northern Reach opens with conscription and closed borders");
 
-  newGame({ homeRole: "india", homeIso: "356", country: "Lotus Republic" });
+  newGame({ homeRole: "india", homeIso: "356", country: "India" });
   G = getG();
-  assert(G.law.taxes.vat.rate === 18, "Lotus Republic opens at GST-like 18% VAT");
-  assert(G.law.spend.health <= 3.0, "Lotus Republic opens with thin public health spend");
-  assert(G.law.taxes.tobaccoDuty.rate >= 70, "Lotus Republic opens with heavy tobacco duty");
-  assert(G.law.vice.gambling === "banned", "Lotus Republic opens with gambling banned");
-  assert(!!G.law.policies.digitalId, "Lotus Republic opens with digital identity");
+  assert(G.law.taxes.vat.rate === 18, "India opens at GST-like 18% VAT");
+  assert(G.law.spend.health <= 3.0, "India opens with thin public health spend");
+  assert(G.law.taxes.tobaccoDuty.rate >= 70, "India opens with heavy tobacco duty");
+  assert(G.law.vice.gambling === "banned", "India opens with gambling banned");
+  assert(!!G.law.policies.digitalId, "India opens with digital identity");
 
   newGame({ homeRole: "nigeria", homeIso: "566", country: "Green Coast Republic" });
   G = getG();
@@ -1407,11 +1407,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!!G.law.policies.netZero && !!G.law.policies.openVisas, "Australia opens with net zero and open visas");
 
   /* Home seat keeps the UK baseLaw (no REALM_LAW overlay). */
-  newGame({ homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
   G = getG();
-  assert(G.law.taxes.vat.on && G.law.taxes.vat.rate === 20, "Kingdom opens at UK 20% VAT");
-  assert(G.law.spend.welfare === 13.3, "Kingdom opens at UK welfare share");
-  assert(G.law.income.allowance === 12570, "Kingdom opens at UK personal allowance");
+  assert(G.law.taxes.vat.on && G.law.taxes.vat.rate === 20, "UK opens at UK 20% VAT");
+  assert(G.law.spend.welfare === 13.3, "UK opens at UK welfare share");
+  assert(G.law.income.allowance === 12570, "UK opens at UK personal allowance");
 
   /* Every non-Kingdom sovereign seat has a distinct statute overlay. */
   {
@@ -1430,12 +1430,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       assert(distinct, `${c.id} statute differs from UK baseLaw`);
     }
   }
-  newGame({ homeRole: "germany", homeIso: "276", country: "Rhine Federation" });
+  newGame({ homeRole: "germany", homeIso: "276", country: "Germany" });
   G = getG();
   assert(G.law.taxes.vat.rate >= 19 && G.law.taxes.vat.rate <= 21, `Germany opens near 19–21% VAT (got ${G.law.taxes.vat.rate})`);
   assert(G.law.spend.research >= 1.0, "Germany opens with elevated research spend");
 
-  newGame({ homeRole: "japan", homeIso: "392", country: "Rising Sun Federation" });
+  newGame({ homeRole: "japan", homeIso: "392", country: "Japan" });
   G = getG();
   assert(G.law.taxes.vat.rate === 10, "Japan opens at 10% consumption tax");
 
@@ -1454,13 +1454,13 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 /* Society layer opens from NATION_PROFILE.soc0, not a shared UK default. */
 {
   const uk = NATION_PROFILE.kingdom.soc0;
-  assert(uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55, "Kingdom soc0 is the UK baseline");
+  assert(uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55, "UK soc0 is the UK baseline");
 
-  newGame({ homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
   G = getG();
-  assert(Math.abs(G.econ.liberty - 58) < 0.6, `Kingdom liberty near 58 (got ${G.econ.liberty})`);
-  assert(Math.abs(G.econ.crime - 28) < 0.6, `Kingdom crime near 28 (got ${G.econ.crime})`);
-  assert(Math.abs(G.econ.services - 55) < 2.5, `Kingdom services near 55 (got ${G.econ.services})`);
+  assert(Math.abs(G.econ.liberty - 58) < 0.6, `UK liberty near 58 (got ${G.econ.liberty})`);
+  assert(Math.abs(G.econ.crime - 28) < 0.6, `UK crime near 28 (got ${G.econ.crime})`);
+  assert(Math.abs(G.econ.services - 55) < 2.5, `UK services near 55 (got ${G.econ.services})`);
 
   for (const c of COUNTRIES) {
     if (c.id === "kingdom") continue;
@@ -1477,20 +1477,20 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     assert(distinct, `${c.id} soc0 differs from Kingdom`);
   }
 
-  newGame({ homeRole: "germany", homeIso: "276", country: "Rhine Federation" });
+  newGame({ homeRole: "germany", homeIso: "276", country: "Germany" });
   G = getG();
   assert(G.econ.liberty0 === 62, "Germany liberty0 is 62");
   assert(Math.abs(G.econ.liberty - 62) < 1.0, `Germany liberty near 62 (got ${G.econ.liberty})`);
   assert(G.econ.crime0 === 22, "Germany crime0 is 22");
   assert(Math.abs(G.econ.crime - 22) < 1.5, `Germany crime near 22 (got ${G.econ.crime})`);
 
-  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
   assert(G.econ.liberty0 === 28, "China liberty0 is 28");
   assert(G.econ.liberty < 40, `China liberty well below UK (got ${G.econ.liberty})`);
   assert(G.econ.openness0 === 35, "China openness0 is 35");
 
-  newGame({ homeRole: "japan", homeIso: "392", country: "Rising Sun Federation" });
+  newGame({ homeRole: "japan", homeIso: "392", country: "Japan" });
   G = getG();
   assert(G.econ.crime0 === 12, "Japan crime0 is 12");
   assert(G.econ.crime < 20, `Japan crime well below UK (got ${G.econ.crime})`);
@@ -1507,7 +1507,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   /* Opening-delta anchoring: unchanged statute holds near soc0; removing a
      liberty-negative opening policy raises liberty (policy content still bites). */
-  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
   assert(!!G.econ.socOpen, "China settle stores socOpen opening impulses");
   for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
@@ -1533,7 +1533,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
    seat (derived from demography + yRel catch-up — not pinned tfpTrend). */
 {
   const seats = [
-    { role: "home", trend: 1.2, opts: { homeRole: "home", homeIso: "826", country: "The Kingdom" } },
+    { role: "home", trend: 1.2, opts: { homeRole: "home", homeIso: "826", country: "United Kingdom" } },
     ...[
       ["france", "250"], ["united_states", "840"], ["china", "156"], ["russia", "643"],
       ["india", "356"], ["nigeria", "566"], ["brazil", "076"], ["australia", "036"], ["saudi", "682"],
@@ -1588,7 +1588,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   assert(
     Math.abs(tradeRestShare("home") - 0.04) < 0.005,
-    `Kingdom rest-of-world share near 4% (got ${tradeRestShare("home")})`
+    `UK rest-of-world share near 4% (got ${tradeRestShare("home")})`
   );
   assert(
     Math.abs(tradeRestShare("france") - 0.04) < 0.02,
@@ -1596,10 +1596,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(
     partnerShare("united_states", "china") > partnerShare("home", "china"),
-    "US→China trade weight exceeds Kingdom→China"
+    "US→China trade weight exceeds UK→China"
   );
 
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   const ceuDeals = dealsForPartner(partnerById("france"), "france");
   assert(ceuDeals.length === 0, "Continental home sees no CEU accession deals on Continental");
@@ -1608,30 +1608,30 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(Math.abs(G.econ.unemployment - NATION_PROFILE.france.unemployment0) < 0.05, `Continental opens at unemployment ${NATION_PROFILE.france.unemployment0} (got ${G.econ.unemployment})`);
   assert(G.econ.shareX >= 35, `Continental opens trade-open (shareX ${G.econ.shareX})`);
 
-  newGame({ homeRole: "india", homeIso: "356", country: "Lotus" });
+  newGame({ homeRole: "india", homeIso: "356", country: "India" });
   G = getG();
-  assert(G.econ.dependency < 0.26, `Lotus opens young (dep ${G.econ.dependency})`);
-  assert(G.econ.popChild > 35, `Lotus opens with a large child stock (got ${G.econ.popChild})`);
-  assert(Math.abs(G.econ.unemployment - NATION_PROFILE.india.unemployment0) < 0.05, "Lotus unemployment matches profile");
-  assert(Math.abs(G.econ.nairu - NATION_PROFILE.india.nairu0) < 0.05, "Lotus NAIRU matches profile");
+  assert(G.econ.dependency < 0.26, `India opens young (dep ${G.econ.dependency})`);
+  assert(G.econ.popChild > 35, `India opens with a large child stock (got ${G.econ.popChild})`);
+  assert(Math.abs(G.econ.unemployment - NATION_PROFILE.india.unemployment0) < 0.05, "India unemployment matches profile");
+  assert(Math.abs(G.econ.nairu - NATION_PROFILE.india.nairu0) < 0.05, "India NAIRU matches profile");
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "Federated States" });
+  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
   G = getG();
-  assert(G.econ.shareX <= 16, `Federated States open less trade-intensive (shareX ${G.econ.shareX})`);
-  assert(G.econ.fxUip < 0.02, `Federated States damp FX UIP (got ${G.econ.fxUip})`);
-  assert(G.econ.worldRate >= 3.0, `Federated worldRate near domestic (got ${G.econ.worldRate})`);
-  assert(G.rel.china < 40, `Federated opens cool with Eastern (got ${G.rel.china})`);
-  assert(!!G.law.deals.cw_fta, "Federated opens with Commonwealth FTA ratified");
-  assert(G.fac.business > FAC_0.business, "Federated opens with higher business approval");
+  assert(G.econ.shareX <= 16, `United States open less trade-intensive (shareX ${G.econ.shareX})`);
+  assert(G.econ.fxUip < 0.02, `United States damp FX UIP (got ${G.econ.fxUip})`);
+  assert(G.econ.worldRate >= 3.0, `US worldRate near domestic (got ${G.econ.worldRate})`);
+  assert(G.rel.china < 40, `US opens cool with China (got ${G.rel.china})`);
+  assert(!!G.law.deals.cw_fta, "US opens with Commonwealth FTA ratified");
+  assert(G.fac.business > FAC_0.business, "US opens with higher business approval");
 
-  newGame({ homeRole: "saudi", homeIso: "682", country: "Desert Kingdom" });
+  newGame({ homeRole: "saudi", homeIso: "682", country: "Saudi Arabia" });
   G = getG();
   assert(G.fac.patriots > FAC_0.patriots, "Saudi opens with higher patriot approval");
   assert(G.econ.shareX >= 38, `Saudi opens export-heavy (shareX ${G.econ.shareX})`);
 
   newGame({ homeRole: "australia", homeIso: "036", country: "CW" });
   G = getG();
-  assert(!!G.law.deals.king_services, "Australia opens with Kingdom services access");
+  assert(!!G.law.deals.king_services, "Australia opens with UK services access");
 }
 
 /* Knowledge stock R: research spend accumulates; education still lifts potential via h. */
@@ -1887,7 +1887,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.rel.netherlands = 55;
   G.draft.tariffSchedule.default = 7;
   const blockers = blocJoinBlockers("continental_union", "accede");
-  assert(blockers.some((b) => b.includes("Rhine Federation")), "unanimous gate blocks when one member is below threshold");
+  assert(blockers.some((b) => b.includes("Germany")), "unanimous gate blocks when one member is below threshold");
   const approvals = blocMemberApprovals("continental_union");
   assert(approvals.some((a) => a.id === "germany" && !a.ok), "germany flagged in member approvals");
 }
@@ -1953,7 +1953,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   enact();
   assert(!G.blocInvites || !G.blocInvites.india, "low member rel blocks invite enact");
   assert(G.capital === capBefore, "blocked invite bill does not spend capital");
-  assert(blocInviteBlockers("continental_union", "india").some((b) => b.includes("Rhine Federation")), "germany blocks member-proposed invite");
+  assert(blocInviteBlockers("continental_union", "india").some((b) => b.includes("Germany")), "germany blocks member-proposed invite");
 
   G.rel.germany = 55;
   G.draft.blocInvite = { india: true };
@@ -1974,7 +1974,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 }
 
 {
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   assert(G.world && G.world.germany && G.world.germany.econ, "world bags exist for partners");
   assert(G.world.india && G.world.india.econ, "india world bag exists");
@@ -2005,13 +2005,13 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 }
 
 {
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
-  assert(countryBlocId(playerCountryId()) === "continental_union", "Gaul Republic starts in continental union");
+  assert(countryBlocId(playerCountryId()) === "continental_union", "France starts in continental union");
   assert(blocInviteBlockers("continental_union", "kingdom").length === 0, "kingdom invite clears at open as france");
   G.draft.blocInvite = { kingdom: true };
   const cl = billClauses();
-  assert(cl.some((c) => c.label.includes("The Kingdom") && c.label.includes("Continental Union")), "staging propose kingdom adds bill clause");
+  assert(cl.some((c) => c.label.includes("United Kingdom") && c.label.includes("Continental Union")), "staging propose kingdom adds bill clause");
   G.capital = 200;
   enact();
   assert(
@@ -2280,10 +2280,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
 /* Symmetric multi-country: partner macros, accession trade feedback, EUR area rates. */
 {
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
-  assert(currencyForSeat("france") === "EUR", "Gaul is EUR");
-  assert(currencyForSeat("germany") === "EUR", "Rhine is EUR");
+  assert(currencyForSeat("france") === "EUR", "France is EUR");
+  assert(currencyForSeat("germany") === "EUR", "Germany is EUR");
   const deRate0 = G.world.germany.econ.rate;
   const itRate0 = G.world.italy.econ.rate;
   for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
@@ -2292,7 +2292,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     `EUR members share a rate band (DE ${G.world.germany.econ.rate.toFixed(2)} vs IT ${G.world.italy.econ.rate.toFixed(2)}; open ${deRate0.toFixed(2)}/${itRate0.toFixed(2)})`
   );
 
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   const baseDE = [];
   const baseIN = [];
@@ -2301,7 +2301,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     baseDE.push(G.world.germany.econ._lastGrowth);
     baseIN.push(G.world.india.econ._lastGrowth);
   }
-  newGame({ homeRole: "france", homeIso: "250", country: "Gaul Republic" });
+  newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   finalizeBlocJoin(G, "india", "continental_union", G.law);
   const joinDE = [];
@@ -2332,7 +2332,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       `${id} has a 3-letter currency code`
     );
   }
-  assert(NATION_PROFILE.kingdom.currency === "GBP", "Kingdom currency is GBP");
+  assert(NATION_PROFILE.kingdom.currency === "GBP", "UK currency is GBP");
   assert(NATION_PROFILE.japan.currency === "JPY", "Japan currency is JPY");
   assert(NATION_PROFILE.germany.currency === "EUR", "Germany currency is EUR");
   assert(NATION_PROFILE.united_states.currency === "USD", "US currency is USD");
@@ -2406,7 +2406,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "Brazil depreciation shrinks USD GDP"
   );
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "Federated States" });
+  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
   G = getG();
   assert(G.econ.fxUip < 0.02, `US fxUip stays damped (got ${G.econ.fxUip})`);
   assert(currencyForSeat(G.homeRole) === "USD", "US seat currency is USD");

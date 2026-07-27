@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   realmById,
   realmByRole,
@@ -14,7 +14,7 @@ import {
   NATION_PROFILE,
 } from "../../lib/sim/engine.js";
 
-/** Opening books for a seat — pinsForRole, with home deficit from the Kingdom profile. */
+/** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role) {
   const pins = pinsForRole(role);
   const deficit =
@@ -51,16 +51,9 @@ export default function CountryPicker({
 }) {
   const initial = realmById(initialId || DEFAULT_REALM_ID);
   const realm = realmByRole(selectedRole || initial.role);
-  const [customName, setCustomName] = useState("");
-  const [nameTouched, setNameTouched] = useState(false);
   const [sandbox, setSandbox] = useState(false);
   const books = openingBooks(realm.role);
-
-  useEffect(() => {
-    if (!nameTouched) setCustomName("");
-  }, [realm.id, nameTouched]);
-
-  const name = (customName.trim() || realm.name).slice(0, 34);
+  const name = realm.name.slice(0, 34);
 
   return (
     <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
@@ -87,20 +80,6 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <label className="setup-name">
-          <span>Style of address</span>
-          <input
-            type="text"
-            maxLength={34}
-            placeholder={realm.name}
-            value={customName}
-            onChange={(e) => {
-              setCustomName(e.target.value);
-              setNameTouched(true);
-            }}
-            aria-label="Country name"
-          />
-        </label>
         <div className="setup-mode" role="group" aria-label="Game mode">
           <span className="setup-mode-label">Mode</span>
           <div className="seg mini">

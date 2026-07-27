@@ -11,6 +11,8 @@ import {
 } from "../../lib/sim/partners.js";
 import {
   boardMetricColour,
+  boardMetricMapLabel,
+  boardMetricValueLabel,
   REALM_FILL,
 } from "../../lib/sim/boardMetrics.js";
 import { realmByRole } from "../../lib/sim/realms.js";
@@ -464,20 +466,18 @@ export default function WorldMap({
       const [x, y] = toScreen(nx, ny);
       let text;
       if (role === "home") {
-        text = setupMode
+        const homeName = setupMode
           ? realmByRole("home").name
           : (G && G.country) || realmByRole(hRole).name;
+        text = setupMode
+          ? homeName
+          : boardMetricMapLabel("home", mapMetric, homeName, G);
       } else {
         const p = PARTNERS.find((x) => x.id === role);
+        const name = p ? p.name : role;
         text = setupMode
-          ? p
-            ? p.name
-            : role
-          : G
-            ? (p ? p.name : role) + " · " + Math.round(G.rel[role] ?? 50)
-            : p
-              ? p.name
-              : role;
+          ? name
+          : boardMetricMapLabel(role, mapMetric, name, G);
       }
       const tw = ctx.measureText(text).width;
       const hot = isSelected(role) || hoverRole === role;

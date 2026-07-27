@@ -66,7 +66,7 @@ export function realmSnapshot(role) {
     const cur = currencyForSeat(G.homeRole || "home");
     return {
       role: "home",
-      name: G.country || "The Kingdom",
+      name: G.country || "United Kingdom",
       blurb: "Your economy — the books you are judged on.",
       us: true,
       output: homeY,
@@ -143,7 +143,7 @@ export default function RealmStats({ role, onClose, onOpenTrade }) {
   if (!snap) return null;
 
   const G = getG();
-  const homeName = G?.country || "The Kingdom";
+  const homeName = G?.country || "United Kingdom";
 
   return (
     <aside
