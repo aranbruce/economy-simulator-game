@@ -45,6 +45,8 @@ function SetupStat({ label, value }) {
 export default function CountryPicker({
   selectedRole,
   onStart,
+  onMultiplayer,
+  onResume,
   initialId,
 }) {
   const initial = realmById(initialId || DEFAULT_REALM_ID);
@@ -139,6 +141,20 @@ export default function CountryPicker({
         >
           Take the seals
         </button>
+        {typeof onMultiplayer === "function" && (
+          <button
+            type="button"
+            className="setup-go secondary"
+            onClick={() => onMultiplayer({ realm, name, sandbox })}
+          >
+            Multiplayer lobby
+          </button>
+        )}
+        {typeof onResume === "function" && (
+          <button type="button" className="setup-go secondary" onClick={onResume}>
+            Resume multiplayer
+          </button>
+        )}
       </div>
     </div>
   );

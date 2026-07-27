@@ -3360,7 +3360,7 @@ function renderPanel(){
               'costs <b>'+bill.toFixed(2)+'%</b> of GDP at today&rsquo;s unemployment &middot; ' +
               'per claimant ' + (adeq*100).toFixed(0) + '% of the opening rate', "spend");
           }
-          const score = serviceScore(d.id, G.draft, G.econ);
+          const score = held != null ? held : serviceScore(d.id, G.draft, G.econ);
           const holdCost = spendForScore(d.id, score, G.econ);
           return leverHtml(d.id, d.name, G.draft.spend[d.id], d.min, d.max, 0.1, 1,
             'service level <b>' + score.toFixed(0) + '</b> / 100 &middot; ' +
@@ -3370,19 +3370,33 @@ function renderPanel(){
       '<div class="eyebrow mt">The ledger</div>' +
       '<div class="ledger-wrap">' + ledgerTable() + '</div>';
     host.querySelectorAll("[data-mode]").forEach(b=>{
+      b.addEventListener("pointerdown", ev=>ev.preventDefault());
       b.onclick = ()=>{
         const id = b.dataset.mode, m = b.dataset.modeval;
         if(!G.draft.mode) G.draft.mode = {};
         if(!G.draft.hold) G.draft.hold = {};
+        const inp = host.querySelector('[data-lever="'+id+'"] input');
+        if(inp && !TRANSFER_DEPTS[id]){
+          const live = parseFloat(inp.value);
+          if(Number.isFinite(live)) G.draft.spend[id] = live;
+        }
         if(m === "share") delete G.draft.mode[id]; else G.draft.mode[id] = m;
-        if(m === "service") G.draft.hold[id] = serviceScore(id, G.draft, G.econ);
-        else delete G.draft.hold[id];
+        if(m === "service"){
+          G.draft.hold[id] = serviceScore(id, G.draft, G.econ);
+          G.draft.spend[id] = spendForScore(id, G.draft.hold[id], G.econ);
+        } else delete G.draft.hold[id];
         render();
       };
     });
     const root = $("deptLevers");
     DEPTS.forEach(d=>{ const r = root.querySelector('[data-lever="'+d.id+'"]'); r.dataset.base = G.law.spend[d.id]; r.dataset.dp = 1; });
-    wireLevers(root, id => G.draft.spend[id], (id,v)=>{ G.draft.spend[id] = v; }, 1);
+    wireLevers(root, id => G.draft.spend[id], (id,v)=>{
+      G.draft.spend[id] = v;
+      if((G.draft.mode || {})[id] === "service" && !TRANSFER_DEPTS[id]){
+        if(!G.draft.hold) G.draft.hold = {};
+        G.draft.hold[id] = serviceScore(id, G.draft, G.econ);
+      }
+    }, 1);
   }
 
   else if(tab === "taxes"){
@@ -3935,7 +3949,7 @@ function writeBriefing(res){
   if(e.unemployment > 8) b.push("Unemployment at " + e.unemployment.toFixed(1) + "% is the number your backbenchers quote at you.");
 
   const worst = FACTIONS.slice().sort((a,b2)=>G.fac[a.id]-G.fac[b2.id])[0];
-  if(G.fac[worst.id] < 30) b.push(worst.name.toLowerCase() + " have effectively abandoned you, and they are " + Math.round(worst.w*100) + "% of the electorate.");
+  if(G.fac[worst.id] < 30) b.push(worst.name + " have effectively abandoned you, and they are " + Math.round(worst.w*100) + "% of the electorate.");
   if(G.capital < 12) b.push("You have almost no political capital left. Ambitious legislation is off the table until that recovers.");
   G.brief = b.slice(0,3).map(T);
 }
