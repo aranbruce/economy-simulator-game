@@ -11,10 +11,9 @@ positions on a shared ocean). No other countries are drawn. If the map fails
 to load, the game falls back to the procedural country canvas. The map never
 owns game logic.
 
-The reference single-file build remains at `chancellor.html` (frozen historical
-artifact — the live app is modular `lib/sim/*`). Do **not** run
-`scripts/extract-engine.mjs` against it; that would overwrite the modular engine.
-The live app is Next.js App Router: UI in `components/`, pure sim in `lib/sim/`.
+`chancellor.html` is a **frozen historical artifact** of an older ~5-bloc
+single-file build. The live app is Next.js App Router: UI in `components/`,
+pure sim in `lib/sim/`. Do not regenerate or sync the modular engine from it.
 
 ## Commands
 
@@ -38,7 +37,7 @@ pnpm test            # node test/sim.js && node test/calibration.js
 | `components/map2d/WorldMap.jsx` | Flat world map, partner colours, click-to-trade |
 | `components/map2d/FlatMap.jsx` | Procedural country canvas fallback |
 | `public/geo/countries-110m.json` | Natural Earth topojson |
-| `chancellor.html` | Original single-file reference |
+| `chancellor.html` | Frozen historical single-file build (not maintained) |
 
 Engine sections (inside `lib/sim/engine.js`) still follow the numbered banners:
 
@@ -198,8 +197,7 @@ carved into nine regions by nearest seed.
 
 **The world map is a 2D canvas** (`WorldMap.jsx`) over Natural Earth GeoJSON.
 Game logic must not live in the map module; load failure falls back to the
-procedural country canvas. The reference `chancellor.html` remains a
-self-contained single file without map libraries.
+procedural country canvas.
 
 ## Events
 
@@ -822,9 +820,6 @@ Unbuilt ideas, roughly in order of how much they would add:
   fine in a real browser)
 - Difficulty settings, starting from different fiscal inheritances
 - Fuller age-cohort demography (fertility is already a policy channel)
-- The file is now large. Splitting would help editing but would break playing
-  the reference `chancellor.html` as a single artifact. Do not split it without
-  a reason better than tidiness.
 
 Already in the live engine (do not treat as missing): FX and bilateral trade,
 housing stock-flow with house-price → credit feedback, endogenous bank stress,
@@ -834,6 +829,4 @@ capital rates, private financial wealth in C and credit, consistent opening
 settle, knowledge stock `R` from the research budget (and research-credit
 effort) feeding TFP growth, derived trend (frontier + `yRel` catch-up +
 demography, not per-realm tfp/labour tables), partner opening macros calibrated
-to IMF WEO / Fiscal Monitor April 2026 (euro area, US, China, Russia / Northern
-Reach, India / Lotus Republic, Africa / Afro Compact, LatAm / Liberdade Bloc,
-AU/NZ Commonwealth, GCC).
+to IMF WEO / Fiscal Monitor April 2026 across the sovereign seats.

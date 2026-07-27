@@ -27,16 +27,12 @@ Sandbox mode (on by default) suppresses removal-from-office paths so you can exp
 |---|---|
 | `app/` | Next.js App Router, glass CSS |
 | `components/` | Game shell, world map, UI |
-| `lib/sim/` | Pure simulation engine |
+| `lib/sim/` | Pure simulation engine (authoritative) |
 | `public/geo/` | Natural Earth topojson |
-| `chancellor.html` | Original single-file reference |
+| `chancellor.html` | Frozen historical single-file build (not maintained) |
 | `test/` | Smoke and calibration suite |
 
-Re-extract the engine from the reference HTML after large sim edits:
-
-```bash
-node scripts/extract-engine.mjs
-```
+`chancellor.html` is a legacy artifact of an earlier ~5-bloc world. The live game is modular under `lib/sim/`. Do not regenerate the engine from it.
 
 ## Stack
 

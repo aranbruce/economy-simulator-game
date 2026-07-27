@@ -1,3 +1,8 @@
+/**
+ * EMERGENCY RECOVERY ONLY — reconstruct lib/sim/engine.js from a Next.js webpack
+ * hot-update chunk after a bad edit. Not a sync workflow. Pin `src` to a real
+ * chunk path under .next/ before running. Prefer git checkout for recovery.
+ */
 import fs from "fs";
 
 const src = fs.readFileSync(

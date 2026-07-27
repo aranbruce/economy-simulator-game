@@ -2247,7 +2247,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "quarterly log records currency strength"
   );
 
-  newGame({ homeRole: "brazil", homeIso: "076", country: "Liberdade" });
+  newGame({ homeRole: "brazil", homeIso: "076", country: "Atlantic Federation" });
   G = getG();
   assert(currencyForSeat(G.homeRole) === "BRL", "Brazil seat shows BRL");
   assert(
