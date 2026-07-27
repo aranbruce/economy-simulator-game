@@ -2353,6 +2353,28 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
 }
 
+/* AI seats defend both sides of their debt band over a long run. */
+{
+  newGame();
+  G = getG();
+  for (let i = 0; i < 80; i++) step(G, G.law, G.law, true);
+  for (const id of ["germany", "france", "united_states", "japan", "china"]) {
+    const e = G.world[id].econ;
+    const anchor = e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id].debt0;
+    const target = Math.min(260, Math.max(50, anchor));
+    const bandHi = target + Math.min(30, 14 + target * 0.14);
+    const bandLo = target - Math.min(22, 12 + target * 0.12);
+    assert(
+      e.debt < bandHi + 35,
+      `AI ${id} stays near its debt band (debt ${e.debt.toFixed(0)}, bandHi ${bandHi.toFixed(0)}, anchor ${anchor})`
+    );
+    assert(
+      e.debt > Math.min(bandLo, 0) - 80,
+      `AI ${id} does not run away to a huge creditor position (debt ${e.debt.toFixed(0)}, bandLo ${bandLo.toFixed(0)})`
+    );
+  }
+}
+
 if (failed) {
   console.error(`\n${failed} assertion(s) failed`);
   process.exit(1);
