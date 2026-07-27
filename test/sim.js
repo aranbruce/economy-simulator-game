@@ -1438,6 +1438,29 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
   assert(G.econ.liberty > 65, `Netherlands liberty stays elevated after 8Q (got ${G.econ.liberty})`);
   assert(G.econ.openness > 60, `Netherlands openness stays elevated after 8Q (got ${G.econ.openness})`);
+
+  /* Opening-delta anchoring: unchanged statute holds near soc0; removing a
+     liberty-negative opening policy raises liberty (policy content still bites). */
+  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  assert(!!G.econ.socOpen, "China settle stores socOpen opening impulses");
+  for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
+  assert(
+    Math.abs(G.econ.liberty - 28) < 4,
+    `China liberty holds near soc0 under unchanged law (got ${G.econ.liberty})`
+  );
+  assert(
+    Math.abs(G.econ.crime - 24) < 8,
+    `China crime holds near soc0 under unchanged law (got ${G.econ.crime})`
+  );
+  const libBefore = G.econ.liberty;
+  assert(G.law.policies.digitalId, "China opens with digital identity");
+  G.law.policies.digitalId = false;
+  for (let i = 0; i < 16; i++) step(G, G.law, G.law, true);
+  assert(
+    G.econ.liberty > libBefore + 3,
+    `Repealing digitalId raises China liberty (${libBefore.toFixed(1)} → ${G.econ.liberty.toFixed(1)})`
+  );
 }
 
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
