@@ -169,23 +169,22 @@ function mutSocialDem(law) {
   return law;
 }
 
-/** Pay for the spend — still a hard left programme, but not an open cheque. */
-function mutFundedSocial(law) {
+/** Pay for care/skills with tax — viable left programme without also
+ *  jacking every spending line. */ function mutFundedSocial(law) {
   law.policies.childcare = true;
   law.policies.socialCare = true;
   law.policies.skills = true;
   law.policies.minWage = true;
-  law.spend.health = 10.0;
-  law.spend.education = 5.0;
-  law.spend.welfare = 14.0;
+  law.spend.health = 9.2;
+  law.spend.education = 4.6;
   law.taxes.wealthTax = { on: true, rate: 1.5 };
-  law.taxes.landTax = { on: true, rate: 1.5 };
-  law.taxes.corpTax.rate = 30;
+  law.taxes.landTax = { on: true, rate: 1.2 };
+  law.taxes.corpTax.rate = 28;
   law.taxes.vat.rate = 22;
   law.income.bands[0].rate = 22;
   law.income.bands[1].rate = 42;
   law.income.bands[2].rate = 50;
-  law.ni.erRate = 17;
+  law.ni.erRate = 16;
   return law;
 }
 

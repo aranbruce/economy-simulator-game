@@ -767,7 +767,8 @@ G = getG();
   applyEventOption(major.opts[0]);
   beginEpisode(major, major.opts[0]);
   assert(G.episode && G.episode.id === "globalRecess", "beginEpisode sets active episode");
-  assert(G.episode.endsQ === G.q + 8, `episode ends after duration (endsQ=${G.episode.endsQ})`);
+  const dur = major.duration != null ? major.duration : 8;
+  assert(G.episode.endsQ === G.q + dur, `episode ends after duration (endsQ=${G.episode.endsQ}, want +${dur})`);
   G.nextMajorQ = G.q;
   assert(rollMajorEvent() === null, "no second major while episode active");
   const endsQ = G.episode.endsQ;
@@ -2274,6 +2275,81 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(
     Math.abs(G.econ.fx / usFx - 1) < 0.08,
     `US currency barely drifts over 8q (${G.econ.fx.toFixed(4)} vs ${usFx.toFixed(4)})`
+  );
+}
+
+/* World shocks pulse bilateral exports, not only the rest residual. */
+{
+  newGame();
+  G = getG();
+  for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
+  const baseX = [];
+  for (let i = 0; i < 6; i++) {
+    const r = step(G, G.law, G.law, true);
+    baseX.push(G.econ.acct.X);
+  }
+  newGame();
+  G = getG();
+  for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
+  const major = EVENTS.find((e) => e.id === "globalRecess");
+  applyEventOption(major.opts[0]);
+  beginEpisode(major, major.opts[0]);
+  const hitX = [];
+  const hitG = [];
+  for (let i = 0; i < 6; i++) {
+    const r = step(G, G.law, G.law, true);
+    hitX.push(G.econ.acct.X);
+    hitG.push(r.growth);
+  }
+  const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  assert(
+    avg(hitX) < avg(baseX) - 0.35,
+    `global recess cuts exports (base X ${avg(baseX).toFixed(2)} → ${avg(hitX).toFixed(2)})`
+  );
+  assert(
+    avg(hitG) < 0.55,
+    `global recess weighs on growth (avg ${avg(hitG).toFixed(2)})`
+  );
+}
+
+/* Relative income updates with potential so catch-up is not permanent. */
+{
+  newGame();
+  G = getG();
+  assert(G.econ.yRel0 != null && G.econ.potential0 != null, "home pins yRel0 / potential0");
+  const cn0 = G.world.china.econ.yRel;
+  const catch0 = (() => {
+    const y = cn0;
+    return 2.15 * Math.max(0, Math.log(1 / Math.max(0.08, y)));
+  })();
+  for (let i = 0; i < 80; i++) step(G, G.law, G.law, true);
+  const cn1 = G.world.china.econ.yRel;
+  assert(
+    cn1 > cn0 + 0.03,
+    `china yRel rises as it outgrows the frontier (${cn0.toFixed(3)} → ${cn1.toFixed(3)})`
+  );
+  const catch1 = 2.15 * Math.max(0, Math.log(1 / Math.max(0.08, cn1)));
+  assert(
+    catch1 < catch0 - 0.05,
+    `china catch-up TFP fades as yRel rises (${catch0.toFixed(2)} → ${catch1.toFixed(2)})`
+  );
+}
+
+/* High-debt AI seats consolidate before the books explode. */
+{
+  newGame();
+  G = getG();
+  const jp = G.world.japan;
+  const spend0 = jp.law.spend.health + jp.law.spend.welfare;
+  for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
+  const spend1 = G.world.japan.law.spend.health + G.world.japan.law.spend.welfare;
+  assert(
+    spend1 < spend0 - 0.3 || G.world.japan.econ.debt < 380,
+    `japan fiscal rule tightens spend or holds debt off the clamp (spend ${spend0.toFixed(1)}→${spend1.toFixed(1)}, debt ${G.world.japan.econ.debt.toFixed(0)})`
+  );
+  assert(
+    G.world.japan.econ.gdp > 70,
+    `japan does not collapse to a rump economy (gdp index ${G.world.japan.econ.gdp.toFixed(1)})`
   );
 }
 
