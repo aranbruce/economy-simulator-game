@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node test/sim.js && node test/calibration.js"
+    "test": "node test/sim.js && node test/calibration.js",
+    "balance": "node scripts/balance-30y.mjs"
   },
   "dependencies": {
     "next": "^15.1.0",

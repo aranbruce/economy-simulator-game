@@ -344,8 +344,26 @@ Verdicts are deliberately **not** auto-clicked: that would call `newGame()`
 and wipe the run under test. Balance A/B tests should keep events off, because
 an event can legitimately overwrite the law under test.
 
+<<<<<<< HEAD
 Read the smoke and calibration output after any model change. Calibration fails
 the build if ready-reckoners drift beyond band.
+=======
+- `autoDespatch(0 | 'random' | null)` — modals normally wait for a click.
+  Headless, nothing clicks, so the quarter never completes. Verdicts are
+  deliberately **not** auto-clicked, since that would call `newGame()` and wipe
+  the run under test.
+- `disableEvents()` / `enableEvents()` — balance A/B tests need events off,
+  because an event can legitimately overwrite the law under test. This bit us
+  once: a fortress-economy run had its tariff conceded away by the trade-row
+  event, and the assertion was wrong, not the game.
+
+The suite used to end with a short balance report. For a fuller check, run
+`pnpm balance` (`scripts/balance-30y.mjs`): ten playstyles over 120 quarters
+(30 years). Current shape: baseline debt creeps (needs a mild squeeze),
+land-value / supply-side paths grade well, austerity survives fiscally but
+services collapse, unfunded tax cuts and closed-economy both hit a debt
+crisis, and a heavy growth stack can look generous on trend.
+>>>>>>> a2b8108 (Add 30-year playstyle balance harness)
 
 ## Design
 
