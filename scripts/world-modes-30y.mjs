@@ -64,6 +64,16 @@ function rowFor(G, id) {
     u: +e.unemployment.toFixed(1),
     infl: +e.inflation.toFixed(1),
     trend: +(e.trendGrowth || 0).toFixed(2),
+    services: +(e.services || 0).toFixed(0),
+    liberty: +(e.liberty || 0).toFixed(0),
+    crime: +(e.crime || 0).toFixed(0),
+    health: +(e.health || 0).toFixed(0),
+    env: +(e.env || 0).toFixed(0),
+    open: +(e.openness || 0).toFixed(0),
+    gini: +(e.gini || 0).toFixed(0),
+    services0: e.services0,
+    liberty0: e.liberty0,
+    crime0: e.crime0,
   };
 }
 
@@ -114,6 +124,34 @@ function printTable(title, rows) {
       r.u.toFixed(1).padStart(5),
       r.infl.toFixed(1).padStart(5),
       r.trend.toFixed(2).padStart(6)
+    );
+  }
+  console.log(
+    "Seat".padEnd(14),
+    "Svc".padStart(5),
+    "Lib".padStart(5),
+    "Cri".padStart(5),
+    "Hlt".padStart(5),
+    "Env".padStart(5),
+    "Open".padStart(5),
+    "Gini".padStart(5),
+    "  (vs soc0 svc/lib/cri)"
+  );
+  for (const r of rows) {
+    const pin =
+      r.services0 != null
+        ? `  (${r.services0}/${r.liberty0}/${r.crime0})`
+        : "";
+    console.log(
+      r.id.padEnd(14),
+      String(r.services).padStart(5),
+      String(r.liberty).padStart(5),
+      String(r.crime).padStart(5),
+      String(r.health).padStart(5),
+      String(r.env).padStart(5),
+      String(r.open).padStart(5),
+      String(r.gini).padStart(5),
+      pin
     );
   }
 }

@@ -1385,6 +1385,61 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.law.taxes.vat.rate !== 20, "Mexico VAT is not the UK rate");
 }
 
+/* Society layer opens from NATION_PROFILE.soc0, not a shared UK default. */
+{
+  const uk = NATION_PROFILE.kingdom.soc0;
+  assert(uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55, "Kingdom soc0 is the UK baseline");
+
+  newGame({ homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  assert(Math.abs(G.econ.liberty - 58) < 0.6, `Kingdom liberty near 58 (got ${G.econ.liberty})`);
+  assert(Math.abs(G.econ.crime - 28) < 0.6, `Kingdom crime near 28 (got ${G.econ.crime})`);
+  assert(Math.abs(G.econ.services - 55) < 2.5, `Kingdom services near 55 (got ${G.econ.services})`);
+
+  for (const c of COUNTRIES) {
+    if (c.id === "kingdom") continue;
+    const soc = NATION_PROFILE[c.id] && NATION_PROFILE[c.id].soc0;
+    assert(!!soc, `${c.id} has a soc0 society pin`);
+    const distinct =
+      soc.services !== uk.services ||
+      soc.liberty !== uk.liberty ||
+      soc.crime !== uk.crime ||
+      soc.health !== uk.health ||
+      soc.env !== uk.env ||
+      soc.openness !== uk.openness ||
+      soc.gini !== uk.gini;
+    assert(distinct, `${c.id} soc0 differs from Kingdom`);
+  }
+
+  newGame({ homeRole: "germany", homeIso: "276", country: "Rhine Federation" });
+  G = getG();
+  assert(G.econ.liberty0 === 62, "Germany liberty0 is 62");
+  assert(Math.abs(G.econ.liberty - 62) < 1.0, `Germany liberty near 62 (got ${G.econ.liberty})`);
+  assert(G.econ.crime0 === 22, "Germany crime0 is 22");
+  assert(Math.abs(G.econ.crime - 22) < 1.5, `Germany crime near 22 (got ${G.econ.crime})`);
+
+  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  assert(G.econ.liberty0 === 28, "China liberty0 is 28");
+  assert(G.econ.liberty < 40, `China liberty well below UK (got ${G.econ.liberty})`);
+  assert(G.econ.openness0 === 35, "China openness0 is 35");
+
+  newGame({ homeRole: "japan", homeIso: "392", country: "Rising Sun Federation" });
+  G = getG();
+  assert(G.econ.crime0 === 12, "Japan crime0 is 12");
+  assert(G.econ.crime < 20, `Japan crime well below UK (got ${G.econ.crime})`);
+  assert(G.econ.services0 === 68, "Japan services0 is 68");
+
+  newGame({ homeRole: "netherlands", homeIso: "528", country: "Low Countries" });
+  G = getG();
+  assert(G.econ.liberty0 === 72, "Netherlands liberty0 is 72");
+  assert(G.econ.openness0 === 68, "Netherlands openness0 is 68");
+  /* Anchors hold through early quarters rather than crawling back to UK. */
+  for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
+  assert(G.econ.liberty > 65, `Netherlands liberty stays elevated after 8Q (got ${G.econ.liberty})`);
+  assert(G.econ.openness > 60, `Netherlands openness stays elevated after 8Q (got ${G.econ.openness})`);
+}
+
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
    seat (derived from demography + yRel catch-up — not pinned tfpTrend). */
 {
