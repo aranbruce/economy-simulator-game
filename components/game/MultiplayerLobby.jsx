@@ -203,7 +203,6 @@ export default function MultiplayerLobby({
       </header>
       <div className="setup-dock hud-frame hud-surface">
         <div className="setup-pick">
-          <span className="setup-pick-tag">{realm.tag}</span>
           <strong>{realm.name}</strong>
           <em>Your seat if free</em>
         </div>

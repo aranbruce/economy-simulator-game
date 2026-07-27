@@ -1,4 +1,4 @@
-import { leaveRoom } from "../../../../../lib/mp/roomStore.js";
+import { leaveRoom } from "../../../../../../lib/mp/roomStore.js";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

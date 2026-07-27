@@ -23,6 +23,7 @@ import {
   BOARD_METRICS,
   boardMetricCaption,
   boardMetricBlocName,
+  boardMetricValueLabel,
 } from "../../lib/sim/boardMetrics.js";
 import { DEFAULT_REALM_ID, realmById, realmByRole, homeIsoForRealm } from "../../lib/sim/realms.js";
 import {
@@ -84,7 +85,7 @@ function wireRename() {
     input.setAttribute("aria-label", "Name of your country");
     const commit = () => {
       const v = (input.value || "").trim();
-      G.country = v || "The Kingdom";
+      G.country = v || "United Kingdom";
       if (input.parentNode) input.parentNode.replaceChild(btn, input);
       btn.dataset.wired = "";
       wireRename();
@@ -130,38 +131,34 @@ function paintMapLabel(G, mapMetric, selectedRole) {
   if (!label || !G) return;
   if (selectedRole === "home") {
     const note = (G.brief && G.brief[0]) || "Your economy";
-    const blocNote =
+    const fig =
       mapMetric === "blocs"
-        ? " · " + boardMetricBlocName("home", G)
-        : "";
+        ? boardMetricBlocName("home", G)
+        : boardMetricValueLabel("home", mapMetric, G);
+    const metricNote = fig ? " · " + fig : "";
     label.innerHTML =
-      "<b>" +
-      G.country +
-      "</b><span>" +
-      note +
-      blocNote +
-      "</span>";
+      "<b>" + G.country + "</b><span>" + note + metricNote + "</span>";
     return;
   }
   if (selectedRole) {
     const p = PARTNERS.find((x) => x.id === selectedRole);
-    const blocNote =
+    const fig =
       mapMetric === "blocs"
-        ? " · " + boardMetricBlocName(selectedRole, G)
-        : "";
+        ? boardMetricBlocName(selectedRole, G)
+        : boardMetricValueLabel(selectedRole, mapMetric, G);
+    const detail = fig
+      ? fig + " · economy card open"
+      : "Relations " +
+        Math.round(G.rel[selectedRole] ?? 50) +
+        " · economy card open";
     label.innerHTML =
-      "<b>" +
-      (p ? p.name : selectedRole) +
-      "</b><span>Relations " +
-      Math.round(G.rel[selectedRole] ?? 50) +
-      blocNote +
-      " · economy card open</span>";
+      "<b>" + (p ? p.name : selectedRole) + "</b><span>" + detail + "</span>";
     return;
   }
   const caption = boardMetricCaption(mapMetric, G);
   label.innerHTML =
     "<b>" +
-    (G.country || "The Kingdom") +
+    (G.country || "United Kingdom") +
     "</b><span>" +
     (caption || "Click a realm for its books") +
     "</span>";
@@ -766,7 +763,7 @@ export default function GameApp() {
               <span className="tb-crest">&#9878;</span>
               <span className="tb-name">
                 <button id="nameBtn" type="button">
-                  The Kingdom
+                  United Kingdom
                 </button>
                 <small id="tbTerm">First term</small>
               </span>
