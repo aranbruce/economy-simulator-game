@@ -17,10 +17,10 @@ Next.js App Router: UI in `components/`, pure sim in `lib/sim/`.
 ## Commands
 
 ```bash
-npm install
-npm run dev          # Next.js at http://localhost:3000
-npm run build        # production build
-npm test             # node test/sim.js && node test/calibration.js
+pnpm install
+pnpm dev             # Next.js at http://localhost:3000
+pnpm build           # production build
+pnpm test            # node test/sim.js && node test/calibration.js
 ```
 
 Re-extract the engine from the reference HTML after large sim edits:
@@ -767,7 +767,7 @@ if anything drifts beyond roughly a third either way. It checks receipt levels,
 marginal revenue per point, fiscal multiplier ordering (purchases > transfers >
 tax cuts, via peak output gap), employer NI → NAIRU, dual capital rates, and
 incidence ordering (transfers / allowance vs rate cuts).
-`npm test` runs smoke then calibration.
+`pnpm test` runs smoke then calibration.
 
 ## Impact analysis
 

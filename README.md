@@ -7,10 +7,10 @@ A browser game where you are Chancellor of a fictional country. Set tax rates, d
 ## Run locally
 
 ```bash
-npm install
-npm run dev   # http://localhost:3000
-npm test      # smoke + calibration
-npm run build
+pnpm install
+pnpm dev    # http://localhost:3000
+pnpm test   # smoke + calibration
+pnpm build
 ```
 
 ## How it works
