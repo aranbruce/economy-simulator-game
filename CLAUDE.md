@@ -3,7 +3,9 @@
 A Next.js browser game. You are Chancellor of a fictional country, named by
 the player and defaulting to "The Kingdom", and you run its economy through a macro model: tax rates and structures, departmental
 spending, legislation, drug and vice law, tariffs and trade treaties. Each turn
-is a quarter. Twenty quarters to an election.
+is a quarter. Term length depends on the seat's polity (democracy/hybrid: twenty
+quarters to an election or managed ballot; authoritarian/monarchy: forty to a
+party congress or court review).
 
 The permanent backdrop is a **fictional packed world map**: only your country
 and the mapped trade-partner realms (real coastlines / silhouettes, invented
@@ -51,7 +53,7 @@ Engine sections (inside `lib/sim/engine.js`) still follow the numbered banners:
 | 6. The bill | `billClauses()` — diffs `G.draft` against `G.law` and prices each change |
 | 7a. The map |  `REGIONS`, `countryField()`, `mapGeometry()`, `regionStats()`, `paintMap()` |
 | 7. Rendering | Tabs, sliders, cards, SVG charts |
-| 8. Despatches | `EVENTS`, elections, crises, game over |
+| 8. Despatches | `EVENTS`, term reviews (election/congress/court), crises, game over |
 | 9. Flow | `enact()`, `projectionModal()`, button wiring |
 
 ### Multi-country world
@@ -62,6 +64,14 @@ live `G.econ` remains canonical and is mirrored into `G.world[playerId]`.
 
 - **Politics stay player-only** — AI seats use frozen `lawForRole` plus a light
   automatic fiscal rule; no bills, factions, or capital.
+- **Polity is fixed per seat** (`NATION_PROFILE.polity`: democracy, hybrid,
+  authoritarian, monarchy). Democracy/hybrid run competitive or managed ballots
+  on a 20-quarter clock; authoritarian/monarchy use a 40-quarter party congress
+  or court review with a patriots-weighted score. Authoritarian and monarchy
+  seats regenerate political capital more slowly (`capitalRegen` 0.55) and face
+  a sharper elite coup (patriots below 28 for three quarters). Partner events
+  such as `newGovt` use election / reshuffle / succession copy from the focus
+  seat's polity — never a general election in China or Saudi.
 - **Trade** — `refreshWorldTrade` clears bilateral flows (`lib/sim/worldTrade.js`);
   cleared flows phase into the player's expenditure block over about a year.
 - **FX** — seats sharing `NATION_PROFILE.currency` share a Taylor rate and FX path
@@ -375,10 +385,12 @@ the file stays dependency-free.
 ## Rules and sandbox
 
 `G.sandbox` (**on by default**) suppresses every removal-from-office path:
-election defeat, a party coup after four quarters below 20% approval, and the
+term-review defeat, an elite coup (democracy/hybrid: four quarters below 20%
+approval; authoritarian/monarchy: three quarters below 28% patriots), and the
 terminal debt and inflation crises. The crisis still fires and still reports
 itself in the briefing; you simply keep the job. `gameOver()` returns early and
-`election()` returns you regardless. Toggle it at the foot of the bill drawer.
+`termReview()` / `election()` returns you regardless. Toggle it at the foot of
+the bill drawer.
 
 Tests that exercise real failure modes must set `sandbox = false` first, or the
 game never ends and long runs push debt to its clamp. One test caught exactly
