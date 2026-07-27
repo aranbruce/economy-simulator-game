@@ -347,6 +347,10 @@ an event can legitimately overwrite the law under test.
 Read the smoke and calibration output after any model change. Calibration fails
 the build if ready-reckoners drift beyond band.
 
+For a fuller long-run check, run `pnpm balance` (`scripts/balance-30y.mjs`):
+ten playstyles over 120 quarters (30 years). For all-AI vs all-human world
+modes, run `pnpm world-modes`.
+
 ## Design
 
 iOS Liquid Glass over a dark planet. Translucent surfaces

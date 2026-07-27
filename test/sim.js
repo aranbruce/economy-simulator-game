@@ -767,7 +767,8 @@ G = getG();
   applyEventOption(major.opts[0]);
   beginEpisode(major, major.opts[0]);
   assert(G.episode && G.episode.id === "globalRecess", "beginEpisode sets active episode");
-  assert(G.episode.endsQ === G.q + 8, `episode ends after duration (endsQ=${G.episode.endsQ})`);
+  const dur = major.duration != null ? major.duration : 8;
+  assert(G.episode.endsQ === G.q + dur, `episode ends after duration (endsQ=${G.episode.endsQ}, want +${dur})`);
   G.nextMajorQ = G.q;
   assert(rollMajorEvent() === null, "no second major while episode active");
   const endsQ = G.episode.endsQ;
@@ -1382,6 +1383,84 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   assert(G.law.taxes.vat.rate === 16, "Mexico opens at 16% VAT");
   assert(G.law.taxes.vat.rate !== 20, "Mexico VAT is not the UK rate");
+}
+
+/* Society layer opens from NATION_PROFILE.soc0, not a shared UK default. */
+{
+  const uk = NATION_PROFILE.kingdom.soc0;
+  assert(uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55, "Kingdom soc0 is the UK baseline");
+
+  newGame({ homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  assert(Math.abs(G.econ.liberty - 58) < 0.6, `Kingdom liberty near 58 (got ${G.econ.liberty})`);
+  assert(Math.abs(G.econ.crime - 28) < 0.6, `Kingdom crime near 28 (got ${G.econ.crime})`);
+  assert(Math.abs(G.econ.services - 55) < 2.5, `Kingdom services near 55 (got ${G.econ.services})`);
+
+  for (const c of COUNTRIES) {
+    if (c.id === "kingdom") continue;
+    const soc = NATION_PROFILE[c.id] && NATION_PROFILE[c.id].soc0;
+    assert(!!soc, `${c.id} has a soc0 society pin`);
+    const distinct =
+      soc.services !== uk.services ||
+      soc.liberty !== uk.liberty ||
+      soc.crime !== uk.crime ||
+      soc.health !== uk.health ||
+      soc.env !== uk.env ||
+      soc.openness !== uk.openness ||
+      soc.gini !== uk.gini;
+    assert(distinct, `${c.id} soc0 differs from Kingdom`);
+  }
+
+  newGame({ homeRole: "germany", homeIso: "276", country: "Rhine Federation" });
+  G = getG();
+  assert(G.econ.liberty0 === 62, "Germany liberty0 is 62");
+  assert(Math.abs(G.econ.liberty - 62) < 1.0, `Germany liberty near 62 (got ${G.econ.liberty})`);
+  assert(G.econ.crime0 === 22, "Germany crime0 is 22");
+  assert(Math.abs(G.econ.crime - 22) < 1.5, `Germany crime near 22 (got ${G.econ.crime})`);
+
+  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  assert(G.econ.liberty0 === 28, "China liberty0 is 28");
+  assert(G.econ.liberty < 40, `China liberty well below UK (got ${G.econ.liberty})`);
+  assert(G.econ.openness0 === 35, "China openness0 is 35");
+
+  newGame({ homeRole: "japan", homeIso: "392", country: "Rising Sun Federation" });
+  G = getG();
+  assert(G.econ.crime0 === 12, "Japan crime0 is 12");
+  assert(G.econ.crime < 20, `Japan crime well below UK (got ${G.econ.crime})`);
+  assert(G.econ.services0 === 68, "Japan services0 is 68");
+
+  newGame({ homeRole: "netherlands", homeIso: "528", country: "Low Countries" });
+  G = getG();
+  assert(G.econ.liberty0 === 72, "Netherlands liberty0 is 72");
+  assert(G.econ.openness0 === 68, "Netherlands openness0 is 68");
+  /* Anchors hold through early quarters rather than crawling back to UK. */
+  for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
+  assert(G.econ.liberty > 65, `Netherlands liberty stays elevated after 8Q (got ${G.econ.liberty})`);
+  assert(G.econ.openness > 60, `Netherlands openness stays elevated after 8Q (got ${G.econ.openness})`);
+
+  /* Opening-delta anchoring: unchanged statute holds near soc0; removing a
+     liberty-negative opening policy raises liberty (policy content still bites). */
+  newGame({ homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  assert(!!G.econ.socOpen, "China settle stores socOpen opening impulses");
+  for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
+  assert(
+    Math.abs(G.econ.liberty - 28) < 4,
+    `China liberty holds near soc0 under unchanged law (got ${G.econ.liberty})`
+  );
+  assert(
+    Math.abs(G.econ.crime - 24) < 8,
+    `China crime holds near soc0 under unchanged law (got ${G.econ.crime})`
+  );
+  const libBefore = G.econ.liberty;
+  assert(G.law.policies.digitalId, "China opens with digital identity");
+  G.law.policies.digitalId = false;
+  for (let i = 0; i < 16; i++) step(G, G.law, G.law, true);
+  assert(
+    G.econ.liberty > libBefore + 3,
+    `Repealing digitalId raises China liberty (${libBefore.toFixed(1)} → ${G.econ.liberty.toFixed(1)})`
+  );
 }
 
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
@@ -2275,6 +2354,103 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     Math.abs(G.econ.fx / usFx - 1) < 0.08,
     `US currency barely drifts over 8q (${G.econ.fx.toFixed(4)} vs ${usFx.toFixed(4)})`
   );
+}
+
+/* World shocks pulse bilateral exports, not only the rest residual. */
+{
+  newGame();
+  G = getG();
+  for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
+  const baseX = [];
+  for (let i = 0; i < 6; i++) {
+    const r = step(G, G.law, G.law, true);
+    baseX.push(G.econ.acct.X);
+  }
+  newGame();
+  G = getG();
+  for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
+  const major = EVENTS.find((e) => e.id === "globalRecess");
+  applyEventOption(major.opts[0]);
+  beginEpisode(major, major.opts[0]);
+  const hitX = [];
+  const hitG = [];
+  for (let i = 0; i < 6; i++) {
+    const r = step(G, G.law, G.law, true);
+    hitX.push(G.econ.acct.X);
+    hitG.push(r.growth);
+  }
+  const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
+  assert(
+    avg(hitX) < avg(baseX) - 0.35,
+    `global recess cuts exports (base X ${avg(baseX).toFixed(2)} → ${avg(hitX).toFixed(2)})`
+  );
+  assert(
+    avg(hitG) < 0.55,
+    `global recess weighs on growth (avg ${avg(hitG).toFixed(2)})`
+  );
+}
+
+/* Relative income updates with potential so catch-up is not permanent. */
+{
+  newGame();
+  G = getG();
+  assert(G.econ.yRel0 != null && G.econ.potential0 != null, "home pins yRel0 / potential0");
+  const cn0 = G.world.china.econ.yRel;
+  const catch0 = (() => {
+    const y = cn0;
+    return 2.15 * Math.max(0, Math.log(1 / Math.max(0.08, y)));
+  })();
+  for (let i = 0; i < 80; i++) step(G, G.law, G.law, true);
+  const cn1 = G.world.china.econ.yRel;
+  assert(
+    cn1 > cn0 + 0.03,
+    `china yRel rises as it outgrows the frontier (${cn0.toFixed(3)} → ${cn1.toFixed(3)})`
+  );
+  const catch1 = 2.15 * Math.max(0, Math.log(1 / Math.max(0.08, cn1)));
+  assert(
+    catch1 < catch0 - 0.05,
+    `china catch-up TFP fades as yRel rises (${catch0.toFixed(2)} → ${catch1.toFixed(2)})`
+  );
+}
+
+/* High-debt AI seats consolidate before the books explode. */
+{
+  newGame();
+  G = getG();
+  const jp = G.world.japan;
+  const spend0 = jp.law.spend.health + jp.law.spend.welfare;
+  for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
+  const spend1 = G.world.japan.law.spend.health + G.world.japan.law.spend.welfare;
+  assert(
+    spend1 < spend0 - 0.3 || G.world.japan.econ.debt < 380,
+    `japan fiscal rule tightens spend or holds debt off the clamp (spend ${spend0.toFixed(1)}→${spend1.toFixed(1)}, debt ${G.world.japan.econ.debt.toFixed(0)})`
+  );
+  assert(
+    G.world.japan.econ.gdp > 70,
+    `japan does not collapse to a rump economy (gdp index ${G.world.japan.econ.gdp.toFixed(1)})`
+  );
+}
+
+/* AI seats defend both sides of their debt band over a long run. */
+{
+  newGame();
+  G = getG();
+  for (let i = 0; i < 80; i++) step(G, G.law, G.law, true);
+  for (const id of ["germany", "france", "united_states", "japan", "china"]) {
+    const e = G.world[id].econ;
+    const anchor = e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id].debt0;
+    const target = Math.min(260, Math.max(50, anchor));
+    const bandHi = target + Math.min(30, 14 + target * 0.14);
+    const bandLo = target - Math.min(22, 12 + target * 0.12);
+    assert(
+      e.debt < bandHi + 35,
+      `AI ${id} stays near its debt band (debt ${e.debt.toFixed(0)}, bandHi ${bandHi.toFixed(0)}, anchor ${anchor})`
+    );
+    assert(
+      e.debt > Math.min(bandLo, 0) - 80,
+      `AI ${id} does not run away to a huge creditor position (debt ${e.debt.toFixed(0)}, bandLo ${bandLo.toFixed(0)})`
+    );
+  }
 }
 
 if (failed) {
