@@ -334,29 +334,18 @@ For a major world episode, set `major: true`, `duration`, `endTitle` /
 
 ## Testing
 
-**`document.getElementById` returns `null` for any id not assigned anywhere in
-the file.** This matters: a stub-for-everything harness let
-`$("resetBtn").onclick` survive long after that element was deleted from the
-markup, which throws on load in a real browser and passed silently here. If you
-remove an element, the suite will now tell you what still reaches for it.
+`pnpm test` runs `test/sim.js` then `test/calibration.js`. Both import the
+modular engine from `lib/sim/` directly (no DOM harness, no `index.html`
+extract). Despatches and events are exercised through engine exports
+(`autoDespatch`, `disableEvents` / `enableEvents`, and friends) so headless
+runs can advance quarters without clicks.
 
-`test/harness.js` extracts the `<script>` block from `index.html`, stubs the
-DOM, and runs it in a `vm` context. It exposes the internals plus three
-controls the tests need:
+Verdicts are deliberately **not** auto-clicked: that would call `newGame()`
+and wipe the run under test. Balance A/B tests should keep events off, because
+an event can legitimately overwrite the law under test.
 
-- `autoDespatch(0 | 'random' | null)` — modals normally wait for a click.
-  Headless, nothing clicks, so the quarter never completes. Verdicts are
-  deliberately **not** auto-clicked, since that would call `newGame()` and wipe
-  the run under test.
-- `disableEvents()` / `enableEvents()` — balance A/B tests need events off,
-  because an event can legitimately overwrite the law under test. This bit us
-  once: a fortress-economy run had its tariff conceded away by the trade-row
-  event, and the assertion was wrong, not the game.
-
-The suite ends with a balance report printing seven playstyles over twenty
-quarters. Read it after any model change. Current state: land value shift
-grades B, austerity survives but services collapse to 37, unfunded tax cuts and
-closed-economy both end in a debt crisis.
+Read the smoke and calibration output after any model change. Calibration fails
+the build if ready-reckoners drift beyond band.
 
 ## Design
 
