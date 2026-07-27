@@ -51,6 +51,9 @@ import {
   thresholdSliderMax,
   dragRatio,
   clearOpeningCache,
+  serviceScore,
+  spendForScore,
+  syncServiceHolds,
   currencyForSeat,
   fxDisplayIndex,
   IMPACT_ROWS,
@@ -891,6 +894,69 @@ assert(
   bandMax >= 350000,
   `band-floor slider max covers an overshot threshold (${bandMax})`
 );
+
+/* Hold-service: raising the spend slider must raise the held standard, even if
+   hold was left stale (the old UI bug). Otherwise step() snaps spend back. */
+{
+  clearOpeningCache();
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  const id = "health";
+  G.draft.mode[id] = "service";
+  G.draft.hold[id] = serviceScore(id, G.draft, G.econ);
+  G.draft.spend[id] = spendForScore(id, G.draft.hold[id], G.econ);
+  G.prevLaw = clone(G.law);
+  G.law = clone(G.draft);
+  step(G, G.law, G.prevLaw, true);
+  G.draft = clone(G.law);
+  const hold0 = G.law.hold[id];
+
+  /* Mimic a slider drag that updated spend but forgot hold (pre-fix path). */
+  G.draft.spend[id] = Math.min(
+    DEPTS.find((d) => d.id === id).max,
+    G.draft.spend[id] + 1.5
+  );
+  const staleHold = G.draft.hold[id];
+  assert(
+    Math.abs(staleHold - hold0) < 1e-9,
+    "precondition: hold still at the old standard before sync"
+  );
+  syncServiceHolds(G.draft, G.econ);
+  const hold1 = G.draft.hold[id];
+  assert(
+    hold1 > hold0 + 1,
+    `syncServiceHolds lifts the held standard with the slider (${hold0.toFixed(1)} → ${hold1.toFixed(1)})`
+  );
+
+  G.prevLaw = clone(G.law);
+  G.law = clone(G.draft);
+  step(G, G.law, G.prevLaw, true);
+  G.draft = clone(G.law);
+  assert(
+    Math.abs(G.law.hold[id] - hold1) < 1e-9,
+    "held standard survives the next quarter"
+  );
+  assert(
+    Math.abs(serviceScore(id, G.law, G.econ) - hold1) < 0.75,
+    `outturn service score tracks the new hold (got ${serviceScore(id, G.law, G.econ).toFixed(1)}, want ${hold1.toFixed(1)})`
+  );
+
+  /* Undoing a spend clause must restore hold too. */
+  G.draft.spend[id] = G.draft.spend[id] + 1;
+  syncServiceHolds(G.draft, G.econ);
+  const raisedHold = G.draft.hold[id];
+  const spendCl = billClauses().find((c) => /Health/.test(c.label) && /points of GDP/.test(c.label));
+  assert(spendCl, "raising health spend creates a bill clause");
+  spendCl.undo();
+  assert(
+    Math.abs(G.draft.spend[id] - G.law.spend[id]) < 1e-9,
+    "undo restores spend"
+  );
+  assert(
+    Math.abs(G.draft.hold[id] - G.law.hold[id]) < 1e-9,
+    `undo restores hold (got ${G.draft.hold[id]}, law ${G.law.hold[id]}, raised was ${raisedHold})`
+  );
+}
 
 /* Real allowance is CPI-deflated against the seat's own opening base. */
 {
