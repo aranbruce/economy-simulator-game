@@ -68,7 +68,6 @@ export default function CountryPicker({
 
       <div className="setup-dock hud-frame hud-surface">
         <div className="setup-pick">
-          <span className="setup-pick-tag">{realm.tag}</span>
           <strong>{realm.name}</strong>
           <em>{realm.blurb}</em>
           <div className="setup-books" aria-label={`Opening books for ${realm.name}`}>
