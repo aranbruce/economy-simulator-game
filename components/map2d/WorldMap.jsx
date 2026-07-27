@@ -257,7 +257,7 @@ function roleForFeature(iso, homeRole, homeIso) {
 }
 
 /**
- * Real-world map: Natural Earth coastlines, home + nine partner blocs lit,
+ * Real-world map: Natural Earth coastlines, home and partner realms lit,
  * everything else dim. Setup clicks a country to choose its realm.
  */
 export default function WorldMap({

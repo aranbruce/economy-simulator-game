@@ -2,8 +2,10 @@
 /**
  * Generate TRADE_MATRIX rows from legacy bloc-level weights.
  * Run: node scripts/generate-trade-matrix.mjs
+ * Home row pins come from COUNTRIES[].tradeShare (single source of truth).
  */
 import { writeFileSync } from "fs";
+import { COUNTRIES as COUNTRY_DEFS } from "../lib/sim/countries.js";
 
 const SPLIT = {
   continental: {
@@ -124,22 +126,43 @@ function expandRow(legacyRow) {
   return out;
 }
 
-const EU = ["germany", "france", "italy", "spain", "netherlands", "poland"];
-const INTRA_EU_SHARE = 0.40;
+/** Intra-bloc share of named trade when occupying a seat in a multi-member split. */
+const INTRA_BLOC_SHARE = {
+  continental: 0.40,
+  federated: 0.28,
+  andes: 0.22,
+  commonwealth: 0.18,
+  asean: 0.28,
+  equatorial: 0.18,
+  gulf: 0.22,
+};
 
-function addIntraEu(row, seat) {
-  if (!EU.includes(seat)) return row;
-  const split = SPLIT.continental;
-  let intraTotal = 0;
-  const intra = {};
-  for (const [cid, frac] of Object.entries(split)) {
-    if (cid === seat) continue;
-    intra[cid] = frac;
-    intraTotal += frac;
+function blocOfSeat(seat) {
+  return SEAT_FROM_LEGACY[seat] || null;
+}
+
+function injectIntraBloc(row, seat) {
+  const bloc = blocOfSeat(seat);
+  const split = bloc && SPLIT[bloc];
+  const intraShare = bloc && INTRA_BLOC_SHARE[bloc];
+  if (!split || !intraShare) return row;
+  const members = Object.keys(split).filter((id) => id !== seat);
+  if (members.length === 0) return row;
+
+  const external = { ...row };
+  delete external[seat];
+  for (const id of members) delete external[id];
+  const extSum = Object.values(external).reduce((a, b) => a + b, 0);
+  const extTarget = 0.96 - intraShare;
+
+  const out = {};
+  let memWeight = 0;
+  for (const id of members) memWeight += split[id];
+  for (const id of members) {
+    out[id] = memWeight > 0 ? (split[id] / memWeight) * intraShare : 0;
   }
-  const out = { ...row };
-  for (const [cid, frac] of Object.entries(intra)) {
-    out[cid] = (frac / intraTotal) * INTRA_EU_SHARE;
+  for (const [k, v] of Object.entries(external)) {
+    out[k] = extSum > 0 ? (v / extSum) * extTarget : 0;
   }
   return out;
 }
@@ -159,37 +182,23 @@ const TRADE_MATRIX = {};
 for (const seat of ["home", ...COUNTRIES]) {
   const legacyKey = SEAT_FROM_LEGACY[seat] || "home";
   const legacyRow = { ...(LEGACY[legacyKey] || LEGACY.home) };
-  if (seat !== "home" && seat !== "kingdom") {
-    if (EU.includes(seat)) {
-      legacyRow.kingdom = (legacyRow.kingdom || 0) + 0.02;
-    }
+  if (seat !== "home" && seat !== "kingdom" && blocOfSeat(seat) === "continental") {
+    legacyRow.kingdom = (legacyRow.kingdom || 0) + 0.02;
   }
   let row = expandRow(legacyRow);
-  if (seat !== "home" && EU.includes(seat)) {
-    const external = { ...row };
-    delete external[seat];
-    const extSum = Object.values(external).reduce((a, b) => a + b, 0);
-    const extTarget = 0.96 - INTRA_EU_SHARE;
-    row = addIntraEu({}, seat);
-    for (const [k, v] of Object.entries(external)) {
-      if (k === seat) continue;
-      row[k] = extSum > 0 ? (v / extSum) * extTarget : 0;
-    }
-  } else {
-    row = normalizeRow(row, seat === "home" ? null : seat);
-  }
-  if (seat !== "home" && seat !== "kingdom" && !EU.includes(seat)) {
-    row = normalizeRow(row, seat);
-  }
   if (seat === "home") {
-    delete row.kingdom;
-    Object.assign(row, {
-      germany: 0.12, france: 0.07, netherlands: 0.06, italy: 0.04, spain: 0.035, poland: 0.025,
-      united_states: 0.175, canada: 0.04, china: 0.11, russia: 0.03, india: 0.035,
-      brazil: 0.015, mexico: 0.01, argentina: 0.01, japan: 0.025, korea: 0.02, australia: 0.015,
-      indonesia: 0.015, vietnam: 0.01, turkey: 0.015,
-      saudi: 0.03, uae: 0.015, nigeria: 0.015, south_africa: 0.01, egypt: 0.01, kenya: 0.005,
-    });
+    row = {};
+    for (const c of COUNTRY_DEFS) {
+      if (c.id === "kingdom") continue;
+      if (c.tradeShare != null) row[c.id] = c.tradeShare;
+    }
+  } else if (seat === "kingdom") {
+    row = normalizeRow(row, "kingdom");
+  } else if (INTRA_BLOC_SHARE[blocOfSeat(seat)]) {
+    row = injectIntraBloc(row, seat);
+    row = normalizeRow(row, seat);
+  } else {
+    row = normalizeRow(row, seat);
   }
   TRADE_MATRIX[seat] = row;
 }

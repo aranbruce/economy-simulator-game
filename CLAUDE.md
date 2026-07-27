@@ -6,13 +6,15 @@ spending, legislation, drug and vice law, tariffs and trade treaties. Each turn
 is a quarter. Twenty quarters to an election.
 
 The permanent backdrop is a **fictional packed world map**: only your country
-and the nine trade-partner realms (real coastlines / silhouettes, invented
+and the mapped trade-partner realms (real coastlines / silhouettes, invented
 positions on a shared ocean). No other countries are drawn. If the map fails
 to load, the game falls back to the procedural country canvas. The map never
 owns game logic.
 
-The reference single-file build remains at `chancellor.html`. The live app is
-Next.js App Router: UI in `components/`, pure sim in `lib/sim/`.
+The reference single-file build remains at `chancellor.html` (frozen historical
+artifact — the live app is modular `lib/sim/*`). Do **not** run
+`scripts/extract-engine.mjs` against it; that would overwrite the modular engine.
+The live app is Next.js App Router: UI in `components/`, pure sim in `lib/sim/`.
 
 ## Commands
 
@@ -21,12 +23,6 @@ pnpm install
 pnpm dev             # Next.js at http://localhost:3000
 pnpm build           # production build
 pnpm test            # node test/sim.js && node test/calibration.js
-```
-
-Re-extract the engine from the reference HTML after large sim edits:
-
-```bash
-node scripts/extract-engine.mjs
 ```
 
 ## Architecture

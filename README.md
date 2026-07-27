@@ -17,7 +17,7 @@ pnpm build
 
 Each turn is a quarter. You edit a **draft** budget and law; **Deliver** diffs it against what's in force, prices the bill in political capital, and advances the simulation.
 
-The permanent backdrop is a fictional packed world map: your country plus nine trade-partner realms. If the map fails to load, the game falls back to a procedural country canvas. The map never owns game logic.
+The permanent backdrop is a fictional packed world map: your country plus the mapped trade-partner realms. If the map fails to load, the game falls back to a procedural country canvas. The map never owns game logic.
 
 Sandbox mode (on by default) suppresses removal-from-office paths so you can experiment freely.
 
