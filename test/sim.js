@@ -3173,6 +3173,15 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   beginActiveVisit(G, "france", "summit");
   G.draft.missions = { france: "sanctionsPosture" };
+  assert(
+    !billClauses().some((c) => /Restrictive measures/i.test(c.label)),
+    "billClauses drops sanctions staged during a state visit"
+  );
+  assert(
+    !(G.draft.missions && G.draft.missions.france),
+    "prune clears sanctions from draft while visit active"
+  );
+  G.draft.missions = { france: "sanctionsPosture" };
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
     !(G.econ.sanctionStance.france && G.econ.sanctionStance.france.against),
