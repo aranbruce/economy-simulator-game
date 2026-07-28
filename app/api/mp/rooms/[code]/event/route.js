@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request, { params }) {
   const { code } = await params;
   const body = await request.json().catch(() => ({}));
-  const result = chooseEvent(code, body.token, body);
+  const result = await chooseEvent(code, body.token, body);
   if (result.error) {
     return Response.json({ error: result.error }, { status: result.status });
   }

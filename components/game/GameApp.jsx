@@ -410,7 +410,7 @@ export default function GameApp() {
       clearMpSession();
       alert(
         err.status === 404
-          ? "That multiplayer room has ended (the host left or the server restarted)."
+          ? "That multiplayer room was lost (host left, or the server recycled without shared KV storage)."
           : err.message || "Could not resume multiplayer game"
       );
     }
@@ -456,7 +456,7 @@ export default function GameApp() {
       console.error(err);
       if (err.status === 404) {
         exitMpToSetup(
-          "This multiplayer room has ended (the host left or the server restarted)."
+          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
         );
         return;
       }
@@ -478,7 +478,7 @@ export default function GameApp() {
       console.error(err);
       if (err.status === 404) {
         exitMpToSetup(
-          "This multiplayer room has ended (the host left or the server restarted)."
+          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
         );
         return;
       }
@@ -628,7 +628,7 @@ export default function GameApp() {
       } catch (err) {
         if (err && err.status === 404) {
           exitMpToSetup(
-            "This multiplayer room has ended (the host left or the server restarted)."
+            "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
           );
         }
       }
