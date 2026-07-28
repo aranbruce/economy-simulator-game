@@ -152,6 +152,7 @@ import {
   beginActiveVisit,
   visitQuartersLeft,
   isVisitActive,
+  diploMapMarkers,
   diploHudHtml,
 } from "../lib/sim/engine.js";
 import { sharedCamp } from "../lib/sim/diplomacy.js";
@@ -3169,6 +3170,52 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(JSON.stringify(G.envoys) === JSON.stringify(snapEnv), "simulate does not mutate envoys");
   assert(JSON.stringify(G.ultimatums) === JSON.stringify(snapUlt), "simulate does not mutate ultimatums");
   assert(JSON.stringify(G.rel) === JSON.stringify(beforeRel), "simulate does not mutate live rel");
+}
+
+/* ---- Diplomatic map markers ---- */
+{
+  newGame();
+  G = getG();
+  assert(diploMapMarkers(G).length === 0, "new game has no diplo map markers");
+
+  G.capital = 80;
+  assignEnvoy("france");
+  G.draft.missions = { germany: "summit" };
+  G.rel.russia = 40;
+  issueUltimatum("russia", "tariffCut");
+  const markers = diploMapMarkers(G);
+  assert(markers.length === 3, "envoy + staged summit + ultimatum produce three markers");
+  assert(
+    markers.some((m) => m.partnerId === "france" && m.kind === "envoy"),
+    "france envoy marker"
+  );
+  assert(
+    markers.some((m) => m.partnerId === "germany" && m.kind === "summit_staged"),
+    "germany staged summit marker"
+  );
+  assert(
+    markers.some((m) => m.partnerId === "russia" && m.kind === "ultimatum"),
+    "russia ultimatum marker"
+  );
+
+  G.draft.missions = { germany: "summit" };
+  beginActiveVisit(G, "germany", "summit");
+  const withVisit = diploMapMarkers(G);
+  assert(
+    !withVisit.some((m) => m.partnerId === "germany" && m.kind === "summit_staged"),
+    "active visit replaces staged summit marker"
+  );
+  assert(
+    withVisit.some((m) => m.partnerId === "germany" && m.kind === "summit"),
+    "active visit shows summit marker"
+  );
+
+  G.q = G.ultimatums.russia.expiresQ;
+  processUltimatums(G, true);
+  assert(
+    !diploMapMarkers(G).some((m) => m.kind === "ultimatum"),
+    "resolved ultimatum drops from map markers"
+  );
 }
 
 {
