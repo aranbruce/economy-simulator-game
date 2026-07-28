@@ -3012,6 +3012,17 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
+  G.capital = 80;
+  assert(assignEnvoy("france"), "first envoy slot fills");
+  assert(assignEnvoy("germany"), "second envoy slot fills");
+  assert(!assignEnvoy("japan"), "third envoy assign rejected when slots full");
+  assert(!G.envoys.includes("japan"), "full slots do not overwrite an existing envoy");
+  assert(G.envoys.includes("france") && G.envoys.includes("germany"), "prior envoys retained");
+}
+
+{
+  newGame();
+  G = getG();
   G.q = 5;
   G.rel.russia = 30;
   G.eventFocus = "russia";

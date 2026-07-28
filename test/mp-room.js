@@ -237,4 +237,191 @@ assert.ok(
   "top-level snap.econ tracks lead seat after resolve (not frozen opening)"
 );
 
+/* ---- Diplomacy seat isolation ---- */
+_resetRoomsForTests();
+newGame({ country: "Hostland", homeRole: "home", silent: true });
+const snapDiplo = exportGameSnapshot(getG());
+const hDiplo = createRoom({ hostName: "Alice", role: "home" });
+const gDiplo = joinRoom(hDiplo.room.code, { name: "Bob", role: "germany" });
+const stDiplo = startRoom(hDiplo.room.code, hDiplo.token, snapDiplo);
+assert.ok(!stDiplo.error, stDiplo.error);
+
+/* Seed empty diplo politics explicitly for clarity. */
+assert.ok(
+  Array.isArray(stDiplo.room.snapshot.politics.kingdom.envoys),
+  "host politics seed envoys"
+);
+assert.ok(
+  Array.isArray(stDiplo.room.snapshot.politics.germany.envoys),
+  "guest politics seed envoys"
+);
+
+const hostDraft = clone(stDiplo.room.snapshot.world.kingdom.law);
+hostDraft.missions = { france: "summit" };
+const guestDraft = clone(stDiplo.room.snapshot.world.germany.law);
+guestDraft.missions = { japan: "sanctionsPosture" };
+
+const hostEnv = [null, null];
+hostEnv[0] = "france";
+const guestEnv = [null, null];
+guestEnv[0] = "japan";
+
+const hostUlt = {
+  russia: {
+    demand: "tariff_cut",
+    label: "Cut tariffs",
+    sentQ: 0,
+    expiresQ: 2,
+    status: "pending",
+  },
+};
+
+submitBill(hDiplo.room.code, hDiplo.token, hostDraft, {
+  envoys: hostEnv,
+  ultimatums: hostUlt,
+});
+const diploResolved = submitBill(gDiplo.room.code, gDiplo.token, guestDraft, {
+  envoys: guestEnv,
+  ultimatums: {},
+});
+assert.ok(!diploResolved.error, diploResolved.error);
+assert.equal(diploResolved.resolved, true, "diplo quarter resolves");
+
+const polK = diploResolved.room.snapshot.politics.kingdom;
+const polG = diploResolved.room.snapshot.politics.germany;
+
+assert.ok(polK.envoys.includes("france"), "host keeps france envoy");
+assert.ok(!polK.envoys.includes("japan"), "host does not inherit guest envoy");
+assert.ok(polG.envoys.includes("japan"), "guest keeps japan envoy");
+assert.ok(!polG.envoys.includes("france"), "guest does not inherit host envoy");
+
+assert.ok(
+  polK.activeVisits && polK.activeVisits.france,
+  "host summit creates host-only active visit"
+);
+assert.ok(
+  !polG.activeVisits || !polG.activeVisits.france,
+  "guest does not see host's france visit"
+);
+assert.ok(
+  polK.ultimatums && polK.ultimatums.russia,
+  "host ultimatum stays on host politics"
+);
+assert.ok(
+  !polG.ultimatums || !polG.ultimatums.russia,
+  "guest does not see host ultimatum"
+);
+
+/* Capital charged for envoy (+ summit is a bill clause). */
+assert.ok(
+  polK.capital < 42,
+  "host capital spent on bill and/or envoy"
+);
+
+/* Hydrate each seat — remounted diplo must not cross. */
+hydrateGameSnapshot(diploResolved.room.snapshot, {
+  homeRole: "home",
+  seatId: "kingdom",
+  country: "Alice",
+  render: false,
+});
+const gHost = getG();
+assert.ok(gHost.envoys.includes("france"), "hydrate host remounts france envoy");
+assert.ok(!gHost.envoys.includes("japan"), "hydrate host has no japan envoy");
+assert.ok(gHost.activeVisits.france, "hydrate host remounts france visit");
+assert.ok(gHost.ultimatums.russia, "hydrate host remounts russia ultimatum");
+
+hydrateGameSnapshot(diploResolved.room.snapshot, {
+  homeRole: "germany",
+  seatId: "germany",
+  country: "Bob",
+  render: false,
+});
+const gGuest = getG();
+assert.ok(gGuest.envoys.includes("japan"), "hydrate guest remounts japan envoy");
+assert.ok(!gGuest.envoys.includes("france"), "hydrate guest has no france envoy");
+assert.ok(
+  !gGuest.activeVisits || !gGuest.activeVisits.france,
+  "hydrate guest has no host visit"
+);
+assert.ok(
+  !gGuest.ultimatums || !gGuest.ultimatums.russia,
+  "hydrate guest has no host ultimatum"
+);
+
+/* Host summit does not block guest sanctions against the same partner. */
+_resetRoomsForTests();
+newGame({ country: "Hostland", homeRole: "home", silent: true });
+const snapVis = exportGameSnapshot(getG());
+const hVis = createRoom({ hostName: "Alice", role: "home" });
+const gVis = joinRoom(hVis.room.code, { name: "Bob", role: "united_states" });
+const stVis = startRoom(hVis.room.code, hVis.token, snapVis);
+assert.ok(!stVis.error, stVis.error);
+
+const draftVisHost = clone(stVis.room.snapshot.world.kingdom.law);
+draftVisHost.missions = { china: "summit" };
+const draftVisGuest = clone(stVis.room.snapshot.world.united_states.law);
+draftVisGuest.missions = {};
+
+submitBill(hVis.room.code, hVis.token, draftVisHost, { envoys: [null, null] });
+const visQ1 = submitBill(gVis.room.code, gVis.token, draftVisGuest, {
+  envoys: [null, null],
+});
+assert.ok(!visQ1.error, visQ1.error);
+assert.ok(
+  visQ1.room.snapshot.politics.kingdom.activeVisits.china,
+  "host china visit live after Q1"
+);
+
+/* Guest stages sanctions vs china while host visit is live — must apply. */
+const draftSanHost = clone(visQ1.room.snapshot.world.kingdom.law);
+draftSanHost.missions = {};
+const draftSanGuest = clone(visQ1.room.snapshot.world.united_states.law);
+draftSanGuest.missions = { china: "sanctionsPosture" };
+
+submitBill(hVis.room.code, hVis.token, draftSanHost, {
+  envoys: visQ1.room.snapshot.politics.kingdom.envoys,
+});
+const visQ2 = submitBill(gVis.room.code, gVis.token, draftSanGuest, {
+  envoys: visQ1.room.snapshot.politics.united_states.envoys,
+});
+assert.ok(!visQ2.error, visQ2.error);
+const usEcon = visQ2.room.snapshot.world.united_states.econ;
+assert.ok(
+  usEcon.relImpulse && (usEcon.relImpulse.china || 0) < 0,
+  "guest sanctions vs china apply despite host's china visit"
+);
+assert.ok(
+  !visQ2.room.snapshot.politics.united_states.activeVisits ||
+    !visQ2.room.snapshot.politics.united_states.activeVisits.china,
+  "guest has no china visit of their own"
+);
+
+/* Summit mission event lands only on the enacting seat's pendingEvent. */
+_resetRoomsForTests();
+newGame({ country: "Hostland", homeRole: "home", silent: true });
+const snapSum = exportGameSnapshot(getG());
+const hSum = createRoom({ hostName: "Alice", role: "home" });
+const gSum = joinRoom(hSum.room.code, { name: "Bob", role: "germany" });
+const stSum = startRoom(hSum.room.code, hSum.token, snapSum);
+const draftSumHost = clone(stSum.room.snapshot.world.kingdom.law);
+draftSumHost.missions = { france: "summit" };
+const draftSumGuest = clone(stSum.room.snapshot.world.germany.law);
+draftSumGuest.missions = {};
+submitBill(hSum.room.code, hSum.token, draftSumHost, { envoys: [null, null] });
+const sumRes = submitBill(gSum.room.code, gSum.token, draftSumGuest, {
+  envoys: [null, null],
+});
+assert.ok(!sumRes.error, sumRes.error);
+const hostPending = sumRes.room.snapshot.politics.kingdom.pendingEvent;
+const guestPending = sumRes.room.snapshot.politics.germany.pendingEvent;
+assert.ok(
+  hostPending && hostPending.missionEvent && hostPending.partnerId === "france",
+  "host gets summit mission pendingEvent for france"
+);
+assert.ok(
+  !guestPending || !guestPending.missionEvent || guestPending.partnerId !== "france",
+  "guest does not get host's france summit mission event"
+);
+
 console.log("mp-room: ok");

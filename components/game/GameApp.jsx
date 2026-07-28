@@ -437,6 +437,8 @@ export default function GameApp() {
         rateManual: !!G.rateManual,
         manualRate: G.manualRate,
         sandbox: !!G.sandbox,
+        envoys: clone(G.envoys || [null, null]),
+        ultimatums: clone(G.ultimatums || {}),
       });
       setMpRoom(data.room);
       lastMpVersion.current = data.room.version;

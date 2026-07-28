@@ -10,6 +10,8 @@ export async function POST(request, { params }) {
     rateManual: body.rateManual,
     manualRate: body.manualRate,
     sandbox: body.sandbox,
+    envoys: body.envoys,
+    ultimatums: body.ultimatums,
   });
   if (result.error) {
     return Response.json({ error: result.error }, { status: result.status });
