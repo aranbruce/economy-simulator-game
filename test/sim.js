@@ -96,6 +96,12 @@ import {
   lawForRole,
   realmLawKey,
   baseLaw,
+  briefingImpactLines,
+  mergeBriefingImpact,
+  briefingImpactParts,
+  briefingHtml,
+  writeBriefing,
+  spending,
   POLITY,
   POLITY_IDS,
   REL_POLITY,
@@ -1174,6 +1180,131 @@ pushPress(billClips);
 pushPress(billClips);
 pushPress(eventClips);
 assert(G.press.length <= 3, "press layer caps at three scraps");
+
+/* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
+{
+  const quiet = briefingImpactLines({ head: {}, fac: {} }, { kind: "bill", clauses: [] });
+  assert(quiet.length === 0, "empty impact yields no briefing lines");
+
+  const noopBill = briefingImpactLines(
+    { head: { growth: 0.01, balance: 0.01 }, fac: { business: 0.1 } },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 21%", pc: 2 }] }
+  );
+  assert(
+    noopBill.length === 1 && /barely moves the dial/.test(noopBill[0]),
+    "near-zero bill impact still gets a barely-moves line"
+  );
+
+  const rich = briefingImpactLines(
+    {
+      head: {
+        growth: 0.32,
+        balance: 0.45,
+        debt: -0.2,
+        inflation: 0.01,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 0.8,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: { business: 1.2, workers: -0.9, capital: 0.1 },
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(rich.length >= 2, "material impact yields economic and approval lines");
+  assert(/over the next year, compared with standing still/.test(rich[0]), "economic impact closes with year-ahead comparison");
+  assert(/growth/i.test(rich[0]) && /deficit/i.test(rich[0]), "economic impact names growth and deficit");
+  assert(/polls/i.test(rich[1]), "approval sits in its own line");
+
+  const parts = briefingImpactParts(
+    {
+      head: {
+        growth: 0.32,
+        balance: 0.45,
+        debt: -0.2,
+        inflation: 0.01,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 0.8,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: { business: 1.2, workers: -0.9, capital: 0.1 },
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(parts && parts.economic && parts.approval, "impact parts split economic and approval");
+  assert(/growth/i.test(parts.economic) && /deficit/i.test(parts.economic), "economic box covers growth and deficit");
+  assert(/polls/i.test(parts.approval), "approval box covers polls");
+  assert(/Business/.test(parts.politics), "faction warmth stays with approval");
+
+  const macro = briefingImpactLines(
+    {
+      head: {
+        growth: 0.28,
+        inflation: 0.41,
+        balance: 0.55,
+        debt: -0.15,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 1.1,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: {},
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(/growth/i.test(macro[0]) && /inflation/i.test(macro[0]) && /deficit/i.test(macro[0]), "material growth, inflation and deficit are always mentioned");
+  assert(!/polls/i.test(macro[0]), "approval stays out of the economic line when split");
+
+  const decision = briefingImpactLines(
+    { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
+    { kind: "decision" }
+  );
+  assert(/over the next year, compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
+
+  const merged = mergeBriefingImpact(["Outturn colour."], rich);
+  assert(merged[0] === rich[0], "legacy merge still puts impact lines first");
+  assert(merged.length <= 4, "merged briefing stays short");
+  assert(merged.includes("Outturn colour."), "outturn survives when there is room");
+
+  newGame();
+  G = getG();
+  G.draft.taxes.vat.rate = (G.law.taxes.vat.rate || 20) + 2;
+  const im = impactOf(clone(G.draft), simulate(G.law, 4), 4);
+  const liveParts = briefingImpactParts(im, {
+    kind: "bill",
+    clauses: [{ label: "VAT up", pc: 4 }],
+  });
+  assert(liveParts && liveParts.economic, "live VAT rise produces economic impact box");
+  assert(/growth/i.test(liveParts.economic) && /inflation/i.test(liveParts.economic) && /deficit/i.test(liveParts.economic), "live VAT mentions growth, inflation and deficit");
+  assert(liveParts.approval && /polls/i.test(liveParts.approval), "live VAT puts approval in its own box");
+  G.briefImpact = liveParts;
+  const briefSnap = JSON.stringify(G.econ);
+  const E = aggregate(G.law);
+  writeBriefing({
+    growth: 0.5,
+    pg: 0.8,
+    E,
+    sp: spending(G.law, E, G.econ),
+    deficit: 4.5,
+  });
+  assert(JSON.stringify(G.econ) === briefSnap, "briefing impact does not mutate econ");
+
+  const html = briefingHtml(G.brief, { impact: liveParts });
+  assert(/briefing-impact--econ/.test(html) && /briefing-impact--approval/.test(html), "briefingHtml renders both impact boxes");
+  assert(/Next year/.test(html) && /Approval/.test(html), "briefingHtml labels next year and approval sections");
+  assert(/Four-quarter total/.test(html), "briefingHtml explains year-ahead horizon");
+  assert(/This quarter/.test(html), "briefingHtml still renders outturn section");
+}
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
 {
