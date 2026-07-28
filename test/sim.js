@@ -96,6 +96,10 @@ import {
   lawForRole,
   realmLawKey,
   baseLaw,
+  briefingImpactLines,
+  mergeBriefingImpact,
+  writeBriefing,
+  spending,
 } from "../lib/sim/engine.js";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
@@ -1155,6 +1159,78 @@ pushPress(billClips);
 pushPress(billClips);
 pushPress(eventClips);
 assert(G.press.length <= 3, "press layer caps at three scraps");
+
+/* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
+{
+  const quiet = briefingImpactLines({ head: {}, fac: {} }, { kind: "bill", clauses: [] });
+  assert(quiet.length === 0, "empty impact yields no briefing lines");
+
+  const noopBill = briefingImpactLines(
+    { head: { growth: 0.01, balance: 0.01 }, fac: { business: 0.1 } },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 21%", pc: 2 }] }
+  );
+  assert(
+    noopBill.length === 1 && /barely move/.test(noopBill[0]),
+    "near-zero bill impact still gets a barely-moves line"
+  );
+
+  const rich = briefingImpactLines(
+    {
+      head: {
+        growth: 0.32,
+        balance: 0.45,
+        debt: -0.2,
+        inflation: 0.01,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 0.8,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: { business: 1.2, workers: -0.9, capital: 0.1 },
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(rich.length >= 1, "material impact yields briefing lines");
+  assert(/Against holding still/.test(rich[0]), "bill impact opens against holding still");
+  assert(/growth/.test(rich[0]) && /budget balance|deficit/.test(rich[0]), "bill impact names growth and fiscal score");
+  assert(rich.some((t) => /Business/.test(t) && /Workers/.test(t)), "faction warmth lands in a briefing line");
+
+  const decision = briefingImpactLines(
+    { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
+    { kind: "decision" }
+  );
+  assert(/Against leaving that choice alone/.test(decision[0]), "event impact uses decision opener");
+
+  const merged = mergeBriefingImpact(["Outturn colour."], rich);
+  assert(merged[0] === rich[0], "impact lines lead the morning note");
+  assert(merged.length <= 4, "merged briefing stays short");
+  assert(merged.includes("Outturn colour."), "outturn survives when there is room");
+
+  newGame();
+  G = getG();
+  G.draft.taxes.vat.rate = (G.law.taxes.vat.rate || 20) + 2;
+  const im = impactOf(clone(G.draft), simulate(G.law, 4), 4);
+  const live = briefingImpactLines(im, {
+    kind: "bill",
+    clauses: [{ label: "VAT up", pc: 4 }],
+  });
+  assert(live.length >= 1, "live VAT rise produces morning-note impact prose");
+  assert(/Against holding still|barely move/.test(live[0]), "live impact uses Permanent Secretary voice");
+  const briefSnap = JSON.stringify(G.econ);
+  writeBriefing({
+    growth: 0.5,
+    pg: 0.8,
+    E: aggregate(G.law),
+    sp: spending(G.law, G.econ),
+    deficit: 4.5,
+  });
+  G.brief = mergeBriefingImpact(G.brief, live);
+  assert(JSON.stringify(G.econ) === briefSnap, "briefing impact merge does not mutate econ");
+  assert(/Against holding still|barely move/.test(G.brief[0]), "merged morning note leads with impact");
+}
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
 {
