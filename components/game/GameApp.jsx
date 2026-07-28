@@ -46,6 +46,7 @@ import MultiplayerLobby from "./MultiplayerLobby";
 
 const SHELL_IDS = [
   "topbar",
+  "diploHud",
   "nameBtn",
   "tbTerm",
   "tbMode",
@@ -660,10 +661,20 @@ export default function GameApp() {
     [phase]
   );
 
-  const onOpenTrade = useCallback((role) => {
+  const openPartnerPanel = useCallback((panel, role) => {
     setSelectedRole(role);
-    setTab("trade");
+    setTab(panel, role);
   }, []);
+
+  const onOpenTrade = useCallback(
+    (role) => openPartnerPanel("trade", role),
+    [openPartnerPanel]
+  );
+
+  const onOpenDiplomacy = useCallback(
+    (role) => openPartnerPanel("diplomacy", role),
+    [openPartnerPanel]
+  );
 
   const onWorldFail = useCallback(() => setWorldOk(false), []);
 
@@ -746,6 +757,9 @@ export default function GameApp() {
               onOpenTrade={
                 selectedRole !== "home" ? onOpenTrade : undefined
               }
+              onOpenDiplomacy={
+                selectedRole !== "home" ? onOpenDiplomacy : undefined
+              }
             />
           )}
 
@@ -771,6 +785,21 @@ export default function GameApp() {
             </div>
             <div className="tb-stats" id="tbStats" />
           </header>
+
+          <div
+            id="diploHud"
+            className="diplo-hud hud-frame hud-surface"
+            hidden
+            role="button"
+            tabIndex={0}
+            aria-label="Active diplomacy"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                e.currentTarget.click();
+              }
+            }}
+          />
 
           <div
             id="drawer"

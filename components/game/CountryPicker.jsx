@@ -86,8 +86,33 @@ export default function CountryPicker({
 
       <div className="setup-dock hud-frame hud-surface">
         <div className="setup-pick">
-          <strong>{realm.name}</strong>
-          <em>{realm.blurb}</em>
+          <div className="setup-pick-head">
+            <div className="setup-pick-title">
+              <strong>{realm.name}</strong>
+              <em>{realm.blurb}</em>
+            </div>
+            <div className="setup-mode" role="group" aria-label="Game mode">
+              <span className="setup-mode-label">Mode</span>
+              <div className="seg mini">
+                <button
+                  type="button"
+                  aria-pressed={!sandbox}
+                  onClick={() => setSandbox(false)}
+                >
+                  Career
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={sandbox}
+                  onClick={() => setSandbox(true)}
+                  title="Cannot be removed from office"
+                >
+                  Sandbox
+                </button>
+              </div>
+              <p className="setup-mode-hint">{modeHint(sandbox, meta)}</p>
+            </div>
+          </div>
           <div className="setup-books" aria-label={`Opening books for ${realm.name}`}>
             <SetupStat label="Polity" value={meta.label} />
             <SetupStat label="GDP" value={fmtGdpBn(books.gdpBn)} />
@@ -98,56 +123,37 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="setup-mode" role="group" aria-label="Game mode">
-          <span className="setup-mode-label">Mode</span>
-          <div className="seg mini">
-            <button
-              type="button"
-              aria-pressed={!sandbox}
-              onClick={() => setSandbox(false)}
-            >
-              Career
-            </button>
-            <button
-              type="button"
-              aria-pressed={sandbox}
-              onClick={() => setSandbox(true)}
-              title="Cannot be removed from office"
-            >
-              Sandbox
-            </button>
-          </div>
-          <p className="setup-mode-hint">{modeHint(sandbox, meta)}</p>
-        </div>
-        <button
-          type="button"
-          className="setup-go"
-          onClick={() =>
-            onStart({
-              country: name,
-              homeRole: realm.role,
-              homeIso: homeIsoForRealm(realm),
-              realmId: realm.id,
-              sandbox,
-            })
-          }
-        >
-          Take the seals
-        </button>
-        {typeof onMultiplayer === "function" && (
+        <div className="setup-actions">
           <button
             type="button"
-            className="setup-go secondary"
-            onClick={() => onMultiplayer({ realm, name, sandbox })}
+            className="setup-go"
+            onClick={() =>
+              onStart({
+                country: name,
+                homeRole: realm.role,
+                homeIso: homeIsoForRealm(realm),
+                realmId: realm.id,
+                sandbox,
+              })
+            }
           >
-            Multiplayer lobby
+            Get started
           </button>
-        )}
-        {typeof onResume === "function" && (
-          <button type="button" className="setup-go secondary" onClick={onResume}>
-            Resume multiplayer
-          </button>
-        )}
+          {typeof onMultiplayer === "function" && (
+            <button
+              type="button"
+              className="setup-go secondary"
+              onClick={() => onMultiplayer({ realm, name, sandbox })}
+            >
+              Multiplayer lobby
+            </button>
+          )}
+          {typeof onResume === "function" && (
+            <button type="button" className="setup-go secondary" onClick={onResume}>
+              Resume multiplayer
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

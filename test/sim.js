@@ -121,7 +121,40 @@ import {
   termReview,
   checkCrises,
   FACTIONS,
+  relationModifiers,
+  relationTarget,
+  assignEnvoy,
+  recallEnvoy,
+  issueUltimatum,
+  processUltimatums,
+  canIssueUltimatum,
+  addDiploLedger,
+  setSanctionStance,
+  applySphereTrespassOnDeal,
+  ENVOY_ASSIGN_PC,
+  ENVOY_TARGET,
+  ULTIMATUM_PC,
+  ULTIMATUM_JITTER,
+  LEDGER_DECAY,
+  TABS,
+  ultimatumDemandsFor,
+  baseP,
+  concedeP,
+  partnerSelfInterest,
+  interestTag,
+  partnerTariffOnPlayer,
+  ultimatumOutcomeImpacts,
+  rollMissionEvent,
+  applyMissionEventOption,
+  MISSION_EVENTS,
+  queueSummitVisitEvents,
+  VISIT_DURATION,
+  beginActiveVisit,
+  visitQuartersLeft,
+  isVisitActive,
+  diploHudHtml,
 } from "../lib/sim/engine.js";
+import { sharedCamp } from "../lib/sim/diplomacy.js";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
 import { partnerForIso } from "../lib/sim/partners.js";
@@ -134,6 +167,10 @@ function assert(cond, msg) {
   } else {
     console.log("ok:", msg);
   }
+}
+function ensureSched(law) {
+  if (!law.tariffSchedule) law.tariffSchedule = { default: 4, country: {}, bloc: {} };
+  if (!law.tariffSchedule.country) law.tariffSchedule.country = {};
 }
 
 newGame();
@@ -2086,9 +2123,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const cost = cl.reduce((a, c) => a + c.pc, 0);
   const cap0 = G.capital;
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(isVisitActive(G, "france"), "summit begins a two-quarter state visit on enact");
   assert(
-    (G.econ.relImpulse.france || 0) >= 10,
-    `summit adds relImpulse (got ${G.econ.relImpulse.france})`
+    !G.missionEvents || G.missionEvents.length === 0,
+    "summit does not queue mission event until deliver queues visit events"
+  );
+  queueSummitVisitEvents(G);
+  assert(
+    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].missionId === "summit",
+    "first deliver during summit visit queues one mission event"
+  );
+  assert(
+    (G.econ.relImpulse.france || 0) < 10,
+    "summit no longer applies full relImpulse on enact"
   );
   assert(
     G.econ.missionCd.france === 3,
@@ -2843,6 +2890,557 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       `AI ${id} does not run away to a huge creditor position (debt ${e.debt.toFixed(0)}, bandLo ${bandLo.toFixed(0)})`
     );
   }
+}
+
+/* ---- Diplomacy dock tab ---- */
+{
+  const ids = TABS.map((t) => t.id);
+  const tradeAt = ids.indexOf("trade");
+  const diploAt = ids.indexOf("diplomacy");
+  assert(tradeAt >= 0 && diploAt === tradeAt + 1, "Diplomacy tab sits next to Trade");
+  assert(TABS[diploAt].icon === "seal", "Diplomacy uses the seal dock icon");
+  newGame();
+  G = getG();
+  G.draft.missions = { france: "summit" };
+  const cl = billClauses();
+  assert(clausesIn("diplomacy", cl), "staged mission pips the Diplomacy tab");
+  assert(!clausesIn("trade", cl), "staged mission does not pip Trade");
+}
+
+/* ---- Diplomacy modifiers, envoys, ultimatums ---- */
+{
+  newGame();
+  G = getG();
+  assert(G.econ.relBase && G.econ.relBase.canada != null, "relBase seeded on newGame");
+  assert(Array.isArray(G.envoys) && G.envoys.length === 2, "two envoy slots");
+  assert(MUTABLE.includes("envoys") && MUTABLE.includes("ultimatums"), "envoys/ultimatums on MUTABLE");
+
+  const modsCa = relationModifiers("canada");
+  const baseLine = modsCa.find((m) => m.kind === "base");
+  assert(baseLine && baseLine.pts === G.econ.relBase.canada, "Canada base line equals relBase");
+  assert(
+    modsCa.some((m) => /Similar governments|Polity affinity|Regime clash/.test(m.label)),
+    "polity affinity appears on Canada"
+  );
+
+  G.law.deals.fr_fta = true;
+  G.draft.deals.fr_fta = true;
+  assert(
+    relationModifiers("france").some((m) => m.label === "Ratified deals" && m.pts >= 9),
+    "ratified deal shows +9 live modifier"
+  );
+
+  const openCa = G.rel.canada;
+  for (let i = 0; i < 40; i++) step(G, G.law, G.prevLaw, true);
+  assert(
+    Math.abs(G.rel.canada - openCa) < 4 && G.rel.canada > 55,
+    `quiet Canada stays near special relationship (${openCa.toFixed(1)} → ${G.rel.canada.toFixed(1)})`
+  );
+  assert(
+    relationModifiers("france").some((m) => m.label === "Ratified deals"),
+    "active deal does not decay over 40q"
+  );
+  delete G.law.deals.fr_fta;
+  delete G.draft.deals.fr_fta;
+  step(G, G.law, G.prevLaw, true);
+  assert(
+    !relationModifiers("france").some((m) => m.label === "Ratified deals"),
+    "withdrawn deal clears live bonus next step"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  const openRu = G.rel.russia;
+  const baseRu = G.econ.relBase.russia;
+  for (let i = 0; i < 40; i++) step(G, G.law, G.prevLaw, true);
+  assert(
+    G.rel.russia < 48 && Math.abs(G.rel.russia - relationTarget("russia")) < 1.5,
+    `Russia stays cool near its target (open ${openRu}, base ${baseRu.toFixed(1)}, now ${G.rel.russia.toFixed(1)})`
+  );
+  assert(
+    !(G.econ.diploLedger.russia || []).length,
+    "quiet Russia has no historic ledger entry inventing the chill"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  const cap0 = G.capital;
+  assert(assignEnvoy("france"), "assign envoy succeeds with capital");
+  assert(G.capital === cap0 - ENVOY_ASSIGN_PC, "envoy assign spends capital immediately");
+  assert(G.envoys.includes("france"), "france occupies an envoy slot");
+  assert(
+    !billClauses().some((c) => /envoy/i.test(c.label)),
+    "envoy assign is not a bill clause"
+  );
+  assert(
+    relationModifiers("france").some((m) => m.label === "Envoy posted" && m.pts === ENVOY_TARGET),
+    "envoy posts +2 live modifier"
+  );
+  for (let i = 0; i < 12; i++) step(G, G.law, G.prevLaw, true);
+  assert(
+    relationModifiers("france").some((m) => m.label === "Envoy posted"),
+    "active envoy does not decay"
+  );
+  recallEnvoy("france");
+  step(G, G.law, G.prevLaw, true);
+  assert(
+    !relationModifiers("france").some((m) => m.label === "Envoy posted"),
+    "recall clears envoy bonus next step"
+  );
+
+  G.capital = ENVOY_ASSIGN_PC - 1;
+  assert(!assignEnvoy("germany"), "envoy assign no-ops when capital is short");
+}
+
+{
+  newGame();
+  G = getG();
+  G.q = 5;
+  G.rel.russia = 30;
+  G.eventFocus = "russia";
+  G.eventSponsors = ["france", "united_states"];
+  const sanctions = EVENTS.find((e) => e.id === "sanctions");
+  applyEventOption(sanctions.opts[0]);
+  assert(G.econ.sanctionStance.russia && G.econ.sanctionStance.russia.against, "sanctions set against stance");
+  assert(
+    (G.econ.diploLedger.russia || []).some((x) => /Joined sanctions/.test(x.label) && x.pts < 0),
+    "sanctions against add negative ledger"
+  );
+  assert(
+    G.econ.sanctionStance.france && G.econ.sanctionStance.france.with,
+    "sponsors get with stance"
+  );
+  assert(
+    (G.econ.diploLedger.france || []).some((x) => /Stood with them/.test(x.label) && x.pts > 0),
+    "sponsors get positive ledger credit"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.deals.mx_trade = true;
+  G.draft.deals.mx_trade = true;
+  applySphereTrespassOnDeal("mx_trade", true);
+  assert(
+    relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
+    "Mexico deal puts live US sphere trespass"
+  );
+  assert(
+    (G.econ.diploLedger.united_states || []).some((x) => /sphere/i.test(x.id) || /sphere/i.test(x.label)),
+    "sphere trespass writes a ledger scar on the patron"
+  );
+  const scar0 = (G.econ.diploLedger.united_states || []).find((x) => String(x.id).includes("sphere"));
+  const pts0 = scar0 && scar0.pts;
+  for (let i = 0; i < 8; i++) step(G, G.law, G.prevLaw, true);
+  assert(
+    relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
+    "live sphere trespass persists while the deal stands"
+  );
+  delete G.law.deals.mx_trade;
+  delete G.draft.deals.mx_trade;
+  step(G, G.law, G.prevLaw, true);
+  assert(
+    !relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
+    "withdraw clears live sphere trespass"
+  );
+  const scar1 = (G.econ.diploLedger.united_states || []).find((x) => String(x.id).includes("sphere"));
+  assert(scar1 && Math.abs(scar1.pts) < Math.abs(pts0), "sphere ledger scar decays over quarters");
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.polity = "authoritarian";
+  assert(
+    relationModifiers("canada").some((m) => m.label === "Regime clash" && m.pts < 0),
+    "democracy→authoritarian shows Regime clash vs Canada"
+  );
+
+  newGame();
+  G = getG();
+  const align0 = relationModifiers("canada").find((m) => /Policy align|Policy diverge/.test(m.label));
+  assert(align0 && align0.pts > 0, "policy alignment positive at opening vs Canada");
+  // Force divergence across the watchlist so the live line stays visible.
+  for (const k of [
+    "closeBorders", "openVisas", "netZero", "nuclear", "conscript",
+    "fracking", "digitalId", "minWage", "fiscalRule", "rnd", "swf",
+  ]) {
+    G.law.policies[k] = !G.world.canada.law.policies[k];
+  }
+  G.draft.policies = Object.assign({}, G.law.policies);
+  const align1 = relationModifiers("canada").find((m) => /Policy align|Policy diverge/.test(m.label));
+  assert(align1 && align1.pts < 0, "policy divergence line present after watchlist flip");
+  assert(
+    align1.pts < align0.pts,
+    `policy divergence lowers alignment (${align0.pts.toFixed(1)} → ${align1.pts.toFixed(1)})`
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  addDiploLedger(G, "germany", { id: "test_scar", label: "Test grievance", pts: -10 });
+  const p0 = G.econ.diploLedger.germany[0].pts;
+  step(G, G.law, G.prevLaw, true);
+  const p1 = G.econ.diploLedger.germany[0].pts;
+  assert(
+    Math.abs(p1 - p0 * LEDGER_DECAY) < 0.01,
+    `ledger decays at ${LEDGER_DECAY}/q (${p0.toFixed(2)} → ${p1.toFixed(2)})`
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.draft.missions = { china: "demarche" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(
+    (G.econ.diploLedger.china || []).some((x) => /Formal protest/.test(x.label) && x.pts < 0),
+    "demarche adds named grievance ledger entry"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 50;
+  G.rel.russia = 30;
+  ensureSched(G.law);
+  G.law.tariffSchedule.country.russia = 4;
+  if (G.world && G.world.russia && G.world.russia.law) {
+    ensureSched(G.world.russia.law);
+    G.world.russia.law.tariffSchedule.country[G.homeRole || "home"] = 12;
+  }
+  const deps = {
+    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
+    DEAL_BY_ID, aggregate, realmGdpBn,
+  };
+  const tcBase = baseP("russia", "tariffCut", G, deps);
+  assert(tcBase >= 0.48, "asymmetric tariffs raise concede band");
+  assert(canIssueUltimatum("russia").ok, "ultimatum available vs cool Russia");
+  const cap0 = G.capital;
+  assert(issueUltimatum("russia", "tariffCut"), "issue ultimatum spends capital");
+  assert(G.capital === cap0 - ULTIMATUM_PC, "ultimatum costs capital immediately");
+  assert(G.ultimatums.russia && G.ultimatums.russia.status === "pending", "ultimatum pending");
+  assert(
+    !billClauses().some((c) => /ultimatum/i.test(c.label)),
+    "ultimatum is not a bill clause"
+  );
+  G.q = G.ultimatums.russia.expiresQ;
+  processUltimatums(G, true);
+  assert(!G.ultimatums.russia, "pending ultimatum cleared on resolve");
+  const conceded = (G.econ.diploLedger.russia || []).some((x) => /Backed down/.test(x.label));
+  const defied = (G.econ.diploLedger.russia || []).some((x) => /Defied our ultimatum/.test(x.label));
+  assert(conceded || defied, "tariffCut ultimatum resolves");
+  assert(tcBase >= 0.5 ? conceded : defied, "det resolve follows baseP threshold");
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 50;
+  G.rel.france = 40;
+  assert(canIssueUltimatum("france").ok, "ultimatum available at rel 40");
+  assert(issueUltimatum("france", "political"), "issue ultimatum to France");
+  G.q = G.ultimatums.france.expiresQ;
+  processUltimatums(G, true);
+  assert(
+    (G.econ.diploLedger.france || []).some((x) => /Defied our ultimatum/.test(x.label)),
+    "warmish France without leverage defies"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  assignEnvoy("japan");
+  G.ultimatums = { china: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" } };
+  const snapEnv = clone(G.envoys);
+  const snapUlt = clone(G.ultimatums);
+  const beforeRel = clone(G.rel);
+  simulate(G.law, 4);
+  assert(JSON.stringify(G.envoys) === JSON.stringify(snapEnv), "simulate does not mutate envoys");
+  assert(JSON.stringify(G.ultimatums) === JSON.stringify(snapUlt), "simulate does not mutate ultimatums");
+  assert(JSON.stringify(G.rel) === JSON.stringify(beforeRel), "simulate does not mutate live rel");
+}
+
+{
+  newGame();
+  G = getG();
+  G.ultimatums = {
+    france: {
+      demand: "policyChange",
+      policyKey: "openVisas",
+      label: "Open your visa regime",
+      sentQ: 0,
+      expiresQ: 2,
+      status: "pending",
+    },
+  };
+  project(4);
+  assert(G.ultimatums.france && G.ultimatums.france.status === "pending", "project with policy ultimatum does not throw or mutate live ult");
+}
+
+/* ---- Contextual ultimatums and mission events ---- */
+{
+  newGame();
+  G = getG();
+  ensureSched(G.law);
+  ensureSched(G.draft);
+  G.law.tariffSchedule.country.china = 4;
+  G.draft.tariffSchedule.country.china = 4;
+  if (G.world && G.world.china && G.world.china.law) {
+    ensureSched(G.world.china.law);
+    G.world.china.law.tariffSchedule.country[G.homeRole || "home"] = 12;
+  }
+  const deps = {
+    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
+    DEAL_BY_ID, aggregate, realmGdpBn, activePartners, sharedCamp,
+  };
+  const demandsCn = ultimatumDemandsFor("china", G, deps);
+  assert(
+    demandsCn.some((d) => d.id === "tariffCut"),
+    "high partner tariff on player unlocks tariffCut"
+  );
+
+  for (const k of ["closeBorders", "openVisas", "conscript"]) {
+    G.law.policies[k] = !G.world.canada.law.policies[k];
+  }
+  G.draft.policies = Object.assign({}, G.law.policies);
+  const demandsCa = ultimatumDemandsFor("canada", G, deps);
+  assert(
+    demandsCa.some((d) => d.id === "policyChange"),
+    "policy divergence unlocks policyChange"
+  );
+
+  G.law.polity = "democracy";
+  G.draft.polity = "democracy";
+  const demandsRu = ultimatumDemandsFor("russia", G, deps);
+  assert(
+    demandsRu.some((d) => d.id === "regimeReform"),
+    "democracy vs authoritarian unlocks regimeReform"
+  );
+
+  ensureSched(G.law);
+  G.law.tariffSchedule.country.france = 5;
+  G.draft.tariffSchedule.country.france = 5;
+  if (G.world && G.world.france && G.world.france.law) {
+    ensureSched(G.world.france.law);
+    G.world.france.law.tariffSchedule.country[G.homeRole || "home"] = 5;
+  }
+  const demandsFr = ultimatumDemandsFor("france", G, deps);
+  assert(
+    !demandsFr.some((d) => d.id === "tariffCut"),
+    "symmetric tariffs omit tariffCut"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.russia = 25;
+  const deps = {
+    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
+    DEAL_BY_ID, aggregate, realmGdpBn,
+  };
+  const cold = baseP("russia", "political", G, deps);
+  G.rel.russia = 55;
+  const warm = baseP("russia", "political", G, deps);
+  assert(cold > warm, "cooler relations raise baseP");
+
+  G.rel.russia = 30;
+  const lowInterest = baseP("russia", "regimeReform", G, deps);
+  const highInterest = baseP("russia", "political", G, deps);
+  assert(highInterest > lowInterest, "regimeReform stays lower than political at same rel");
+
+  ensureSched(G.law);
+  G.law.tariffSchedule.country.china = 4;
+  if (G.world && G.world.china && G.world.china.law) {
+    ensureSched(G.world.china.law);
+    G.world.china.law.tariffSchedule.country[G.homeRole || "home"] = 10;
+  }
+  const interest = partnerSelfInterest("tariffCut", "china", G, deps);
+  assert(interestTag(interest) === "Against their interest" || interest < 0, "tariffCut interest tag when protectionist");
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.russia = 30;
+  const deps = {
+    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
+    DEAL_BY_ID, aggregate, realmGdpBn,
+  };
+  const base = baseP("russia", "regimeReform", G, deps);
+  assert(base < 0.25, "regimeReform vs authoritarian stays low even with leverage");
+  assert(concedeP("russia", "regimeReform", G, deps, true) === base, "det concedeP equals baseP (no jitter)");
+
+  G.rel.russia = 28;
+  G.q = 2;
+  assert(baseP("russia", "political", G, deps) < 0.5, "political ultimatum to defiant partner stays below det threshold");
+  G.ultimatums = { russia: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" } };
+  processUltimatums(G, true);
+  assert(
+    (G.econ.diploLedger.russia || []).some((x) => /Defied our ultimatum/.test(x.label)),
+    "det resolve defies when baseP < 0.5"
+  );
+  assert(
+    G.diploAlerts && G.diploAlerts.some((a) => a.kind === "ult_defy" && a.partnerId === "russia"),
+    "ultimatum defy creates diplo alert"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 50;
+  assert(issueUltimatum("germany", "tariffCut"), "player pick stores demand");
+  assert(G.ultimatums.germany && G.ultimatums.germany.demand === "tariffCut", "ultimatum stores tariffCut demand");
+}
+
+{
+  newGame();
+  G = getG();
+  G.draft.missions = { japan: "summit" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(isVisitActive(G, "japan"), "staging summit starts the visit on enact");
+  queueSummitVisitEvents(G);
+  assert(
+    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].partnerId === "japan",
+    "first deliver queues one summit mission event"
+  );
+  assert(G.activeVisits.japan.eventsFired === 1, "first summit event slot consumed");
+  G.missionEvents = [];
+  step(G, G.law, G.prevLaw, true);
+  queueSummitVisitEvents(G);
+  assert(
+    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].eventIndex === 1,
+    "second deliver during visit queues second summit event"
+  );
+  assert(G.activeVisits.japan.eventsFired === 2, "both summit event slots consumed");
+  G.missionEvents = [];
+  step(G, G.law, G.prevLaw, true);
+  queueSummitVisitEvents(G);
+  assert(!G.missionEvents.length, "no third summit event after visit ends");
+  const ev = rollMissionEvent("summit", "japan", G, {
+    partnerShare, playerCountryId, activePartners, sharedCamp, partnerById, lawForRole, DEAL_BY_ID,
+  }, true);
+  assert(ev && ev.opts && ev.opts.length >= 2, "rollMissionEvent returns event with options");
+  const rel0 = G.rel.japan;
+  applyMissionEventOption(ev.opts[0], { partnerId: "japan", rivalId: ev.rivalId });
+  assert(
+    G.rel.japan !== rel0 || (G.econ.relImpulse.japan || 0) > 0,
+    "mission option moves relations or relImpulse"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.missionEvents = [{ partnerId: "france", missionId: "summit", q: 0 }];
+  const snap = clone(G.missionEvents);
+  simulate(G.law, 4);
+  assert(JSON.stringify(G.missionEvents) === JSON.stringify(snap), "simulate does not mutate missionEvents");
+  assert(MUTABLE.includes("missionEvents"), "missionEvents on MUTABLE");
+}
+
+{
+  newGame();
+  G = getG();
+  assert(!G.activeVisits || !Object.keys(G.activeVisits).length, "no active visits at opening");
+  beginActiveVisit(G, "france", "summit");
+  assert(isVisitActive(G, "france"), "summit visit is active after begin");
+  assert(visitQuartersLeft(G, "france") === VISIT_DURATION, "summit visit lasts two quarters");
+  assert(
+    relationModifiers("france").some((m) => m.label === "State visit underway"),
+    "active visit shows live modifier"
+  );
+  step(G, G.law, G.prevLaw, true);
+  assert(isVisitActive(G, "france"), "visit still active after one quarter");
+  assert(visitQuartersLeft(G, "france") === 1, "one quarter of visit remains");
+  step(G, G.law, G.prevLaw, true);
+  assert(!isVisitActive(G, "france"), "visit ends after two quarters");
+  assert(
+    !relationModifiers("france").some((m) => m.label === "State visit underway"),
+    "visit modifier clears when visit ends"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  beginActiveVisit(G, "japan", "summit");
+  const snap = clone(G.activeVisits);
+  simulate(G.law, 4);
+  assert(JSON.stringify(G.activeVisits) === JSON.stringify(snap), "simulate does not mutate activeVisits");
+  assert(MUTABLE.includes("activeVisits"), "activeVisits on MUTABLE");
+}
+
+{
+  newGame();
+  G = getG();
+  beginActiveVisit(G, "japan", "summit");
+  G.ultimatums = {
+    germany: { demand: "tariffCut", label: "Cut tariffs", sentQ: 0, expiresQ: 3, status: "pending" },
+  };
+  const hud = diploHudHtml(G);
+  assert(/japan/i.test(hud) && /visit/i.test(hud), "hud shows active visit");
+  assert(/germany/i.test(hud) && /Cut tariffs/i.test(hud), "hud shows live ultimatum");
+  assert(!diploHudHtml({ ...G, activeVisits: {}, ultimatums: {} }), "empty hud when nothing active");
+}
+
+{
+  newGame();
+  G = getG();
+  G.diploAlerts = [{
+    kind: "ult_concede",
+    partnerId: "germany",
+    demand: "tariffCut",
+    label: "Cut tariffs on our exports",
+    impacts: {
+      diplomatic: "they lose face on the world stage · our leverage rises",
+      economic: "their tariffs on our goods fall 2 points",
+    },
+    q: 1,
+  }];
+  const concedeClips = composePress({ ultimatumOutcomes: G.diploAlerts, q: 1 });
+  assert(concedeClips.length === 1 && concedeClips[0].kind === "ultimatum", "ultimatum concede yields press clipping");
+  assert(/backs down/i.test(concedeClips[0].headline), "concede headline names partner climbdown");
+  assert(/Diplomatic Courier/.test(concedeClips[0].masthead), "concede uses diplomatic masthead");
+  assert(/Diplomatically/i.test(concedeClips[0].lede), "concede lede names diplomatic impact");
+  assert(/Economically/i.test(concedeClips[0].lede), "concede lede names economic impact");
+  assert(/tariffs on our goods fall/i.test(concedeClips[0].lede), "concede lede describes tariff impact");
+  const defyClips = composePress({
+    ultimatumOutcomes: [{
+      kind: "ult_defy",
+      partnerId: "france",
+      demand: "marketAccess",
+      label: "Open market access",
+      impacts: {
+        diplomatic: "relations plunge and their trust in our ultimatum collapses",
+        economic: "trade retaliation rises · business uncertainty lingers four quarters",
+      },
+      q: 2,
+    }],
+    q: 2,
+  });
+  assert(/defies/i.test(defyClips[0].headline), "defy headline names rejection");
+  assert(!/\{C\}/.test(defyClips[0].headline), "defy headline substitutes country name");
+  assert(!/\{C\}/.test(defyClips[0].lede), "defy lede substitutes country name");
+  assert(/Open market access/.test(defyClips[0].lede), "defy lede keeps demand label");
+  assert(/retaliation rises/i.test(defyClips[0].lede), "defy lede describes retaliation impact");
+  assert(/Diplomatically/i.test(defyClips[0].lede) && /Economically/i.test(defyClips[0].lede), "defy lede splits diplomatic and economic impact");
+  assert(/World Post/.test(defyClips[0].masthead), "defy uses world press masthead");
+  const hud = diploHudHtml(G);
+  assert(!/conceded/i.test(hud || ""), "ultimatum outcomes no longer appear on diplo hud");
+  assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
 }
 
 if (failed) {
