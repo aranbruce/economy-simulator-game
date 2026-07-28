@@ -424,6 +424,53 @@ async function main() {
     "guest does not get host's france summit mission event"
   );
 
+  /* Ultimatum resolves in lockstep and leaves a per-seat diploAlert. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapUlt = exportGameSnapshot(getG());
+  const hUlt = await createRoom({ hostName: "Alice", role: "home" });
+  const gUlt = await joinRoom(hUlt.room.code, { name: "Bob", role: "germany" });
+  const stUlt = await startRoom(hUlt.room.code, hUlt.token, snapUlt);
+  const qUlt = stUlt.room.snapshot.q;
+  await submitBill(hUlt.room.code, hUlt.token, clone(stUlt.room.snapshot.world.kingdom.law), {
+    envoys: [null, null],
+    ultimatums: {},
+  });
+  const ultRes = await submitBill(
+    hUlt.room.code,
+    gUlt.token,
+    clone(stUlt.room.snapshot.world.germany.law),
+    {
+      envoys: [null, null],
+      ultimatums: {
+        france: {
+          demand: "tariffCut",
+          label: "Cut tariffs on our exports",
+          sentQ: qUlt,
+          expiresQ: qUlt + 1,
+          status: "pending",
+        },
+      },
+    }
+  );
+  assert.ok(!ultRes.error, ultRes.error);
+  const gPolUlt = ultRes.room.snapshot.politics.germany;
+  const kPolUlt = ultRes.room.snapshot.politics.kingdom;
+  assert.ok(
+    !(gPolUlt.ultimatums && gPolUlt.ultimatums.france),
+    "guest ultimatum clears after resolve"
+  );
+  assert.ok(
+    (gPolUlt.diploAlerts || []).some(
+      (a) => a.partnerId === "france" && (a.kind === "ult_defy" || a.kind === "ult_concede")
+    ),
+    "guest politics gets ultimatum outcome alert"
+  );
+  assert.ok(
+    !(kPolUlt.diploAlerts || []).some((a) => a.partnerId === "france" && a.kind && a.kind.startsWith("ult_")),
+    "host does not inherit guest ultimatum alert"
+  );
+
   console.log("mp-room: ok");
 }
 
