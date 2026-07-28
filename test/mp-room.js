@@ -22,7 +22,9 @@ import {
   leaveRoom,
   _resetRoomsForTests,
 } from "../lib/mp/roomStore.js";
-import { startRoom, submitBill, chooseEvent } from "../lib/mp/roomPlay.js";
+import { startRoom, submitBill, chooseEvent, applyDiploAction } from "../lib/mp/roomPlay.js";
+import { loadRoom, saveRoom } from "../lib/mp/roomPersist.js";
+import { ENVOY_ASSIGN_PC, ULTIMATUM_PC } from "../lib/sim/diplomacy.js";
 
 async function main() {
   _resetRoomsForTests();
@@ -182,10 +184,12 @@ async function main() {
     (e) => !e.major && e.opts && e.opts.length && (!e.cond || e.cond()) && !e.resolve
   );
   assert.ok(sampleEv, "have an ordinary event that prepares cleanly");
-  stEv.room.snapshot.politics.germany.pendingEvent = {
+  const rawEv = await loadRoom(hEv.room.code);
+  rawEv.snapshot.politics.germany.pendingEvent = {
     id: sampleEv.id,
     isMajor: false,
   };
+  await saveRoom(rawEv);
   const chosen = await chooseEvent(hEv.room.code, gEv.token, { optionIndex: 0 });
   assert.ok(!chosen.error, chosen.error);
   assert.equal(
@@ -193,7 +197,7 @@ async function main() {
     null,
     "pending event cleared after choice"
   );
-  const snapForce = clone(stEv.room.snapshot);
+  const snapForce = clone(rawEv.snapshot);
   snapForce.politics.germany.pendingEvent = { id: sampleEv.id, isMajor: false };
   assert.ok(
     applyMpEventChoice(snapForce, "germany", 0).ok,
@@ -207,10 +211,12 @@ async function main() {
   const h2 = await createRoom({ hostName: "Alice", role: "home" });
   await joinRoom(h2.room.code, { name: "Bob", role: "germany" });
   const st2 = await startRoom(h2.room.code, h2.token, snapGate);
-  st2.room.snapshot.politics.kingdom.capital = 0;
-  const pricey = clone(st2.room.snapshot.world.kingdom.law);
+  const rawGate = await loadRoom(h2.room.code);
+  rawGate.snapshot.politics.kingdom.capital = 0;
+  await saveRoom(rawGate);
+  const pricey = clone(rawGate.snapshot.world.kingdom.law);
   pricey.taxes.vat.rate = (pricey.taxes.vat.rate || 20) + 5;
-  const denied = validateMpSubmission(st2.room.snapshot, "kingdom", pricey);
+  const denied = validateMpSubmission(rawGate.snapshot, "kingdom", pricey);
   assert.equal(denied.ok, false, "validation fails when capital is 0");
   const deniedSubmit = await submitBill(h2.room.code, h2.token, pricey);
   assert.ok(deniedSubmit.error, "submit rejects unaffordable bill");
@@ -420,9 +426,54 @@ async function main() {
     "host gets summit mission pendingEvent for france"
   );
   assert.ok(
+    !(sumRes.room.snapshot.politics.kingdom.missionEvents || []).length,
+    "promoted summit event is not left duplicated in missionEvents"
+  );
+  assert.ok(
     !guestPending || !guestPending.missionEvent || guestPending.partnerId !== "france",
     "guest does not get host's france summit mission event"
   );
+
+  /* Drain Q1 summit choice, advance one more quarter — exactly 2 mission events total. */
+  let missionChoices = 0;
+  const drainMission = async (token) => {
+    const room = await getRoom(hSum.room.code, token);
+    const pol =
+      room.snapshot.politics[
+        token === hSum.token ? "kingdom" : "germany"
+      ];
+    if (pol && pol.pendingEvent && pol.pendingEvent.missionEvent) {
+      missionChoices += 1;
+      const pe = pol.pendingEvent;
+      assert.ok(
+        !(pol.missionEvents || []).some(
+          (m) =>
+            m &&
+            m.partnerId === pe.partnerId &&
+            m.eventIndex === pe.eventIndex
+        ),
+        "no duplicate missionEvents twin while pending"
+      );
+      await chooseEvent(hSum.room.code, token, { optionIndex: 0 });
+    }
+  };
+  await drainMission(hSum.token);
+  await submitBill(hSum.room.code, hSum.token, clone(sumRes.room.snapshot.world.kingdom.law), {
+    envoys: sumRes.room.snapshot.politics.kingdom.envoys || [null, null],
+  });
+  const sumQ2 = await submitBill(hSum.room.code, gSum.token, clone(sumRes.room.snapshot.world.germany.law), {
+    envoys: sumRes.room.snapshot.politics.germany.envoys || [null, null],
+  });
+  assert.ok(!sumQ2.error, sumQ2.error);
+  const hostPending2 = sumQ2.room.snapshot.politics.kingdom.pendingEvent;
+  if (hostPending2 && hostPending2.missionEvent) {
+    assert.ok(
+      !(sumQ2.room.snapshot.politics.kingdom.missionEvents || []).length,
+      "Q2 promoted summit event not duplicated in missionEvents"
+    );
+    await drainMission(hSum.token);
+  }
+  assert.equal(missionChoices, 2, "two-quarter summit yields exactly 2 mission presentations");
 
   /* Ultimatum resolves in lockstep and leaves a per-seat diploAlert. */
   _resetRoomsForTests();
@@ -469,6 +520,154 @@ async function main() {
   assert.ok(
     !(kPolUlt.diploAlerts || []).some((a) => a.partnerId === "france" && a.kind && a.kind.startsWith("ult_")),
     "host does not inherit guest ultimatum alert"
+  );
+
+  /* ---- Live diplo commits + Deliver idempotency ---- */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapLive = exportGameSnapshot(getG());
+  const hLive = await createRoom({ hostName: "Alice", role: "home" });
+  const gLive = await joinRoom(hLive.room.code, { name: "Bob", role: "germany" });
+  const stLive = await startRoom(hLive.room.code, hLive.token, snapLive);
+  assert.ok(!stLive.error, stLive.error);
+
+  const capBefore = stLive.room.snapshot.politics.germany.capital;
+  const liveEnv = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "assignEnvoy",
+    partnerId: "japan",
+  });
+  assert.ok(!liveEnv.error, liveEnv.error);
+  assert.ok(liveEnv.ok, "live assignEnvoy ok");
+  const polGLive = liveEnv.room.snapshot.politics.germany;
+  const polKLive = liveEnv.room.snapshot.politics.kingdom;
+  assert.ok(polGLive.envoys.includes("japan"), "guest politics.germany.envoys has japan");
+  assert.equal(
+    Math.round(polGLive.capital),
+    Math.round(capBefore - ENVOY_ASSIGN_PC),
+    "guest capital charged once for envoy"
+  );
+  /* Duplicate assign must succeed without re-charging (optimistic spam / BE catch-up). */
+  const liveEnvAgain = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "assignEnvoy",
+    partnerId: "japan",
+  });
+  assert.ok(!liveEnvAgain.error, liveEnvAgain.error);
+  assert.equal(
+    Math.round(liveEnvAgain.room.snapshot.politics.germany.capital),
+    Math.round(polGLive.capital),
+    "idempotent assign does not re-charge"
+  );
+  const liveRecallEmpty = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "recallEnvoy",
+    partnerId: "china",
+  });
+  assert.ok(!liveRecallEmpty.error, "recall of vacant post is idempotent ok");
+  assert.ok(
+    liveRecallEmpty.room.snapshot.politics.germany.envoys.includes("japan"),
+    "vacant recall leaves japan posted"
+  );
+  assert.ok(
+    !polKLive.envoys || !polKLive.envoys.includes("japan"),
+    "host politics unchanged by guest live envoy"
+  );
+  assert.equal(
+    Math.round(polKLive.capital),
+    Math.round(stLive.room.snapshot.politics.kingdom.capital),
+    "host capital unchanged"
+  );
+
+  /* Cool relations so canIssueUltimatum passes (needs leverage). */
+  const rawRel = await loadRoom(hLive.room.code);
+  rawRel.snapshot.politics.germany.rel = {
+    ...(rawRel.snapshot.politics.germany.rel || {}),
+    russia: 30,
+  };
+  await saveRoom(rawRel);
+
+  const liveUlt = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "issueUltimatum",
+    partnerId: "russia",
+    demandId: "tariffCut",
+  });
+  assert.ok(!liveUlt.error, liveUlt.error);
+  assert.ok(
+    liveUlt.room.snapshot.politics.germany.ultimatums &&
+      liveUlt.room.snapshot.politics.germany.ultimatums.russia &&
+      liveUlt.room.snapshot.politics.germany.ultimatums.russia.status === "pending",
+    "guest ultimatum pending on politics"
+  );
+  assert.ok(
+    !(
+      liveUlt.room.snapshot.politics.kingdom.ultimatums &&
+      liveUlt.room.snapshot.politics.kingdom.ultimatums.russia
+    ),
+    "host has no guest ultimatum"
+  );
+  const capAfterUlt = liveUlt.room.snapshot.politics.germany.capital;
+  assert.equal(
+    Math.round(capAfterUlt),
+    Math.round(capBefore - ENVOY_ASSIGN_PC - ULTIMATUM_PC),
+    "ultimatum capital charged on live commit"
+  );
+
+  /* Insufficient capital rejects before slots fill. */
+  const rawLive = await loadRoom(hLive.room.code);
+  rawLive.snapshot.politics.germany.capital = 0;
+  await saveRoom(rawLive);
+  const noCap = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "assignEnvoy",
+    partnerId: "china",
+  });
+  assert.ok(noCap.error, "assign rejects with insufficient capital");
+  assert.match(noCap.error, /capital|Need/i);
+
+  const rawLiveCap = await loadRoom(hLive.room.code);
+  rawLiveCap.snapshot.politics.germany.capital = 30;
+  await saveRoom(rawLiveCap);
+
+  const secondEnv = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "assignEnvoy",
+    partnerId: "china",
+  });
+  assert.ok(!secondEnv.error, secondEnv.error);
+  const fullEnv = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "assignEnvoy",
+    partnerId: "india",
+  });
+  assert.ok(fullEnv.error, "third envoy rejected when slots full");
+  assert.match(fullEnv.error, /slot|filled|envoy/i);
+
+  const roomPre = await getRoom(hLive.room.code, gLive.token);
+  const gPolPre = roomPre.snapshot.politics.germany;
+  const guestEnvLive = clone(gPolPre.envoys);
+  const guestUltLive = clone(gPolPre.ultimatums || {});
+
+  const hostPre = await getRoom(hLive.room.code, hLive.token);
+  await submitBill(hLive.room.code, hLive.token, clone(hostPre.snapshot.world.kingdom.law), {
+    envoys: clone(hostPre.snapshot.politics.kingdom.envoys || [null, null]),
+    ultimatums: clone(hostPre.snapshot.politics.kingdom.ultimatums || {}),
+  });
+  const liveResolve = await submitBill(
+    hLive.room.code,
+    gLive.token,
+    clone((await getRoom(hLive.room.code, gLive.token)).snapshot.world.germany.law),
+    { envoys: guestEnvLive, ultimatums: guestUltLive }
+  );
+  assert.ok(!liveResolve.error, liveResolve.error);
+  assert.equal(liveResolve.resolved, true, "Deliver resolves after live diplo");
+  const gAfter = liveResolve.room.snapshot.politics.germany;
+  assert.ok(gAfter.envoys.includes("japan"), "guest keeps live envoy after Deliver");
+  assert.ok(
+    (gAfter.diploAlerts || []).some(
+      (a) => a.partnerId === "russia" && (a.kind === "ult_defy" || a.kind === "ult_concede")
+    ),
+    "guest-only ultimatum alert after Deliver"
+  );
+  assert.ok(
+    !(liveResolve.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.partnerId === "russia" && a.kind && a.kind.startsWith("ult_")
+    ),
+    "host does not inherit live-ultimatum alert"
   );
 
   console.log("mp-room: ok");

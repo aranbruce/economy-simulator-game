@@ -3023,6 +3023,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
+  G.capital = 80;
+  assert(assignEnvoy("france"), "assign france");
+  const capAfter = G.capital;
+  assert(assignEnvoy("france"), "duplicate assign is idempotent success");
+  assert(G.capital === capAfter, "idempotent assign does not re-charge capital");
+  assert(recallEnvoy("france"), "recall france");
+  assert(!G.envoys.includes("france"), "slot vacated");
+  assert(recallEnvoy("france"), "duplicate recall is idempotent success");
+}
+
+{
+  newGame();
+  G = getG();
   G.q = 5;
   G.rel.russia = 30;
   G.eventFocus = "russia";
