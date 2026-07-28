@@ -408,8 +408,31 @@ button{font-family:inherit;letter-spacing:-.01em}
 .empty{padding:16px;color:var(--ink-faint);font-size:12.5px}
 .note{color:var(--ink-faint);font-size:11px}
 .src{font-size:10.5px;color:var(--ink-faint);margin-top:7px;font-weight:500}
-.briefing{border-left:3px solid var(--accent);border-radius:2px;padding:2px 0 2px 13px;margin-bottom:16px}
-.briefing p{margin:0 0 7px;font-size:15px;line-height:1.42;letter-spacing:-.015em}
+.briefing{display:grid;gap:12px;margin-bottom:16px}
+.briefing-label{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase;margin:0 0 8px}
+.briefing-impact{
+  background:rgba(10,132,255,.09);border:1px solid rgba(10,132,255,.22);
+  border-radius:var(--r-md);padding:12px 14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+}
+.briefing-impact .briefing-label{color:var(--accent-lt)}
+.briefing-impact-line{margin:0;font-size:15px;line-height:1.45;letter-spacing:-.015em;color:#fff}
+.briefing-politics{
+  margin:0;font-size:13.5px;line-height:1.42;color:var(--ink-soft);
+  padding:0 2px;font-style:italic;
+}
+.briefing-outturn{
+  border-left:3px solid var(--edge);border-radius:2px;
+  padding:2px 0 2px 13px;
+}
+.briefing-outturn p{margin:0 0 7px;font-size:14.5px;line-height:1.42;letter-spacing:-.015em;color:var(--ink-soft)}
+.briefing-outturn p:last-child{margin-bottom:0}
+.briefing-outturn--solo{border-left-color:var(--accent)}
+.briefing-outturn--solo p{color:var(--ink)}
+.briefing .src{margin-top:2px}
+.despatch .briefing{margin-bottom:4px}
+.despatch .briefing-impact-line{font-size:15.5px}
+.despatch .briefing-outturn p{font-size:15px;color:var(--ink)}
 
 /* sliders */
 .lever{padding:8px 12px;border-bottom:1px solid var(--edge)}

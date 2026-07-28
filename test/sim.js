@@ -98,6 +98,7 @@ import {
   baseLaw,
   briefingImpactLines,
   mergeBriefingImpact,
+  briefingHtml,
   writeBriefing,
   spending,
 } from "../lib/sim/engine.js";
@@ -1231,6 +1232,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.brief = mergeBriefingImpact(G.brief, live);
   assert(JSON.stringify(G.econ) === briefSnap, "briefing impact merge does not mutate econ");
   assert(/compared with standing still|barely moves the dial/.test(G.brief[0]), "merged morning note leads with impact");
+
+  const html = briefingHtml(mergeBriefingImpact(
+    ["Modest growth, broadly in line with trend."],
+    rich
+  ));
+  assert(/briefing-impact/.test(html), "briefingHtml renders impact section");
+  assert(/briefing-outturn/.test(html), "briefingHtml renders outturn section");
+  assert(/Year-ahead view/.test(html) && /This quarter/.test(html), "briefingHtml labels both sections");
+  assert(/briefing-politics/.test(html), "briefingHtml renders politics line");
+
+  const solo = briefingHtml(["Growth has stalled. Nothing dramatic, just nothing happening."]);
+  assert(/briefing-outturn--solo/.test(solo), "outturn-only briefing uses solo styling");
+  assert(!/Year-ahead view/.test(solo), "solo briefing skips impact label");
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
