@@ -23,7 +23,7 @@ import {
   _resetRoomsForTests,
 } from "../lib/mp/roomStore.js";
 import { startRoom, submitBill, chooseEvent, applyDiploAction } from "../lib/mp/roomPlay.js";
-import { loadRoom, saveRoom } from "../lib/mp/roomPersist.js";
+import { loadRoom, saveRoom, saveRoomCas } from "../lib/mp/roomPersist.js";
 import { ENVOY_ASSIGN_PC, ULTIMATUM_PC } from "../lib/sim/diplomacy.js";
 
 async function main() {
@@ -717,6 +717,21 @@ async function main() {
     ),
     "host does not inherit live-ultimatum alert"
   );
+
+  /* CAS: stale writer must not clobber a newer room version. */
+  const casA = await loadRoom(hLive.room.code);
+  const casB = await loadRoom(hLive.room.code);
+  assert.equal(casA.version, casB.version, "clones start at same version");
+  const casBase = casA.version;
+  casA.version = casBase + 1;
+  casA._casTag = "a";
+  assert.equal(await saveRoomCas(casA, casBase), true, "first CAS write wins");
+  casB.version = casBase + 1;
+  casB._casTag = "b";
+  assert.equal(await saveRoomCas(casB, casBase), false, "stale CAS write rejected");
+  const casNow = await loadRoom(hLive.room.code);
+  assert.equal(casNow._casTag, "a", "winner content retained");
+  assert.equal(casNow.version, casBase + 1, "version advanced once");
 
   console.log("mp-room: ok");
 }

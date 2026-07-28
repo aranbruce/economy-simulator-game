@@ -870,14 +870,24 @@ export default function GameApp() {
 
   useEffect(() => {
     if (phase !== "play" || !mpSession) return undefined;
-    /* Do not poll/SSE until the room is playing — otherwise a lobby-era miss
-     (or start race) 404s and boots the host back to country select. */
+    /* Gate on playing status only — do not resubscribe when mpRoom identity
+     changes on every poll/version bump (that tore down EventSource). */
     if (!mpRoom || mpRoom.status !== "playing") return undefined;
 
     const handleRoomBump = async (hint) => {
       try {
         const data = await getMpRoom(mpSession.code, mpSession.token);
-        setMpRoom(data.room);
+        setMpRoom((prev) => {
+          if (
+            prev &&
+            prev.version === data.room.version &&
+            prev.submittedCount === data.room.submittedCount &&
+            !!prev.you?.submitted === !!data.room.you?.submitted
+          ) {
+            return prev;
+          }
+          return data.room;
+        });
         setWaiting(!!data.room.you?.submitted);
         if (
           data.room.version !== lastMpVersion.current &&
@@ -932,7 +942,8 @@ export default function GameApp() {
       clearInterval(id);
       if (closeStream) closeStream();
     };
-  }, [phase, mpSession, mpRoom, bump, applyMpSnapshot, exitMpToSetup]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mpRoom.status only
+  }, [phase, mpSession, mpRoom?.status, bump, applyMpSnapshot, exitMpToSetup]);
 
   /* React re-renders can clear engine-written HUD nodes (#tbStats etc).
    Repaint chrome only — full render() calls bump() and would loop with tick. */
