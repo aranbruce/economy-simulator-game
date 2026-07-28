@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { feature } from "topojson-client";
-import { getG, PARTNERS, activePartners } from "../../lib/sim/engine.js";
+import { getG, PARTNERS, activePartners, diploMapMarkers } from "../../lib/sim/engine.js";
 import {
   HOME_ISO,
   PARTNER_ISO,
@@ -28,6 +28,26 @@ const LAT_MIN = -56;
 const SKIP_ISO = new Set(["010"]); // Antarctica — not on the board
 
 const SETUP_SELECTED = "#D4AF69";
+
+const DIPLO_EMOJI = {
+  envoy: "💼",
+  summit: "🤝",
+  summit_staged: "📅",
+  ultimatum: "⚠️",
+};
+
+const DIPLO_MARKER_ORDER = ["envoy", "summit", "summit_staged", "ultimatum"];
+const DIPLO_MARKER_SIZE = 18;
+const DIPLO_LEGEND_SIZE = 13;
+const DIPLO_MARKER_PAD = 6;
+const DIPLO_MARKER_OFFSET = 26;
+
+const DIPLO_LEGEND_LABELS = {
+  envoy: "Envoy",
+  summit: "Summit",
+  summit_staged: "Staged",
+  ultimatum: "Ultimatum",
+};
 
 function hexToRgb(hex) {
   if (hex.startsWith("rgb")) {
@@ -258,6 +278,46 @@ function roleForFeature(iso, homeRole, homeIso) {
   return partnerForIso(iso, homeIso || HOME_ISO, homeRole || null);
 }
 
+function polysForRole(role, countries, hRole, hIso, setupMode) {
+  const realm = realmByRole(role);
+  const anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
+  if (anchorIso) {
+    const anchor = countries.find((c) => c.iso === anchorIso);
+    if (anchor && anchor.polys.length) return anchor.polys;
+  }
+  const polys = countries
+    .filter((c) => {
+      if (setupMode) return realmRoleForIso(c.iso) === role;
+      return roleForFeature(c.iso, hRole, hIso) === role;
+    })
+    .flatMap((c) => c.polys);
+  return polys.length ? polys : null;
+}
+
+function diploEmojiFont(size) {
+  return `${size}px -apple-system, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+}
+
+function measureDiploEmoji(ctx, emoji, size) {
+  ctx.save();
+  ctx.font = diploEmojiFont(size);
+  const w = ctx.measureText(emoji).width;
+  ctx.restore();
+  return w;
+}
+
+function drawDiploEmoji(ctx, emoji, cx, cy, size, alpha = 1) {
+  ctx.save();
+  ctx.font = diploEmojiFont(size);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.globalAlpha = alpha;
+  ctx.shadowColor = "rgba(0,0,0,0.55)";
+  ctx.shadowBlur = 4;
+  ctx.fillText(emoji, cx, cy);
+  ctx.restore();
+}
+
 /**
  * Real-world map: Natural Earth coastlines, home and partner realms lit,
  * everything else dim. Setup clicks a country to choose its realm.
@@ -434,6 +494,72 @@ export default function WorldMap({
       }
     }
 
+    /* Diplomatic activity markers (play only). */
+    if (!setupMode && G) {
+      const markers = diploMapMarkers(G);
+      const byPartner = {};
+      for (const m of markers) {
+        if (!byPartner[m.partnerId]) byPartner[m.partnerId] = [];
+        byPartner[m.partnerId].push(m);
+      }
+      for (const partnerId of Object.keys(byPartner)) {
+        const polys = polysForRole(partnerId, countries, hRole, hIso, setupMode);
+        if (!polys) continue;
+        const [nx, ny] = polysCentroid(polys);
+        const [x, y] = toScreen(nx, ny);
+        const kinds = byPartner[partnerId]
+          .map((m) => m.kind)
+          .sort(
+            (a, b) =>
+              DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b)
+          );
+        const widths = kinds.map((kind) =>
+          measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE)
+        );
+        const rowW =
+          widths.reduce((sum, w) => sum + w, 0) +
+          DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
+        let cursor = x - rowW / 2;
+        kinds.forEach((kind, i) => {
+          const sx = cursor + widths[i] / 2;
+          cursor += widths[i] + DIPLO_MARKER_PAD;
+          const sy = y - DIPLO_MARKER_OFFSET;
+          drawDiploEmoji(
+            ctx,
+            DIPLO_EMOJI[kind],
+            sx,
+            sy,
+            DIPLO_MARKER_SIZE,
+            kind === "summit_staged" ? 0.82 : 1
+          );
+        });
+      }
+
+      if (markers.length) {
+        const kindsPresent = new Set(markers.map((m) => m.kind));
+        const legendY = H - 36;
+        let lx = 14;
+        ctx.font = "500 11px -apple-system, system-ui, sans-serif";
+        ctx.fillStyle = "rgba(255,255,255,.55)";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        for (const kind of DIPLO_MARKER_ORDER) {
+          if (!kindsPresent.has(kind)) continue;
+          drawDiploEmoji(
+            ctx,
+            DIPLO_EMOJI[kind],
+            lx + 8,
+            legendY,
+            DIPLO_LEGEND_SIZE,
+            kind === "summit_staged" ? 0.82 : 1
+          );
+          const label = DIPLO_LEGEND_LABELS[kind];
+          ctx.fillText(label, lx + 18, legendY);
+          lx += 18 + ctx.measureText(label).width + 12;
+        }
+      }
+    }
+
     /* Labels: one per realm still on the board. */
     ctx.font = "600 12px -apple-system, system-ui, sans-serif";
     ctx.textAlign = "center";
@@ -444,24 +570,8 @@ export default function WorldMap({
       : ["home", ...activePartners(hRole).map((p) => p.id)];
 
     for (const role of labelRoles) {
-      const realm = realmByRole(role);
-      const anchorIso = realm.iso
-        ? String(realm.iso).padStart(3, "0")
-        : null;
-      let polys;
-      if (anchorIso) {
-        const anchor = countries.find((c) => c.iso === anchorIso);
-        polys = anchor ? anchor.polys : null;
-      }
-      if (!polys || !polys.length) {
-        polys = countries
-          .filter((c) => {
-            if (setupMode) return realmRoleForIso(c.iso) === role;
-            return roleForFeature(c.iso, hRole, hIso) === role;
-          })
-          .flatMap((c) => c.polys);
-      }
-      if (!polys.length) continue;
+      const polys = polysForRole(role, countries, hRole, hIso, setupMode);
+      if (!polys) continue;
       const [nx, ny] = polysCentroid(polys);
       const [x, y] = toScreen(nx, ny);
       let text;
