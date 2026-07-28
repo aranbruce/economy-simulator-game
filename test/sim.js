@@ -98,8 +98,18 @@ import {
   baseLaw,
   POLITY,
   POLITY_IDS,
+  REL_POLITY,
   polityOf,
   polityIdOf,
+  profilePolityId,
+  polityAffinity,
+  polityReachable,
+  polityCanReach,
+  polityChangePc,
+  POLITY_LEAP_EXTRA,
+  polityShockFac,
+  billShock,
+  clausesIn,
   termLenOf,
   termReviewDue,
   termReview,
@@ -1546,8 +1556,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     russia: "authoritarian",
     vietnam: "authoritarian",
     egypt: "authoritarian",
-    saudi: "monarchy",
-    uae: "monarchy",
+    saudi: "authoritarian",
+    uae: "authoritarian",
     turkey: "hybrid",
   };
   for (const id of Object.keys(NATION_PROFILE)) {
@@ -1641,6 +1651,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.eventFocus = "saudi";
   const saudiText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
   assert(!/election/i.test(saudiText), "Saudi newGovt text does not say election");
+  assert(/reshuffle|leadership/i.test(saudiText), "Saudi newGovt mentions leadership reshuffle");
   G.eventFocus = "germany";
   const demText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
   assert(/election/i.test(demText), "Democratic newGovt text still says election");
@@ -1649,6 +1660,68 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   }));
   assert(prepared && !/election/i.test(prepared.text), "prepareEvent resolves China newGovt without election");
   assert(prepared && /reshuffle|leadership/i.test(prepared.title), "prepareEvent China title is a reshuffle");
+}
+
+/* Polity change (Society), affinity, and bill shocks. */
+{
+  assert(MUTABLE.includes("polityShift"), "polityShift is on MUTABLE");
+
+  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  assert(G.law.polity === "democracy", "Kingdom law.polity is democracy");
+  assert(polityReachable("democracy").join(",") === "democracy,hybrid,authoritarian", "all three polities are reachable");
+  assert(polityCanReach("democracy", "authoritarian"), "democracy can leap to authoritarian");
+  assert(POLITY_IDS.includes("monarchy") === false, "monarchy is not a live polity type");
+  assert(polityChangePc("democracy", "hybrid") === POLITY.hybrid.changePc, "adjacent hybrid costs changePc");
+  assert(
+    polityChangePc("democracy", "authoritarian") === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
+    "democracy→authoritarian leap costs changePc + leap extra"
+  );
+  assert(
+    polityChangePc("authoritarian", "democracy") === POLITY.democracy.changePc + POLITY_LEAP_EXTRA,
+    "authoritarian→democracy leap costs changePc + leap extra"
+  );
+
+  G.draft.polity = "authoritarian";
+  let cl = billClauses();
+  const leapCl = cl.find((c) => /political system/.test(c.label));
+  assert(!!leapCl, "leap polity change is a bill clause");
+  assert(leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA, "leap clause uses leap PC");
+  assert(clausesIn("society", cl), "polity clause counts toward Society");
+
+  G.draft.polity = "hybrid";
+  cl = billClauses();
+  const polityCl = cl.find((c) => /political system/.test(c.label));
+  assert(!!polityCl, "adjacent polity change is a bill clause");
+  assert(polityCl.pc === POLITY.hybrid.changePc, "hybrid polity change costs changePc");
+
+  const libShock = polityShockFac("authoritarian", "hybrid");
+  assert(libShock.urban === 8 && libShock.patriots === -10, "liberalising shock lifts urban and hits patriots");
+  const tightShock = polityShockFac("democracy", "hybrid");
+  assert(tightShock.patriots === 8 && tightShock.urban === -10, "tightening shock lifts patriots and hits urban");
+
+  const prev = clone(G.law);
+  const next = clone(G.law);
+  next.polity = "hybrid";
+  const shock = billShock(next, prev);
+  assert(shock.urban === -10 && shock.patriots === 8, "billShock applies tightening polity hits");
+
+  assert(polityAffinity("authoritarian", "authoritarian") === 1, "same polity affinity is 1");
+  assert(polityAffinity("authoritarian", "democracy") === -0.7, "democracy↔authoritarian affinity is −0.7");
+  const chinaRussia = REL_POLITY * polityAffinity("authoritarian", profilePolityId("russia"));
+  const chinaNl = REL_POLITY * polityAffinity("authoritarian", profilePolityId("netherlands"));
+  assert(chinaRussia > chinaNl + 5, `China–Russia affinity target exceeds China–Netherlands (${chinaRussia} vs ${chinaNl})`);
+
+  G.capital = 80;
+  G.draft.polity = "hybrid";
+  G.prevLaw = clone(G.law);
+  const from = G.law.polity;
+  G.law = clone(G.draft);
+  G.polityShift = { from, to: "hybrid", q: G.q };
+  assert(G.polityShift.to === "hybrid", "polityShift records the enacted change");
+  assert(EVENTS.some((e) => e.id === "polityBacklash"), "polityBacklash event exists");
+  assert(EVENTS.some((e) => e.id === "polityConsolidation"), "polityConsolidation event exists");
+  assert(EVENTS.some((e) => e.id === "polityRecognition"), "polityRecognition event exists");
 }
 
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
