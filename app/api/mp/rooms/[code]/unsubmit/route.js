@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request, { params }) {
   const { code } = await params;
   const body = await request.json().catch(() => ({}));
-  const result = unsubmitBill(code, body.token);
+  const result = await unsubmitBill(code, body.token);
   if (result.error) {
     return Response.json({ error: result.error }, { status: result.status });
   }

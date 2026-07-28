@@ -19,6 +19,13 @@ import {
   hydrateGameSnapshot,
   clone,
   showMpBriefing,
+  applyMpDiploPatch,
+  lockMpSubmission,
+  clearMpLockedSubmission,
+  snapshotMpDiploUi,
+  restoreMpDiploUi,
+  applyLocalMpDiploAction,
+  playerCountryId,
 } from "../../lib/sim/engine.js";
 import {
   BOARD_METRICS,
@@ -34,6 +41,8 @@ import {
   unsubmitMpBill,
   leaveMpRoom,
   chooseMpEvent,
+  applyMpDiplo,
+  openMpRoomStream,
 } from "../../lib/mp/client.js";
 import {
   saveMpSession,
@@ -182,11 +191,22 @@ export default function GameApp() {
   const [mpSession, setMpSession] = useState(null);
   const [mpRoom, setMpRoom] = useState(null);
   const [waiting, setWaiting] = useState(false);
+  const [lobbyBootstrap, setLobbyBootstrap] = useState(null);
   const metricsRef = useRef(null);
   const pendingStart = useRef(null);
   const mpSessionRef = useRef(null);
   const lastMpVersion = useRef(0);
+  const hostStartGateRef = useRef(null);
   const lastBriefQ = useRef(-1);
+  const lastMorningNoteQ = useRef(-1);
+  const lastBriefingCompleteQ = useRef(-1);
+  const lastPresentedPendingKey = useRef(null);
+  const unsubmitInFlight = useRef(false);
+  const diploQueueRef = useRef([]);
+  const diploPumpingRef = useRef(false);
+  const diploFlushWaitersRef = useRef([]);
+  const needsUnsubmitBeforeDiploRef = useRef(false);
+  const pendingUnsubmitRef = useRef(null);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -207,6 +227,108 @@ export default function GameApp() {
   );
 
   const applyMpSnapshotRef = useRef(null);
+  const unsubmitMpConfirmRef = useRef(null);
+  const flushDiploQueueRef = useRef(null);
+
+  const resolveDiploFlushWaiters = useCallback(() => {
+    if (diploQueueRef.current.length || diploPumpingRef.current) return;
+    const waiters = diploFlushWaitersRef.current.splice(0);
+    waiters.forEach((fn) => fn());
+  }, []);
+
+  const flushDiploQueue = useCallback(() => {
+    return new Promise((resolve) => {
+      if (!diploQueueRef.current.length && !diploPumpingRef.current) {
+        resolve();
+        return;
+      }
+      diploFlushWaitersRef.current.push(resolve);
+    });
+  }, []);
+  flushDiploQueueRef.current = flushDiploQueue;
+
+  const pumpDiploQueue = useCallback(async () => {
+    if (diploPumpingRef.current) return;
+    diploPumpingRef.current = true;
+    try {
+      while (diploQueueRef.current.length) {
+        const item = diploQueueRef.current.shift();
+        const s = mpSessionRef.current;
+        if (!s?.code || !s?.token) {
+          diploQueueRef.current = [];
+          break;
+        }
+        try {
+          /* Withdraw Deliver on the server before diplo when the player was
+           waiting — shrinks the window where a peer can resolve against the
+           stale submission. applyDiplo also withdraws atomically as backup. */
+          if (pendingUnsubmitRef.current) {
+            await pendingUnsubmitRef.current;
+          } else if (needsUnsubmitBeforeDiploRef.current && unsubmitMpConfirmRef.current) {
+            await unsubmitMpConfirmRef.current({ silent: true });
+            needsUnsubmitBeforeDiploRef.current = false;
+          }
+          const data = await applyMpDiplo(s.code, {
+            token: s.token,
+            action: item.action,
+            partnerId: item.partnerId,
+            demandId: item.demandId,
+          });
+          lastMpVersion.current = data.room.version;
+          setMpRoom(data.room);
+          setWaiting(!!data.room.you?.submitted);
+          if (data.patch) applyMpDiploPatch(data.patch);
+          bump();
+          render();
+        } catch (err) {
+          /* Race / already-at-desired-state: keep optimistic UI, drop the rest of
+           the queue for this failure path only after a hard reject. */
+          const msg = String(err?.message || "");
+          const conflict = /Room changed|try again/i.test(msg);
+          if (conflict) {
+            try {
+              const data = await getMpRoom(s.code, s.token);
+              lastMpVersion.current = data.room.version;
+              setMpRoom(data.room);
+              setWaiting(!!data.room.you?.submitted);
+              if (data.room.snapshot && applyMpSnapshotRef.current) {
+                applyMpSnapshotRef.current(data.room.snapshot, s, {
+                  brief: false,
+                  you: data.room.you,
+                });
+              }
+              bump();
+              render();
+            } catch (refreshErr) {
+              console.error(refreshErr);
+            }
+            diploQueueRef.current = [];
+            needsUnsubmitBeforeDiploRef.current = false;
+            break;
+          }
+          const soft =
+            /already posted|already pending|No envoy|not posted/i.test(msg);
+          if (soft) {
+            bump();
+            render();
+            continue;
+          }
+          restoreMpDiploUi(item.snap);
+          if (item.snap?.waiting) setWaiting(true);
+          else setWaiting(false);
+          diploQueueRef.current = [];
+          needsUnsubmitBeforeDiploRef.current = false;
+          bump();
+          render();
+          console.error(err);
+          break;
+        }
+      }
+    } finally {
+      diploPumpingRef.current = false;
+      resolveDiploFlushWaiters();
+    }
+  }, [bump, resolveDiploFlushWaiters]);
 
   const attachMpEventHandler = useCallback((mp) => {
     if (!mp) return mp;
@@ -232,8 +354,62 @@ export default function GameApp() {
         alert(err.message || "Could not resolve event");
       }
     };
+    mp.onAutoUnsubmit = () => {
+      if (unsubmitMpConfirmRef.current) unsubmitMpConfirmRef.current({ silent: true });
+    };
+    mp.onDiploAction = (payload) => {
+      const s = mpSessionRef.current || mp;
+      if (!s?.code || !s?.token) return { ok: false, error: "Not in a room" };
+      const G0 = getG();
+      if (!G0) return { ok: false, error: "No game" };
+
+      const snap = snapshotMpDiploUi(G0);
+      const wasWaiting = !!G0.mp?.waiting;
+      /* Kick server withdraw in this turn before optimistic paint / queue work. */
+      if (wasWaiting && unsubmitMpConfirmRef.current && !pendingUnsubmitRef.current) {
+        needsUnsubmitBeforeDiploRef.current = true;
+        pendingUnsubmitRef.current = Promise.resolve(
+          unsubmitMpConfirmRef.current({ silent: true })
+        ).finally(() => {
+          pendingUnsubmitRef.current = null;
+          needsUnsubmitBeforeDiploRef.current = false;
+        });
+      }
+      const local = applyLocalMpDiploAction(payload.action, payload);
+      if (!local.ok) return { ok: false, error: local.error || "Action failed" };
+      if (wasWaiting && G0.mp) {
+        G0.mp.waiting = false;
+        clearMpLockedSubmission(G0);
+        setWaiting(false);
+      }
+      bump();
+      render();
+
+      /* Coalesce superseded assign/recall/ultimatum for the same partner. */
+      const act = payload.action;
+      const pid = payload.partnerId;
+      diploQueueRef.current = diploQueueRef.current.filter((q) => {
+        if (q.partnerId !== pid) return true;
+        if (
+          (act === "assignEnvoy" || act === "recallEnvoy") &&
+          (q.action === "assignEnvoy" || q.action === "recallEnvoy")
+        ) {
+          return false;
+        }
+        if (act === "issueUltimatum" && q.action === "issueUltimatum") return false;
+        return true;
+      });
+      diploQueueRef.current.push({
+        action: payload.action,
+        partnerId: payload.partnerId,
+        demandId: payload.demandId,
+        snap,
+      });
+      pumpDiploQueue();
+      return { ok: true, pending: true };
+    };
     return mp;
-  }, [bump]);
+  }, [bump, pumpDiploQueue]);
 
   const applyMpSnapshot = useCallback(
     (snapshot, sess, { brief, you } = {}) => {
@@ -263,8 +439,27 @@ export default function GameApp() {
         G.mp = attachMpEventHandler({ ...(G.mp || {}), ...mp });
       }
       if (brief && G) {
-        if (G.q !== lastBriefQ.current) lastBriefQ.current = G.q;
-        showMpBriefing();
+        const sid = seatId || you?.seatId || playerCountryId(G.homeRole);
+        const pending =
+          sid && G.politics && G.politics[sid] && G.politics[sid].pendingEvent;
+        const pendingKey = pending ? JSON.stringify(pending) : null;
+        if (G.q !== lastMorningNoteQ.current) {
+          /* New quarter: flash once, then summit/event or morning note. */
+          lastMorningNoteQ.current = G.q;
+          lastBriefQ.current = G.q;
+          lastPresentedPendingKey.current = pendingKey;
+          if (!pending) lastBriefingCompleteQ.current = G.q;
+          showMpBriefing();
+        } else if (pending) {
+          /* Same quarter, another queued event — skip duplicates from SSE+submit. */
+          if (pendingKey === lastPresentedPendingKey.current) return;
+          lastPresentedPendingKey.current = pendingKey;
+          showMpBriefing({ skipAnnounce: true });
+        } else if (lastBriefingCompleteQ.current !== G.q) {
+          /* Same quarter after the last event choice — morning note, no flash. */
+          lastBriefingCompleteQ.current = G.q;
+          showMpBriefing({ skipAnnounce: true });
+        }
       }
     },
     [attachMpEventHandler]
@@ -289,12 +484,70 @@ export default function GameApp() {
         mpRoom != null
           ? "Waiting " + mpRoom.submittedCount + "/" + mpRoom.humanCount
           : "Waiting on others";
-      db.title = "Click to withdraw and edit your bill";
+      db.title = "Edit anything to withdraw, or click here";
     } else if (db && !waiting && G.mp) {
       db.removeAttribute("title");
-      render();
     }
+    /* Refresh Deliver / Diplomacy chrome when waiting flips. */
+    render();
   }, [waiting, mpRoom]);
+
+  /* Mobile drawer: pin between the live topbar and dock so a wrapped stats
+   row never covers the panel title. */
+  useEffect(() => {
+    if (phase !== "play") return undefined;
+    const root = document.documentElement;
+    const gap = 10;
+    const sync = () => {
+      const topbar = document.getElementById("topbar");
+      const dock = document.getElementById("dock");
+      const mpHud = document.querySelector(".mp-hud");
+      let top = gap;
+      if (topbar) {
+        top = Math.ceil(topbar.getBoundingClientRect().bottom) + gap;
+      }
+      if (mpHud) {
+        const r = mpHud.getBoundingClientRect();
+        if (r.height > 0) top = Math.max(top, Math.ceil(r.bottom) + gap);
+      }
+      let bottom = 128;
+      if (dock) {
+        bottom =
+          Math.ceil(window.innerHeight - dock.getBoundingClientRect().top) +
+          gap;
+      }
+      root.style.setProperty("--drawer-top", `${top}px`);
+      root.style.setProperty("--drawer-bottom", `${bottom}px`);
+    };
+    sync();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(sync) : null;
+    const topbar = document.getElementById("topbar");
+    const dock = document.getElementById("dock");
+    const stats = document.getElementById("tbStats");
+    if (ro) {
+      if (topbar) ro.observe(topbar);
+      if (dock) ro.observe(dock);
+      if (stats) ro.observe(stats);
+    }
+    const mo =
+      typeof MutationObserver === "function" && stats
+        ? new MutationObserver(sync)
+        : null;
+    if (mo && stats) mo.observe(stats, { childList: true, subtree: true });
+    window.addEventListener("resize", sync);
+    const raf = window.requestAnimationFrame(() => {
+      sync();
+      window.requestAnimationFrame(sync);
+    });
+    return () => {
+      window.removeEventListener("resize", sync);
+      window.cancelAnimationFrame(raf);
+      if (ro) ro.disconnect();
+      if (mo) mo.disconnect();
+      root.style.removeProperty("--drawer-top");
+      root.style.removeProperty("--drawer-bottom");
+    };
+  }, [phase, mpRoom]);
 
   const beginGame = useCallback((opts) => {
     pendingStart.current = opts;
@@ -343,12 +596,23 @@ export default function GameApp() {
     [beginGame]
   );
 
-  const handleHostStart = useCallback(async ({ code, token, role, name, homeIso: iso }) => {
+  const handleHostStart = useCallback(async ({ code, token, role, name, homeIso: iso, room }) => {
     const mp = { code, token, role, name, homeIso: iso };
+    const lobbySnap = {
+      code,
+      token,
+      room: room || null,
+    };
     setMpSession(mp);
     mpSessionRef.current = mp;
     saveMpSession(mp);
     setWaiting(false);
+    setMpRoom(null);
+
+    const gate = new Promise((resolve, reject) => {
+      hostStartGateRef.current = { resolve, reject };
+    });
+
     pendingStart.current = {
       country: name,
       homeRole: role,
@@ -357,25 +621,33 @@ export default function GameApp() {
       silent: true,
       mp,
       afterNewGame: async () => {
-        const snap = exportGameSnapshot(getG());
-        const data = await startMpRoom(code, { token, snapshot: snap });
-        lastMpVersion.current = data.room.version;
-        setMpRoom(data.room);
-        const wired = attachMpEventHandler({
-          ...mp,
-          seatId: data.room.you?.seatId,
-        });
-        hydrateGameSnapshot(data.room.snapshot, {
-          homeRole: role,
-          seatId: data.room.you?.seatId,
-          homeIso: iso,
-          country: name,
-          mp: wired,
-        });
-        const G = getG();
-        G.mp = wired;
-        G.coachDone = true;
-        render();
+        try {
+          const snap = exportGameSnapshot(getG());
+          const data = await startMpRoom(code, { token, snapshot: snap });
+          lastMpVersion.current = data.room.version;
+          setMpRoom(data.room);
+          const wired = attachMpEventHandler({
+            ...mp,
+            seatId: data.room.you?.seatId,
+          });
+          hydrateGameSnapshot(data.room.snapshot, {
+            homeRole: role,
+            seatId: data.room.you?.seatId,
+            homeIso: iso,
+            country: name,
+            mp: wired,
+          });
+          const G = getG();
+          G.mp = wired;
+          G.coachDone = true;
+          render();
+          hostStartGateRef.current?.resolve();
+          hostStartGateRef.current = null;
+        } catch (err) {
+          hostStartGateRef.current?.reject(err);
+          hostStartGateRef.current = null;
+          throw err;
+        }
       },
     };
     setRealmId(realmByRole(role).id);
@@ -383,6 +655,20 @@ export default function GameApp() {
     setHomeRole(role);
     setSelectedRole(null);
     setPhase("play");
+
+    try {
+      await gate;
+    } catch (err) {
+      /* Start failed after leaving the lobby — put them back with the room intact. */
+      clearMpSession();
+      setMpSession(null);
+      mpSessionRef.current = null;
+      setMpRoom(null);
+      setWaiting(false);
+      setLobbyBootstrap(lobbySnap);
+      setPhase("lobby");
+      throw err;
+    }
   }, [attachMpEventHandler]);
 
   const handleResume = useCallback(async () => {
@@ -410,7 +696,7 @@ export default function GameApp() {
       clearMpSession();
       alert(
         err.status === 404
-          ? "That multiplayer room has ended (the host left or the server restarted)."
+          ? "That multiplayer room was lost (host left, or the server recycled without shared KV storage)."
           : err.message || "Could not resume multiplayer game"
       );
     }
@@ -431,22 +717,30 @@ export default function GameApp() {
     const G = getG();
     if (!sess || !G) return;
     try {
+      /* Flush optimistic diplo so Deliver never races ahead of the server. */
+      if (flushDiploQueueRef.current) await flushDiploQueueRef.current();
       const data = await submitMpBill(sess.code, {
         token: sess.token,
         draft: clone(G.draft),
         rateManual: !!G.rateManual,
         manualRate: G.manualRate,
         sandbox: !!G.sandbox,
+        envoys: clone(G.envoys || [null, null]),
+        ultimatums: clone(G.ultimatums || {}),
       });
       setMpRoom(data.room);
       lastMpVersion.current = data.room.version;
       if (data.resolved && data.room.snapshot) {
+        if (G.mp) G.mp.waiting = false;
+        clearMpLockedSubmission(G);
         applyMpSnapshot(data.room.snapshot, sess, {
           brief: true,
           you: data.room.you,
         });
         setWaiting(false);
       } else {
+        if (G.mp) G.mp.waiting = true;
+        lockMpSubmission(G);
         setWaiting(true);
       }
       bump();
@@ -454,7 +748,7 @@ export default function GameApp() {
       console.error(err);
       if (err.status === 404) {
         exitMpToSetup(
-          "This multiplayer room has ended (the host left or the server restarted)."
+          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
         );
         return;
       }
@@ -462,27 +756,40 @@ export default function GameApp() {
     }
   }, [bump, applyMpSnapshot, exitMpToSetup]);
 
-  const unsubmitMpConfirm = useCallback(async () => {
+  const unsubmitMpConfirm = useCallback(async (opts = {}) => {
     const sess = mpSessionRef.current;
-    if (!sess) return;
+    if (!sess) return false;
+    if (unsubmitInFlight.current) return false;
+    unsubmitInFlight.current = true;
     try {
       const data = await unsubmitMpBill(sess.code, { token: sess.token });
       setMpRoom(data.room);
       lastMpVersion.current = data.room.version;
-      setWaiting(!!data.room.you?.submitted);
+      const stillWaiting = !!data.room.you?.submitted;
+      const G = getG();
+      if (G?.mp) {
+        G.mp.waiting = stillWaiting;
+        if (!stillWaiting) clearMpLockedSubmission(G);
+      }
+      setWaiting(stillWaiting);
       bump();
       render();
+      return true;
     } catch (err) {
       console.error(err);
       if (err.status === 404) {
         exitMpToSetup(
-          "This multiplayer room has ended (the host left or the server restarted)."
+          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
         );
-        return;
+        return false;
       }
-      alert(err.message || "Could not withdraw");
+      if (!opts.silent) alert(err.message || "Could not withdraw");
+      return false;
+    } finally {
+      unsubmitInFlight.current = false;
     }
   }, [bump, exitMpToSetup]);
+  unsubmitMpConfirmRef.current = unsubmitMpConfirm;
 
   useEffect(() => {
     setOnState(() => {
@@ -586,7 +893,10 @@ export default function GameApp() {
         if (typeof opts.afterNewGame === "function") {
           Promise.resolve(opts.afterNewGame()).catch((err) => {
             console.error(err);
-            alert(err.message || "Could not start multiplayer");
+            /* Host start restores the lobby and surfaces the error there. */
+            if (!opts.mp) {
+              alert(err.message || "Could not start multiplayer");
+            }
           });
         }
       }
@@ -599,10 +909,24 @@ export default function GameApp() {
 
   useEffect(() => {
     if (phase !== "play" || !mpSession) return undefined;
-    const tickPoll = async () => {
+    /* Gate on playing status only — do not resubscribe when mpRoom identity
+     changes on every poll/version bump (that tore down EventSource). */
+    if (!mpRoom || mpRoom.status !== "playing") return undefined;
+
+    const handleRoomBump = async (hint) => {
       try {
         const data = await getMpRoom(mpSession.code, mpSession.token);
-        setMpRoom(data.room);
+        setMpRoom((prev) => {
+          if (
+            prev &&
+            prev.version === data.room.version &&
+            prev.submittedCount === data.room.submittedCount &&
+            !!prev.you?.submitted === !!data.room.you?.submitted
+          ) {
+            return prev;
+          }
+          return data.room;
+        });
         setWaiting(!!data.room.you?.submitted);
         if (
           data.room.version !== lastMpVersion.current &&
@@ -612,28 +936,53 @@ export default function GameApp() {
           lastMpVersion.current = data.room.version;
           const advanced =
             data.room.snapshot.q != null && data.room.snapshot.q !== prevQ;
-          /* Only remount when the quarter advances — peer submits bump version
-           but must not wipe an in-progress draft. */
+          /* Only remount when the quarter advances — peer submits / live diplo
+           bump version but must not wipe an in-progress draft. */
           if (advanced) {
             applyMpSnapshot(data.room.snapshot, mpSession, {
               brief: true,
               you: data.room.you,
             });
+          } else if (
+            hint &&
+            hint.q != null &&
+            data.room.snapshot.q === prevQ
+          ) {
+            /* Peer live diplo: refresh waiting chrome only. */
+            bump();
+            renderChrome();
+          } else {
+            bump();
           }
           setWaiting(!!data.room.you?.submitted);
-          bump();
         }
       } catch (err) {
         if (err && err.status === 404) {
           exitMpToSetup(
-            "This multiplayer room has ended (the host left or the server restarted)."
+            "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
           );
         }
       }
     };
-    const id = setInterval(tickPoll, 2000);
-    return () => clearInterval(id);
-  }, [phase, mpSession, bump, applyMpSnapshot, exitMpToSetup]);
+
+    let closeStream = openMpRoomStream(
+      mpSession.code,
+      mpSession.token,
+      (ev) => {
+        if (!ev || ev.version == null) return;
+        if (ev.version === lastMpVersion.current) return;
+        handleRoomBump(ev);
+      }
+    );
+
+    /* Slow poll as SSE fallback. */
+    const id = setInterval(() => handleRoomBump(), 10000);
+    return () => {
+      clearInterval(id);
+      if (closeStream) closeStream();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mpRoom.status only
+  }, [phase, mpSession, mpRoom?.status, bump, applyMpSnapshot, exitMpToSetup]);
 
   /* React re-renders can clear engine-written HUD nodes (#tbStats etc).
    Repaint chrome only — full render() calls bump() and would loop with tick. */
@@ -733,7 +1082,12 @@ export default function GameApp() {
       {phase === "lobby" && (
         <MultiplayerLobby
           selectedRole={setupRole}
-          onBack={() => setPhase("setup")}
+          initialSession={lobbyBootstrap}
+          onConsumedInitial={() => setLobbyBootstrap(null)}
+          onBack={() => {
+            setLobbyBootstrap(null);
+            setPhase("setup");
+          }}
           onHostStart={handleHostStart}
           onGuestReady={handleGuestReady}
         />
@@ -742,6 +1096,12 @@ export default function GameApp() {
       {phase === "play" && (
         <>
           <div id="vignette" />
+          <div id="quarterFlash" hidden aria-live="polite">
+            <div className="quarter-flash-inner">
+              <span className="quarter-flash-kicker">New quarter</span>
+              <span className="quarter-flash-label" />
+            </div>
+          </div>
 
           {mpRoom && (
             <div className="mp-hud hud-frame hud-surface" aria-live="polite">
@@ -749,7 +1109,7 @@ export default function GameApp() {
               <span className="mp-hud-q">Q{mpRoom.q}</span>
               <span className="mp-hud-status">
                 {waiting
-                  ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount}`
+                  ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount} · edit to withdraw`
                   : `${mpRoom.submittedCount}/${mpRoom.humanCount} delivered`}
               </span>
             </div>
@@ -827,7 +1187,7 @@ export default function GameApp() {
             <div className="dock-tabs" id="dockTabs" />
             <div className="dock-act">
               <button className="dock-bill" id="billBtn" aria-expanded="false">
-                <span id="billLabel">Bill</span>
+                <span id="billLabel">Programme</span>
                 <b id="billCost">empty</b>
               </button>
               <button className="dock-go" id="deliverBtn">

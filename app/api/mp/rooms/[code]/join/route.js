@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request, { params }) {
   const { code } = await params;
   const body = await request.json().catch(() => ({}));
-  const result = joinRoom(code, {
+  const result = await joinRoom(code, {
     name: body.name,
     role: body.role,
   });

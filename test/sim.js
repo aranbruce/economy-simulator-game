@@ -2985,9 +2985,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(assignEnvoy("france"), "assign envoy succeeds with capital");
   assert(G.capital === cap0 - ENVOY_ASSIGN_PC, "envoy assign spends capital immediately");
   assert(G.envoys.includes("france"), "france occupies an envoy slot");
+  const envoyCl = billClauses().find((c) => /envoy/i.test(c.label));
+  assert(envoyCl, "same-quarter envoy assign appears as a Programme clause");
+  assert(envoyCl.sunk, "envoy capital already paid is marked sunk");
   assert(
-    !billClauses().some((c) => /envoy/i.test(c.label)),
-    "envoy assign is not a bill clause"
+    billClauses().every((c) => c.sunk || !c.pc),
+    "sunk envoy does not add unpaid capital to the Programme"
   );
   assert(
     relationModifiers("france").some((m) => m.label === "Envoy posted" && m.pts === ENVOY_TARGET),
@@ -3007,6 +3010,30 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   G.capital = ENVOY_ASSIGN_PC - 1;
   assert(!assignEnvoy("germany"), "envoy assign no-ops when capital is short");
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  assert(assignEnvoy("france"), "first envoy slot fills");
+  assert(assignEnvoy("germany"), "second envoy slot fills");
+  assert(!assignEnvoy("japan"), "third envoy assign rejected when slots full");
+  assert(!G.envoys.includes("japan"), "full slots do not overwrite an existing envoy");
+  assert(G.envoys.includes("france") && G.envoys.includes("germany"), "prior envoys retained");
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  assert(assignEnvoy("france"), "assign france");
+  const capAfter = G.capital;
+  assert(assignEnvoy("france"), "duplicate assign is idempotent success");
+  assert(G.capital === capAfter, "idempotent assign does not re-charge capital");
+  assert(recallEnvoy("france"), "recall france");
+  assert(!G.envoys.includes("france"), "slot vacated");
+  assert(recallEnvoy("france"), "duplicate recall is idempotent success");
 }
 
 {

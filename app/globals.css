@@ -30,6 +30,9 @@
   --purple:#B894F0; --pink:#FF4D6A; --teal:#3EC9D9;
 
   --r-lg:12px; --r-md:8px; --r-sm:6px; --r-pill:999px;
+  /* Screen-edge inset for topbar/dock; drawer keeps the same gap above the dock. */
+  --chrome-inset:10px;
+  --drawer-above-dock:88px; /* inset + dock ≈58px + matching 10px gap */
   --shadow:0 8px 28px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.2);
   --shadow-lg:0 18px 48px rgba(0,0,0,.62), 0 0 0 1px rgba(0,0,0,.25);
 
@@ -94,8 +97,53 @@ button{font-family:inherit;letter-spacing:-.01em}
 #vignette{position:fixed;inset:0;z-index:1;pointer-events:none;
   background:radial-gradient(ellipse at 50% 46%,transparent 46%,rgba(2,4,10,.55) 80%,rgba(2,4,10,.85) 100%)}
 
+/* Quarter advance — soft wash + term chip pulse (solo + MP). */
+#quarterFlash{
+  position:fixed;inset:0;z-index:18;pointer-events:none;
+  display:grid;place-items:center;opacity:0;
+  background:radial-gradient(ellipse at 50% 42%,rgba(212,175,105,.14) 0%,rgba(4,6,11,.55) 55%,rgba(4,6,11,.72) 100%);
+}
+#quarterFlash.on{animation:quarterFlashIn 2.5s ease forwards}
+.quarter-flash-inner{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:18px 28px;border-radius:var(--r-lg);
+  background:var(--panel);border:1px solid var(--frame);
+  box-shadow:var(--spec),var(--shadow-lg);
+  transform:translateY(8px) scale(.98);
+}
+#quarterFlash.on .quarter-flash-inner{animation:quarterFlashCard 2.5s cubic-bezier(.2,.9,.3,1) forwards}
+.quarter-flash-kicker{
+  font-size:10px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent-lt);
+}
+.quarter-flash-label{
+  font-family:var(--display);font-size:28px;font-weight:400;letter-spacing:-.02em;
+  color:var(--ink);
+}
+@keyframes quarterFlashIn{
+  0%{opacity:0}
+  8%{opacity:1}
+  82%{opacity:1}
+  100%{opacity:0}
+}
+@keyframes quarterFlashCard{
+  0%{opacity:0;transform:translateY(10px) scale(.97)}
+  10%{opacity:1;transform:none}
+  82%{opacity:1;transform:none}
+  100%{opacity:0;transform:translateY(-4px) scale(1.01)}
+}
+#tbTerm.q-advance{
+  animation:qTermPulse 2.4s ease;
+  color:var(--accent-lt);
+}
+@keyframes qTermPulse{
+  0%{text-shadow:0 0 0 transparent}
+  35%{text-shadow:0 0 18px rgba(212,175,105,.55)}
+  100%{text-shadow:0 0 0 transparent}
+}
+
 /* ================= top bar ================= */
-#topbar{position:fixed;top:10px;left:10px;right:10px;z-index:20;display:flex;align-items:center;gap:10px;
+#topbar{position:fixed;top:var(--chrome-inset);left:var(--chrome-inset);right:var(--chrome-inset);z-index:20;display:flex;align-items:center;gap:10px;
   padding:6px 8px 6px 10px;border-radius:var(--r-lg);
   background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--edge);box-shadow:var(--spec),var(--shadow)}
@@ -140,7 +188,7 @@ button{font-family:inherit;letter-spacing:-.01em}
 .chip.bank .v{color:#d4b8f8}
 
 /* ================= dock ================= */
-#dock{position:fixed;bottom:10px;left:10px;right:10px;z-index:20;display:flex;align-items:center;gap:8px;
+#dock{position:fixed;bottom:var(--chrome-inset);left:var(--chrome-inset);right:var(--chrome-inset);z-index:20;display:flex;align-items:center;gap:8px;
   padding:6px;border-radius:var(--r-lg);
   background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--edge);box-shadow:var(--spec),var(--shadow)}
@@ -185,7 +233,7 @@ button{font-family:inherit;letter-spacing:-.01em}
 .dock-go:focus-visible{outline:2px solid var(--accent-lt);outline-offset:2px}
 
 /* ================= drawer ================= */
-#drawer{position:fixed;left:10px;right:10px;bottom:78px;z-index:15;display:flex;flex-direction:column;
+#drawer{position:fixed;left:var(--chrome-inset);right:var(--chrome-inset);bottom:var(--drawer-above-dock);z-index:15;display:flex;flex-direction:column;
   max-height:min(64vh,640px);border-radius:var(--r-lg);overflow:hidden;
   background:var(--panel);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);
   border:1px solid var(--edge);box-shadow:var(--spec),var(--shadow-lg);
@@ -202,7 +250,8 @@ button{font-family:inherit;letter-spacing:-.01em}
 .dw-body::-webkit-scrollbar{width:6px}
 .dw-body::-webkit-scrollbar-thumb{background:var(--g-3);border-radius:var(--r-pill)}
 @media(min-width:920px){
-  #drawer{left:auto;right:10px;width:min(560px,46vw);top:72px;bottom:78px;max-height:none}
+  /* Same inset gap under the topbar as above the dock (10px). */
+  #drawer{left:auto;right:var(--chrome-inset);width:min(560px,46vw);top:82px;bottom:var(--drawer-above-dock);max-height:none}
   #drawer.wide{width:min(900px,64vw)}
 }
 
@@ -255,9 +304,11 @@ button{font-family:inherit;letter-spacing:-.01em}
   #drawer{
     left:max(6px,env(safe-area-inset-left));
     right:max(6px,env(safe-area-inset-right));
-    top:auto;
-    bottom:calc(118px + env(safe-area-inset-bottom,0px));
-    max-height:min(72dvh,calc(100dvh - 168px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+    /* Fill the band between topbar and dock (JS sets --drawer-top/bottom). */
+    top:var(--drawer-top, 160px);
+    bottom:var(--drawer-bottom, 128px);
+    max-height:none;
+    height:auto;
     border-radius:var(--r-lg);
   }
   .dw-head{padding:10px 12px 9px;gap:8px;flex-wrap:wrap}
@@ -336,8 +387,9 @@ button{font-family:inherit;letter-spacing:-.01em}
   .dock-bill{font-size:8.5px;padding:7px 8px}
 
   #drawer{
-    bottom:calc(108px + env(safe-area-inset-bottom,0px));
-    max-height:min(74dvh,calc(100dvh - 156px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px)));
+    top:var(--drawer-top, 160px);
+    bottom:var(--drawer-bottom, 118px);
+    max-height:none;
   }
   .map-chrome{bottom:calc(108px + env(safe-area-inset-bottom,0px))}
   .realm-card{bottom:calc(108px + env(safe-area-inset-bottom,0px));max-height:min(42dvh,calc(100dvh - 190px))}
@@ -366,6 +418,8 @@ button{font-family:inherit;letter-spacing:-.01em}
 @media(max-height:560px){
   #pressLayer{display:none}
   .realm-card{max-height:min(36dvh,calc(100dvh - 160px))}
+}
+@media(max-height:560px) and (min-width:721px){
   #drawer{max-height:min(58dvh,calc(100dvh - 140px))}
 }
 

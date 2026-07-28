@@ -22,17 +22,29 @@ export default function MultiplayerLobby({
   onBack,
   onHostStart,
   onGuestReady,
+  initialSession,
+  onConsumedInitial,
 }) {
   const realm = realmByRole(selectedRole || realmById(DEFAULT_REALM_ID).role);
-  const [mode, setMode] = useState("menu"); // menu | host | join
+  const [mode, setMode] = useState(() =>
+    initialSession ? (initialSession.room?.hostTokenMatch ? "host" : "join") : "menu"
+  );
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState(""); // create | join | ""
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
-  const [session, setSession] = useState(null); // { code, token, room }
+  const [session, setSession] = useState(() => initialSession || null);
   const guestStarted = useRef(false);
+
+  useEffect(() => {
+    if (!initialSession) return;
+    setSession(initialSession);
+    setMode(initialSession.room?.hostTokenMatch ? "host" : "join");
+    setStarting(false);
+    onConsumedInitial?.();
+  }, [initialSession, onConsumedInitial]);
 
   useEffect(() => {
     if (!session || session.room.status !== "lobby") return undefined;
@@ -40,7 +52,9 @@ export default function MultiplayerLobby({
       try {
         const data = await getMpRoom(session.code, session.token);
         setSession((s) => (s ? { ...s, room: data.room } : s));
+        /* Guests only — host enters play via Start, not this poll. */
         if (
+          !data.room.hostTokenMatch &&
           !guestStarted.current &&
           data.room.status === "playing" &&
           data.room.snapshot
