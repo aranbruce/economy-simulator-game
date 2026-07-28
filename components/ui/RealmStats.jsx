@@ -138,7 +138,7 @@ function vsHomeGdpNote(ratio, homeName) {
 /**
  * Floating command card with GDP, growth and comparisons for a selected realm.
  */
-export default function RealmStats({ role, onClose, onOpenTrade }) {
+export default function RealmStats({ role, onClose, onOpenTrade, onOpenDiplomacy }) {
   const snap = role ? realmSnapshot(role) : null;
   if (!snap) return null;
 
@@ -236,10 +236,23 @@ export default function RealmStats({ role, onClose, onOpenTrade }) {
         </div>
       )}
 
-      {!snap.us && onOpenTrade && (
-        <button type="button" className="btn" onClick={() => onOpenTrade(role)}>
-          Open trade talks
-        </button>
+      {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
+        <div className="realm-card-actions">
+          {onOpenDiplomacy && (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => onOpenDiplomacy(role)}
+            >
+              Open diplomacy
+            </button>
+          )}
+          {onOpenTrade && (
+            <button type="button" className="btn" onClick={() => onOpenTrade(role)}>
+              Open trade talks
+            </button>
+          )}
+        </div>
       )}
     </aside>
   );
