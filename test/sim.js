@@ -1220,11 +1220,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(live.length >= 1, "live VAT rise produces morning-note impact prose");
   assert(/Against holding still|barely move/.test(live[0]), "live impact uses Permanent Secretary voice");
   const briefSnap = JSON.stringify(G.econ);
+  const E = aggregate(G.law);
   writeBriefing({
     growth: 0.5,
     pg: 0.8,
-    E: aggregate(G.law),
-    sp: spending(G.law, G.econ),
+    E,
+    sp: spending(G.law, E, G.econ),
     deficit: 4.5,
   });
   G.brief = mergeBriefingImpact(G.brief, live);
