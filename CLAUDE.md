@@ -793,10 +793,10 @@ derived from the model rather than described alongside it:
   previewing all 36 event options.** If you add mutable top-level state to `G`,
   add it to `MUTABLE` or previews will silently leak.
 
-`impactStripHtml()` puts a running total at the top of the Budget, Taxes,
-Policies, Society and Trade drawers, so the consequence of a change is visible
-in the panel where the change was made. Cards also print their complete effect
-list in sandbox rather than the top-two-and-worst summary, via `fullEffects()`.
+`impactStripHtml()` puts a running total at the top of the bill drawer, so the
+consequence of staged changes is visible alongside the clause list. Cards also
+print their complete effect list in sandbox rather than the top-two-and-worst
+summary, via `fullEffects()`.
 
 The per-clause panel costs one 4-quarter simulation per clause plus two. That is
 cheap, but it only runs when the bill drawer is open and sandbox is on.
