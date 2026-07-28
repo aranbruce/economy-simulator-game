@@ -317,8 +317,10 @@ button{font-family:inherit;letter-spacing:-.01em}
   .dw-head button{width:36px;height:36px}
   .dw-body{padding:10px 12px 14px}
 
+  /* Sit above the live dock (same gap as the drawer), not a fixed guess —
+     the dock wraps to two rows on narrow screens and can clear 118px. */
   .map-chrome{
-    bottom:calc(118px + env(safe-area-inset-bottom,0px));
+    bottom:var(--drawer-bottom, calc(128px + env(safe-area-inset-bottom,0px)));
     padding:0 8px;gap:6px;
   }
   .map-chrome #mapMetrics,
@@ -391,7 +393,7 @@ button{font-family:inherit;letter-spacing:-.01em}
     bottom:var(--drawer-bottom, 118px);
     max-height:none;
   }
-  .map-chrome{bottom:calc(108px + env(safe-area-inset-bottom,0px))}
+  .map-chrome{bottom:var(--drawer-bottom, calc(118px + env(safe-area-inset-bottom,0px)))}
   .realm-card{bottom:calc(108px + env(safe-area-inset-bottom,0px));max-height:min(42dvh,calc(100dvh - 190px))}
   #pressLayer{
     bottom:calc(116px + env(safe-area-inset-bottom,0px));
