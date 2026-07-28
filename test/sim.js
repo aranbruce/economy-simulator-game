@@ -98,6 +98,7 @@ import {
   baseLaw,
   briefingImpactLines,
   mergeBriefingImpact,
+  briefingImpactParts,
   briefingHtml,
   writeBriefing,
   spending,
@@ -1194,9 +1195,34 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     },
     { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
   );
-  assert(rich.length >= 1, "material impact yields briefing lines");
-  assert(/compared with standing still/.test(rich[0]), "bill impact closes with standing-still comparison");
-  assert(/growth/i.test(rich[0]) && /borrowing|books/i.test(rich[0]), "bill impact names growth and fiscal score");
+  assert(rich.length >= 2, "material impact yields economic and approval lines");
+  assert(/compared with standing still/.test(rich[0]), "economic impact closes with standing-still comparison");
+  assert(/growth/i.test(rich[0]) && /deficit/i.test(rich[0]), "economic impact names growth and deficit");
+  assert(/polls/i.test(rich[1]), "approval sits in its own line");
+
+  const parts = briefingImpactParts(
+    {
+      head: {
+        growth: 0.32,
+        balance: 0.45,
+        debt: -0.2,
+        inflation: 0.01,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 0.8,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: { business: 1.2, workers: -0.9, capital: 0.1 },
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(parts && parts.economic && parts.approval, "impact parts split economic and approval");
+  assert(/growth/i.test(parts.economic) && /deficit/i.test(parts.economic), "economic box covers growth and deficit");
+  assert(/polls/i.test(parts.approval), "approval box covers polls");
+  assert(/Business/.test(parts.politics), "faction warmth stays with approval");
 
   const macro = briefingImpactLines(
     {
@@ -1217,8 +1243,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     },
     { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
   );
-  assert(/growth/i.test(macro[0]) && /inflation/i.test(macro[0]), "material growth and inflation are always mentioned");
-  assert(rich.some((t) => /Business/.test(t) && /Workers/.test(t)), "faction warmth lands in a briefing line");
+  assert(/growth/i.test(macro[0]) && /inflation/i.test(macro[0]) && /deficit/i.test(macro[0]), "material growth, inflation and deficit are always mentioned");
+  assert(!/polls/i.test(macro[0]), "approval stays out of the economic line when split");
 
   const decision = briefingImpactLines(
     { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
@@ -1227,7 +1253,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(/compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
 
   const merged = mergeBriefingImpact(["Outturn colour."], rich);
-  assert(merged[0] === rich[0], "impact lines lead the morning note");
+  assert(merged[0] === rich[0], "legacy merge still puts impact lines first");
   assert(merged.length <= 4, "merged briefing stays short");
   assert(merged.includes("Outturn colour."), "outturn survives when there is room");
 
@@ -1235,13 +1261,14 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.draft.taxes.vat.rate = (G.law.taxes.vat.rate || 20) + 2;
   const im = impactOf(clone(G.draft), simulate(G.law, 4), 4);
-  const live = briefingImpactLines(im, {
+  const liveParts = briefingImpactParts(im, {
     kind: "bill",
     clauses: [{ label: "VAT up", pc: 4 }],
   });
-  assert(live.length >= 1, "live VAT rise produces morning-note impact prose");
-  assert(/growth/i.test(live[0]) && /inflation/i.test(live[0]), "live VAT rise mentions growth and inflation");
-  assert(/compared with standing still|barely moves the dial/.test(live[0]), "live impact uses Permanent Secretary voice");
+  assert(liveParts && liveParts.economic, "live VAT rise produces economic impact box");
+  assert(/growth/i.test(liveParts.economic) && /inflation/i.test(liveParts.economic) && /deficit/i.test(liveParts.economic), "live VAT mentions growth, inflation and deficit");
+  assert(liveParts.approval && /polls/i.test(liveParts.approval), "live VAT puts approval in its own box");
+  G.briefImpact = liveParts;
   const briefSnap = JSON.stringify(G.econ);
   const E = aggregate(G.law);
   writeBriefing({
@@ -1251,22 +1278,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     sp: spending(G.law, E, G.econ),
     deficit: 4.5,
   });
-  G.brief = mergeBriefingImpact(G.brief, live);
-  assert(JSON.stringify(G.econ) === briefSnap, "briefing impact merge does not mutate econ");
-  assert(/compared with standing still|barely moves the dial/.test(G.brief[0]), "merged morning note leads with impact");
+  assert(JSON.stringify(G.econ) === briefSnap, "briefing impact does not mutate econ");
 
-  const html = briefingHtml(mergeBriefingImpact(
-    ["Modest growth, broadly in line with trend."],
-    rich
-  ));
-  assert(/briefing-impact/.test(html), "briefingHtml renders impact section");
-  assert(/briefing-outturn/.test(html), "briefingHtml renders outturn section");
-  assert(/Year-ahead view/.test(html) && /This quarter/.test(html), "briefingHtml labels both sections");
-  assert(/briefing-politics/.test(html), "briefingHtml renders politics line");
-
-  const solo = briefingHtml(["Growth has stalled. Nothing dramatic, just nothing happening."]);
-  assert(/briefing-outturn--solo/.test(solo), "outturn-only briefing uses solo styling");
-  assert(!/Year-ahead view/.test(solo), "solo briefing skips impact label");
+  const html = briefingHtml(G.brief, { impact: liveParts });
+  assert(/briefing-impact--econ/.test(html) && /briefing-impact--approval/.test(html), "briefingHtml renders both impact boxes");
+  assert(/Economic changes/.test(html) && /Approval/.test(html), "briefingHtml labels economic and approval sections");
+  assert(/This quarter/.test(html), "briefingHtml still renders outturn section");
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
