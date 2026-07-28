@@ -8,6 +8,7 @@ import {
   setOnSetup,
   setTab,
   getTab,
+  setOnTabChange,
   registerEl,
   render,
   renderChrome,
@@ -488,6 +489,9 @@ export default function GameApp() {
       bump();
       wireRename();
     });
+    setOnTabChange((t) => {
+      if (t) setSelectedRole(null);
+    });
     setOnSetup(() => {
       const scrim = document.getElementById("scrim");
       if (scrim) scrim.hidden = true;
@@ -526,6 +530,7 @@ export default function GameApp() {
     return () => {
       document.removeEventListener("keydown", onKey);
       setOnState(null);
+      setOnTabChange(null);
       setOnSetup(null);
       SHELL_IDS.forEach((id) => registerEl(id, null));
     };
@@ -656,13 +661,13 @@ export default function GameApp() {
         if (role) setSetupRole(role);
         return;
       }
+      if (role) setTab(null);
       setSelectedRole(role);
     },
     [phase]
   );
 
   const openPartnerPanel = useCallback((panel, role) => {
-    setSelectedRole(role);
     setTab(panel, role);
   }, []);
 
