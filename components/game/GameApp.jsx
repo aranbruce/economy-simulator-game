@@ -206,6 +206,7 @@ export default function GameApp() {
   const diploPumpingRef = useRef(false);
   const diploFlushWaitersRef = useRef([]);
   const needsUnsubmitBeforeDiploRef = useRef(false);
+  const pendingUnsubmitRef = useRef(null);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
@@ -258,8 +259,15 @@ export default function GameApp() {
           break;
         }
         try {
-          /* Server withdraws a pending Deliver atomically with the diplo write. */
-          needsUnsubmitBeforeDiploRef.current = false;
+          /* Withdraw Deliver on the server before diplo when the player was
+           waiting — shrinks the window where a peer can resolve against the
+           stale submission. applyDiplo also withdraws atomically as backup. */
+          if (pendingUnsubmitRef.current) {
+            await pendingUnsubmitRef.current;
+          } else if (needsUnsubmitBeforeDiploRef.current && unsubmitMpConfirmRef.current) {
+            await unsubmitMpConfirmRef.current({ silent: true });
+            needsUnsubmitBeforeDiploRef.current = false;
+          }
           const data = await applyMpDiplo(s.code, {
             token: s.token,
             action: item.action,
@@ -276,6 +284,28 @@ export default function GameApp() {
           /* Race / already-at-desired-state: keep optimistic UI, drop the rest of
            the queue for this failure path only after a hard reject. */
           const msg = String(err?.message || "");
+          const conflict = /Room changed|try again/i.test(msg);
+          if (conflict) {
+            try {
+              const data = await getMpRoom(s.code, s.token);
+              lastMpVersion.current = data.room.version;
+              setMpRoom(data.room);
+              setWaiting(!!data.room.you?.submitted);
+              if (data.room.snapshot && applyMpSnapshotRef.current) {
+                applyMpSnapshotRef.current(data.room.snapshot, s, {
+                  brief: false,
+                  you: data.room.you,
+                });
+              }
+              bump();
+              render();
+            } catch (refreshErr) {
+              console.error(refreshErr);
+            }
+            diploQueueRef.current = [];
+            needsUnsubmitBeforeDiploRef.current = false;
+            break;
+          }
           const soft =
             /already posted|already pending|No envoy|not posted/i.test(msg);
           if (soft) {
@@ -335,13 +365,22 @@ export default function GameApp() {
 
       const snap = snapshotMpDiploUi(G0);
       const wasWaiting = !!G0.mp?.waiting;
+      /* Kick server withdraw in this turn before optimistic paint / queue work. */
+      if (wasWaiting && unsubmitMpConfirmRef.current && !pendingUnsubmitRef.current) {
+        needsUnsubmitBeforeDiploRef.current = true;
+        pendingUnsubmitRef.current = Promise.resolve(
+          unsubmitMpConfirmRef.current({ silent: true })
+        ).finally(() => {
+          pendingUnsubmitRef.current = null;
+          needsUnsubmitBeforeDiploRef.current = false;
+        });
+      }
       const local = applyLocalMpDiploAction(payload.action, payload);
       if (!local.ok) return { ok: false, error: local.error || "Action failed" };
       if (wasWaiting && G0.mp) {
         G0.mp.waiting = false;
         clearMpLockedSubmission(G0);
         setWaiting(false);
-        needsUnsubmitBeforeDiploRef.current = true;
       }
       bump();
       render();
