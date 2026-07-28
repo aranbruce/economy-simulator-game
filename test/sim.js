@@ -1170,7 +1170,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     { kind: "bill", clauses: [{ label: "VAT, 20% to 21%", pc: 2 }] }
   );
   assert(
-    noopBill.length === 1 && /barely shifts the year-ahead view/.test(noopBill[0]),
+    noopBill.length === 1 && /barely moves the dial/.test(noopBill[0]),
     "near-zero bill impact still gets a barely-moves line"
   );
 
@@ -1194,7 +1194,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
   );
   assert(rich.length >= 1, "material impact yields briefing lines");
-  assert(/On the central case/.test(rich[0]), "bill impact opens in briefing voice");
+  assert(/compared with standing still/.test(rich[0]), "bill impact closes with standing-still comparison");
   assert(/growth/.test(rich[0]) && /borrowing|books/.test(rich[0]), "bill impact names growth and fiscal score");
   assert(rich.some((t) => /Business/.test(t) && /Workers/.test(t)), "faction warmth lands in a briefing line");
 
@@ -1202,7 +1202,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
     { kind: "decision" }
   );
-  assert(/against doing nothing/.test(decision[0]), "event impact uses decision opener");
+  assert(/compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
 
   const merged = mergeBriefingImpact(["Outturn colour."], rich);
   assert(merged[0] === rich[0], "impact lines lead the morning note");
@@ -1218,7 +1218,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     clauses: [{ label: "VAT up", pc: 4 }],
   });
   assert(live.length >= 1, "live VAT rise produces morning-note impact prose");
-  assert(/On the central case|barely shifts the year-ahead view/.test(live[0]), "live impact uses Permanent Secretary voice");
+  assert(/compared with standing still|barely moves the dial/.test(live[0]), "live impact uses Permanent Secretary voice");
   const briefSnap = JSON.stringify(G.econ);
   const E = aggregate(G.law);
   writeBriefing({
@@ -1230,7 +1230,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   });
   G.brief = mergeBriefingImpact(G.brief, live);
   assert(JSON.stringify(G.econ) === briefSnap, "briefing impact merge does not mutate econ");
-  assert(/On the central case|barely shifts the year-ahead view/.test(G.brief[0]), "merged morning note leads with impact");
+  assert(/compared with standing still|barely moves the dial/.test(G.brief[0]), "merged morning note leads with impact");
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
