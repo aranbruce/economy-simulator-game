@@ -637,6 +637,54 @@ async function main() {
   assert.ok(fullEnv.error, "third envoy rejected when slots full");
   assert.match(fullEnv.error, /slot|filled|envoy/i);
 
+  /* Diplo while Delivered must withdraw in the same write (no 409). */
+  const hostForWait = await getRoom(hLive.room.code, hLive.token);
+  await submitBill(hLive.room.code, hLive.token, clone(hostForWait.snapshot.world.kingdom.law), {
+    envoys: clone(hostForWait.snapshot.politics.kingdom.envoys || [null, null]),
+    ultimatums: clone(hostForWait.snapshot.politics.kingdom.ultimatums || {}),
+  });
+  const guestForWait = await getRoom(hLive.room.code, gLive.token);
+  const waitSub = await submitBill(
+    hLive.room.code,
+    gLive.token,
+    clone(guestForWait.snapshot.world.germany.law),
+    {
+      envoys: clone(guestForWait.snapshot.politics.germany.envoys || [null, null]),
+      ultimatums: clone(guestForWait.snapshot.politics.germany.ultimatums || {}),
+    }
+  );
+  assert.ok(!waitSub.error, waitSub.error);
+  assert.equal(waitSub.resolved, true, "both Delivered resolves quarter");
+  /* Re-submit guest only so they sit in waiting while host has not Delivered. */
+  const afterQ = await getRoom(hLive.room.code, gLive.token);
+  const guestWaiting = await submitBill(
+    hLive.room.code,
+    gLive.token,
+    clone(afterQ.snapshot.world.germany.law),
+    {
+      envoys: clone(afterQ.snapshot.politics.germany.envoys || [null, null]),
+      ultimatums: clone(afterQ.snapshot.politics.germany.ultimatums || {}),
+    }
+  );
+  assert.ok(!guestWaiting.error, guestWaiting.error);
+  assert.ok(!guestWaiting.resolved, "guest alone stays waiting");
+  assert.ok(guestWaiting.room.you.submitted, "guest marked submitted");
+  const whileWaiting = await applyDiploAction(hLive.room.code, gLive.token, {
+    action: "recallEnvoy",
+    partnerId: "china",
+  });
+  assert.ok(!whileWaiting.error, whileWaiting.error);
+  assert.equal(whileWaiting.withdrew, true, "diplo clears pending Deliver");
+  assert.ok(!whileWaiting.room.you.submitted, "guest no longer submitted");
+  assert.ok(
+    !whileWaiting.room.snapshot.politics.germany.envoys.includes("china"),
+    "recall applied after withdraw"
+  );
+  assert.ok(
+    whileWaiting.room.snapshot.politics.germany.envoys.includes("japan"),
+    "prior japan envoy kept"
+  );
+
   const roomPre = await getRoom(hLive.room.code, gLive.token);
   const gPolPre = roomPre.snapshot.politics.germany;
   const guestEnvLive = clone(gPolPre.envoys);

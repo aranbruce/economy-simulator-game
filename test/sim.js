@@ -2985,9 +2985,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(assignEnvoy("france"), "assign envoy succeeds with capital");
   assert(G.capital === cap0 - ENVOY_ASSIGN_PC, "envoy assign spends capital immediately");
   assert(G.envoys.includes("france"), "france occupies an envoy slot");
+  const envoyCl = billClauses().find((c) => /envoy/i.test(c.label));
+  assert(envoyCl, "same-quarter envoy assign appears as a Programme clause");
+  assert(envoyCl.sunk, "envoy capital already paid is marked sunk");
   assert(
-    !billClauses().some((c) => /envoy/i.test(c.label)),
-    "envoy assign is not a bill clause"
+    billClauses().every((c) => c.sunk || !c.pc),
+    "sunk envoy does not add unpaid capital to the Programme"
   );
   assert(
     relationModifiers("france").some((m) => m.label === "Envoy posted" && m.pts === ENVOY_TARGET),

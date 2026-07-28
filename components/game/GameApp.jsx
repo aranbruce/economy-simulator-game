@@ -200,6 +200,7 @@ export default function GameApp() {
   const lastBriefQ = useRef(-1);
   const lastMorningNoteQ = useRef(-1);
   const lastBriefingCompleteQ = useRef(-1);
+  const lastPresentedPendingKey = useRef(null);
   const unsubmitInFlight = useRef(false);
   const diploQueueRef = useRef([]);
   const diploPumpingRef = useRef(false);
@@ -257,19 +258,8 @@ export default function GameApp() {
           break;
         }
         try {
-          if (needsUnsubmitBeforeDiploRef.current && unsubmitMpConfirmRef.current) {
-            const withdrawn = await unsubmitMpConfirmRef.current({ silent: true });
-            needsUnsubmitBeforeDiploRef.current = false;
-            if (withdrawn === false) {
-              restoreMpDiploUi(item.snap);
-              if (item.snap?.waiting) setWaiting(true);
-              diploQueueRef.current = [];
-              bump();
-              render();
-              console.error("Could not withdraw Deliver before diplo");
-              break;
-            }
-          }
+          /* Server withdraws a pending Deliver atomically with the diplo write. */
+          needsUnsubmitBeforeDiploRef.current = false;
           const data = await applyMpDiplo(s.code, {
             token: s.token,
             action: item.action,
@@ -413,14 +403,18 @@ export default function GameApp() {
         const sid = seatId || you?.seatId || playerCountryId(G.homeRole);
         const pending =
           sid && G.politics && G.politics[sid] && G.politics[sid].pendingEvent;
+        const pendingKey = pending ? JSON.stringify(pending) : null;
         if (G.q !== lastMorningNoteQ.current) {
           /* New quarter: flash once, then summit/event or morning note. */
           lastMorningNoteQ.current = G.q;
           lastBriefQ.current = G.q;
+          lastPresentedPendingKey.current = pendingKey;
           if (!pending) lastBriefingCompleteQ.current = G.q;
           showMpBriefing();
         } else if (pending) {
-          /* Same quarter, another queued event (e.g. second summit beat). */
+          /* Same quarter, another queued event — skip duplicates from SSE+submit. */
+          if (pendingKey === lastPresentedPendingKey.current) return;
+          lastPresentedPendingKey.current = pendingKey;
           showMpBriefing({ skipAnnounce: true });
         } else if (lastBriefingCompleteQ.current !== G.q) {
           /* Same quarter after the last event choice — morning note, no flash. */
