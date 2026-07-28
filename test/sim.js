@@ -96,6 +96,25 @@ import {
   lawForRole,
   realmLawKey,
   baseLaw,
+  POLITY,
+  POLITY_IDS,
+  REL_POLITY,
+  polityOf,
+  polityIdOf,
+  profilePolityId,
+  polityAffinity,
+  polityReachable,
+  polityCanReach,
+  polityChangePc,
+  POLITY_LEAP_EXTRA,
+  polityShockFac,
+  billShock,
+  clausesIn,
+  termLenOf,
+  termReviewDue,
+  termReview,
+  checkCrises,
+  FACTIONS,
 } from "../lib/sim/engine.js";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
@@ -1486,8 +1505,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
-  assert(G.econ.liberty0 === 28, "China liberty0 is 28");
-  assert(G.econ.liberty < 40, `China liberty well below UK (got ${G.econ.liberty})`);
+  assert(G.econ.liberty0 === 18, "China liberty0 is 18");
+  assert(G.econ.liberty < 30, `China liberty well below UK (got ${G.econ.liberty})`);
   assert(G.econ.openness0 === 35, "China openness0 is 35");
 
   newGame({ homeRole: "japan", homeIso: "392", country: "Japan" });
@@ -1512,7 +1531,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!!G.econ.socOpen, "China settle stores socOpen opening impulses");
   for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
   assert(
-    Math.abs(G.econ.liberty - 28) < 4,
+    Math.abs(G.econ.liberty - 18) < 4,
     `China liberty holds near soc0 under unchanged law (got ${G.econ.liberty})`
   );
   assert(
@@ -1527,6 +1546,182 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     G.econ.liberty > libBefore + 3,
     `Repealing digitalId raises China liberty (${libBefore.toFixed(1)} → ${G.econ.liberty.toFixed(1)})`
   );
+}
+
+/* Polity types: term clocks, liberty pins, capital regen, elite coups. */
+{
+  const expect = {
+    kingdom: "democracy",
+    china: "authoritarian",
+    russia: "authoritarian",
+    vietnam: "authoritarian",
+    egypt: "authoritarian",
+    saudi: "authoritarian",
+    uae: "authoritarian",
+    turkey: "hybrid",
+  };
+  for (const id of Object.keys(NATION_PROFILE)) {
+    const p = NATION_PROFILE[id].polity;
+    assert(!!p && POLITY_IDS.includes(p), `${id} has a valid polity (${p})`);
+  }
+  for (const [id, kind] of Object.entries(expect)) {
+    assert(polityIdOf(id === "kingdom" ? "home" : id) === kind, `${id} polity is ${kind}`);
+  }
+  assert(termLenOf("home") === 20, "Kingdom termLen is 20");
+  assert(termLenOf("china") === 40, "China termLen is 40");
+  assert(termLenOf("saudi") === 40, "Saudi termLen is 40");
+  assert(polityOf("china").capitalRegen === 0.55, "China capitalRegen is 0.55");
+  assert(polityOf("home").capitalRegen === 1, "Kingdom capitalRegen is 1");
+
+  newGame({ sandbox: true, homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  G.q = 20;
+  assert(!termReviewDue(), "China is not due a term review at q=20");
+  G.q = 40;
+  assert(termReviewDue(), "China is due a congress at q=40");
+  const termBefore = G.term;
+  termReview();
+  assert(G.term === termBefore + 1, "China congress advances the term");
+  assert(!G.over, "China sandbox congress does not end the run");
+
+  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  G.q = 20;
+  assert(termReviewDue(), "Kingdom is due an election at q=20");
+  const kt = G.term;
+  termReview();
+  assert(G.term === kt + 1, "Kingdom election advances the term");
+
+  /* Capital regen: same approval, China ~55% of Kingdom gain (no fiscal-rule hit). */
+  function capitalGain(role, iso, name) {
+    newGame({ sandbox: true, homeRole: role, homeIso: iso, country: name });
+    G = getG();
+    G.law.policies.fiscalRule = false;
+    G.draft.policies.fiscalRule = false;
+    for (const f of FACTIONS) G.fac[f.id] = 50;
+    G.capital = 40;
+    const before = G.capital;
+    step(G, G.law, G.law, true);
+    return G.capital - before;
+  }
+  const kg = capitalGain("home", "826", "The Kingdom");
+  const cg = capitalGain("china", "156", "Eastern Republic");
+  assert(kg > 0 && cg > 0, `capital gains positive (kingdom ${kg.toFixed(2)}, china ${cg.toFixed(2)})`);
+  assert(
+    Math.abs(cg / kg - 0.55) < 0.08,
+    `China capital gain ~55% of Kingdom (got ${(cg / kg).toFixed(3)})`
+  );
+
+  /* Elite coup: three quarters of low patriots ends China Career. */
+  newGame({ sandbox: false, homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  G = getG();
+  G.sandbox = false;
+  for (const f of FACTIONS) G.fac[f.id] = 50;
+  G.fac.patriots = 20;
+  G.lowRun = 0;
+  checkCrises({});
+  assert(G.lowRun === 1 && !G.over, "China coup clock starts on low patriots");
+  checkCrises({});
+  checkCrises({});
+  assert(G.over, "China Career ends after three low-patriot quarters");
+
+  newGame({ sandbox: false, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  G.sandbox = false;
+  for (const f of FACTIONS) G.fac[f.id] = 50;
+  G.lowRun = 0;
+  checkCrises({});
+  assert(G.lowRun === 0 && !G.over, "Kingdom at 50% approval does not tick the coup clock");
+  for (const f of FACTIONS) G.fac[f.id] = 15;
+  checkCrises({});
+  checkCrises({});
+  checkCrises({});
+  assert(!G.over && G.lowRun === 3, "Kingdom still needs a fourth low-approval quarter");
+  checkCrises({});
+  assert(G.over, "Kingdom Career ends after four low-approval quarters");
+
+  /* newGovt flavour for authoritarian focus has no "election". */
+  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  const newGovt = EVENTS.find((e) => e.id === "newGovt");
+  G.eventFocus = "china";
+  const chinaText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(!/election/i.test(chinaText), "China newGovt text does not say election");
+  assert(/reshuffle|leadership/i.test(chinaText), "China newGovt mentions leadership reshuffle");
+  G.eventFocus = "saudi";
+  const saudiText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(!/election/i.test(saudiText), "Saudi newGovt text does not say election");
+  assert(/reshuffle|leadership/i.test(saudiText), "Saudi newGovt mentions leadership reshuffle");
+  G.eventFocus = "germany";
+  const demText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(/election/i.test(demText), "Democratic newGovt text still says election");
+  const prepared = prepareEvent(Object.assign({}, newGovt, {
+    resolve: () => ({ focus: "china" }),
+  }));
+  assert(prepared && !/election/i.test(prepared.text), "prepareEvent resolves China newGovt without election");
+  assert(prepared && /reshuffle|leadership/i.test(prepared.title), "prepareEvent China title is a reshuffle");
+}
+
+/* Polity change (Society), affinity, and bill shocks. */
+{
+  assert(MUTABLE.includes("polityShift"), "polityShift is on MUTABLE");
+
+  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  G = getG();
+  assert(G.law.polity === "democracy", "Kingdom law.polity is democracy");
+  assert(polityReachable("democracy").join(",") === "democracy,hybrid,authoritarian", "all three polities are reachable");
+  assert(polityCanReach("democracy", "authoritarian"), "democracy can leap to authoritarian");
+  assert(POLITY_IDS.includes("monarchy") === false, "monarchy is not a live polity type");
+  assert(polityChangePc("democracy", "hybrid") === POLITY.hybrid.changePc, "adjacent hybrid costs changePc");
+  assert(
+    polityChangePc("democracy", "authoritarian") === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
+    "democracy→authoritarian leap costs changePc + leap extra"
+  );
+  assert(
+    polityChangePc("authoritarian", "democracy") === POLITY.democracy.changePc + POLITY_LEAP_EXTRA,
+    "authoritarian→democracy leap costs changePc + leap extra"
+  );
+
+  G.draft.polity = "authoritarian";
+  let cl = billClauses();
+  const leapCl = cl.find((c) => /political system/.test(c.label));
+  assert(!!leapCl, "leap polity change is a bill clause");
+  assert(leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA, "leap clause uses leap PC");
+  assert(clausesIn("society", cl), "polity clause counts toward Society");
+
+  G.draft.polity = "hybrid";
+  cl = billClauses();
+  const polityCl = cl.find((c) => /political system/.test(c.label));
+  assert(!!polityCl, "adjacent polity change is a bill clause");
+  assert(polityCl.pc === POLITY.hybrid.changePc, "hybrid polity change costs changePc");
+
+  const libShock = polityShockFac("authoritarian", "hybrid");
+  assert(libShock.urban === 8 && libShock.patriots === -10, "liberalising shock lifts urban and hits patriots");
+  const tightShock = polityShockFac("democracy", "hybrid");
+  assert(tightShock.patriots === 8 && tightShock.urban === -10, "tightening shock lifts patriots and hits urban");
+
+  const prev = clone(G.law);
+  const next = clone(G.law);
+  next.polity = "hybrid";
+  const shock = billShock(next, prev);
+  assert(shock.urban === -10 && shock.patriots === 8, "billShock applies tightening polity hits");
+
+  assert(polityAffinity("authoritarian", "authoritarian") === 1, "same polity affinity is 1");
+  assert(polityAffinity("authoritarian", "democracy") === -0.7, "democracy↔authoritarian affinity is −0.7");
+  const chinaRussia = REL_POLITY * polityAffinity("authoritarian", profilePolityId("russia"));
+  const chinaNl = REL_POLITY * polityAffinity("authoritarian", profilePolityId("netherlands"));
+  assert(chinaRussia > chinaNl + 5, `China–Russia affinity target exceeds China–Netherlands (${chinaRussia} vs ${chinaNl})`);
+
+  G.capital = 80;
+  G.draft.polity = "hybrid";
+  G.prevLaw = clone(G.law);
+  const from = G.law.polity;
+  G.law = clone(G.draft);
+  G.polityShift = { from, to: "hybrid", q: G.q };
+  assert(G.polityShift.to === "hybrid", "polityShift records the enacted change");
+  assert(EVENTS.some((e) => e.id === "polityBacklash"), "polityBacklash event exists");
+  assert(EVENTS.some((e) => e.id === "polityConsolidation"), "polityConsolidation event exists");
+  assert(EVENTS.some((e) => e.id === "polityRecognition"), "polityRecognition event exists");
 }
 
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
