@@ -833,30 +833,6 @@ export default function WorldMap({
     if (canvasRef.current) canvasRef.current.style.cursor = "grab";
   };
 
-  const resetView = () => {
-    viewRef.current = { scale: 1.35, tx: 40, ty: 20 };
-    paint();
-  };
-
-  const ctrlBtn = {
-    border: "1px solid var(--edge)",
-    background: "var(--g-2)",
-    backdropFilter: "var(--blur-lt)",
-    WebkitBackdropFilter: "var(--blur-lt)",
-    color: "var(--ink-soft)",
-    borderRadius: "var(--r-sm)",
-    fontSize: 14,
-    fontWeight: 600,
-    cursor: "pointer",
-    boxShadow: "var(--spec)",
-    width: 34,
-    height: 34,
-    display: "grid",
-    placeItems: "center",
-    padding: 0,
-    lineHeight: 1,
-  };
-
   return (
     <div
       id="worldMapLayer"
@@ -903,52 +879,6 @@ export default function WorldMap({
           setupMode ? "Choose your country on the world map" : "World map"
         }
       />
-      <div
-        className="map-zoom"
-        style={{
-          position: "absolute",
-          right: 14,
-          bottom: setupMode ? 110 : 90,
-          zIndex: 2,
-          pointerEvents: "auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: 6,
-          alignItems: "stretch",
-        }}
-      >
-        <div style={{ display: "flex", gap: 6 }}>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            onClick={() => zoomAt(1.25)}
-            style={ctrlBtn}
-          >
-            +
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom out"
-            onClick={() => zoomAt(1 / 1.25)}
-            style={ctrlBtn}
-          >
-            −
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={resetView}
-          style={{
-            ...ctrlBtn,
-            width: "auto",
-            height: "auto",
-            padding: "7px 12px",
-            fontSize: 11,
-          }}
-        >
-          Reset view
-        </button>
-      </div>
     </div>
   );
 }

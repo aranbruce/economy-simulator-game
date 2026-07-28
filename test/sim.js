@@ -1196,7 +1196,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
   );
   assert(rich.length >= 2, "material impact yields economic and approval lines");
-  assert(/compared with standing still/.test(rich[0]), "economic impact closes with standing-still comparison");
+  assert(/over the next year, compared with standing still/.test(rich[0]), "economic impact closes with year-ahead comparison");
   assert(/growth/i.test(rich[0]) && /deficit/i.test(rich[0]), "economic impact names growth and deficit");
   assert(/polls/i.test(rich[1]), "approval sits in its own line");
 
@@ -1250,7 +1250,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
     { kind: "decision" }
   );
-  assert(/compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
+  assert(/over the next year, compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
 
   const merged = mergeBriefingImpact(["Outturn colour."], rich);
   assert(merged[0] === rich[0], "legacy merge still puts impact lines first");
@@ -1282,7 +1282,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   const html = briefingHtml(G.brief, { impact: liveParts });
   assert(/briefing-impact--econ/.test(html) && /briefing-impact--approval/.test(html), "briefingHtml renders both impact boxes");
-  assert(/Economic changes/.test(html) && /Approval/.test(html), "briefingHtml labels economic and approval sections");
+  assert(/Next year/.test(html) && /Approval/.test(html), "briefingHtml labels next year and approval sections");
+  assert(/Four-quarter total/.test(html), "briefingHtml explains year-ahead horizon");
   assert(/This quarter/.test(html), "briefingHtml still renders outturn section");
 }
 

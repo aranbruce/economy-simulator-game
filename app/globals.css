@@ -419,6 +419,7 @@ button{font-family:inherit;letter-spacing:-.01em}
 }
 .briefing-impact--wide{grid-column:1/-1}
 .briefing-impact--econ .briefing-label{color:var(--accent-lt)}
+.briefing-impact-hint{font-size:11px;line-height:1.35;color:var(--ink-faint);margin:-4px 0 8px}
 .briefing-impact--approval{
   background:rgba(255,159,10,.08);border-color:rgba(255,159,10,.24);
 }
