@@ -1196,7 +1196,28 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(rich.length >= 1, "material impact yields briefing lines");
   assert(/compared with standing still/.test(rich[0]), "bill impact closes with standing-still comparison");
-  assert(/growth/.test(rich[0]) && /borrowing|books/.test(rich[0]), "bill impact names growth and fiscal score");
+  assert(/growth/i.test(rich[0]) && /borrowing|books/i.test(rich[0]), "bill impact names growth and fiscal score");
+
+  const macro = briefingImpactLines(
+    {
+      head: {
+        growth: 0.28,
+        inflation: 0.41,
+        balance: 0.55,
+        debt: -0.15,
+        unemployment: -0.02,
+        yield: 0,
+        approval: 1.1,
+        services: 0,
+        trend: 0.01,
+        potential: 0.02,
+        fx: 0,
+      },
+      fac: {},
+    },
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+  );
+  assert(/growth/i.test(macro[0]) && /inflation/i.test(macro[0]), "material growth and inflation are always mentioned");
   assert(rich.some((t) => /Business/.test(t) && /Workers/.test(t)), "faction warmth lands in a briefing line");
 
   const decision = briefingImpactLines(
@@ -1219,6 +1240,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     clauses: [{ label: "VAT up", pc: 4 }],
   });
   assert(live.length >= 1, "live VAT rise produces morning-note impact prose");
+  assert(/growth/i.test(live[0]) && /inflation/i.test(live[0]), "live VAT rise mentions growth and inflation");
   assert(/compared with standing still|barely moves the dial/.test(live[0]), "live impact uses Permanent Secretary voice");
   const briefSnap = JSON.stringify(G.econ);
   const E = aggregate(G.law);
