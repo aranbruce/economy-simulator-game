@@ -154,6 +154,7 @@ import {
   isVisitActive,
   diploMapMarkers,
   diploHudHtml,
+  hasFormalProtest,
 } from "../lib/sim/engine.js";
 import { sharedCamp } from "../lib/sim/diplomacy.js";
 import { COUNTRIES } from "../lib/sim/countries.js";
@@ -2114,7 +2115,17 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  assert(MISSIONS.length >= 4, "missions table is populated");
+  assert(MISSIONS.length === 3, "missions are summit, protest, sanctions");
+  assert(
+    !MISSIONS.some((m) => m.id === "concession"),
+    "concession is not a staged mission"
+  );
+  assert(
+    MISSION_EVENTS.every((ev) => !ev.missions.includes("concession")),
+    "mission events are summit-only"
+  );
+  const demarche = MISSIONS.find((m) => m.id === "demarche");
+  assert(demarche && demarche.pc === 4 && demarche.impulse === -5, "protest is cheap escalate rung");
   G.draft.missions = { france: "summit" };
   const cl = billClauses();
   assert(
@@ -3102,9 +3113,72 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.missions = { china: "demarche" };
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
-    (G.econ.diploLedger.china || []).some((x) => /Formal protest/.test(x.label) && x.pts < 0),
-    "demarche adds named grievance ledger entry"
+    (G.econ.diploLedger.china || []).some((x) => /Formal protest/.test(x.label) && x.pts === -3),
+    "demarche adds named grievance ledger entry (−3)"
   );
+  assert((G.econ.relImpulse.china || 0) === -5, "demarche applies −5 relImpulse");
+  assert(hasFormalProtest(G.econ, "china"), "formal protest detected for leverage");
+  assert(
+    !(G.econ.sanctionStance.china && G.econ.sanctionStance.china.against),
+    "demarche does not set sanctions stance"
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  /* Warm partner: protest alone should unlock ultimatum leverage. */
+  G.rel.japan = 70;
+  G.capital = 50;
+  assert(!canIssueUltimatum("japan").ok, "warm Japan lacks ultimatum leverage before protest");
+  G.draft.missions = { japan: "demarche" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(canIssueUltimatum("japan").ok, "formal protest unlocks ultimatum leverage");
+  const depsJp = {
+    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
+    DEAL_BY_ID, aggregate, realmGdpBn,
+  };
+  const p0 = baseP("japan", "political", G, depsJp);
+  /* Strip protest and compare — bump should be present with protest. */
+  G.econ.diploLedger.japan = [];
+  const p1 = baseP("japan", "political", G, depsJp);
+  G.econ.diploLedger.japan = [{ id: "mission_demarche_0", label: "Formal protest", pts: -3 }];
+  const p2 = baseP("japan", "political", G, depsJp);
+  assert(p2 > p1 + 0.02, "formal protest raises ultimatum concede odds");
+  assert(p0 > p1, "protest path raises baseP vs clean ledger");
+}
+
+{
+  newGame();
+  G = getG();
+  const retal0 = G.econ.retaliation || 0;
+  const unc0 = G.econ.uncertainty || 0;
+  G.draft.missions = { russia: "sanctionsPosture" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(
+    G.econ.sanctionStance.russia && G.econ.sanctionStance.russia.against,
+    "sanctions mission sets against stance"
+  );
+  assert(
+    (G.econ.diploLedger.russia || []).some((x) => /Restrictive measures/.test(x.label) && x.pts === -10),
+    "sanctions mission adds ledger −10"
+  );
+  assert((G.econ.relImpulse.russia || 0) === -14, "sanctions mission applies −14 impulse");
+  assert((G.econ.retaliation || 0) >= retal0 + 0.8 - 1e-9, "sanctions mission nudges retaliation");
+  assert((G.econ.uncertainty || 0) >= unc0 + 0.15 - 1e-9, "sanctions mission raises uncertainty");
+}
+
+{
+  newGame();
+  G = getG();
+  beginActiveVisit(G, "france", "summit");
+  G.draft.missions = { france: "sanctionsPosture" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(
+    !(G.econ.sanctionStance.france && G.econ.sanctionStance.france.against),
+    "sanctions mission skipped while state visit active"
+  );
+  assert(!(G.econ.relImpulse.france <= -14), "no sanctions impulse during visit");
 }
 
 {
