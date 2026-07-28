@@ -12,6 +12,7 @@ import {
   gdp0ForSeat,
   fmtGdpBn,
   NATION_PROFILE,
+  polityOf,
 } from "../../lib/sim/engine.js";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
@@ -30,6 +31,22 @@ function openingBooks(role) {
     unemployment: pins.unemployment,
     gdpBn: gdp0ForSeat(role),
   };
+}
+
+function modeHint(sandbox, meta) {
+  if (sandbox) {
+    if (meta.kind === "congress") {
+      return "Practice run: congress pressure and crises still fire, but you keep the job.";
+    }
+    return "Practice run: elections and crises still fire, but you keep the job.";
+  }
+  if (meta.kind === "congress") {
+    return "Survive the party congress, keep the apparatus loyal, and watch the bond market — capital recovers slowly.";
+  }
+  if (meta.kind === "managed") {
+    return "Managed ballots still matter. Survive your party and the bond market — or lose the seals.";
+  }
+  return "Win elections, survive your party and the bond market — or lose the seals.";
 }
 
 function SetupStat({ label, value }) {
@@ -53,6 +70,7 @@ export default function CountryPicker({
   const realm = realmByRole(selectedRole || initial.role);
   const [sandbox, setSandbox] = useState(false);
   const books = openingBooks(realm.role);
+  const meta = polityOf(realm.role);
   const name = realm.name.slice(0, 34);
 
   return (
@@ -71,6 +89,7 @@ export default function CountryPicker({
           <strong>{realm.name}</strong>
           <em>{realm.blurb}</em>
           <div className="setup-books" aria-label={`Opening books for ${realm.name}`}>
+            <SetupStat label="Polity" value={meta.label} />
             <SetupStat label="GDP" value={fmtGdpBn(books.gdpBn)} />
             <SetupStat label="Debt" value={books.debt.toFixed(0) + "%"} />
             <SetupStat label="Deficit" value={books.deficit.toFixed(1) + "%"} />
@@ -98,11 +117,7 @@ export default function CountryPicker({
               Sandbox
             </button>
           </div>
-          <p className="setup-mode-hint">
-            {sandbox
-              ? "Practice run: elections and crises still fire, but you keep the job."
-              : "Win elections, survive your party and the bond market — or lose the seals."}
-          </p>
+          <p className="setup-mode-hint">{modeHint(sandbox, meta)}</p>
         </div>
         <button
           type="button"
