@@ -812,6 +812,10 @@ table.ledger .neg{color:var(--red-lt)} table.ledger .pos{color:var(--green-lt)}
 .proj th:first-child{text-align:left}
 .proj td{padding:6px 7px;text-align:right;border-bottom:1px solid rgba(255,255,255,.05)}
 .proj td:first-child{text-align:left;color:var(--ink-soft)}
+.proj-scroll{overflow-x:auto}
+@media(max-width:600px){
+  .proj table{width:max-content}
+}
 .proj .neg{color:var(--red-lt)} .proj .pos{color:var(--green-lt)}
 .warnlist{margin:13px 0 0;padding:0;list-style:none;display:grid;gap:7px}
 .warnlist li{font-size:13px;padding-left:16px;position:relative;line-height:1.4}
