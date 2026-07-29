@@ -812,9 +812,8 @@ table.ledger .neg{color:var(--red-lt)} table.ledger .pos{color:var(--green-lt)}
 .proj th:first-child{text-align:left}
 .proj td{padding:6px 7px;text-align:right;border-bottom:1px solid rgba(255,255,255,.05)}
 .proj td:first-child{text-align:left;color:var(--ink-soft)}
-.proj-scroll{max-width:100%}
-@media(max-width:520px){
-  .proj-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.proj-scroll{overflow-x:auto}
+@media(max-width:600px){
   .proj table{width:max-content}
 }
 .proj .neg{color:var(--red-lt)} .proj .pos{color:var(--green-lt)}
