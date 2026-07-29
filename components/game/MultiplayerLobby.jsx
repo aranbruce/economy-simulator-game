@@ -13,6 +13,7 @@ import {
   DEFAULT_REALM_ID,
   realmById,
 } from "../../lib/sim/realms.js";
+import { HudFrame } from "../ui/HudFrame.jsx";
 
 /**
  * Lobby: create or join a private room. Host starts from GameApp once ≥2 players.
@@ -133,15 +134,17 @@ export default function MultiplayerLobby({
     const room = session.room;
     return (
       <div className="setup-chrome" role="dialog" aria-modal="true">
-        <header className="setup-banner hud-frame hud-surface">
-          <div className="stamp">Cabinet</div>
-          <h1>Room {room.code}</h1>
-          <p>
-            Share this code. Each player picks a different country on the map,
-            then joins. The quarter advances only when everyone has Delivered.
-          </p>
+        <header className="setup-banner">
+          <HudFrame className="hud-surface">
+            <div className="stamp">Cabinet</div>
+            <h1>Room {room.code}</h1>
+            <p>
+              Share this code. Each player picks a different country on the map,
+              then joins. The quarter advances only when everyone has Delivered.
+            </p>
+          </HudFrame>
         </header>
-        <div className="setup-dock hud-frame hud-surface">
+        <HudFrame className="setup-dock hud-surface">
           <div className="setup-pick">
             <span className="setup-pick-tag">Lobby</span>
             <strong>
@@ -200,22 +203,24 @@ export default function MultiplayerLobby({
               Leave
             </button>
           </div>
-        </div>
+        </HudFrame>
       </div>
     );
   }
 
   return (
     <div className="setup-chrome" role="dialog" aria-modal="true">
-      <header className="setup-banner hud-frame hud-surface">
-        <div className="stamp">Cabinet</div>
-        <h1>Multiplayer</h1>
-        <p>
-          Private lobby. Unclaimed seats stay AI. Click your country on the map
-          before you create or join.
-        </p>
+      <header className="setup-banner">
+        <HudFrame className="hud-surface">
+          <div className="stamp">Cabinet</div>
+          <h1>Multiplayer</h1>
+          <p>
+            Private lobby. Unclaimed seats stay AI. Click your country on the map
+            before you create or join.
+          </p>
+        </HudFrame>
       </header>
-      <div className="setup-dock hud-frame hud-surface">
+      <HudFrame className="setup-dock hud-surface">
         <div className="setup-pick">
           <strong>{realm.name}</strong>
           <em>Your seat if free</em>
@@ -264,7 +269,7 @@ export default function MultiplayerLobby({
             Solo instead
           </button>
         </div>
-      </div>
+      </HudFrame>
     </div>
   );
 }

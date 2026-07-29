@@ -127,6 +127,40 @@ async function main() {
     g.econ.debt,
     "guest top-bar Debt series matches own econ"
   );
+  assert.equal(
+    g.econ.debt,
+    last.room.snapshot.world.germany.econ.debt,
+    "guest UI econ is germany world bag, not snapshot lead"
+  );
+  assert.notEqual(
+    g.econ.debt,
+    last.room.snapshot.world.kingdom.econ.debt,
+    "guest debt differs from host seat after divergent bills"
+  );
+
+  hydrateGameSnapshot(last.room.snapshot, {
+    homeRole: "home",
+    country: "Alice",
+    seatId: "kingdom",
+    render: false,
+  });
+  const hostG = getG();
+  assert.equal(playerCountryId(hostG.homeRole), "kingdom");
+  assert.equal(
+    hostG.econ.debt,
+    last.room.snapshot.world.kingdom.econ.debt,
+    "host UI econ is kingdom world bag"
+  );
+  assert.equal(
+    hostG.log[hostG.log.length - 1].debt,
+    hostG.econ.debt,
+    "host top-bar Debt matches own econ"
+  );
+  assert.notEqual(
+    hostG.capital,
+    last.room.snapshot.politics.germany.capital,
+    "host capital is kingdom politics, not guest"
+  );
 
   /* Sandbox persists across submit / resolve when toggled on. */
   _resetRoomsForTests();

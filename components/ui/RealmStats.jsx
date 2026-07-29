@@ -12,6 +12,7 @@ import {
   fxDisplayIndex,
   currencyForSeat,
 } from "../../lib/sim/engine.js";
+import { useGame } from "../../lib/ui/useGame.js";
 
 function ensureNations(e) {
   if (e.nations) {
@@ -53,30 +54,30 @@ function homeDeficit(G) {
 }
 
 /** Build comparable stats for home or a partner realm. */
-export function realmSnapshot(role) {
-  const G = getG();
-  if (!G) return null;
-  const e = G.econ;
+export function realmSnapshot(role, G) {
+  const state = G || getG();
+  if (!state) return null;
+  const e = state.econ;
   const nations = ensureNations(e);
   const homeY = e.gdp;
-  const homeG = homeGrowth(G);
-  const homeGdp = realmGdpBn("home", G);
+  const homeG = homeGrowth(state);
+  const homeGdp = realmGdpBn("home", state);
 
   if (role === "home") {
-    const cur = currencyForSeat(G.homeRole || "home");
+    const cur = currencyForSeat(state.homeRole || "home");
     return {
       role: "home",
-      name: G.country || "United Kingdom",
+      name: state.country || "United Kingdom",
       blurb: "Your economy — the books you are judged on.",
       us: true,
       output: homeY,
       gdpBn: homeGdp,
       growth: homeG,
       inflation: e.inflation,
-      deficit: homeDeficit(G),
+      deficit: homeDeficit(state),
       debt: e.debt,
       unemployment: e.unemployment,
-      fx: fxDisplayIndex("home", G),
+      fx: fxDisplayIndex("home", state),
       currency: cur,
       relation: null,
       tradeShare: null,
@@ -89,7 +90,7 @@ export function realmSnapshot(role) {
   const p = PARTNERS.find((x) => x.id === role);
   const n = nations[role];
   if (!p || !n) return null;
-  const gdpBn = realmGdpBn(role, G);
+  const gdpBn = realmGdpBn(role, state);
   const cur = currencyForSeat(role);
   return {
     role,
@@ -103,9 +104,9 @@ export function realmSnapshot(role) {
     deficit: n.deficit,
     debt: n.debt,
     unemployment: null,
-    fx: fxDisplayIndex(role, G),
+    fx: fxDisplayIndex(role, state),
     currency: cur,
-    relation: G.rel[role] ?? 50,
+    relation: state.rel[role] ?? 50,
     tradeShare: p.share,
     vsHomeGrowth: n.growth - homeG,
     vsHomeOutput: (n.y / Math.max(homeY, 1e-6)) * 100,
@@ -139,10 +140,10 @@ function vsHomeGdpNote(ratio, homeName) {
  * Floating command card with GDP, growth and comparisons for a selected realm.
  */
 export default function RealmStats({ role, onClose, onOpenTrade, onOpenDiplomacy }) {
-  const snap = role ? realmSnapshot(role) : null;
+  const G = useGame();
+  const snap = role ? realmSnapshot(role, G) : null;
   if (!snap) return null;
 
-  const G = getG();
   const homeName = G?.country || "United Kingdom";
 
   return (
