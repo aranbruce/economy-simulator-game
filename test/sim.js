@@ -155,8 +155,14 @@ import {
   diploMapMarkers,
   diploHudHtml,
   hasFormalProtest,
+  UN_P5,
+  UN_SEAT_QUARTERS,
+  isP5,
+  isUnMember,
+  onSecurityCouncil,
+  unSeatQuartersLeft,
 } from "../lib/sim/engine.js";
-import { sharedCamp } from "../lib/sim/diplomacy.js";
+import { sharedCamp, UN_EXIT_DIPLO } from "../lib/sim/diplomacy.js";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
 import { partnerForIso } from "../lib/sim/partners.js";
@@ -3635,6 +3641,139 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const hud = diploHudHtml(G);
   assert(!/conceded/i.test(hud || ""), "ultimatum outcomes no longer appear on diplo hud");
   assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
+}
+
+/* ---- The United Nations and the Security Council ---- */
+{
+  newGame();
+  G = getG();
+  assert(!!G.law.policies.unMember && isUnMember(G.law), "UK opens inside the United Nations");
+  assert(
+    POLICIES.some((p) => p.id === "unMember" && p.cost > 0),
+    "membership carries assessed dues"
+  );
+  assert(UN_P5.length === 5, "five permanent seats");
+  assert(
+    ["kingdom", "united_states", "china", "russia", "france"].every(isP5),
+    "P5 are the US, China, Russia, France and the United Kingdom seat"
+  );
+  assert(onSecurityCouncil(), "United Kingdom holds a permanent Security Council seat");
+  assert(unSeatQuartersLeft() === 0, "a permanent seat is not an elected term");
+
+  /* Dues are real money in the books. */
+  const lawOut = clone(G.law);
+  delete lawOut.policies.unMember;
+  assert(
+    aggregate(G.law).spend - aggregate(lawOut).spend > 0.015,
+    "membership dues land in the spending aggregate"
+  );
+
+  /* Leaving is a costed bill clause. */
+  delete G.draft.policies.unMember;
+  const cl = billClauses();
+  assert(
+    cl.some((c) => /Repeal United Nations membership/.test(c.label) && c.pc > 0),
+    "leaving the UN is a costed bill clause"
+  );
+  G.draft.policies.unMember = true;
+}
+
+{
+  /* Non-P5 member: no seat until an election is won, then it expires. */
+  newGame({ homeRole: "australia", homeIso: "036", country: "Australia" });
+  G = getG();
+  assert(!!G.law.policies.unMember, "Australia opens inside the UN");
+  assert(!isP5("australia") && !onSecurityCouncil(), "Australia holds no permanent seat");
+  const bid = EVENTS.find((e) => e.id === "unSeatBid");
+  assert(bid, "unSeatBid event exists");
+  G.q = 5;
+  assert(bid.cond(), "seat bid is available to a non-P5 member");
+  applyEventOption(bid.opts[0]);
+  assert(onSecurityCouncil(), "a hard campaign wins the elected seat");
+  assert(unSeatQuartersLeft() === UN_SEAT_QUARTERS, "elected seat runs eight quarters");
+  assert(!bid.cond(), "no second bid while seated");
+
+  const reso = EVENTS.find((e) => e.id === "unResolution");
+  assert(reso, "unResolution event exists");
+  G.q = 6;
+  const preparedAu = prepareEvent(reso);
+  assert(preparedAu && G.eventFocus, "elected member sees council resolutions");
+  assert(
+    preparedAu.opts.some((o) => o.b === "Vote against") &&
+      !preparedAu.opts.some((o) => o.b === "Veto the resolution"),
+    "elected members vote against; only the P5 hold the veto"
+  );
+
+  G.q = 5 + UN_SEAT_QUARTERS;
+  assert(!onSecurityCouncil(), "elected seat expires after its term");
+  assert(!reso.cond(), "no council vote without a seat");
+  assert(bid.cond(), "a fresh bid is possible after expiry");
+}
+
+{
+  /* P5 resolution: veto on offer, options move relations both ways. */
+  newGame();
+  G = getG();
+  G.q = 6;
+  const reso = EVENTS.find((e) => e.id === "unResolution");
+  assert(reso.cond(), "a P5 seat sees Security Council resolutions");
+  const prepared = prepareEvent(reso);
+  assert(prepared && G.eventFocus, "resolution resolves a focus seat");
+  assert(
+    (G.rel[G.eventFocus] != null ? G.rel[G.eventFocus] : 50) < 46,
+    "resolution targets a low-relations seat"
+  );
+  assert(
+    prepared.opts.some((o) => o.b === "Veto the resolution") &&
+      !prepared.opts.some((o) => o.b === "Vote against"),
+    "P5 gets the veto option"
+  );
+  const tid = G.eventFocus;
+  const sponsors = (G.eventSponsors || []).slice();
+  assert(sponsors.length > 0, "resolution carries sponsor seats");
+
+  const relT0 = G.rel[tid];
+  const relS0 = sponsors.map((id) => G.rel[id]);
+  applyEventOption(reso.opts[0]);
+  assert(G.rel[tid] < relT0, "voting for the resolution cuts target relations");
+  assert(
+    sponsors.every((id, i) => G.rel[id] > relS0[i]),
+    "sponsors warm when you vote with them"
+  );
+
+  const relT1 = G.rel[tid];
+  const relS1 = sponsors.map((id) => G.rel[id]);
+  const veto = reso.opts.find((o) => o.b === "Veto the resolution");
+  applyEventOption(veto);
+  assert(G.rel[tid] > relT1, "the veto warms the target");
+  assert(
+    sponsors.every((id, i) => G.rel[id] < relS1[i]),
+    "the veto costs you the sponsors"
+  );
+}
+
+{
+  /* Membership gates the events and leaving chills every relationship. */
+  newGame();
+  G = getG();
+  G.q = 5;
+  const levy = EVENTS.find((e) => e.id === "unLevy");
+  assert(levy && levy.cond(), "members receive the peacekeeping assessment");
+  delete G.law.policies.unMember;
+  assert(!levy.cond(), "no assessment for a non-member");
+  assert(!EVENTS.find((e) => e.id === "unSeatBid").cond(), "no seat bid for a non-member");
+  assert(!onSecurityCouncil(), "no council seat outside the organisation");
+  assert(
+    relationModifiers("canada").some(
+      (m) => m.label === "Outside the United Nations" && m.pts === UN_EXIT_DIPLO
+    ),
+    "leaving the UN adds the exit modifier with partners"
+  );
+  G.law.policies.unMember = true;
+  assert(
+    !relationModifiers("canada").some((m) => m.label === "Outside the United Nations"),
+    "rejoining clears the exit modifier"
+  );
 }
 
 if (failed) {
