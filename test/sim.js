@@ -1561,7 +1561,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.law.regime === "dual", "Northern Reach opens on a dual income-tax regime");
   assert(!!G.law.taxes.windfall.on, "Northern Reach opens with an energy windfall levy");
   assert(G.law.vice.alcohol === "liberal", "Northern Reach opens with liberalised alcohol");
-  assert(!!G.law.policies.conscript && !!G.law.policies.closeBorders, "Northern Reach opens with conscription and closed borders");
+  assert(!!G.law.policies.conscript, "Northern Reach opens with conscription");
+  assert(!G.law.policies.closeBorders, "Northern Reach does not open with migration caps (brain drain is in migBase)");
 
   newGame({ homeRole: "india", homeIso: "356", country: "India" });
   G = getG();
