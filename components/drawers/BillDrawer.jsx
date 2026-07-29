@@ -87,20 +87,11 @@ export function BillDrawer() {
         <div dangerouslySetInnerHTML={{ __html: impactPanelHtml(cl) }} />
       ) : null}
       <Eyebrow className="mt">Rules</Eyebrow>
-      <Panel style={{ padding: "11px 13px", marginTop: 0 }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ flex: 1, minWidth: 140 }}>
-            <div style={{ fontWeight: 600, fontSize: "13.5px" }}>
-              Central Bank
-            </div>
-            <Hint style={{ margin: "2px 0 0" }}>
+      <Panel padded className="mt-0">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="min-w-[140px] flex-1">
+            <div className="text-[13.5px] font-semibold">Central Bank</div>
+            <Hint className="mt-0.5">
               {G.rateManual
                 ? "Base rate is pinned by you. No political capital. Forecasts use the same pin."
                 : "The Bank follows a Taylor rule. Switch to Manual to pin the base rate for experimentation — free, no capital cost."}
@@ -118,7 +109,7 @@ export function BillDrawer() {
         </div>
         {G.rateManual ? (
           <>
-            <div id="manualRateLever" style={{ marginTop: 10 }}>
+            <div id="manualRateLever" className="mt-2.5">
               <Lever
                 id="manualRate"
                 name="Base rate"
@@ -142,8 +133,7 @@ export function BillDrawer() {
       </Panel>
       <button
         type="button"
-        className="reset"
-        style={{ marginTop: 14 }}
+        className="reset mt-3.5"
         onClick={() => requestSetup()}
       >
         Start a new government
