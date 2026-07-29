@@ -633,6 +633,22 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3
 .acc-track h4{margin-bottom:0}
 .card.staged-bloc-invite{border-color:var(--accent);box-shadow:0 0 0 1px rgba(10,132,255,.22)}
 
+/* bloc invite modal */
+.bloc-invite-list{max-height:min(42vh,320px);overflow-y:auto;margin:0 -4px;padding:0 4px}
+.bloc-invite-region{margin-top:10px}
+.bloc-invite-region:first-child{margin-top:0}
+.bloc-invite-opt{display:block;width:100%;text-align:left;padding:9px 12px;margin-top:6px;border-radius:10px;border:2px solid var(--edge);background:transparent;cursor:pointer;color:inherit;font:inherit}
+.bloc-invite-opt:hover{border-color:var(--ink-soft)}
+.bloc-invite-opt.selected{border-color:var(--blue);background:rgba(10,132,255,.08)}
+.bloc-invite-opt-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.bloc-invite-opt-name{font-weight:600;font-size:14px}
+.bloc-invite-opt-rel{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.bloc-invite-opt-rel .fb{width:56px}
+.bloc-invite-opt-rel .fv{font-size:11.5px;min-width:22px;text-align:right}
+.bloc-invite-opt-status{font-size:11.5px;margin-top:3px;line-height:1.35}
+.bloc-invite-preview{margin-top:12px;padding-top:12px;border-top:1px solid var(--edge)}
+.bloc-leave-wrap{margin:14px 0 4px}
+
 /* diplomacy tab */
 .diplo-summary{padding:11px 13px;margin-bottom:4px}
 .diplo-summary-h{font-size:11px;font-weight:700;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
