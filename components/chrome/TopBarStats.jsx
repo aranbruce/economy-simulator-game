@@ -1,10 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   approvalOf,
   balanceOf,
-  billClauses,
   electionQuartersLeft,
   electionThermometer,
   fmt,
@@ -17,25 +15,23 @@ import { Chip } from "../ui/Chip.jsx";
 
 export function TopBarStats() {
   const G = useGame();
-  const data = useMemo(() => {
-    const n = G.log.length;
-    const last = n ? G.log[n - 1] : null;
-    const prev = n > 1 ? G.log[n - 2] : null;
-    const d = (k) => (last && prev ? last[k] - prev[k] : null);
-    const e = G.econ;
-    const appr = approvalOf(G.fac);
-    const balShow = last ? last.balance : balanceOf(G.law, e).balance;
-    const left = electionQuartersLeft();
-    const therm = electionThermometer();
-    const reviewLabel =
-      polityOf().kind === "congress"
-        ? "Congress"
-        : polityOf().kind === "managed"
-          ? "Ballot"
-          : "Election";
-    const gShow = last ? last.growth : e.trendGrowth;
-    return {
-      chips: [
+  const n = G.log.length;
+  const last = n ? G.log[n - 1] : null;
+  const prev = n > 1 ? G.log[n - 2] : null;
+  const d = (k) => (last && prev ? last[k] - prev[k] : null);
+  const e = G.econ;
+  const appr = approvalOf(G.fac);
+  const balShow = last ? last.balance : balanceOf(G.law, e).balance;
+  const left = electionQuartersLeft();
+  const therm = electionThermometer();
+  const reviewLabel =
+    polityOf().kind === "congress"
+      ? "Congress"
+      : polityOf().kind === "managed"
+        ? "Ballot"
+        : "Election";
+  const gShow = last ? last.growth : e.trendGrowth;
+  const chips = [
         {
           label: "Growth",
           value: fmt(gShow, 1),
@@ -119,29 +115,11 @@ export function TopBarStats() {
           state:
             left <= 4 ? (therm <= polityOf().loseAt ? "alert" : "") : "",
         },
-      ],
-      termLabel: [
-        "First",
-        "Second",
-        "Third",
-        "Fourth",
-        "Fifth",
-        "Sixth",
-      ][Math.min(G.term - 1, 5)],
-      qLabel: qLabel(G, G.q),
-      reviewNoun: reviewNoun(),
-      left,
-      therm,
-      electHint:
-        left <= 4
-          ? ` · ${reviewNoun()} score ~${therm.toFixed(0)}${therm <= polityOf().loseAt ? " (at risk)" : ""}`
-          : "",
-    };
-  }, [G]);
+  ];
 
   return (
     <div className="tb-stats" id="tbStats">
-      {data.chips.map((c) => (
+      {chips.map((c) => (
         <Chip key={c.label} {...c} />
       ))}
     </div>
