@@ -460,8 +460,12 @@ rate:
   spending, with Mincerian returns (a flow on the current education share, not
   a skills stock).
 
-Trend growth comes out near 0.8-1.0% a year, which is the right order for the
-UK, and it is derived rather than set.
+Trend growth comes out near 1.3-1.5% a year, which is the right order for the
+UK, and it is derived rather than set. `impliedLabourGrowth()` must mirror the
+cohort arithmetic of the demography block in `step()` (ageing-in, ageing-out,
+migration, less the `ageingLabourDrag` participation drag): trend growth and
+Okun's law both benchmark against it, so any wedge between it and the simulated
+labour force shows up as a permanent unemployment drift and a mispriced trend.
 
 **Desired capital is unit-elastic to the user cost**, which at quarterly
 frequency made investment whipsaw on every move in the policy rate and set off a
@@ -499,8 +503,10 @@ reasons they actually do:
 barely moves (`PUB_PROD_GROWTH` 0.05% a year) while their wage bill has to track
 the wider economy. A pound of health spending buys less volume every year.
 
-**Ageing.** `dependency` drifts from 0.30 toward 0.37, raising health demand
-(`AGEING_HEALTH`) and pension caseload, and slowing labour force growth.
+**Ageing.** `dependency` drifts from 0.30 to about 0.38-0.40 over thirty years
+(ONS-style, with the working-age stock roughly flat at baseline migration),
+raising health demand (`AGEING_HEALTH`) and pension caseload, and dragging on
+labour force growth through `ageingLabourDrag`.
 
 Quality now falls about 1.2% a year at a constant share of GDP, against a real
 world estimate of roughly 1 to 1.5% for health. That number is derived from the
@@ -591,8 +597,8 @@ inflation destroys it.
 A sustained output gap moves potential: booms pull in capacity, slumps scar it.
 Without this the baseline ran persistently 1.5 to 3.7% above potential, which
 dragged net trade to −7.9% of GDP and distorted everything measured off the gap.
-With it, the gap converges near zero, net trade settles at −2.4% and trend growth
-comes out at 1.11% a year.
+With it, the gap stays small, net trade settles near −3% and trend growth
+comes out near 1.4% a year.
 
 ### The effective lower bound
 
@@ -681,9 +687,9 @@ uprated each quarter to whatever that standard now costs. The share of GDP then
 climbs visibly, which is the honest way to present it. `law.hold[dept]` stores
 the target score, and holding is a costed clause in the bill like anything else.
 
-Demography is static (`DEP_DRIFT = 0`), so the decay is Baumol alone at about
-0.5% a year. The 1 to 1.5% usually quoted for health bundles ageing in with cost
-disease; with a static dependency ratio only the cost disease half applies.
+Demography is live (cohort stocks, dependency 0.30 → ~0.39 over thirty years),
+so the decay bundles Baumol with ageing, which is the same mix inside the 1 to
+1.5% usually quoted for health.
 
 ### Participation
 

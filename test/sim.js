@@ -2488,7 +2488,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  G.econ.bankCapital = 4.5;
+  G.econ.bankCapital = 4.2;
   G.econ.bankLoans = 130;
   G.econ.bankStressCd = 0;
   G.econ.bankStress = false;
