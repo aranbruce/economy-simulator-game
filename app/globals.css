@@ -623,6 +623,7 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3
 .bloc-invite-opt-rel .fv{font-size:11.5px;min-width:22px;text-align:right}
 .bloc-invite-opt-status{font-size:11.5px;margin-top:3px;line-height:1.35}
 .bloc-invite-preview{margin-top:12px;padding-top:12px;border-top:1px solid var(--edge)}
+.bloc-leave-wrap{margin:14px 0 4px}
 
 /* diplomacy tab */
 .diplo-summary{padding:11px 13px;margin-bottom:4px}

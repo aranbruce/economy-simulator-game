@@ -2584,6 +2584,17 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const snap = clone(G.blocMember);
   project(2);
   assert(JSON.stringify(G.blocMember) === JSON.stringify(snap), "project() preserves blocMember");
+
+  leaveBloc(G.law);
+  assert(!countryBlocId(playerId), "founder can leave again after rejoin");
+  assert(!!G.customBlocs[blocId], "bloc survives while other members remain");
+
+  newGame();
+  G = getG();
+  createCustomBloc("Solo League", "shallow_fta");
+  const soloId = countryBlocId(playerCountryId());
+  leaveBloc(G.law);
+  assert(!G.customBlocs[soloId], "solo custom bloc dissolved on leave");
 }
 
 /* Trade-weighted import tariff feeds inflation symmetrically. */
