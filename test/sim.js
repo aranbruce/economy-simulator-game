@@ -2555,9 +2555,46 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     }
   }
   assert(customJoined, "india joins custom bloc after accession pipeline");
+  /* Regression: leaving a founded custom bloc must remove the founder from
+   * customBlocs[blocId].members, and the founder must be able to rejoin
+   * via the 3-stage bloc accession flow. */
+  const playerId = playerCountryId();
+  assert(G.customBlocs[blocId].members.includes(playerId), "founder is tracked as a member");
+  leaveBloc(G.law);
+  assert(!countryBlocId(playerId), "founder left the custom bloc");
+  assert(
+    !G.customBlocs[blocId].members.includes(playerId),
+    "leaving removes founder from customBlocs[blocId].members"
+  );
+
+  G.capital = 200;
+  G.draft = clone(G.law);
+  G.draft.blocAccession = { blocId, phase: "apply" };
+  enact();
+  assert(G.blocAccession && G.blocAccession.step === 1, "custom application advances to step 1");
+
+  G.draft.blocAccession = { blocId, phase: "align" };
+  enact();
+  assert(G.blocAccession && G.blocAccession.step === 2, "custom alignment advances to step 2");
+
+  G.draft.blocAccession = { blocId, phase: "accede" };
+  enact();
+  assert(countryBlocId(playerId) === blocId, "custom accession treaty rejoins the bloc");
+  assert(G.customBlocs[blocId].members.includes(playerId), "rejoining restores founder in members list");
   const snap = clone(G.blocMember);
   project(2);
   assert(JSON.stringify(G.blocMember) === JSON.stringify(snap), "project() preserves blocMember");
+
+  leaveBloc(G.law);
+  assert(!countryBlocId(playerId), "founder can leave again after rejoin");
+  assert(!!G.customBlocs[blocId], "bloc survives while other members remain");
+
+  newGame();
+  G = getG();
+  createCustomBloc("Solo League", "shallow_fta");
+  const soloId = countryBlocId(playerCountryId());
+  leaveBloc(G.law);
+  assert(!G.customBlocs[soloId], "solo custom bloc dissolved on leave");
 }
 
 /* Trade-weighted import tariff feeds inflation symmetrically. */
