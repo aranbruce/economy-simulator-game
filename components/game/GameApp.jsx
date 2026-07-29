@@ -534,6 +534,9 @@ export default function GameApp() {
       homeIso: iso,
       silent: true,
     });
+    const bootG = getG();
+    if (bootG) bootG.mp = { bootstrapping: true };
+    bump();
     pendingAfterNewGame.current = async () => {
       try {
         const snap = exportGameSnapshot(getG());
@@ -573,6 +576,8 @@ export default function GameApp() {
       await gate;
     } catch (err) {
       /* Start failed after leaving the lobby — put them back with the room intact. */
+      const failG = getG();
+      if (failG?.mp?.bootstrapping) failG.mp = null;
       clearMpSession();
       setMpSession(null);
       mpSessionRef.current = null;
@@ -582,7 +587,7 @@ export default function GameApp() {
       setPhase("lobby");
       throw err;
     }
-  }, [attachMpEventHandler]);
+  }, [attachMpEventHandler, bump]);
 
   const handleResume = useCallback(async () => {
     const saved = loadMpSession();
@@ -628,7 +633,7 @@ export default function GameApp() {
   const submitMpConfirm = useCallback(async () => {
     const sess = mpSessionRef.current;
     const G = getG();
-    if (!sess || !G) return;
+    if (!sess || !G || !G.mp || G.mp.bootstrapping) return;
     try {
       /* Flush optimistic diplo so Deliver never races ahead of the server. */
       if (flushDiploQueueRef.current) await flushDiploQueueRef.current();
@@ -848,6 +853,8 @@ export default function GameApp() {
 
   const handleDeliver = useCallback(() => {
     if (mpSessionRef.current) {
+      const G = getG();
+      if (!G?.mp || G.mp.bootstrapping) return;
       if (waiting) {
         unsubmitMpConfirm();
         return;

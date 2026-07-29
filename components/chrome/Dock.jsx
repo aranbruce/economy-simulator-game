@@ -35,7 +35,11 @@ export function Dock({
   let resolvedTitle = deliverTitle;
 
   if (resolvedLabel == null) {
-    if (G.mp && G.mp.waiting) {
+    if (G.mp?.bootstrapping) {
+      resolvedLabel = "Starting…";
+      resolvedTitle = "Connecting multiplayer room…";
+      resolvedDisabled = true;
+    } else if (G.mp && G.mp.waiting) {
       const n = G.mp.submittedCount;
       const h = G.mp.humanCount;
       resolvedLabel =
