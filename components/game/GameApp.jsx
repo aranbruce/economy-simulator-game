@@ -14,6 +14,8 @@ import {
   dismissNewestPress,
   getDespatch,
   closeDespatch,
+  hideDespatchShell,
+  isDespatchShellOpen,
   exportGameSnapshot,
   hydrateGameSnapshot,
   clone,
@@ -727,6 +729,10 @@ export default function GameApp() {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (phase === "setup" || phase === "lobby") return;
+      if (isDespatchShellOpen()) {
+        hideDespatchShell();
+        return;
+      }
       if (getDespatch()) {
         closeDespatch();
         return;

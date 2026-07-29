@@ -140,7 +140,7 @@ export function TopBarStats() {
   }, [G]);
 
   return (
-    <div className="tb-stats">
+    <div className="tb-stats" id="tbStats">
       {data.chips.map((c) => (
         <Chip key={c.label} {...c} />
       ))}
