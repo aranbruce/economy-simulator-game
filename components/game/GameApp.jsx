@@ -285,6 +285,9 @@ export default function GameApp() {
           return false;
         }
         if (act === "issueUltimatum" && q.action === "issueUltimatum") return false;
+        if (act === "withdrawBlocAccession" && q.action === "withdrawBlocAccession") {
+          return false;
+        }
         return true;
       });
       diploQueueRef.current.push({

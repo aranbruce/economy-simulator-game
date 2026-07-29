@@ -1219,9 +1219,78 @@ async function main() {
     "target gets accept alert"
   );
 
+  /* Cancel joining must persist on the shared snapshot (not client-only). */
+  const withdrewAcc = await applyDiploAction(hBloc.room.code, gBloc.token, {
+    action: "withdrawBlocAccession",
+  });
+  assert.ok(!withdrewAcc.error, withdrewAcc.error);
+  assert.ok(
+    !withdrewAcc.room.snapshot.blocAccessionByCountry ||
+      !withdrewAcc.room.snapshot.blocAccessionByCountry.kingdom,
+    "withdraw clears shared accession pipeline"
+  );
+  assert.equal(
+    withdrewAcc.patch && withdrewAcc.patch.blocAccessionCleared,
+    true,
+    "withdraw patch flags accession cleared"
+  );
+
+  /* Re-accept so later accession/membership tests still run. */
+  {
+    const raw = await loadRoom(hBloc.room.code);
+    raw.snapshot.blocInvites = {
+      kingdom: {
+        blocId: "continental_union",
+        sentQ: raw.snapshot.q || 0,
+        expiresQ: (raw.snapshot.q || 0) + 4,
+        fromId: "france",
+        awaitHuman: true,
+      },
+    };
+    raw.snapshot.politics.kingdom.inboundBlocInvite = {
+      fromId: "france",
+      blocId: "continental_union",
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const reAccepted = await chooseEvent(hBloc.room.code, gBloc.token, {
+    inboundBlocInvite: true,
+    accept: true,
+  });
+  assert.ok(!reAccepted.error, reAccepted.error);
+  assert.ok(
+    reAccepted.room.snapshot.blocAccessionByCountry &&
+      reAccepted.room.snapshot.blocAccessionByCountry.kingdom,
+    "re-accept restores accession after withdraw"
+  );
+
+  /* Found while ascending must not be priced into the bill. */
+  {
+    const mid = await getRoom(hBloc.room.code, gBloc.token);
+    const draft = clone(mid.snapshot.world.kingdom.law);
+    draft.blocCreate = { name: "Shadow League", template: "shallow_fta" };
+    const priced = validateMpSubmission(mid.snapshot, "kingdom", draft, {
+      envoys: mid.snapshot.politics.kingdom.envoys,
+      ultimatums: {},
+    });
+    assert.ok(priced.ok, priced.error);
+    assert.ok(
+      !(priced.clauses || []).some((c) => /^Found /.test(c.label)),
+      "Found clause stripped while accession is in progress"
+    );
+    assert.equal(
+      draft.blocCreate,
+      null,
+      "validate clears impossible Found from the draft"
+    );
+  }
+
   /* Accept alerts must not reappear after hydrate / mid-quarter merge once noted. */
   {
-    const acceptSnap = clone(accepted.room.snapshot);
+    const acceptSnap = clone(reAccepted.room.snapshot);
     hydrateGameSnapshot(acceptSnap, {
       homeRole: "france",
       seatId: "france",

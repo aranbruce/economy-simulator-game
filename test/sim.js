@@ -71,6 +71,8 @@ import {
   importTariffLevel,
   tariffLocked,
   createCustomBloc,
+  canCreateCustomBloc,
+  withdrawBlocAccession,
   inviteToBloc,
   pickEventPartner,
   applyDraftMissions,
@@ -2263,6 +2265,24 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "application starts automatic accession pipeline"
   );
   assert(G.blocAccession && G.blocAccession.step === 1, "application mirrors accession step 1");
+  assert(!canCreateCustomBloc(), "cannot found a bloc while accession is in progress");
+  G.draft.blocCreate = { name: "Shadow League", template: "shallow_fta" };
+  assert(
+    billClauses().every((c) => !c.label || !/^Found /.test(c.label)),
+    "Found is not a capital clause while ascending"
+  );
+  G.draft.blocCreate = null;
+  {
+    const savedAcc = clone(G.blocAccessionByCountry[pid]);
+    const savedMirror = clone(G.blocAccession);
+    assert(withdrawBlocAccession(G, pid), "cancel joining clears accession");
+    assert(!G.blocAccessionByCountry[pid], "shared accession cleared on withdraw");
+    assert(!G.blocAccession, "seat accession cleared on withdraw");
+    assert(canCreateCustomBloc(), "founding unlocked after cancel joining");
+    /* Restore so the automatic accession path below still runs. */
+    G.blocAccessionByCountry[pid] = savedAcc;
+    G.blocAccession = savedMirror;
+  }
 
   /* Alignment and treaty advance automatically — no further capital bills. */
   G.draft = clone(G.law);
