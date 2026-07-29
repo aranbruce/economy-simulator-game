@@ -1529,7 +1529,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.law.vice.alcohol === "banned", "Saudi opens with alcohol prohibition");
   assert(!G.law.taxes.alcoholDuty.on, "Gulf alcohol duty is off under prohibition");
   assert(!!G.law.policies.swf, "Saudi opens with a sovereign wealth fund");
-  assert(G.law.spend.defence === 5.0, "Saudi opens with a high defence share");
+  assert(G.law.spend.defence === 7.0, "Saudi opens with a high defence share");
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
@@ -1582,7 +1582,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   newGame({ homeRole: "brazil", homeIso: "076", country: "Atlantic Federation" });
   G = getG();
   assert(G.law.taxes.vat.rate >= 17, "Brazil opens VAT-heavy");
-  assert(G.law.spend.welfare >= 8 && G.law.spend.welfare < 12, "Brazil opens with middling welfare");
+  assert(G.law.spend.welfare >= 12, "Brazil opens pension-heavy");
   assert(G.law.vice.cannabis === "decrim", "Brazil opens with cannabis decriminalised");
   assert(!G.law.taxes.cannabisDuty.on, "Brazil cannabis duty is off under decrim");
   assert(!!G.law.policies.socialHousing, "Brazil opens with mass social housebuilding");
