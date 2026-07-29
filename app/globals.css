@@ -1010,6 +1010,57 @@ table.ledger .neg{color:var(--red-lt)} table.ledger .pos{color:var(--green-lt)}
 .setup-mode{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex:none;max-width:min(240px,44%)}
 .setup-mode-label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
 .setup-mode-hint{margin:0;font-size:11px;line-height:1.35;color:var(--ink-soft);text-align:right}
+.setup-check{display:flex;align-items:flex-start;gap:8px;margin:2px 0 0;text-align:left;cursor:pointer;max-width:100%}
+.setup-check input{margin:3px 0 0;flex:none;accent-color:var(--blue)}
+.setup-check span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.setup-check strong{font-size:12px;font-weight:650;color:var(--ink)}
+.setup-check em{font-style:normal;font-size:11px;line-height:1.35;color:var(--ink-soft)}
+.coach-panel{
+  position:fixed;top:calc(max(10px,env(safe-area-inset-top,0px)) + 58px);right:max(12px,env(safe-area-inset-right,0px));
+  /* Above forecast / morning-briefing scrim (z-index 50) so the coach stays readable. */
+  z-index:60;width:min(340px,calc(100vw - 24px));padding:12px 14px 14px;
+  display:flex;flex-direction:column;gap:8px;pointer-events:auto;max-height:min(70vh,calc(100dvh - 140px));overflow:auto
+}
+.coach-panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.coach-panel-kicker{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.coach-panel-title{margin:0;font-family:var(--display);font-size:20px;font-weight:400;letter-spacing:-.02em;line-height:1.2}
+.coach-panel-body{font-size:12.5px;line-height:1.4;color:var(--ink-soft)}
+.coach-panel-body p{margin:0 0 8px}
+.coach-panel-body p:last-child{margin-bottom:0}
+.coach-panel-task{margin:0;font-size:13px;line-height:1.35;color:var(--ink);font-weight:650}
+.coach-panel-tasks{display:flex;flex-direction:column;gap:8px}
+.coach-panel-tasks-title{
+  font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)
+}
+.coach-panel-checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.coach-panel-checks li{
+  display:flex;align-items:flex-start;gap:8px;margin:0;font-size:12.5px;line-height:1.35;color:var(--ink-soft);font-weight:550
+}
+.coach-panel-checks li.is-done{color:var(--ink);font-weight:650}
+.coach-check{
+  flex:none;width:16px;height:16px;margin-top:1px;border:1.5px solid var(--edge);border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;font-size:11px;line-height:1;
+  color:#fff;background:var(--g-2)
+}
+.coach-panel-checks li.is-done .coach-check{
+  border-color:var(--green);background:var(--green);color:#04140a
+}
+.coach-check-label{min-width:0}
+.coach-panel-skip{flex:none;border:1px solid var(--edge);border-radius:var(--r-sm);padding:6px 10px;font-size:11.5px;font-weight:600;
+  cursor:pointer;background:var(--g-2);color:var(--ink-soft)}
+.coach-panel-skip:hover{background:var(--g-3);color:#fff}
+.coach-panel-go{align-self:stretch;border:none;border-radius:var(--r-sm);padding:10px 12px;font-size:13px;font-weight:650;
+  cursor:pointer;background:var(--blue);color:#fff;margin-top:6px}
+.coach-panel-checks + .coach-panel-go,
+.coach-panel-tasks + .coach-panel-go{margin-top:14px}
+.coach-panel-go:hover{filter:brightness(1.06)}
+.dw-head .sub.alert{color:var(--red)}
+@media(max-width:720px){
+  .coach-panel{
+    top:calc(max(6px,env(safe-area-inset-top,0px)) + 120px);right:8px;left:8px;width:auto;
+    max-height:min(42vh,calc(100dvh - 200px))
+  }
+}
 .setup-go{
   flex:none;cursor:pointer;border:none;border-radius:var(--r-md);
   padding:12px 22px;font:inherit;font-size:14.5px;font-weight:700;letter-spacing:-.01em;
@@ -1156,6 +1207,7 @@ table.ledger .neg{color:var(--red-lt)} table.ledger .pos{color:var(--green-lt)}
   .setup-pick-head{flex-direction:column;align-items:stretch}
   .setup-mode{max-width:none;align-items:flex-start}
   .setup-mode-hint{text-align:left}
+  .setup-check{max-width:none}
   .setup-actions{flex-direction:column;align-items:stretch}
   .setup-go{width:100%}
   .mp-join-row{grid-template-columns:1fr}

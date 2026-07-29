@@ -29,6 +29,17 @@ import {
   pushPress,
   diploOutcomeAlertsForBrief,
   markDiploAlertsNoted,
+  capitalShortfallHint,
+  skipCoach,
+  tickCoach,
+  beginCoachStep,
+  continueCoach,
+  getCoachPanel,
+  getDespatch,
+  setTab,
+  getTab,
+  billClauses,
+  coachClearDraft,
   PRIVATE_WEALTH0,
   R0,
   researchEffort,
@@ -58,9 +69,13 @@ import {
   syncServiceHolds,
   currencyForSeat,
   fxDisplayIndex,
+  BASE_INCOME_DIST,
+  BASE_DIST_GINI,
+  buildIncomeDist,
+  incomeDistForRole,
+  preTaxGini,
   IMPACT_ROWS,
   MISSIONS,
-  billClauses,
   hasDeal,
   joinBloc,
   leaveBloc,
@@ -92,6 +107,7 @@ import {
   endEpisode,
   scheduleNextMajorQ,
   raiseTradeWarTariffs,
+  rollEvent,
   rollMajorEvent,
   tariffScheduleAverage,
   WORLD_TFP_SPILL,
@@ -677,6 +693,51 @@ assert(
   flatGini > baseGini,
   `flat tax raises distributional Gini (${flatGini.toFixed(2)} vs ${baseGini.toFixed(2)})`
 );
+
+/* Per-seat income distribution: base gini pin leaves the table unchanged;
+   high-inequality seats stretch pre-tax Gini above low-inequality seats;
+   step does not mutate the settled table. */
+{
+  clearOpeningCache();
+  const baseAt35 = buildIncomeDist(BASE_DIST_GINI);
+  assert(baseAt35.length === BASE_INCOME_DIST.length, "buildIncomeDist(35) keeps slice count");
+  for (let i = 0; i < BASE_INCOME_DIST.length; i++) {
+    assert(
+      Math.abs(baseAt35[i].inc - BASE_INCOME_DIST[i].inc) < 0.01 &&
+        baseAt35[i].w === BASE_INCOME_DIST[i].w,
+      `buildIncomeDist(35) matches BASE_INCOME_DIST slice ${i}`
+    );
+  }
+  const sa = preTaxGini(incomeDistForRole("south_africa"));
+  const nl = preTaxGini(incomeDistForRole("netherlands"));
+  assert(
+    sa > nl + 2,
+    `South Africa pre-tax Gini exceeds Netherlands (${sa.toFixed(1)} vs ${nl.toFixed(1)})`
+  );
+  assert(
+    NATION_PROFILE.south_africa.soc0.gini > NATION_PROFILE.netherlands.soc0.gini,
+    "profile pins order South Africa above Netherlands"
+  );
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
+  G = getG();
+  assert(!!G.econ.incomeDist, "opening econ carries incomeDist");
+  const dist0 = G.econ.incomeDist.map((s) => ({ w: s.w, inc: s.inc }));
+  const y0 = incomeYield(G.law, aggregate(G.law), G.econ).income;
+  for (let q = 0; q < 4; q++) step(G, G.law, G.prevLaw || G.law, true);
+  assert(
+    G.econ.incomeDist.length === dist0.length &&
+      G.econ.incomeDist.every((s, i) => s.inc === dist0[i].inc && s.w === dist0[i].w),
+    "step leaves incomeDist unchanged"
+  );
+  clearOpeningCache();
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
+  G = getG();
+  const y1 = incomeYield(G.law, aggregate(G.law), G.econ).income;
+  assert(
+    Math.abs(y0 - y1) < 0.05,
+    `home income tax yield stable across opens (${y0.toFixed(2)} vs ${y1.toFixed(2)})`
+  );
+}
 
 /* Bilateral gravity: a united_states partner shock cuts that partner's export share. */
 newGame();
@@ -3740,6 +3801,273 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const hud = diploHudHtml(G);
   assert(!/conceded/i.test(hud || ""), "ultimatum outcomes no longer appear on diplo hud");
   assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
+}
+
+{
+  console.log("\n— tutorial coach + capital shortfall —");
+  newGame({ silent: true });
+  let G = getG();
+  assert(G.coachDone === true && G.coach == null, "default newGame skips coach");
+  assert(MUTABLE.includes("coach"), "coach on MUTABLE");
+
+  const hint = capitalShortfallHint(18, 9);
+  assert(/18/.test(hint) && /9/.test(hint), "shortfall hint names need and have");
+  assert(/rebuilds each quarter/i.test(hint), "shortfall hint explains regen");
+
+  newGame({ silent: true, tutorial: true });
+  G = getG();
+  assert(G.sandbox === true, "tutorial forces sandbox");
+  assert(G.coachDone === false && G.coach && G.coach.step === 0, "tutorial seeds coach at step 0");
+  assert(G.homeRole === "home" && G.country === "United Kingdom", "tutorial locks United Kingdom");
+  G.q = 8;
+  G.setPiece8 = false;
+  G.lastEventQ = -10;
+  G.nextMajorQ = 0;
+  assert(rollEvent() === null, "tutorial suppresses ordinary events and set-pieces");
+  assert(rollMajorEvent() === null, "tutorial suppresses major episodes");
+  G.q = 0;
+  G.nextMajorQ = scheduleNextMajorQ(0, false);
+
+  newGame({ silent: true, tutorial: true, homeRole: "france", country: "France", homeIso: "250" });
+  G = getG();
+  assert(G.homeRole === "home" && G.country === "United Kingdom", "tutorial overrides non-UK start");
+  skipCoach();
+  G = getG();
+  assert(G.coachDone === true && G.coach == null, "skipCoach clears coach");
+
+  newGame({ tutorial: true });
+  G = getG();
+  assert(getDespatch(), "tutorial morning note opens without silent");
+  skipCoach();
+  G = getG();
+  assert(G.coachDone === true && G.coach == null, "skip from morning note clears coach");
+  assert(!getDespatch(), "skipCoach dismisses morning note");
+  beginCoachStep(0);
+  G = getG();
+  /* Direct beginCoachStep still works for tests; the morning-note handler guards restart. */
+  assert(G.coach && G.coach.step === 0, "beginCoachStep can still seed after skip when called directly");
+  skipCoach();
+
+  newGame({ silent: true, tutorial: true });
+  G = getG();
+  beginCoachStep(0);
+  G = getG();
+  assert(G.coach && G.coach.phase === "brief", "intro is brief phase");
+  assert(!getDespatch(), "coach intro does not open blocking despatch");
+  const panel0 = getCoachPanel();
+  assert(panel0 && panel0.canContinue, "intro panel offers Continue");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 1 && G.coach.phase === "await", "Continue starts budget await");
+  assert(getTab() !== "budget", "budget step does not auto-open Budget");
+  assert(!getDespatch(), "coach await does not open blocking despatch");
+  let panelBudget = getCoachPanel();
+  assert(panelBudget && panelBudget.subtasks && panelBudget.subtasks.length === 2, "budget step lists subtasks");
+  assert(panelBudget.subtasks.every((s) => !s.done), "budget subtasks start incomplete");
+
+  G.draft.spend.education = G.law.spend.education + 0.5;
+  assert(!tickCoach(), "education rise without Budget open does not advance");
+  panelBudget = getCoachPanel();
+  assert(panelBudget.subtasks.find((s) => s.id === "edu").done, "education subtask checks without tab");
+  assert(!panelBudget.subtasks.find((s) => s.id === "tab").done, "Open Budget still unchecked");
+  G.draft.spend.education = G.law.spend.education;
+  setTab("budget");
+  G.draft.spend.education = G.law.spend.education + 0.4;
+  assert(!tickCoach(), "education +0.4 does not advance");
+  G.draft.spend.education = G.law.spend.education + 0.5;
+  assert(tickCoach(), "education +0.5 with Budget open readies budget step");
+  G = getG();
+  assert(G.coach && G.coach.step === 1 && G.coach.phase === "ready", "budget waits for Next after both checkboxes");
+  assert(billClauses().some((c) => /Education/.test(c.label)), "education still staged into deficit step");
+  const panelBudgetReady = getCoachPanel();
+  assert(panelBudgetReady && panelBudgetReady.canContinue, "budget Next unlocks when checkboxes done");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 2, "Next advances to deficit step");
+
+  setTab("bill");
+  G = getG();
+  assert(G.coach && G.coach.step === 2 && G.coach.phase === "ready", "opening Programme readies deficit step");
+  assert(billClauses().some((c) => /Education/.test(c.label)), "education still staged until Next");
+  const panelDef = getCoachPanel();
+  assert(panelDef && panelDef.subtasks && panelDef.subtasks.length === 1, "deficit step has one Programme checkbox");
+  assert(panelDef.canContinue, "deficit Next unlocks when Programme open");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 3 && G.coach.phase === "await", "Next advances to taxes");
+  assert(billClauses().some((c) => /Education/.test(c.label)), "education stays staged after deficit Next");
+  assert(getTab() !== "taxes", "taxes step does not auto-open Taxes");
+  const panelTax = getCoachPanel();
+  assert(panelTax && panelTax.subtasks && panelTax.subtasks.length === 3, "taxes step lists three subtasks");
+  assert(!panelTax.canContinue, "taxes Next locked until checkboxes done");
+
+  G.draft.taxes.vat.rate = G.law.taxes.vat.rate + 3;
+  G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate + 5;
+  assert(!tickCoach(), "tax rises without Taxes open do not advance");
+  G.draft.taxes.vat.rate = G.law.taxes.vat.rate;
+  G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate;
+  setTab("taxes");
+  G.draft.taxes.vat.rate = G.law.taxes.vat.rate + 3;
+  assert(!tickCoach(), "VAT alone does not advance");
+  let panelTaxMid = getCoachPanel();
+  assert(panelTaxMid.subtasks.find((s) => s.id === "vat").done, "VAT subtask checks while corp pending");
+  assert(!panelTaxMid.subtasks.find((s) => s.id === "corp").done, "corp subtask still open");
+  G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate + 4;
+  assert(!tickCoach(), "corp +4 with VAT +3 does not advance");
+  G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate + 5;
+  assert(tickCoach(), "VAT +3 and corp +5 with Taxes open readies taxes step");
+  G = getG();
+  assert(G.coach && G.coach.step === 3 && G.coach.phase === "ready", "taxes waits for Next after checkboxes");
+  assert(getCoachPanel()?.canContinue, "taxes Next unlocks when checkboxes done");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 4, "Next advances to books step after taxes");
+
+  setTab("bill");
+  G = getG();
+  assert(G.coach && G.coach.step === 4 && G.coach.phase === "ready", "opening Programme readies books step");
+  assert(getCoachPanel()?.subtasks?.length === 1, "books step has one Programme checkbox");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 5 && G.coach.phase === "await", "Next advances to policies");
+
+  assert(!(G.law.policies && G.law.policies.skills), "skills guarantee off at opening");
+  G.draft.policies.skills = true;
+  assert(!tickCoach(), "skills without Policies open does not advance");
+  delete G.draft.policies.skills;
+  setTab("policies");
+  G.draft.policies.skills = true;
+  assert(tickCoach(), "enacting skills with Policies open readies policies step");
+  G = getG();
+  assert(G.coach && G.coach.step === 5 && G.coach.phase === "ready", "policies waits for Next");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 6, "Next advances to trade after skills");
+
+  if (!G.law.tariffSchedule) {
+    G.law.tariffSchedule = { default: 3, cet: null, bloc: {}, country: {} };
+  }
+  if (!G.draft.tariffSchedule) G.draft.tariffSchedule = clone(G.law.tariffSchedule);
+  const baseDefault = G.law.tariffSchedule.default != null ? G.law.tariffSchedule.default : 3;
+  G.draft.tariffSchedule.default = baseDefault - 1;
+  assert(!tickCoach(), "default tariff cut without Trade open does not advance");
+  G.draft.tariffSchedule.default = baseDefault;
+  setTab("trade");
+  G.draft.tariffSchedule.default = baseDefault - 1;
+  assert(tickCoach(), "default tariff −1 with Trade open readies trade step");
+  G = getG();
+  assert(G.coach && G.coach.step === 6 && G.coach.phase === "ready", "trade step waits for Next after tariff cut");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 7 && G.coach.phase === "await", "Next advances to post-trade Programme review");
+
+  setTab("bill");
+  G = getG();
+  assert(G.coach && G.coach.step === 7 && G.coach.phase === "ready", "opening Programme readies tradeBooks step");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 8 && G.coach.phase === "await", "Next advances to accession");
+  assert(getTab() == null, "accession step closes drawer so Join is a deliberate look");
+
+  assert(!tickCoach(), "accession does not ready without Trade open");
+  setTab("trade");
+  G = getG();
+  assert(G.coach && G.coach.step === 8 && G.coach.phase === "ready", "reopening Trade readies accession step");
+  assert(
+    blocJoinBlockers("continental_union", "apply").some((b) => /France/i.test(b)),
+    "Continental Union Join blocked on France relations"
+  );
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 9 && G.coach.phase === "await", "Next advances to diplomacy");
+
+  if (!G.draft.missions) G.draft.missions = {};
+  G.draft.missions.germany = "summit";
+  assert(!tickCoach(), "non-France summit does not advance");
+  delete G.draft.missions.germany;
+  G.draft.missions.france = "summit";
+  assert(!tickCoach(), "France summit without Diplomacy open does not advance");
+  delete G.draft.missions.france;
+  setTab("diplomacy");
+  G.draft.missions.france = "summit";
+  assert(tickCoach(), "France summit with Diplomacy open readies diplomacy step");
+  G = getG();
+  assert(G.coach && G.coach.step === 9 && G.coach.phase === "ready", "diplomacy waits for Next");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 10 && G.coach.phase === "brief", "forecast brief after diplomacy");
+  const panelForecast = getCoachPanel();
+  assert(
+    panelForecast && /Forecast on current policy/i.test(panelForecast.body || ""),
+    "forecast step explains Forecast on current policy"
+  );
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 11, "deliver step after forecast brief");
+
+  const startQ = G.q;
+  G.coach.startQ = startQ;
+  G.q = startQ + 1;
+  assert(tickCoach(), "quarter advance completes first Deliver step");
+  G = getG();
+  assert(G.coach && G.coach.step === 12, "warmFrance step after Deliver");
+
+  /* Early Deliver during the forecast brief must still clear the deliver step. */
+  beginCoachStep(10);
+  G = getG();
+  assert(G.coach && G.coach.step === 10 && G.coach.phase === "brief", "back on forecast brief");
+  const forecastStartQ = G.coach.startQ;
+  G.q = forecastStartQ + 1;
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 12, "early Deliver during forecast advances past deliver step");
+
+  assert(!tickCoach(), "France at 50 does not clear warmFrance");
+  G.rel.france = 52;
+  assert(tickCoach(), "France at 52 advances to joinCU");
+  G = getG();
+  assert(G.coach && G.coach.step === 13 && G.coach.phase === "await", "joinCU step after warm France");
+  assert(getTab() == null, "joinCU closes drawer for a deliberate Join");
+
+  assert(!tickCoach(), "joinCU does not advance without Trade + staged Join");
+  setTab("trade");
+  assert(!tickCoach(), "Trade open alone does not stage Join");
+  G.draft.blocAccession = { blocId: "continental_union", phase: "apply" };
+  assert(tickCoach(), "staging CU Join readies joinCU step");
+  G = getG();
+  assert(G.coach && G.coach.step === 13 && G.coach.phase === "ready", "joinCU waits for Next");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 14, "Next advances to deliverJoin");
+
+  assert(!tickCoach(), "deliverJoin waits for filed accession");
+  G.blocAccession = { blocId: "continental_union", step: 1 };
+  G.blocAccessionByCountry = {
+    kingdom: { blocId: "continental_union", step: 1, sinceQ: G.q + 1, self: true },
+  };
+  assert(tickCoach(), "filed accession advances to accessionWait");
+  G = getG();
+  assert(G.coach && G.coach.step === 15, "accessionWait after filing");
+  let panelAcc = getCoachPanel();
+  assert(panelAcc && panelAcc.subtasks && panelAcc.subtasks.length === 3, "accessionWait lists three stages");
+  assert(panelAcc.subtasks.find((s) => s.id === "applied").done, "application subtask done");
+  assert(!panelAcc.subtasks.find((s) => s.id === "member").done, "not yet a member");
+
+  assert(!tickCoach(), "accessionWait waits for membership");
+  G.blocMember.kingdom = "continental_union";
+  G.blocAccession = null;
+  delete G.blocAccessionByCountry.kingdom;
+  assert(tickCoach(), "CU membership readies accessionWait");
+  G = getG();
+  assert(G.coach && G.coach.step === 15 && G.coach.phase === "ready", "accessionWait waits for Next when member");
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 16 && G.coach.phase === "brief", "done step is congrats brief");
+  const panelDone = getCoachPanel();
+  assert(panelDone && panelDone.canContinue && /away|Congratulations/i.test(panelDone.body || ""), "done panel congratulates");
+  continueCoach();
+  G = getG();
+  assert(G.coachDone === true && G.coach == null, "Finish clears coach");
 }
 
 if (failed) {

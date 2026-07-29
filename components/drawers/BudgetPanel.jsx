@@ -60,7 +60,7 @@ export function BudgetPanel() {
                   base={G.law.spend[d.id]}
                   note={`costs <b>${bill.toFixed(2)}%</b> of GDP at today&rsquo;s unemployment &middot; per claimant ${(adeq * 100).toFixed(0)}% of the opening rate`}
                   onInput={(id, v) => {
-                    G.draft.spend[id] = v;
+                    setDraftSpend(id, v);
                   }}
                   onCommit={(id, v) => setDraftSpend(id, v)}
                 />
@@ -83,7 +83,7 @@ export function BudgetPanel() {
                 base={G.law.spend[d.id]}
                 note={`service level <b>${score.toFixed(0)}</b> / 100 &middot; holding this level costs ${holdCost.toFixed(2)}% of GDP`}
                 onInput={(id, v) => {
-                  G.draft.spend[id] = v;
+                  setDraftSpend(id, v);
                 }}
                 onCommit={(id, v) => setDraftSpend(id, v)}
               />

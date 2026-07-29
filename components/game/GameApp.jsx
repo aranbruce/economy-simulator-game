@@ -54,6 +54,7 @@ import {
 import WorldMap from "../map2d/WorldMap";
 import RealmStats from "../ui/RealmStats";
 import CountryPicker from "./CountryPicker";
+import { CoachPanel } from "../chrome/CoachPanel.jsx";
 import MultiplayerLobby from "./MultiplayerLobby";
 import { TopBar } from "../chrome/TopBar.jsx";
 import { Dock } from "../chrome/Dock.jsx";
@@ -70,6 +71,7 @@ export default function GameApp() {
   const [homeIso, setHomeIso] = useState(null);
   const [homeScale, setHomeScale] = useState(null);
   const [homeRole, setHomeRole] = useState("home");
+  const [tutorialLock, setTutorialLock] = useState(false);
   const [setupRole, setSetupRole] = useState(
     () => realmById(DEFAULT_REALM_ID).role
   );
@@ -105,6 +107,7 @@ export default function GameApp() {
       mpSessionRef.current = null;
       setMpRoom(null);
       setWaiting(false);
+      setTutorialLock(false);
       setPhase("setup");
       if (notice) {
         /* Defer so setup chrome is mounted; use alert for reliability outside play shell. */
@@ -760,6 +763,7 @@ export default function GameApp() {
       setMpRoom(null);
       setWaiting(false);
       clearMpSession();
+      setTutorialLock(false);
       setPhase("setup");
     });
 
@@ -918,13 +922,17 @@ export default function GameApp() {
   const onSelect = useCallback(
     (role) => {
       if (phase === "setup" || phase === "lobby") {
+        if (tutorialLock) {
+          setSetupRole("home");
+          return;
+        }
         if (role) setSetupRole(role);
         return;
       }
       if (role) setTab(null);
       setSelectedRole(role);
     },
-    [phase]
+    [phase, tutorialLock]
   );
 
   const openPartnerPanel = useCallback((panel, role) => {
@@ -988,6 +996,10 @@ export default function GameApp() {
           onStart={beginGame}
           onMultiplayer={() => setPhase("lobby")}
           onResume={loadMpSession() ? handleResume : null}
+          onTutorialChange={(on) => {
+            setTutorialLock(!!on);
+            if (on) setSetupRole("home");
+          }}
         />
       )}
 
@@ -998,6 +1010,7 @@ export default function GameApp() {
           onConsumedInitial={() => setLobbyBootstrap(null)}
           onBack={() => {
             setLobbyBootstrap(null);
+            setTutorialLock(false);
             setPhase("setup");
           }}
           onHostStart={handleHostStart}
@@ -1055,6 +1068,8 @@ export default function GameApp() {
           <DrawerShell />
           <Dock onDeliver={handleDeliver} waiting={waiting} />
           <DespatchModal />
+          {/* After scrim in the tree + z-index 60 so forecast / briefing do not cover it. */}
+          <CoachPanel />
         </>
       )}
     </div>

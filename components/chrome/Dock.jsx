@@ -4,6 +4,7 @@ import {
   TABS,
   billClauses,
   clausesIn,
+  capitalShortfallHint,
   getTab,
   hasDiploAttention,
   isDeliverLocked,
@@ -29,6 +30,7 @@ export function Dock({
   const cl = billClauses();
   const cost = billCost();
   const afford = cost <= G.capital;
+  const shortBy = Math.max(0, cost - Math.round(G.capital));
 
   let resolvedLabel = deliverLabel;
   let resolvedDisabled = deliverDisabled;
@@ -51,13 +53,16 @@ export function Dock({
     } else {
       resolvedDisabled =
         isDeliverLocked() || G.over || (cl.length > 0 && !afford);
-      resolvedLabel = G.over
-        ? "Term over"
-        : cl.length === 0
-          ? "Next quarter"
-          : afford
-            ? "Deliver"
-            : "No capital";
+      if (G.over) {
+        resolvedLabel = "Term over";
+      } else if (cl.length === 0) {
+        resolvedLabel = "Next quarter";
+      } else if (afford) {
+        resolvedLabel = "Deliver";
+      } else {
+        resolvedLabel = shortBy ? `Need ${shortBy} more` : "Need capital";
+        resolvedTitle = capitalShortfallHint(cost, G.capital);
+      }
     }
   }
 
