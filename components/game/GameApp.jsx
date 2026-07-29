@@ -9,12 +9,11 @@ import {
   setTab,
   getTab,
   setOnTabChange,
-  registerEl,
   render,
-  renderChrome,
   projectionModal,
   dismissNewestPress,
-  PARTNERS,
+  getDespatch,
+  closeDespatch,
   exportGameSnapshot,
   hydrateGameSnapshot,
   clone,
@@ -28,12 +27,11 @@ import {
   playerCountryId,
 } from "../../lib/sim/engine.js";
 import {
-  BOARD_METRICS,
-  boardMetricCaption,
-  boardMetricBlocName,
-  boardMetricValueLabel,
-} from "../../lib/sim/boardMetrics.js";
-import { DEFAULT_REALM_ID, realmById, realmByRole, homeIsoForRealm } from "../../lib/sim/realms.js";
+  DEFAULT_REALM_ID,
+  realmById,
+  realmByRole,
+  homeIsoForRealm,
+} from "../../lib/sim/realms.js";
 import {
   getMpRoom,
   startMpRoom,
@@ -53,127 +51,14 @@ import WorldMap from "../map2d/WorldMap";
 import RealmStats from "../ui/RealmStats";
 import CountryPicker from "./CountryPicker";
 import MultiplayerLobby from "./MultiplayerLobby";
-
-const SHELL_IDS = [
-  "topbar",
-  "diploHud",
-  "nameBtn",
-  "tbTerm",
-  "tbMode",
-  "tbStats",
-  "dockTabs",
-  "billBtn",
-  "billLabel",
-  "billCost",
-  "deliverBtn",
-  "drawer",
-  "dwTitle",
-  "dwSub",
-  "dwClose",
-  "drawerBody",
-  "scrim",
-  "dpStamp",
-  "dpTitle",
-  "dpBody",
-  "dpOpts",
-  "pressLayer",
-  "mapLabel",
-  "mapMetrics",
-  "mapStage",
-];
-
-function wireRename() {
-  const btn = document.getElementById("nameBtn");
-  if (!btn || btn.dataset.wired) return;
-  btn.dataset.wired = "1";
-  btn.onclick = () => {
-    const G = getG();
-    const input = document.createElement("input");
-    input.type = "text";
-    input.id = "nameInput";
-    input.value = G.country;
-    input.maxLength = 34;
-    input.setAttribute("aria-label", "Name of your country");
-    const commit = () => {
-      const v = (input.value || "").trim();
-      G.country = v || "United Kingdom";
-      if (input.parentNode) input.parentNode.replaceChild(btn, input);
-      btn.dataset.wired = "";
-      wireRename();
-      render();
-    };
-    input.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter") {
-        ev.preventDefault();
-        commit();
-      }
-      if (ev.key === "Escape") {
-        ev.preventDefault();
-        if (input.parentNode) input.parentNode.replaceChild(btn, input);
-      }
-    });
-    input.addEventListener("blur", commit);
-    btn.parentNode.replaceChild(input, btn);
-    input.focus();
-    input.select();
-  };
-}
-
-function paintMetricBar(box, metrics, activeId, onPick) {
-  if (!box) return;
-  box.innerHTML =
-    '<div class="seg mini">' +
-    metrics
-      .map(
-        (m) =>
-          `<button type="button" data-metric="${m.id}" aria-pressed="${
-            m.id === activeId
-          }">${m.name}</button>`
-      )
-      .join("") +
-    "</div>";
-  box.querySelectorAll("[data-metric]").forEach((btn) => {
-    btn.onclick = () => onPick(btn.dataset.metric);
-  });
-}
-
-function paintMapLabel(G, mapMetric, selectedRole) {
-  const label = document.getElementById("mapLabel");
-  if (!label || !G) return;
-  if (selectedRole === "home") {
-    const note = (G.brief && G.brief[0]) || "Your economy";
-    const fig =
-      mapMetric === "blocs"
-        ? boardMetricBlocName("home", G)
-        : boardMetricValueLabel("home", mapMetric, G);
-    const metricNote = fig ? " · " + fig : "";
-    label.innerHTML =
-      "<b>" + G.country + "</b><span>" + note + metricNote + "</span>";
-    return;
-  }
-  if (selectedRole) {
-    const p = PARTNERS.find((x) => x.id === selectedRole);
-    const fig =
-      mapMetric === "blocs"
-        ? boardMetricBlocName(selectedRole, G)
-        : boardMetricValueLabel(selectedRole, mapMetric, G);
-    const detail = fig
-      ? fig + " · economy card open"
-      : "Relations " +
-        Math.round(G.rel[selectedRole] ?? 50) +
-        " · economy card open";
-    label.innerHTML =
-      "<b>" + (p ? p.name : selectedRole) + "</b><span>" + detail + "</span>";
-    return;
-  }
-  const caption = boardMetricCaption(mapMetric, G);
-  label.innerHTML =
-    "<b>" +
-    (G.country || "United Kingdom") +
-    "</b><span>" +
-    (caption || "Click a realm for its books") +
-    "</span>";
-}
+import { TopBar } from "../chrome/TopBar.jsx";
+import { Dock } from "../chrome/Dock.jsx";
+import { DrawerShell } from "../chrome/DrawerShell.jsx";
+import { DespatchModal } from "../chrome/DespatchModal.jsx";
+import { DiploHud } from "../chrome/DiploHud.jsx";
+import { PressLayer } from "../chrome/PressLayer.jsx";
+import { MapChrome } from "../chrome/MapChrome.jsx";
+import { GameTickContext } from "../../lib/ui/GameTickContext.jsx";
 
 export default function GameApp() {
   const [phase, setPhase] = useState("setup"); // setup | lobby | play
@@ -192,7 +77,6 @@ export default function GameApp() {
   const [mpRoom, setMpRoom] = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [lobbyBootstrap, setLobbyBootstrap] = useState(null);
-  const metricsRef = useRef(null);
   const pendingStart = useRef(null);
   const mpSessionRef = useRef(null);
   const lastMpVersion = useRef(0);
@@ -792,16 +676,12 @@ export default function GameApp() {
   unsubmitMpConfirmRef.current = unsubmitMpConfirm;
 
   useEffect(() => {
-    setOnState(() => {
-      bump();
-      wireRename();
-    });
+    setOnState(() => bump());
     setOnTabChange((t) => {
       if (t) setSelectedRole(null);
     });
     setOnSetup(() => {
-      const scrim = document.getElementById("scrim");
-      if (scrim) scrim.hidden = true;
+      closeDespatch();
       setTab(null);
       setSelectedRole(null);
       setSetupRole(realmById(realmId).role);
@@ -820,9 +700,8 @@ export default function GameApp() {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (phase === "setup" || phase === "lobby") return;
-      const scrim = document.getElementById("scrim");
-      if (scrim && !scrim.hidden) {
-        scrim.hidden = true;
+      if (getDespatch()) {
+        closeDespatch();
         return;
       }
       if (dismissNewestPress()) return;
@@ -839,38 +718,11 @@ export default function GameApp() {
       setOnState(null);
       setOnTabChange(null);
       setOnSetup(null);
-      SHELL_IDS.forEach((id) => registerEl(id, null));
     };
   }, [bump, phase, realmId]);
 
   useEffect(() => {
     if (phase !== "play") return;
-    SHELL_IDS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) registerEl(id, el);
-    });
-    const dwc = document.getElementById("dwClose");
-    if (dwc) dwc.onclick = () => setTab(null);
-    const deliverBtn = document.getElementById("deliverBtn");
-    if (deliverBtn) {
-      deliverBtn.onclick = () => {
-        if (mpSessionRef.current) {
-          if (waiting) {
-            unsubmitMpConfirm();
-            return;
-          }
-          projectionModal(() => {
-            submitMpConfirm();
-          });
-        } else {
-          projectionModal();
-        }
-      };
-    }
-    const billBtn = document.getElementById("billBtn");
-    if (billBtn) {
-      billBtn.onclick = () => setTab(getTab() === "bill" ? null : "bill");
-    }
     if (pendingStart.current) {
       const opts = pendingStart.current;
       pendingStart.current = null;
@@ -903,7 +755,6 @@ export default function GameApp() {
     } else {
       render();
     }
-    wireRename();
     bump();
   }, [phase, bump, waiting, submitMpConfirm, unsubmitMpConfirm, attachMpEventHandler]);
 
@@ -948,9 +799,7 @@ export default function GameApp() {
             hint.q != null &&
             data.room.snapshot.q === prevQ
           ) {
-            /* Peer live diplo: refresh waiting chrome only. */
             bump();
-            renderChrome();
           } else {
             bump();
           }
@@ -984,25 +833,19 @@ export default function GameApp() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mpRoom.status only
   }, [phase, mpSession, mpRoom?.status, bump, applyMpSnapshot, exitMpToSetup]);
 
-  /* React re-renders can clear engine-written HUD nodes (#tbStats etc).
-   Repaint chrome only — full render() calls bump() and would loop with tick. */
-  useEffect(() => {
-    if (phase !== "play") return;
-    if (!getG()) return;
-    try {
-      renderChrome();
-    } catch (err) {
-      console.error(err);
+  const handleDeliver = useCallback(() => {
+    if (mpSessionRef.current) {
+      if (waiting) {
+        unsubmitMpConfirm();
+        return;
+      }
+      projectionModal(() => {
+        submitMpConfirm();
+      });
+    } else {
+      projectionModal();
     }
-  }, [tick, phase, waiting, mpRoom]);
-
-  useEffect(() => {
-    if (phase !== "play" || !worldOk) return;
-    paintMetricBar(metricsRef.current, BOARD_METRICS, mapMetric, (id) => {
-      setMapMetric(id);
-    });
-    paintMapLabel(getG(), mapMetric, selectedRole);
-  }, [phase, mapMetric, selectedRole, tick, worldOk]);
+  }, [waiting, submitMpConfirm, unsubmitMpConfirm]);
 
   const onSelect = useCallback(
     (role) => {
@@ -1037,6 +880,7 @@ export default function GameApp() {
   const inSetup = phase === "setup" || phase === "lobby";
 
   return (
+    <GameTickContext.Provider value={tick}>
     <div
       className={
         (worldOk ? "world-map-active" : "") + (inSetup ? " setup-active" : "")
@@ -1129,94 +973,23 @@ export default function GameApp() {
           )}
 
           {worldOk && (
-            <div className="map-chrome">
-              <div id="mapLabel" />
-              <div id="mapMetrics" ref={metricsRef} />
-            </div>
+            <MapChrome
+              mapMetric={mapMetric}
+              selectedRole={selectedRole}
+              onMetricChange={setMapMetric}
+            />
           )}
 
-          <div id="pressLayer" aria-live="polite" />
+          <PressLayer />
 
-          <header id="topbar" className="hud-frame">
-            <div className="tb-id">
-              <span className="tb-crest">&#9878;</span>
-              <span className="tb-name">
-                <button id="nameBtn" type="button">
-                  United Kingdom
-                </button>
-                <small id="tbTerm">First term</small>
-              </span>
-              <div id="tbMode" className="tb-mode" aria-label="Game mode" />
-            </div>
-            <div className="tb-stats" id="tbStats" />
-          </header>
-
-          <div
-            id="diploHud"
-            className="diplo-hud hud-frame hud-surface"
-            hidden
-            role="button"
-            tabIndex={0}
-            aria-label="Active diplomacy"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                e.currentTarget.click();
-              }
-            }}
-          />
-
-          <div
-            id="drawer"
-            className="hud-frame"
-            hidden
-            role="dialog"
-            aria-label="Policy panel"
-          >
-            <div className="dw-head">
-              <h2 id="dwTitle" />
-              <span className="sub" id="dwSub" />
-              <button id="dwClose" aria-label="Close panel">
-                &#10005;
-              </button>
-            </div>
-            <div className="dw-body" id="drawerBody" />
-          </div>
-
-          <nav id="dock" aria-label="Government">
-            <div className="dock-tabs" id="dockTabs" />
-            <div className="dock-act">
-              <button className="dock-bill" id="billBtn" aria-expanded="false">
-                <span id="billLabel">Programme</span>
-                <b id="billCost">empty</b>
-              </button>
-              <button className="dock-go" id="deliverBtn">
-                {waiting
-                  ? mpRoom
-                    ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount}`
-                    : "Waiting on others"
-                  : "Next quarter"}
-              </button>
-            </div>
-          </nav>
-
-          <div className="scrim" id="scrim" hidden>
-            <div
-              className="despatch hud-frame"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="dpTitle"
-            >
-              <header>
-                <div className="stamp" id="dpStamp" />
-                <h3 id="dpTitle" />
-              </header>
-              <div className="body" id="dpBody" />
-              <div className="opts" id="dpOpts" />
-            </div>
-          </div>
+          <TopBar />
+          <DiploHud />
+          <DrawerShell />
+          <Dock onDeliver={handleDeliver} waiting={waiting} />
+          <DespatchModal />
         </>
       )}
     </div>
+    </GameTickContext.Provider>
   );
 }

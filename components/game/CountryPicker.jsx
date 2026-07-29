@@ -14,6 +14,7 @@ import {
   NATION_PROFILE,
   polityOf,
 } from "../../lib/sim/engine.js";
+import { HudFrame } from "../ui/HudFrame.jsx";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role) {
@@ -75,16 +76,18 @@ export default function CountryPicker({
 
   return (
     <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
-      <header className="setup-banner hud-frame hud-surface">
-        <div className="stamp">Commission</div>
-        <h1 id="setupTitle">Choose your country</h1>
-        <p>
-          Ten realms on a real map. Click any country in a bloc to take that
-          seat — the books open to that realm&apos;s inheritance.
-        </p>
+      <header className="setup-banner">
+        <HudFrame className="hud-surface">
+          <div className="stamp">Commission</div>
+          <h1 id="setupTitle">Choose your country</h1>
+          <p>
+            Ten realms on a real map. Click any country in a bloc to take that
+            seat — the books open to that realm&apos;s inheritance.
+          </p>
+        </HudFrame>
       </header>
 
-      <div className="setup-dock hud-frame hud-surface">
+      <HudFrame className="setup-dock hud-surface">
         <div className="setup-pick">
           <div className="setup-pick-head">
             <div className="setup-pick-title">
@@ -154,7 +157,7 @@ export default function CountryPicker({
             </button>
           )}
         </div>
-      </div>
+      </HudFrame>
     </div>
   );
 }
