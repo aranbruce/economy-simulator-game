@@ -58,6 +58,11 @@ import {
   syncServiceHolds,
   currencyForSeat,
   fxDisplayIndex,
+  BASE_INCOME_DIST,
+  BASE_DIST_GINI,
+  buildIncomeDist,
+  incomeDistForRole,
+  preTaxGini,
   IMPACT_ROWS,
   MISSIONS,
   billClauses,
@@ -677,6 +682,51 @@ assert(
   flatGini > baseGini,
   `flat tax raises distributional Gini (${flatGini.toFixed(2)} vs ${baseGini.toFixed(2)})`
 );
+
+/* Per-seat income distribution: base gini pin leaves the table unchanged;
+   high-inequality seats stretch pre-tax Gini above low-inequality seats;
+   step does not mutate the settled table. */
+{
+  clearOpeningCache();
+  const baseAt35 = buildIncomeDist(BASE_DIST_GINI);
+  assert(baseAt35.length === BASE_INCOME_DIST.length, "buildIncomeDist(35) keeps slice count");
+  for (let i = 0; i < BASE_INCOME_DIST.length; i++) {
+    assert(
+      Math.abs(baseAt35[i].inc - BASE_INCOME_DIST[i].inc) < 0.01 &&
+        baseAt35[i].w === BASE_INCOME_DIST[i].w,
+      `buildIncomeDist(35) matches BASE_INCOME_DIST slice ${i}`
+    );
+  }
+  const sa = preTaxGini(incomeDistForRole("south_africa"));
+  const nl = preTaxGini(incomeDistForRole("netherlands"));
+  assert(
+    sa > nl + 2,
+    `South Africa pre-tax Gini exceeds Netherlands (${sa.toFixed(1)} vs ${nl.toFixed(1)})`
+  );
+  assert(
+    NATION_PROFILE.south_africa.soc0.gini > NATION_PROFILE.netherlands.soc0.gini,
+    "profile pins order South Africa above Netherlands"
+  );
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
+  G = getG();
+  assert(!!G.econ.incomeDist, "opening econ carries incomeDist");
+  const dist0 = G.econ.incomeDist.map((s) => ({ w: s.w, inc: s.inc }));
+  const y0 = incomeYield(G.law, aggregate(G.law), G.econ).income;
+  for (let q = 0; q < 4; q++) step(G, G.law, G.prevLaw || G.law, true);
+  assert(
+    G.econ.incomeDist.length === dist0.length &&
+      G.econ.incomeDist.every((s, i) => s.inc === dist0[i].inc && s.w === dist0[i].w),
+    "step leaves incomeDist unchanged"
+  );
+  clearOpeningCache();
+  newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
+  G = getG();
+  const y1 = incomeYield(G.law, aggregate(G.law), G.econ).income;
+  assert(
+    Math.abs(y0 - y1) < 0.05,
+    `home income tax yield stable across opens (${y0.toFixed(2)} vs ${y1.toFixed(2)})`
+  );
+}
 
 /* Bilateral gravity: a united_states partner shock cuts that partner's export share. */
 newGame();
