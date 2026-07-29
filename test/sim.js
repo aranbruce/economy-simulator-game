@@ -27,6 +27,8 @@ import {
   MUTABLE,
   composePress,
   pushPress,
+  diploOutcomeAlertsForBrief,
+  markDiploAlertsNoted,
   PRIVATE_WEALTH0,
   R0,
   researchEffort,
@@ -69,6 +71,8 @@ import {
   importTariffLevel,
   tariffLocked,
   createCustomBloc,
+  canCreateCustomBloc,
+  withdrawBlocAccession,
   inviteToBloc,
   pickEventPartner,
   applyDraftMissions,
@@ -2248,18 +2252,58 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   assert(blocJoinBlockers("continental_union", "apply").length === 0, "CU application clears with chair + tariff");
   G.draft.blocAccession = { blocId: "continental_union", phase: "apply" };
+  const applyCost = billClauses().filter((c) => c.label && c.label.includes("Application to join")).reduce((s, c) => s + c.pc, 0);
+  assert(applyCost > 0, "application costs capital once");
   enact();
-  assert(G.blocAccession && G.blocAccession.step === 1, "application advances accession to step 1");
+  const pid = playerCountryId();
+  assert(
+    G.blocAccessionByCountry &&
+      G.blocAccessionByCountry[pid] &&
+      G.blocAccessionByCountry[pid].blocId === "continental_union" &&
+      G.blocAccessionByCountry[pid].step === 1 &&
+      G.blocAccessionByCountry[pid].self,
+    "application starts automatic accession pipeline"
+  );
+  assert(G.blocAccession && G.blocAccession.step === 1, "application mirrors accession step 1");
+  assert(!canCreateCustomBloc(), "cannot found a bloc while accession is in progress");
+  G.draft.blocCreate = { name: "Shadow League", template: "shallow_fta" };
+  assert(
+    billClauses().every((c) => !c.label || !/^Found /.test(c.label)),
+    "Found is not a capital clause while ascending"
+  );
+  G.draft.blocCreate = null;
+  {
+    const savedAcc = clone(G.blocAccessionByCountry[pid]);
+    const savedMirror = clone(G.blocAccession);
+    assert(withdrawBlocAccession(G, pid), "cancel joining clears accession");
+    assert(!G.blocAccessionByCountry[pid], "shared accession cleared on withdraw");
+    assert(!G.blocAccession, "seat accession cleared on withdraw");
+    assert(canCreateCustomBloc(), "founding unlocked after cancel joining");
+    /* Restore so the automatic accession path below still runs. */
+    G.blocAccessionByCountry[pid] = savedAcc;
+    G.blocAccession = savedMirror;
+  }
 
+  /* Alignment and treaty advance automatically — no further capital bills. */
+  G.draft = clone(G.law);
   G.draft.blocAccession = { blocId: "continental_union", phase: "align" };
-  enact();
-  assert(G.blocAccession && G.blocAccession.step === 2, "alignment advances accession to step 2");
+  assert(
+    billClauses().every((c) => !c.label || !c.label.includes("alignment")),
+    "alignment is not a capital clause"
+  );
+  G.draft.blocAccession = null;
 
-  G.draft.blocAccession = { blocId: "continental_union", phase: "accede" };
-  enact();
-  assert(countryBlocId(playerCountryId()) === "continental_union", "accession treaty joins continental union");
+  step(G, G.law, G.law, true);
+  assert(
+    G.blocAccessionByCountry[pid] && G.blocAccessionByCountry[pid].step === 2,
+    "accession advances to alignment after one quarter"
+  );
+
+  step(G, G.law, G.law, true);
+  assert(countryBlocId(pid) === "continental_union", "accession treaty joins continental union automatically");
   assert(G.law.tariffSchedule.cet === 4, "accession locks CET at 4");
   assert(!G.blocAccession, "accession state cleared after join");
+  assert(!G.blocAccessionByCountry[pid], "pipeline cleared after join");
 }
 
 {
@@ -2317,9 +2361,18 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.law.deals.fr_fta = true;
   G.draft = clone(G.law);
   G.draft.tariffSchedule.default = 7;
+  /* Seed late-stage automatic accession and advance one quarter to join. */
+  G.blocAccessionByCountry = {
+    [playerCountryId()]: {
+      blocId: "continental_union",
+      step: 2,
+      sinceQ: G.q,
+      self: true,
+    },
+  };
   G.blocAccession = { blocId: "continental_union", step: 2 };
-  G.draft.blocAccession = { blocId: "continental_union", phase: "accede" };
-  enact();
+  step(G, G.law, G.law, true);
+  assert(countryBlocId(playerCountryId()) === "continental_union", "auto accession joins on final stage");
   assert(!G.law.deals.fr_fta, "bilateral deals cleared on accession");
 }
 
@@ -2536,6 +2589,35 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   );
   assert(!joinBloc("pacific_accord", G.law), "exclusive membership blocks second bloc join");
   leaveBloc(G.law);
+  assert(!countryBlocId(playerCountryId()), "leaveBloc clears membership");
+  assert(G.law.tariffSchedule.cet == null, "leaving CU clears CET");
+  assert(
+    (G.diploAlerts || []).some((a) => a.kind === "bloc_self_left"),
+    "leaving posts a leave alert"
+  );
+  {
+    const fresh = diploOutcomeAlertsForBrief(G.diploAlerts, G.q);
+    const leaveClips1 = composePress({ ultimatumOutcomes: fresh, q: G.q });
+    assert(leaveClips1.some((c) => /leaves/i.test(c.headline)), "leave produces a press clip");
+    markDiploAlertsNoted(fresh);
+    G.q = (G.q || 0) + 1;
+    assert(
+      diploOutcomeAlertsForBrief(G.diploAlerts, G.q).length === 0,
+      "noted leave alert does not reappear next quarter"
+    );
+  }
+
+  /* Deliver path: stage Leave in the bill and enact. */
+  joinBloc("continental_union", G.law);
+  G.capital = 200;
+  G.draft = clone(G.law);
+  G.draft.blocLeave = true;
+  assert(billClauses().some((c) => /^Leave /.test(c.label)), "leave stages as a bill clause");
+  enact();
+  assert(!countryBlocId(playerCountryId()), "enacting Leave clears membership");
+  assert(G.law.tariffSchedule.cet == null, "enacting Leave clears CET");
+  assert(!G.draft.blocLeave, "leave flag cleared after enact");
+
   createCustomBloc("Northern League", "shallow_fta");
   const blocId = countryBlocId(playerCountryId());
   assert(!!G.customBlocs[blocId], "player can found a custom alliance");
@@ -2556,6 +2638,22 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     }
   }
   assert(customJoined, "india joins custom bloc after accession pipeline");
+  assert(
+    (G.diploAlerts || []).some(
+      (a) => a.kind === "bloc_member_joined" && a.partnerId === "india" && a.blocId === blocId
+    ),
+    "founding country is notified when invitee becomes a full member"
+  );
+  {
+    const joinClips = composePress({
+      ultimatumOutcomes: diploOutcomeAlertsForBrief(G.diploAlerts, G.q),
+      q: G.q,
+    });
+    assert(
+      joinClips.some((c) => /joins/i.test(c.headline) && /India/i.test(c.headline + c.lede)),
+      "full membership produces a newspaper clip for the inviter"
+    );
+  }
   /* Regression: leaving a founded custom bloc must remove the founder from
    * customBlocs[blocId].members, and the founder must be able to rejoin
    * via the 3-stage bloc accession flow. */
@@ -2572,15 +2670,21 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft = clone(G.law);
   G.draft.blocAccession = { blocId, phase: "apply" };
   enact();
-  assert(G.blocAccession && G.blocAccession.step === 1, "custom application advances to step 1");
+  assert(
+    G.blocAccessionByCountry &&
+      G.blocAccessionByCountry[playerId] &&
+      G.blocAccessionByCountry[playerId].step === 1,
+    "custom application advances to step 1"
+  );
 
-  G.draft.blocAccession = { blocId, phase: "align" };
-  enact();
-  assert(G.blocAccession && G.blocAccession.step === 2, "custom alignment advances to step 2");
+  step(G, G.law, G.law, true);
+  assert(
+    G.blocAccessionByCountry[playerId] && G.blocAccessionByCountry[playerId].step === 2,
+    "custom alignment advances to step 2 automatically"
+  );
 
-  G.draft.blocAccession = { blocId, phase: "accede" };
-  enact();
-  assert(countryBlocId(playerId) === blocId, "custom accession treaty rejoins the bloc");
+  step(G, G.law, G.law, true);
+  assert(countryBlocId(playerId) === blocId, "custom accession treaty rejoins the bloc automatically");
   assert(G.customBlocs[blocId].members.includes(playerId), "rejoining restores founder in members list");
   const snap = clone(G.blocMember);
   project(2);

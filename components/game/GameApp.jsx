@@ -20,6 +20,8 @@ import {
   hydrateGameSnapshot,
   clone,
   showMpBriefing,
+  mergeMpInboundAsksFromSnapshot,
+  flushMpDiploPressAlerts,
   applyMpDiploPatch,
   lockMpSubmission,
   clearMpLockedSubmission,
@@ -283,6 +285,9 @@ export default function GameApp() {
           return false;
         }
         if (act === "issueUltimatum" && q.action === "issueUltimatum") return false;
+        if (act === "withdrawBlocAccession" && q.action === "withdrawBlocAccession") {
+          return false;
+        }
         return true;
       });
       diploQueueRef.current.push({
@@ -326,18 +331,42 @@ export default function GameApp() {
       }
       if (brief && G) {
         const sid = seatId || you?.seatId || playerCountryId(G.homeRole);
-        const pending =
-          sid && G.politics && G.politics[sid] && G.politics[sid].pendingEvent;
-        const pendingKey = pending ? JSON.stringify(pending) : null;
+        const pol = sid && G.politics && G.politics[sid];
+        const pending = pol && pol.pendingEvent;
+        const inboundMap = pol && pol.inboundUltimatums;
+        const inboundKey = inboundMap
+          ? Object.keys(inboundMap)
+              .filter((id) => inboundMap[id] && inboundMap[id].status === "pending")
+              .sort()
+              .map((id) => id + ":" + (inboundMap[id].demand || ""))
+              .join("|")
+          : "";
+        const blocInv = pol && pol.inboundBlocInvite;
+        const blocKey =
+          blocInv && blocInv.status === "pending"
+            ? "bloc:" + (blocInv.fromId || "") + ":" + (blocInv.blocId || "")
+            : "";
+        const dealProp = pol && pol.inboundDealProposal;
+        const dealKey =
+          dealProp && dealProp.status === "pending"
+            ? "deal:" + (dealProp.fromId || "") + ":" + (dealProp.dealId || "")
+            : "";
+        const pendingKey = pending
+          ? JSON.stringify(pending)
+          : inboundKey
+            ? "inbound:" + inboundKey
+            : blocKey || dealKey || null;
         if (G.q !== lastMorningNoteQ.current) {
-          /* New quarter: flash once, then summit/event or morning note. */
+          /* New quarter: flash once, then summit/event/inbound or morning note. */
           lastMorningNoteQ.current = G.q;
           lastBriefQ.current = G.q;
           lastPresentedPendingKey.current = pendingKey;
-          if (!pending) lastBriefingCompleteQ.current = G.q;
+          if (!pending && !inboundKey && !blocKey && !dealKey) {
+            lastBriefingCompleteQ.current = G.q;
+          }
           showMpBriefing();
-        } else if (pending) {
-          /* Same quarter, another queued event — skip duplicates from SSE+submit. */
+        } else if (pending || inboundKey || blocKey || dealKey) {
+          /* Same quarter, another queued event or inbound ask. */
           if (pendingKey === lastPresentedPendingKey.current) return;
           lastPresentedPendingKey.current = pendingKey;
           showMpBriefing({ skipAnnounce: true });
@@ -345,6 +374,9 @@ export default function GameApp() {
           /* Same quarter after the last event choice — morning note, no flash. */
           lastBriefingCompleteQ.current = G.q;
           showMpBriefing({ skipAnnounce: true });
+        } else {
+          /* Morning already shown — press-only diplo outcomes (treaty / bloc). */
+          flushMpDiploPressAlerts();
         }
       }
     },
@@ -812,13 +844,29 @@ export default function GameApp() {
               brief: true,
               you: data.room.you,
             });
-          } else if (
-            hint &&
-            hint.q != null &&
-            data.room.snapshot.q === prevQ
-          ) {
-            bump();
           } else {
+            /* Same quarter: merge peer live diplo into the seat without wiping the
+             draft. Bloc invites / deal proposals can interrupt mid-quarter;
+             ultimatums wait for the next morning note so they are not shown twice. */
+            const you = data.room.you;
+            const seatId =
+              (you && you.seatId) ||
+              playerCountryId(getG()?.homeRole);
+            const pendingKey = mergeMpInboundAsksFromSnapshot(
+              data.room.snapshot,
+              seatId
+            );
+            /* Peer answered a treaty / bloc invite — newspaper only, do not
+             reopen the morning note mid-quarter. */
+            flushMpDiploPressAlerts();
+            const isUltimatumAsk =
+              typeof pendingKey === "string" && pendingKey.startsWith("inbound:");
+            if (pendingKey && !isUltimatumAsk) {
+              if (pendingKey !== lastPresentedPendingKey.current) {
+                lastPresentedPendingKey.current = pendingKey;
+                showMpBriefing({ skipAnnounce: true });
+              }
+            }
             bump();
           }
           setWaiting(!!data.room.you?.submitted);

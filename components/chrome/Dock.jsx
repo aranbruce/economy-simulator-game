@@ -103,7 +103,7 @@ export function Dock({
         >
           <span id="billLabel">Programme</span>
           <b id="billCost">
-            {cl.length ? `${cl.length} · ${cost} cap` : "empty"}
+            {cl.length ? `${cl.length} · ${cost} cap` : "Empty"}
           </b>
         </button>
         <button

@@ -36,6 +36,7 @@ export default function MultiplayerLobby({
   const [busyAction, setBusyAction] = useState(""); // create | join | ""
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const [session, setSession] = useState(() => initialSession || null);
   const guestStarted = useRef(false);
 
@@ -130,54 +131,94 @@ export default function MultiplayerLobby({
     onBack?.();
   }
 
+  async function copyRoomCode(code) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setError("Could not copy — select the code manually.");
+    }
+  }
+
   if (session && (mode === "host" || mode === "join")) {
     const room = session.room;
+    const ready = room.humanCount >= 2;
     return (
       <div className="setup-chrome" role="dialog" aria-modal="true">
-        <header className="setup-banner">
-          <HudFrame className="hud-surface">
-            <div className="stamp">Cabinet</div>
-            <h1>Room {room.code}</h1>
-            <p>
-              Share this code. Each player picks a different country on the map,
-              then joins. The quarter advances only when everyone has Delivered.
-            </p>
-          </HudFrame>
-        </header>
+        <HudFrame className="setup-banner hud-surface">
+          <div className="stamp">Cabinet</div>
+          <h1>Private room</h1>
+          <p>
+            {mode === "host"
+              ? "Share the code below. Friends pick a free country on the map, then join with that code."
+              : "You’re in. The host starts when everyone is ready — quarters only advance when every human has Delivered."}
+          </p>
+        </HudFrame>
         <HudFrame className="setup-dock hud-surface">
-          <div className="setup-pick">
-            <span className="setup-pick-tag">Lobby</span>
-            <strong>
-              {room.humanCount} player{room.humanCount === 1 ? "" : "s"}
-            </strong>
-            <ul className="mp-player-list">
-              {room.players.map((p) => (
-                <li key={p.seatId + p.name}>
-                  {p.name}
-                  {p.isHost ? " (host)" : ""}
-                  {p.isYou ? " — you" : ""} · {realmByRole(p.role).name}
-                </li>
-              ))}
-            </ul>
-            {mode === "host" ? (
-              <p className="setup-mode-hint">
-                {room.humanCount < 2
-                  ? "Waiting for at least one more player…"
-                  : "Everyone in? Start when ready."}
+          <div className="mp-lobby-layout">
+            <div className="mp-code-block">
+              <span className="setup-pick-tag">Room code</span>
+              <div className="mp-code-row">
+                <span className="mp-code-value" aria-label={`Room code ${room.code}`}>
+                  {room.code}
+                </span>
+                <button
+                  type="button"
+                  className="setup-go secondary mp-copy"
+                  onClick={() => copyRoomCode(room.code)}
+                >
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+              <p className="setup-mode-hint mp-hint-left">
+                Unclaimed seats stay AI once the game starts.
               </p>
-            ) : (
-              <p className="setup-mode-hint">
-                Waiting for the host to start the game…
+            </div>
+
+            <div className="setup-pick mp-roster">
+              <div className="mp-roster-head">
+                <span className="setup-pick-tag">Players</span>
+                <strong>
+                  {room.humanCount} human{room.humanCount === 1 ? "" : "s"}
+                </strong>
+              </div>
+              <ul className="mp-player-list">
+                {room.players.map((p) => {
+                  const seat = realmByRole(p.role);
+                  return (
+                    <li key={p.seatId + p.name} className="mp-player-row">
+                      <span className="mp-player-name">
+                        {p.name}
+                        {p.isYou ? <em> you</em> : null}
+                      </span>
+                      <span className="mp-player-seat">{seat.name}</span>
+                      {p.isHost ? (
+                        <span className="mp-player-badge">Host</span>
+                      ) : (
+                        <span className="mp-player-badge quiet">Guest</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="setup-mode-hint mp-hint-left">
+                {mode === "host"
+                  ? ready
+                    ? "Everyone in? Start when ready."
+                    : "Waiting for at least one more player…"
+                  : "Waiting for the host to start the game…"}
               </p>
-            )}
+            </div>
           </div>
+
           {error && <p className="mp-error">{error}</p>}
           <div className="mp-actions">
             {mode === "host" && (
               <button
                 type="button"
                 className="setup-go"
-                disabled={room.humanCount < 2 || starting}
+                disabled={!ready || starting}
                 onClick={async () => {
                   setStarting(true);
                   setError("");
@@ -208,64 +249,100 @@ export default function MultiplayerLobby({
     );
   }
 
+  const canJoin = joinCode.trim().length >= 4;
+
   return (
-    <div className="setup-chrome" role="dialog" aria-modal="true">
-      <header className="setup-banner">
-        <HudFrame className="hud-surface">
-          <div className="stamp">Cabinet</div>
-          <h1>Multiplayer</h1>
-          <p>
-            Private lobby. Unclaimed seats stay AI. Click your country on the map
-            before you create or join.
-          </p>
-        </HudFrame>
-      </header>
-      <HudFrame className="setup-dock hud-surface">
-        <div className="setup-pick">
-          <strong>{realm.name}</strong>
-          <em>Your seat if free</em>
+    <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="mpLobbyTitle">
+      <HudFrame className="setup-banner hud-surface">
+        <div className="stamp">Cabinet</div>
+        <h1 id="mpLobbyTitle">Multiplayer</h1>
+        <p>
+          Private rooms over the same map. Pick your country first, then host a
+          lobby or join with a friend’s code.
+        </p>
+      </HudFrame>
+      <HudFrame className="setup-dock hud-surface mp-menu-dock">
+        <div className="mp-lobby-layout">
+          <div className="mp-menu-seat">
+            <div className="setup-pick">
+              <div className="setup-pick-head">
+                <div className="setup-pick-title">
+                  <span className="setup-pick-tag">Your seat</span>
+                  <strong>{realm.name}</strong>
+                  <em>Click another country on the map to change seat — it must be free when you enter.</em>
+                </div>
+              </div>
+            </div>
+            <label className="setup-name mp-menu-name">
+              <span>Display name</span>
+              <input
+                type="text"
+                maxLength={34}
+                value={name}
+                placeholder={realm.name}
+                onChange={(e) => setName(e.target.value)}
+                aria-label="Display name in the lobby"
+              />
+            </label>
+          </div>
+
+          <div className="mp-menu-paths">
+            <section className="mp-path-card" aria-labelledby="mpHostPath">
+              <div className="mp-path-copy">
+                <span className="setup-pick-tag" id="mpHostPath">Host</span>
+                <strong>Create a room</strong>
+                <p>Get a short code to share. Friends join when their seats are free; everyone else stays AI.</p>
+              </div>
+              <button
+                type="button"
+                className="setup-go"
+                disabled={busy}
+                onClick={hostCreate}
+              >
+                {busyAction === "create" ? "Creating…" : "Create room"}
+              </button>
+            </section>
+
+            <section className="mp-path-card" aria-labelledby="mpJoinPath">
+              <div className="mp-path-copy">
+                <span className="setup-pick-tag" id="mpJoinPath">Join</span>
+                <strong>Enter a room code</strong>
+                <p>Use the six-character code from the host. Your seat must still be open.</p>
+              </div>
+              <div className="mp-join-row">
+                <label className="setup-name mp-join-code">
+                  <span>Room code</span>
+                  <input
+                    type="text"
+                    maxLength={6}
+                    value={joinCode}
+                    placeholder="ABC123"
+                    autoComplete="off"
+                    spellCheck={false}
+                    inputMode="text"
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && canJoin && !busy) guestJoin();
+                    }}
+                    aria-label="Room code"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="setup-go secondary mp-join-btn"
+                  disabled={busy || !canJoin}
+                  onClick={guestJoin}
+                >
+                  {busyAction === "join" ? "Joining…" : "Join"}
+                </button>
+              </div>
+            </section>
+          </div>
         </div>
-        <label className="setup-name">
-          <span>Your name</span>
-          <input
-            type="text"
-            maxLength={34}
-            value={name}
-            placeholder={realm.name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        <label className="setup-name">
-          <span>Room code</span>
-          <input
-            type="text"
-            maxLength={6}
-            value={joinCode}
-            placeholder="ABC123"
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          />
-        </label>
-        {error && <p className="mp-error">{error}</p>}
-        <div className="mp-actions">
-          <button
-            type="button"
-            className="setup-go"
-            disabled={busy}
-            onClick={hostCreate}
-          >
-            {busyAction === "create" ? "Creating…" : "Create room"}
-          </button>
-          <button
-            type="button"
-            className="setup-go secondary"
-            disabled={busy || joinCode.trim().length < 4}
-            onClick={guestJoin}
-          >
-            {busyAction === "join" ? "Joining…" : "Join room"}
-          </button>
-          <button type="button" className="setup-go secondary" onClick={onBack}>
+
+        {error && <p className="mp-error" role="alert">{error}</p>}
+        <div className="mp-menu-foot">
+          <button type="button" className="mp-solo-link" onClick={onBack}>
             Solo instead
           </button>
         </div>
