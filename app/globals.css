@@ -729,7 +729,7 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3
 .clause{display:flex;gap:9px;font-size:13px;padding:7px 0;border-bottom:1px solid var(--edge);align-items:flex-start}
 .clause:last-of-type{border-bottom:none}
 .clause .x{background:var(--g-1);border:1px solid var(--edge);border-radius:var(--r-sm);width:20px;height:20px;flex:none;
-  color:var(--ink-soft);cursor:pointer;font-size:12px;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;transform:translateY(-1.3px)}
+  color:var(--ink-soft);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 .clause .x:hover{background:rgba(255,90,78,.3);color:#fff;border-color:transparent}
 .clause .cost{margin-left:auto;font-size:11.5px;color:var(--accent-lt);white-space:nowrap;font-weight:650}
 .empty-bill{font-size:12.5px;color:var(--ink-faint);padding:8px 0 10px;line-height:1.5}
@@ -770,6 +770,7 @@ table.ledger .neg{color:var(--red-lt)} table.ledger .pos{color:var(--green-lt)}
 
 /* sandbox impact analysis */
 .impblock{background:var(--g-1);border:1px solid var(--edge);border-radius:var(--r-md);padding:9px 11px;margin-bottom:7px}
+.impblock.rate-impact{margin-top:10px;padding:12px;border-top:1px solid var(--edge)}
 .impblock.whole{background:var(--accent-dim);border-color:var(--frame)}
 .imphead{display:flex;align-items:baseline;gap:8px;font-size:13px;font-weight:650;margin-bottom:5px;letter-spacing:-.01em}
 .imphead .cost{margin-left:auto;font-size:11px;font-weight:650;color:var(--accent-lt);white-space:nowrap}
