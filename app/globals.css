@@ -1,3 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-accent-lt: var(--accent-lt);
+  --color-panel: var(--panel);
+  --color-panel-hi: var(--panel-hi);
+  --color-edge: var(--edge);
+  --color-green: var(--green);
+  --color-red: var(--red);
+  --color-amber: var(--amber);
+  --radius-lg: var(--r-lg);
+  --radius-md: var(--r-md);
+  --radius-sm: var(--r-sm);
+  --radius-pill: var(--r-pill);
+  --font-sans: var(--sans);
+  --font-display: var(--display);
+}
+
 :root{
   /* Grand-strategy command HUD over a dark planet. Dense slate panels,
      brass authority accent, light frost — map stays readable underneath. */
@@ -568,6 +591,7 @@ input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3
 .seg{display:flex;width:100%;background:var(--g-1);border-radius:var(--r-sm);padding:2px;gap:2px}
 .seg button{flex:1;background:transparent;border:none;border-radius:4px;padding:6px 5px;cursor:pointer;
   font-size:11px;font-weight:600;color:var(--ink-soft);transition:background .16s,color .16s;letter-spacing:.01em}
+.pol-filter{margin:8px 0 12px}
 .seg button:hover{color:#fff}
 .seg button[aria-pressed=true]{background:var(--g-4);color:#fff;box-shadow:var(--spec)}
 .seg button.staged{background:var(--accent);color:#1a1408}
