@@ -1512,7 +1512,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "kingdom partner opens at UK debt"
   );
   assert(!G.law.taxes.vat.on, "United States open without a federal VAT");
-  assert(G.law.taxes.corpTax.rate === 21, "United States open at 21% corporation tax");
+  assert(G.law.taxes.corpTax.rate === 26, "United States open at combined federal+state 26% corporation tax");
   assert(G.law.spend.defence === 3.5, "United States open with higher defence share");
   assert(G.law.vice.cannabis === "legal", "United States open with legal cannabis");
   assert(!!G.law.policies.planning && !!G.law.policies.dereg, "United States open with planning and labour deregulation");
@@ -1533,7 +1533,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
-  assert(G.law.taxes.vat.rate === 21, "France opens at ~21% VAT");
+  assert(G.law.taxes.vat.rate === 20, "France opens at 20% VAT");
   assert(G.law.spend.welfare >= 15, "France opens with a large welfare share");
   assert(G.law.spend.defence >= 1.5 && G.law.spend.defence <= 2.2, "France opens near the NATO defence band");
   assert(!!G.law.policies.netZero && !!G.law.policies.cbam, "France opens on a net-zero / CBAM footing");
