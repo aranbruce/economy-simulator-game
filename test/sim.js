@@ -4012,6 +4012,16 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   assert(G.coach && G.coach.step === 12, "warmFrance step after Deliver");
 
+  /* Early Deliver during the forecast brief must still clear the deliver step. */
+  beginCoachStep(10);
+  G = getG();
+  assert(G.coach && G.coach.step === 10 && G.coach.phase === "brief", "back on forecast brief");
+  const forecastStartQ = G.coach.startQ;
+  G.q = forecastStartQ + 1;
+  continueCoach();
+  G = getG();
+  assert(G.coach && G.coach.step === 12, "early Deliver during forecast advances past deliver step");
+
   assert(!tickCoach(), "France at 50 does not clear warmFrance");
   G.rel.france = 52;
   assert(tickCoach(), "France at 52 advances to joinCU");

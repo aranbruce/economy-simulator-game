@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   realmById,
   realmByRole,
@@ -73,6 +73,8 @@ export default function CountryPicker({
   const mapRealm = realmByRole(selectedRole || initial.role);
   const [sandbox, setSandbox] = useState(false);
   const [tutorial, setTutorial] = useState(false);
+  /** Mode before Tutorial forced Sandbox — restored when Tutorial is unchecked. */
+  const sandboxBeforeTutorialRef = useRef(false);
   const realm = tutorial ? realmById("home") : mapRealm;
   const books = openingBooks(realm.role);
   const meta = polityOf(realm.role);
@@ -80,8 +82,14 @@ export default function CountryPicker({
   const sandboxLocked = tutorial;
 
   function setTutorialOn(on) {
-    setTutorial(on);
-    if (on) setSandbox(true);
+    if (on) {
+      sandboxBeforeTutorialRef.current = sandbox;
+      setSandbox(true);
+      setTutorial(true);
+    } else {
+      setTutorial(false);
+      setSandbox(sandboxBeforeTutorialRef.current);
+    }
     if (typeof onTutorialChange === "function") onTutorialChange(on);
   }
 
