@@ -77,7 +77,7 @@ export default function GameApp() {
   const [mpRoom, setMpRoom] = useState(null);
   const [waiting, setWaiting] = useState(false);
   const [lobbyBootstrap, setLobbyBootstrap] = useState(null);
-  const pendingStart = useRef(null);
+  const pendingAfterNewGame = useRef(null);
   const mpSessionRef = useRef(null);
   const lastMpVersion = useRef(0);
   const hostStartGateRef = useRef(null);
@@ -433,15 +433,44 @@ export default function GameApp() {
     };
   }, [phase, mpRoom]);
 
-  const beginGame = useCallback((opts) => {
-    pendingStart.current = opts;
-    setRealmId(opts.realmId || DEFAULT_REALM_ID);
-    setHomeIso(opts.homeIso);
-    setHomeScale(opts.homeScale);
-    setHomeRole(opts.homeRole || "home");
-    setSelectedRole(null);
-    setPhase("play");
-  }, []);
+  const bootstrapPlay = useCallback(
+    (opts) => {
+      if (opts.hydrate) {
+        const mp = attachMpEventHandler(opts.mp || null);
+        hydrateGameSnapshot(opts.hydrate, {
+          homeRole: opts.homeRole,
+          seatId: opts.seatId || opts.mp?.seatId,
+          homeIso: opts.homeIso,
+          country: opts.country,
+          mp,
+        });
+        const G = getG();
+        if (G) {
+          G.coachDone = true;
+          if (mp) G.mp = mp;
+        }
+      } else {
+        newGame(opts);
+      }
+    },
+    [attachMpEventHandler]
+  );
+
+  const beginGame = useCallback(
+    (opts) => {
+      setRealmId(opts.realmId || DEFAULT_REALM_ID);
+      setHomeIso(opts.homeIso);
+      setHomeScale(opts.homeScale);
+      setHomeRole(opts.homeRole || "home");
+      setSelectedRole(null);
+      bootstrapPlay(opts);
+      if (typeof opts.afterNewGame === "function") {
+        pendingAfterNewGame.current = opts.afterNewGame;
+      }
+      setPhase("play");
+    },
+    [bootstrapPlay]
+  );
 
   const enterMpPlay = useCallback(
     (opts) => {
@@ -497,42 +526,40 @@ export default function GameApp() {
       hostStartGateRef.current = { resolve, reject };
     });
 
-    pendingStart.current = {
+    newGame({
       country: name,
       homeRole: role,
       homeIso: iso,
-      realmId: realmByRole(role).id,
       silent: true,
-      mp,
-      afterNewGame: async () => {
-        try {
-          const snap = exportGameSnapshot(getG());
-          const data = await startMpRoom(code, { token, snapshot: snap });
-          lastMpVersion.current = data.room.version;
-          setMpRoom(data.room);
-          const wired = attachMpEventHandler({
-            ...mp,
-            seatId: data.room.you?.seatId,
-          });
-          hydrateGameSnapshot(data.room.snapshot, {
-            homeRole: role,
-            seatId: data.room.you?.seatId,
-            homeIso: iso,
-            country: name,
-            mp: wired,
-          });
-          const G = getG();
-          G.mp = wired;
-          G.coachDone = true;
-          render();
-          hostStartGateRef.current?.resolve();
-          hostStartGateRef.current = null;
-        } catch (err) {
-          hostStartGateRef.current?.reject(err);
-          hostStartGateRef.current = null;
-          throw err;
-        }
-      },
+    });
+    pendingAfterNewGame.current = async () => {
+      try {
+        const snap = exportGameSnapshot(getG());
+        const data = await startMpRoom(code, { token, snapshot: snap });
+        lastMpVersion.current = data.room.version;
+        setMpRoom(data.room);
+        const wired = attachMpEventHandler({
+          ...mp,
+          seatId: data.room.you?.seatId,
+        });
+        hydrateGameSnapshot(data.room.snapshot, {
+          homeRole: role,
+          seatId: data.room.you?.seatId,
+          homeIso: iso,
+          country: name,
+          mp: wired,
+        });
+        const G = getG();
+        G.mp = wired;
+        G.coachDone = true;
+        render();
+        hostStartGateRef.current?.resolve();
+        hostStartGateRef.current = null;
+      } catch (err) {
+        hostStartGateRef.current?.reject(err);
+        hostStartGateRef.current = null;
+        throw err;
+      }
     };
     setRealmId(realmByRole(role).id);
     setHomeIso(iso);
@@ -723,40 +750,20 @@ export default function GameApp() {
 
   useEffect(() => {
     if (phase !== "play") return;
-    if (pendingStart.current) {
-      const opts = pendingStart.current;
-      pendingStart.current = null;
-      if (opts.hydrate) {
-        const mp = attachMpEventHandler(opts.mp || null);
-        hydrateGameSnapshot(opts.hydrate, {
-          homeRole: opts.homeRole,
-          seatId: opts.seatId || opts.mp?.seatId,
-          homeIso: opts.homeIso,
-          country: opts.country,
-          mp,
-        });
-        const G = getG();
-        if (G) {
-          G.coachDone = true;
-          if (mp) G.mp = mp;
+    const afterNewGame = pendingAfterNewGame.current;
+    if (afterNewGame) {
+      pendingAfterNewGame.current = null;
+      Promise.resolve(afterNewGame()).catch((err) => {
+        console.error(err);
+        if (!mpSessionRef.current) {
+          alert(err.message || "Could not start multiplayer");
         }
-      } else {
-        newGame(opts);
-        if (typeof opts.afterNewGame === "function") {
-          Promise.resolve(opts.afterNewGame()).catch((err) => {
-            console.error(err);
-            /* Host start restores the lobby and surfaces the error there. */
-            if (!opts.mp) {
-              alert(err.message || "Could not start multiplayer");
-            }
-          });
-        }
-      }
-    } else {
-      render();
+      }).finally(() => bump());
+      return;
     }
+    if (getG()) render();
     bump();
-  }, [phase, bump, waiting, submitMpConfirm, unsubmitMpConfirm, attachMpEventHandler]);
+  }, [phase, bump, waiting, submitMpConfirm, unsubmitMpConfirm]);
 
   useEffect(() => {
     if (phase !== "play" || !mpSession) return undefined;
