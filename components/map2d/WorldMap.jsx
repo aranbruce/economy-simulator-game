@@ -45,7 +45,7 @@ const DIPLO_MARKER_OFFSET = 26;
 const DIPLO_LEGEND_LABELS = {
   envoy: "Envoy",
   summit: "Summit",
-  summit_staged: "Staged",
+  summit_staged: "Queued",
   ultimatum: "Ultimatum",
 };
 

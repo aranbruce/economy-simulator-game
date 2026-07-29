@@ -76,16 +76,14 @@ export default function CountryPicker({
 
   return (
     <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
-      <header className="setup-banner">
-        <HudFrame className="hud-surface">
+      <HudFrame className="setup-banner hud-surface">
           <div className="stamp">Commission</div>
           <h1 id="setupTitle">Choose your country</h1>
           <p>
             Ten realms on a real map. Click any country in a bloc to take that
             seat — the books open to that realm&apos;s inheritance.
           </p>
-        </HudFrame>
-      </header>
+      </HudFrame>
 
       <HudFrame className="setup-dock hud-surface">
         <div className="setup-pick">

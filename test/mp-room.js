@@ -13,6 +13,11 @@ import {
   validateMpSubmission,
   applyMpEventChoice,
   EVENTS,
+  diploOutcomeAlertsForBrief,
+  markDiploAlertsNoted,
+  mergeMpInboundAsksFromSnapshot,
+  flushMpDiploPressAlerts,
+  composePress,
 } from "../lib/sim/engine.js";
 import {
   createRoom,
@@ -752,9 +757,884 @@ async function main() {
     "host does not inherit live-ultimatum alert"
   );
 
+  /* ---- Human→human inbound ultimatums (no issuer RNG) ---- */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapIn = exportGameSnapshot(getG());
+  const hIn = await createRoom({ hostName: "Alice", role: "home" });
+  const gIn = await joinRoom(hIn.room.code, { name: "Bob", role: "germany" });
+  const stIn = await startRoom(hIn.room.code, hIn.token, snapIn);
+  assert.ok(!stIn.error, stIn.error);
+
+  /* Cool relations so host can ultimatum the guest. */
+  {
+    const raw = await loadRoom(hIn.room.code);
+    raw.snapshot.politics.kingdom.rel = {
+      ...(raw.snapshot.politics.kingdom.rel || {}),
+      germany: 30,
+    };
+    raw.snapshot.politics.kingdom.capital = 40;
+    await saveRoom(raw);
+  }
+
+  const hostUltGuest = await applyDiploAction(hIn.room.code, hIn.token, {
+    action: "issueUltimatum",
+    partnerId: "germany",
+    demandId: "tariffCut",
+  });
+  assert.ok(!hostUltGuest.error, hostUltGuest.error);
+  const kOut = hostUltGuest.room.snapshot.politics.kingdom.ultimatums;
+  assert.ok(
+    kOut && kOut.germany && kOut.germany.status === "pending" && kOut.germany.awaitHuman,
+    "host outbound marked awaitHuman"
+  );
+  const gInb = hostUltGuest.room.snapshot.politics.germany.inboundUltimatums;
+  assert.ok(
+    gInb && gInb.kingdom && gInb.kingdom.status === "pending",
+    "guest politics parks inbound ultimatum from host"
+  );
+  assert.equal(gInb.kingdom.demand, "tariffCut");
+
+  /* Guest concedes — tariff schedule on germany falls; both seats get alerts. */
+  const schedBefore =
+    (hostUltGuest.room.snapshot.world.germany.law.tariffSchedule &&
+      hostUltGuest.room.snapshot.world.germany.law.tariffSchedule.country &&
+      hostUltGuest.room.snapshot.world.germany.law.tariffSchedule.country.kingdom) != null
+      ? hostUltGuest.room.snapshot.world.germany.law.tariffSchedule.country.kingdom
+      : (hostUltGuest.room.snapshot.world.germany.law.tariffSchedule &&
+          hostUltGuest.room.snapshot.world.germany.law.tariffSchedule.default) != null
+        ? hostUltGuest.room.snapshot.world.germany.law.tariffSchedule.default
+        : 4;
+
+  const conceded = await chooseEvent(hIn.room.code, gIn.token, {
+    inboundUltimatum: true,
+    fromId: "kingdom",
+    concede: true,
+  });
+  assert.ok(!conceded.error, conceded.error);
+  assert.ok(
+    !(
+      conceded.room.snapshot.politics.germany.inboundUltimatums &&
+      conceded.room.snapshot.politics.germany.inboundUltimatums.kingdom
+    ),
+    "inbound cleared after concede"
+  );
+  assert.ok(
+    !(
+      conceded.room.snapshot.politics.kingdom.ultimatums &&
+      conceded.room.snapshot.politics.kingdom.ultimatums.germany
+    ),
+    "outbound cleared after concede"
+  );
+  assert.ok(
+    (conceded.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.partnerId === "germany" && a.kind === "ult_concede"
+    ),
+    "issuer gets ult_concede alert"
+  );
+  assert.ok(
+    (conceded.room.snapshot.politics.germany.diploAlerts || []).some(
+      (a) => a.partnerId === "kingdom" && a.kind === "ult_inbound_concede"
+    ),
+    "target gets ult_inbound_concede alert"
+  );
+  const schedAfter =
+    conceded.room.snapshot.world.germany.law.tariffSchedule &&
+    conceded.room.snapshot.world.germany.law.tariffSchedule.country &&
+    conceded.room.snapshot.world.germany.law.tariffSchedule.country.kingdom;
+  assert.ok(schedAfter != null, "tariff country rate set after concede");
+  assert.ok(schedAfter <= schedBefore - 1.5, "tariff cut applied on target seat");
+
+  /* Defy path + timeout path in a fresh room. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapDefy = exportGameSnapshot(getG());
+  const hDefy = await createRoom({ hostName: "Alice", role: "home" });
+  const gDefy = await joinRoom(hDefy.room.code, { name: "Bob", role: "germany" });
+  const stDefy = await startRoom(hDefy.room.code, hDefy.token, snapDefy);
+  assert.ok(!stDefy.error, stDefy.error);
+  {
+    const raw = await loadRoom(hDefy.room.code);
+    raw.snapshot.politics.kingdom.rel = {
+      ...(raw.snapshot.politics.kingdom.rel || {}),
+      germany: 28,
+    };
+    raw.snapshot.politics.kingdom.capital = 40;
+    await saveRoom(raw);
+  }
+  const issuedDefy = await applyDiploAction(hDefy.room.code, hDefy.token, {
+    action: "issueUltimatum",
+    partnerId: "germany",
+    demandId: "political",
+  });
+  assert.ok(!issuedDefy.error, issuedDefy.error);
+  const retal0 = issuedDefy.room.snapshot.world.kingdom.econ.retaliation || 0;
+  const defied = await chooseEvent(hDefy.room.code, gDefy.token, {
+    inboundUltimatum: true,
+    fromId: "kingdom",
+    concede: false,
+  });
+  assert.ok(!defied.error, defied.error);
+  assert.ok(
+    (defied.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "ult_defy" && a.partnerId === "germany"
+    ),
+    "issuer alert on defy"
+  );
+  assert.ok(
+    (defied.room.snapshot.politics.germany.diploAlerts || []).some(
+      (a) => a.kind === "ult_inbound_defy" && a.partnerId === "kingdom"
+    ),
+    "target alert on defy"
+  );
+  const retal1 = defied.room.snapshot.world.kingdom.econ.retaliation || 0;
+  assert.ok(retal1 > retal0 + 0.2, "defy raises issuer retaliation stock");
+
+  /* Timeout: unanswered inbound past expiresQ auto-defies on lockstep. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapTo = exportGameSnapshot(getG());
+  const hTo = await createRoom({ hostName: "Alice", role: "home" });
+  const gTo = await joinRoom(hTo.room.code, { name: "Bob", role: "germany" });
+  const stTo = await startRoom(hTo.room.code, hTo.token, snapTo);
+  assert.ok(!stTo.error, stTo.error);
+  {
+    const raw = await loadRoom(hTo.room.code);
+    raw.snapshot.politics.kingdom.rel = {
+      ...(raw.snapshot.politics.kingdom.rel || {}),
+      germany: 25,
+    };
+    raw.snapshot.politics.kingdom.capital = 40;
+    await saveRoom(raw);
+  }
+  const issuedTo = await applyDiploAction(hTo.room.code, hTo.token, {
+    action: "issueUltimatum",
+    partnerId: "germany",
+    demandId: "tariffCut",
+  });
+  assert.ok(!issuedTo.error, issuedTo.error);
+  assert.ok(
+    issuedTo.room.snapshot.politics.germany.inboundUltimatums &&
+      issuedTo.room.snapshot.politics.germany.inboundUltimatums.kingdom,
+    "inbound pending before timeout"
+  );
+  /* Advance two quarters without answering — ULTIMATUM_WAIT is 2. */
+  const hostLawTo = clone(
+    (await getRoom(hTo.room.code, hTo.token)).snapshot.world.kingdom.law
+  );
+  await submitBill(hTo.room.code, hTo.token, hostLawTo, {
+    envoys: clone(
+      (await getRoom(hTo.room.code, hTo.token)).snapshot.politics.kingdom.envoys || [null, null]
+    ),
+    ultimatums: clone(
+      (await getRoom(hTo.room.code, hTo.token)).snapshot.politics.kingdom.ultimatums || {}
+    ),
+  });
+  await submitBill(
+    hTo.room.code,
+    gTo.token,
+    clone((await getRoom(hTo.room.code, gTo.token)).snapshot.world.germany.law),
+    {
+      envoys: clone(
+        (await getRoom(hTo.room.code, gTo.token)).snapshot.politics.germany.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  /* Still pending after one lockstep. */
+  assert.ok(
+    (await getRoom(hTo.room.code, gTo.token)).snapshot.politics.germany
+      .inboundUltimatums &&
+      (await getRoom(hTo.room.code, gTo.token)).snapshot.politics.germany
+        .inboundUltimatums.kingdom,
+    "inbound still pending after one quarter"
+  );
+  await submitBill(
+    hTo.room.code,
+    hTo.token,
+    clone((await getRoom(hTo.room.code, hTo.token)).snapshot.world.kingdom.law),
+    {
+      envoys: clone(
+        (await getRoom(hTo.room.code, hTo.token)).snapshot.politics.kingdom.envoys || [null, null]
+      ),
+      ultimatums: clone(
+        (await getRoom(hTo.room.code, hTo.token)).snapshot.politics.kingdom.ultimatums || {}
+      ),
+    }
+  );
+  const timed = await submitBill(
+    hTo.room.code,
+    gTo.token,
+    clone((await getRoom(hTo.room.code, gTo.token)).snapshot.world.germany.law),
+    {
+      envoys: clone(
+        (await getRoom(hTo.room.code, gTo.token)).snapshot.politics.germany.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  assert.ok(!timed.error, timed.error);
+  assert.equal(timed.resolved, true);
+  assert.ok(
+    !(
+      timed.room.snapshot.politics.germany.inboundUltimatums &&
+      timed.room.snapshot.politics.germany.inboundUltimatums.kingdom
+    ),
+    "inbound cleared by timeout"
+  );
+  assert.ok(
+    (timed.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.partnerId === "germany" && a.kind === "ult_defy"
+    ),
+    "silence times out as defy for issuer"
+  );
+  assert.ok(
+    (timed.room.snapshot.politics.germany.diploAlerts || []).some(
+      (a) => a.partnerId === "kingdom" && a.kind === "ult_inbound_defy"
+    ),
+    "silence times out as defy for target"
+  );
+
+  /* Stale issuer Deliver after concede must not re-park and auto-defy. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapStale = exportGameSnapshot(getG());
+  const hStale = await createRoom({ hostName: "Alice", role: "home" });
+  const gStale = await joinRoom(hStale.room.code, {
+    name: "Bob",
+    role: "france",
+  });
+  const stStale = await startRoom(hStale.room.code, hStale.token, snapStale);
+  assert.ok(!stStale.error, stStale.error);
+  {
+    const raw = await loadRoom(hStale.room.code);
+    raw.snapshot.politics.kingdom.rel = {
+      ...(raw.snapshot.politics.kingdom.rel || {}),
+      france: 28,
+    };
+    raw.snapshot.politics.kingdom.capital = 50;
+    await saveRoom(raw);
+  }
+  const issuedStale = await applyDiploAction(hStale.room.code, hStale.token, {
+    action: "issueUltimatum",
+    partnerId: "france",
+    demandId: "open",
+  });
+  assert.ok(!issuedStale.error, issuedStale.error);
+  await submitBill(
+    hStale.room.code,
+    hStale.token,
+    clone(
+      (await getRoom(hStale.room.code, hStale.token)).snapshot.world.kingdom.law
+    ),
+    {
+      envoys: clone(
+        (await getRoom(hStale.room.code, hStale.token)).snapshot.politics
+          .kingdom.envoys || [null, null]
+      ),
+      ultimatums: clone(
+        (await getRoom(hStale.room.code, hStale.token)).snapshot.politics
+          .kingdom.ultimatums || {}
+      ),
+    }
+  );
+  const afterQ1 = await submitBill(
+    hStale.room.code,
+    gStale.token,
+    clone(
+      (await getRoom(hStale.room.code, gStale.token)).snapshot.world.france.law
+    ),
+    {
+      envoys: clone(
+        (await getRoom(hStale.room.code, gStale.token)).snapshot.politics
+          .france.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  assert.ok(!afterQ1.error, afterQ1.error);
+  const staleUlt = clone(
+    afterQ1.room.snapshot.politics.kingdom.ultimatums || {}
+  );
+  assert.ok(
+    staleUlt.france && staleUlt.france.status === "pending",
+    "capture stale outbound before concede"
+  );
+  const concededStale = await chooseEvent(hStale.room.code, gStale.token, {
+    inboundUltimatum: true,
+    fromId: "kingdom",
+    concede: true,
+  });
+  assert.ok(!concededStale.error, concededStale.error);
+  assert.ok(
+    (concededStale.room.snapshot.politics.france.diploAlerts || []).some(
+      (a) => a.kind === "ult_inbound_concede"
+    ),
+    "target noted concede"
+  );
+  await submitBill(
+    hStale.room.code,
+    hStale.token,
+    clone(
+      (await getRoom(hStale.room.code, hStale.token)).snapshot.world.kingdom.law
+    ),
+    {
+      envoys: clone(
+        (await getRoom(hStale.room.code, hStale.token)).snapshot.politics
+          .kingdom.envoys || [null, null]
+      ),
+      ultimatums: staleUlt,
+    }
+  );
+  const afterStale = await submitBill(
+    hStale.room.code,
+    gStale.token,
+    clone(
+      (await getRoom(hStale.room.code, gStale.token)).snapshot.world.france.law
+    ),
+    {
+      envoys: clone(
+        (await getRoom(hStale.room.code, gStale.token)).snapshot.politics
+          .france.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  assert.ok(!afterStale.error, afterStale.error);
+  assert.ok(
+    !(
+      afterStale.room.snapshot.politics.france.inboundUltimatums &&
+      afterStale.room.snapshot.politics.france.inboundUltimatums.kingdom
+    ),
+    "stale Deliver must not re-park inbound"
+  );
+  assert.ok(
+    !(afterStale.room.snapshot.politics.france.diploAlerts || []).some(
+      (a) => a.kind === "ult_inbound_defy"
+    ),
+    "stale Deliver must not invent a defy after concede"
+  );
+  assert.ok(
+    !(afterStale.room.snapshot.politics.kingdom.ultimatums || {}).france,
+    "stale outbound stripped from issuer politics"
+  );
+
+  /* ---- Human→human inbound bloc invites ---- */
+  _resetRoomsForTests();
+  newGame({ country: "France", homeRole: "france", homeIso: "250", silent: true });
+  const snapBloc = exportGameSnapshot(getG());
+  const hBloc = await createRoom({ hostName: "Alice", role: "france" });
+  const gBloc = await joinRoom(hBloc.room.code, { name: "Bob", role: "home" });
+  const stBloc = await startRoom(hBloc.room.code, hBloc.token, snapBloc);
+  assert.ok(!stBloc.error, stBloc.error);
+  assert.ok(
+    stBloc.room.snapshot.blocMember &&
+      stBloc.room.snapshot.blocMember.france === "continental_union",
+    "france opens in continental union"
+  );
+  assert.ok(
+    !stBloc.room.snapshot.blocMember.kingdom,
+    "kingdom is free to be invited"
+  );
+
+  /* Warm relations so member-approval gates clear. */
+  {
+    const raw = await loadRoom(hBloc.room.code);
+    const members = ["germany", "italy", "spain", "netherlands", "poland"];
+    for (const m of members) {
+      raw.snapshot.politics.france.rel[m] = 70;
+    }
+    raw.snapshot.politics.france.rel.kingdom = 65;
+    await saveRoom(raw);
+  }
+
+  const franceLaw = clone(
+    (await getRoom(hBloc.room.code, hBloc.token)).snapshot.world.france.law
+  );
+  franceLaw.blocInvite = { kingdom: true };
+  await submitBill(hBloc.room.code, hBloc.token, franceLaw, {
+    envoys: clone(
+      (await getRoom(hBloc.room.code, hBloc.token)).snapshot.politics.france.envoys || [null, null]
+    ),
+    ultimatums: {},
+  });
+  const inviteRes = await submitBill(
+    hBloc.room.code,
+    gBloc.token,
+    clone((await getRoom(hBloc.room.code, gBloc.token)).snapshot.world.kingdom.law),
+    {
+      envoys: clone(
+        (await getRoom(hBloc.room.code, gBloc.token)).snapshot.politics.kingdom.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  assert.ok(!inviteRes.error, inviteRes.error);
+  assert.equal(inviteRes.resolved, true);
+  const invShared = inviteRes.room.snapshot.blocInvites && inviteRes.room.snapshot.blocInvites.kingdom;
+  assert.ok(invShared && invShared.awaitHuman, "shared invite marked awaitHuman");
+  assert.equal(invShared.blocId, "continental_union");
+  const inboundBloc =
+    inviteRes.room.snapshot.politics.kingdom.inboundBlocInvite;
+  assert.ok(
+    inboundBloc && inboundBloc.status === "pending" && inboundBloc.fromId === "france",
+    "kingdom parks inbound bloc invite"
+  );
+
+  /* Accept → shared accession pipeline (issuer can track; re-invite blocked). */
+  const accepted = await chooseEvent(hBloc.room.code, gBloc.token, {
+    inboundBlocInvite: true,
+    accept: true,
+  });
+  assert.ok(!accepted.error, accepted.error);
+  assert.ok(
+    !accepted.room.snapshot.politics.kingdom.inboundBlocInvite,
+    "inbound bloc invite cleared on accept"
+  );
+  assert.ok(
+    !accepted.room.snapshot.blocInvites || !accepted.room.snapshot.blocInvites.kingdom,
+    "shared invite cleared on accept"
+  );
+  assert.ok(
+    accepted.room.snapshot.blocAccessionByCountry &&
+      accepted.room.snapshot.blocAccessionByCountry.kingdom &&
+      accepted.room.snapshot.blocAccessionByCountry.kingdom.blocId === "continental_union" &&
+      accepted.room.snapshot.blocAccessionByCountry.kingdom.step === 1,
+    "accept starts shared accession pipeline"
+  );
+  assert.ok(
+    !accepted.room.snapshot.politics.kingdom.blocAccession,
+    "invitee does not use bill-based accession after invite accept"
+  );
+  assert.ok(
+    (accepted.room.snapshot.politics.france.diploAlerts || []).some(
+      (a) => a.kind === "bloc_invite_accept" && a.partnerId === "kingdom"
+    ),
+    "issuer gets accept alert"
+  );
+  assert.ok(
+    (accepted.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "bloc_inbound_accept" && a.partnerId === "france"
+    ),
+    "target gets accept alert"
+  );
+
+  /* Accept alerts must not reappear after hydrate / mid-quarter merge once noted. */
+  {
+    const acceptSnap = clone(accepted.room.snapshot);
+    hydrateGameSnapshot(acceptSnap, {
+      homeRole: "france",
+      seatId: "france",
+      country: "Alice",
+    });
+    const Gfr = getG();
+    Gfr.mp = { code: "TEST" };
+    Gfr.q = acceptSnap.q || 0;
+    const fresh1 = diploOutcomeAlertsForBrief(
+      Gfr.politics.france.diploAlerts,
+      Gfr.q
+    );
+    assert.ok(
+      fresh1.some((a) => a.kind === "bloc_invite_accept"),
+      "unnoted accept is eligible once"
+    );
+    /* Outcome alerts must not become a mid-quarter pendingKey (that replayed
+     the morning note). Press clips flush separately. */
+    const mergeAsk = mergeMpInboundAsksFromSnapshot(acceptSnap, "france");
+    assert.equal(
+      mergeAsk,
+      null,
+      "unnoted invite-accept is not a mid-quarter briefing ask"
+    );
+    const briefBefore = (Gfr.brief || []).slice();
+    assert.equal(
+      flushMpDiploPressAlerts(),
+      true,
+      "invite accept flushes as a newspaper clip"
+    );
+    assert.ok(
+      (Gfr.press || []).some((c) => /invitation accepted/i.test(c.headline || "")),
+      "invite accept produces a Gazette clip"
+    );
+    assert.deepEqual(
+      Gfr.brief || [],
+      briefBefore,
+      "invite accept does not prepend a morning-note line"
+    );
+    assert.equal(
+      diploOutcomeAlertsForBrief(Gfr.politics.france.diploAlerts, Gfr.q).length,
+      0,
+      "flush marks invite-accept noted"
+    );
+    const snapAgain = clone(accepted.room.snapshot);
+    /* Server snapshot still has noted:false — hydrate must keep local noted. */
+    hydrateGameSnapshot(snapAgain, {
+      homeRole: "france",
+      seatId: "france",
+      country: "Alice",
+    });
+    const Gfr2 = getG();
+    Gfr2.mp = { code: "TEST" };
+    assert.equal(
+      diploOutcomeAlertsForBrief(Gfr2.politics.france.diploAlerts, Gfr2.q).length,
+      0,
+      "hydrate preserves noted so accept does not re-fire"
+    );
+    const mergeKey = mergeMpInboundAsksFromSnapshot(accepted.room.snapshot, "france");
+    assert.equal(
+      mergeKey,
+      null,
+      "mid-quarter merge does not re-signal noted accept alerts"
+    );
+  }
+
+  /* Advance accession until the invitee is a full member — both seats get press alerts. */
+  {
+    async function bothAdvance(code, hTok, gTok) {
+      const hr = await getRoom(code, hTok);
+      await submitBill(code, hTok, clone(hr.snapshot.world.france.law), {
+        envoys: clone(hr.snapshot.politics.france.envoys || [null, null]),
+        ultimatums: {},
+      });
+      const mid = await getRoom(code, gTok);
+      return submitBill(code, gTok, clone(mid.snapshot.world.kingdom.law), {
+        envoys: clone(mid.snapshot.politics.kingdom.envoys || [null, null]),
+        ultimatums: {},
+      });
+    }
+    let joined = false;
+    let last = null;
+    for (let i = 0; i < 8; i++) {
+      last = await bothAdvance(hBloc.room.code, hBloc.token, gBloc.token);
+      assert.ok(!last.error, last.error);
+      if (
+        last.room.snapshot.blocMember &&
+        last.room.snapshot.blocMember.kingdom === "continental_union"
+      ) {
+        joined = true;
+        break;
+      }
+    }
+    assert.ok(joined, "invitee completes accession to full membership");
+    assert.ok(
+      (last.room.snapshot.politics.kingdom.diploAlerts || []).some(
+        (a) => a.kind === "bloc_self_joined" && a.blocId === "continental_union"
+      ),
+      "invitee gets bloc_self_joined alert for newspaper clip"
+    );
+    assert.ok(
+      (last.room.snapshot.politics.france.diploAlerts || []).some(
+        (a) => a.kind === "bloc_member_joined" && a.partnerId === "kingdom"
+      ),
+      "inviter gets bloc_member_joined alert"
+    );
+    {
+      const selfAlerts = diploOutcomeAlertsForBrief(
+        last.room.snapshot.politics.kingdom.diploAlerts,
+        last.room.snapshot.q
+      ).filter((a) => a.kind === "bloc_self_joined");
+      const clips = composePress({
+        ultimatumOutcomes: selfAlerts,
+        q: last.room.snapshot.q,
+      });
+      assert.ok(
+        clips.some((c) => /joins/i.test(c.headline)),
+        "invitee membership yields a newspaper clipping"
+      );
+    }
+  }
+
+  /* Decline path in a fresh room. */
+  _resetRoomsForTests();
+  newGame({ country: "France", homeRole: "france", homeIso: "250", silent: true });
+  const snapDec = exportGameSnapshot(getG());
+  const hDec = await createRoom({ hostName: "Alice", role: "france" });
+  const gDec = await joinRoom(hDec.room.code, { name: "Bob", role: "home" });
+  const stDec = await startRoom(hDec.room.code, hDec.token, snapDec);
+  assert.ok(!stDec.error, stDec.error);
+  {
+    const raw = await loadRoom(hDec.room.code);
+    for (const m of ["germany", "italy", "spain", "netherlands", "poland"]) {
+      raw.snapshot.politics.france.rel[m] = 70;
+    }
+    raw.snapshot.politics.france.rel.kingdom = 65;
+    /* Force an inbound invite without waiting another lockstep. */
+    raw.snapshot.blocInvites = {
+      kingdom: {
+        blocId: "continental_union",
+        sentQ: raw.snapshot.q || 0,
+        expiresQ: (raw.snapshot.q || 0) + 4,
+        fromId: "france",
+        awaitHuman: true,
+      },
+    };
+    raw.snapshot.politics.kingdom.inboundBlocInvite = {
+      fromId: "france",
+      blocId: "continental_union",
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const declined = await chooseEvent(hDec.room.code, gDec.token, {
+    inboundBlocInvite: true,
+    accept: false,
+  });
+  assert.ok(!declined.error, declined.error);
+  assert.ok(
+    !declined.room.snapshot.politics.kingdom.inboundBlocInvite,
+    "inbound cleared on decline"
+  );
+  assert.ok(
+    !declined.room.snapshot.politics.kingdom.blocAccession,
+    "decline does not start accession"
+  );
+  assert.ok(
+    (declined.room.snapshot.politics.france.diploAlerts || []).some(
+      (a) => a.kind === "bloc_invite_decline" && a.partnerId === "kingdom"
+    ),
+    "issuer gets decline alert"
+  );
+
+
+  /* ---- Human→human inbound deal proposals (proposer-only) ---- */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapDeal = exportGameSnapshot(getG());
+  const hDeal = await createRoom({ hostName: "Alice", role: "home" });
+  const gDeal = await joinRoom(hDeal.room.code, { name: "Bob", role: "germany" });
+  const stDeal = await startRoom(hDeal.room.code, hDeal.token, snapDeal);
+  assert.ok(!stDeal.error, stDeal.error);
+  {
+    const raw = await loadRoom(hDeal.room.code);
+    raw.snapshot.politics.kingdom.rel = {
+      ...(raw.snapshot.politics.kingdom.rel || {}),
+      germany: 70,
+    };
+    raw.snapshot.politics.kingdom.capital = 60;
+    await saveRoom(raw);
+  }
+  const hostLaw = clone(
+    (await getRoom(hDeal.room.code, hDeal.token)).snapshot.world.kingdom.law
+  );
+  hostLaw.deals = { ...(hostLaw.deals || {}), de_fta: true };
+  await submitBill(hDeal.room.code, hDeal.token, hostLaw, {
+    envoys: clone(
+      (await getRoom(hDeal.room.code, hDeal.token)).snapshot.politics.kingdom.envoys || [null, null]
+    ),
+    ultimatums: {},
+  });
+  const dealRes = await submitBill(
+    hDeal.room.code,
+    gDeal.token,
+    clone((await getRoom(hDeal.room.code, gDeal.token)).snapshot.world.germany.law),
+    {
+      envoys: clone(
+        (await getRoom(hDeal.room.code, gDeal.token)).snapshot.politics.germany.envoys || [null, null]
+      ),
+      ultimatums: {},
+    }
+  );
+  assert.ok(!dealRes.error, dealRes.error);
+  assert.equal(dealRes.resolved, true);
+  assert.ok(
+    !(dealRes.room.snapshot.world.kingdom.law.deals && dealRes.room.snapshot.world.kingdom.law.deals.de_fta),
+    "deal not enacted on issuer until guest accepts"
+  );
+  const inboundDeal = dealRes.room.snapshot.politics.germany.inboundDealProposal;
+  assert.ok(
+    inboundDeal && inboundDeal.status === "pending" && inboundDeal.dealId === "de_fta",
+    "guest parks inbound deal proposal"
+  );
+  assert.ok(
+    dealRes.room.snapshot.politics.kingdom.outboundDealProposal &&
+      dealRes.room.snapshot.politics.kingdom.outboundDealProposal.dealId === "de_fta",
+    "host keeps outbound deal proposal"
+  );
+
+  const dealAccepted = await chooseEvent(hDeal.room.code, gDeal.token, {
+    inboundDealProposal: true,
+    accept: true,
+  });
+  assert.ok(!dealAccepted.error, dealAccepted.error);
+  assert.ok(
+    !dealAccepted.room.snapshot.politics.germany.inboundDealProposal,
+    "inbound deal cleared on accept"
+  );
+  assert.ok(
+    dealAccepted.room.snapshot.world.kingdom.law.deals &&
+      dealAccepted.room.snapshot.world.kingdom.law.deals.de_fta,
+    "accept writes deal onto issuer law only"
+  );
+  assert.ok(
+    !(dealAccepted.room.snapshot.world.germany.law.deals &&
+      dealAccepted.room.snapshot.world.germany.law.deals.de_fta),
+    "target law unchanged on accept"
+  );
+  assert.ok(
+    (dealAccepted.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "deal_propose_accept" && a.partnerId === "germany"
+    ),
+    "issuer gets deal accept alert"
+  );
+
+  /* Decline path */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapDecDeal = exportGameSnapshot(getG());
+  const hDecD = await createRoom({ hostName: "Alice", role: "home" });
+  const gDecD = await joinRoom(hDecD.room.code, { name: "Bob", role: "germany" });
+  const stDecD = await startRoom(hDecD.room.code, hDecD.token, snapDecDeal);
+  assert.ok(!stDecD.error, stDecD.error);
+  {
+    const raw = await loadRoom(hDecD.room.code);
+    raw.snapshot.politics.germany.inboundDealProposal = {
+      fromId: "kingdom",
+      dealId: "de_fta",
+      label: "Bilateral free trade agreement",
+      terms: ["Zero tariffs on manufactures"],
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    raw.snapshot.politics.kingdom.outboundDealProposal = {
+      toId: "germany",
+      dealId: "de_fta",
+      label: "Bilateral free trade agreement",
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const declinedDeal = await chooseEvent(hDecD.room.code, gDecD.token, {
+    inboundDealProposal: true,
+    accept: false,
+  });
+  assert.ok(!declinedDeal.error, declinedDeal.error);
+  assert.ok(
+    !declinedDeal.room.snapshot.politics.germany.inboundDealProposal,
+    "inbound deal cleared on decline"
+  );
+  assert.ok(
+    !(declinedDeal.room.snapshot.world.kingdom.law.deals &&
+      declinedDeal.room.snapshot.world.kingdom.law.deals.de_fta),
+    "decline leaves issuer law unchanged"
+  );
+  assert.ok(
+    (declinedDeal.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "deal_propose_decline" && a.partnerId === "germany"
+    ),
+    "issuer gets deal decline alert"
+  );
+
+  /* ---- One human leaving a shared custom bloc must not eject the peer ---- */
+  _resetRoomsForTests();
+  newGame({ country: "France", homeRole: "france", homeIso: "250", silent: true });
+  const snapLeave = exportGameSnapshot(getG());
+  const hLeave = await createRoom({ hostName: "Alice", role: "france" });
+  const gLeave = await joinRoom(hLeave.room.code, { name: "Bob", role: "home" });
+  const stLeave = await startRoom(hLeave.room.code, hLeave.token, snapLeave);
+  assert.ok(!stLeave.error, stLeave.error);
+  const leaveBlocId = "custom_mp_leave_bloc";
+  {
+    const raw = await loadRoom(hLeave.room.code);
+    raw.snapshot.customBlocs = {
+      [leaveBlocId]: {
+        id: leaveBlocId,
+        name: "Leave League",
+        founder: "france",
+        members: ["france", "kingdom"],
+        template: "shallow_fta",
+        type: "fta",
+        accessBonus: 1.08,
+        createdQ: 0,
+      },
+    };
+    raw.snapshot.blocMember = {
+      ...(raw.snapshot.blocMember || {}),
+      france: leaveBlocId,
+      kingdom: leaveBlocId,
+    };
+    raw.snapshot.politics.france.capital = 80;
+    raw.snapshot.politics.kingdom.capital = 80;
+    await saveRoom(raw);
+  }
+  const leaveBefore = await getRoom(hLeave.room.code, hLeave.token);
+  const frLeaveLaw = clone(leaveBefore.snapshot.world.france.law);
+  frLeaveLaw.blocLeave = true;
+  await submitBill(hLeave.room.code, hLeave.token, frLeaveLaw, {
+    envoys: clone(leaveBefore.snapshot.politics.france.envoys || [null, null]),
+    ultimatums: {},
+  });
+  const leaveMid = await getRoom(hLeave.room.code, gLeave.token);
+  const kStayLaw = clone(leaveMid.snapshot.world.kingdom.law);
+  assert.ok(!kStayLaw.blocLeave, "peer draft must not inherit leave");
+  const leaveRes = await submitBill(hLeave.room.code, gLeave.token, kStayLaw, {
+    envoys: clone(leaveMid.snapshot.politics.kingdom.envoys || [null, null]),
+    ultimatums: {},
+  });
+  assert.ok(!leaveRes.error, leaveRes.error);
+  assert.equal(leaveRes.resolved, true);
+  assert.equal(
+    leaveRes.room.snapshot.blocMember.france,
+    undefined,
+    "leaver drops membership"
+  );
+  assert.equal(
+    leaveRes.room.snapshot.blocMember.kingdom,
+    leaveBlocId,
+    "peer stays in the bloc when only one leaves"
+  );
+  assert.ok(
+    leaveRes.room.snapshot.customBlocs[leaveBlocId],
+    "custom bloc survives while a member remains"
+  );
+  assert.deepEqual(
+    leaveRes.room.snapshot.customBlocs[leaveBlocId].members,
+    ["kingdom"],
+    "leaver removed from custom members list"
+  );
+  assert.equal(
+    leaveRes.room.snapshot.customBlocs[leaveBlocId].founder,
+    "kingdom",
+    "founder succeeds to remaining member"
+  );
+  assert.ok(
+    (leaveRes.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "bloc_member_left" && a.partnerId === "france"
+    ),
+    "remaining human gets peer-left alert (not self-left)"
+  );
+  assert.ok(
+    !(leaveRes.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "bloc_self_left"
+    ),
+    "remaining human must not get a self-left alert"
+  );
+  hydrateGameSnapshot(leaveRes.room.snapshot, {
+    homeRole: "home",
+    seatId: "kingdom",
+    country: "Bob",
+  });
+  assert.equal(playerCountryId(), "kingdom", "hydrate mounts remaining seat");
+  assert.equal(
+    getG().blocMember.kingdom,
+    leaveBlocId,
+    "hydrate keeps remaining seat in the bloc"
+  );
+
   /* CAS: stale writer must not clobber a newer room version. */
-  const casA = await loadRoom(hLive.room.code);
-  const casB = await loadRoom(hLive.room.code);
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapCas = exportGameSnapshot(getG());
+  const hCas = await createRoom({ hostName: "Alice", role: "home" });
+  await joinRoom(hCas.room.code, { name: "Bob", role: "germany" });
+  const stCas = await startRoom(hCas.room.code, hCas.token, snapCas);
+  assert.ok(!stCas.error, stCas.error);
+  const casA = await loadRoom(hCas.room.code);
+  const casB = await loadRoom(hCas.room.code);
   assert.equal(casA.version, casB.version, "clones start at same version");
   const casBase = casA.version;
   casA.version = casBase + 1;
@@ -763,7 +1643,7 @@ async function main() {
   casB.version = casBase + 1;
   casB._casTag = "b";
   assert.equal(await saveRoomCas(casB, casBase), false, "stale CAS write rejected");
-  const casNow = await loadRoom(hLive.room.code);
+  const casNow = await loadRoom(hCas.room.code);
   assert.equal(casNow._casTag, "a", "winner content retained");
   assert.equal(casNow.version, casBase + 1, "version advanced once");
 
