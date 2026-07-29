@@ -4,6 +4,7 @@ import {
   balanceOf,
   billClauses,
   bump,
+  capitalShortfallHint,
   fmt,
   impactPanelHtml,
   impactStripHtml,
@@ -24,6 +25,8 @@ import { SegControl } from "../ui/SegControl.jsx";
 export function BillDrawer() {
   const G = useGame();
   const cl = billClauses();
+  const cost = cl.reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
+  const overspent = cl.length > 0 && cost > G.capital;
   const dr = balanceOf(G.draft, G.econ);
   const cur = balanceOf(G.law, G.econ);
   const delta = dr.balance - cur.balance;
@@ -58,6 +61,11 @@ export function BillDrawer() {
           law.
         </div>
       )}
+      {overspent ? (
+        <Hint className="mt-2.5 text-[color:var(--red)]">
+          {capitalShortfallHint(cost, G.capital)}
+        </Hint>
+      ) : null}
       <div className="arith">
         <div>
           <span>Receipts</span>

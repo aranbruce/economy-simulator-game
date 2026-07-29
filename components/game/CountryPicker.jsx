@@ -6,6 +6,7 @@ import {
   realmByRole,
   homeIsoForRealm,
   DEFAULT_REALM_ID,
+  DEFAULT_HOME_ISO,
 } from "../../lib/sim/realms.js";
 import {
   pinsForRole,
@@ -66,13 +67,23 @@ export default function CountryPicker({
   onMultiplayer,
   onResume,
   initialId,
+  onTutorialChange,
 }) {
   const initial = realmById(initialId || DEFAULT_REALM_ID);
-  const realm = realmByRole(selectedRole || initial.role);
+  const mapRealm = realmByRole(selectedRole || initial.role);
   const [sandbox, setSandbox] = useState(false);
+  const [tutorial, setTutorial] = useState(false);
+  const realm = tutorial ? realmById("home") : mapRealm;
   const books = openingBooks(realm.role);
   const meta = polityOf(realm.role);
   const name = realm.name.slice(0, 34);
+  const sandboxLocked = tutorial;
+
+  function setTutorialOn(on) {
+    setTutorial(on);
+    if (on) setSandbox(true);
+    if (typeof onTutorialChange === "function") onTutorialChange(on);
+  }
 
   return (
     <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
@@ -80,8 +91,9 @@ export default function CountryPicker({
           <div className="stamp">Commission</div>
           <h1 id="setupTitle">Choose your country</h1>
           <p>
-            Ten realms on a real map. Click any country in a bloc to take that
-            seat — the books open to that realm&apos;s inheritance.
+            {tutorial
+              ? "Tutorial locks you into the United Kingdom — click Get started when you’re ready."
+              : "Ten realms on a real map. Click any country in a bloc to take that seat — the books open to that realm’s inheritance."}
           </p>
       </HudFrame>
 
@@ -98,7 +110,15 @@ export default function CountryPicker({
                 <button
                   type="button"
                   aria-pressed={!sandbox}
-                  onClick={() => setSandbox(false)}
+                  disabled={sandboxLocked}
+                  title={
+                    sandboxLocked
+                      ? "Tutorial runs in Sandbox"
+                      : undefined
+                  }
+                  onClick={() => {
+                    if (!sandboxLocked) setSandbox(false);
+                  }}
                 >
                   Career
                 </button>
@@ -112,6 +132,17 @@ export default function CountryPicker({
                 </button>
               </div>
               <p className="setup-mode-hint">{modeHint(sandbox, meta)}</p>
+              <label className="setup-check">
+                <input
+                  type="checkbox"
+                  checked={tutorial}
+                  onChange={(e) => setTutorialOn(e.target.checked)}
+                />
+                <span>
+                  <strong>Tutorial</strong>
+                  <em>Sandbox walkthrough as the United Kingdom.</em>
+                </span>
+              </label>
             </div>
           </div>
           <div className="setup-books" aria-label={`Opening books for ${realm.name}`}>
@@ -129,13 +160,25 @@ export default function CountryPicker({
             type="button"
             className="setup-go"
             onClick={() =>
-              onStart({
-                country: name,
-                homeRole: realm.role,
-                homeIso: homeIsoForRealm(realm),
-                realmId: realm.id,
-                sandbox,
-              })
+              onStart(
+                tutorial
+                  ? {
+                      country: "United Kingdom",
+                      homeRole: "home",
+                      homeIso: DEFAULT_HOME_ISO,
+                      realmId: "home",
+                      sandbox: true,
+                      tutorial: true,
+                    }
+                  : {
+                      country: name,
+                      homeRole: realm.role,
+                      homeIso: homeIsoForRealm(realm),
+                      realmId: realm.id,
+                      sandbox,
+                      tutorial: false,
+                    }
+              )
             }
           >
             Get started
@@ -145,6 +188,8 @@ export default function CountryPicker({
               type="button"
               className="setup-go secondary"
               onClick={() => onMultiplayer({ realm, name, sandbox })}
+              disabled={tutorial}
+              title={tutorial ? "Leave the tutorial to open multiplayer" : undefined}
             >
               Multiplayer lobby
             </button>

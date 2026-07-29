@@ -3,6 +3,7 @@
 import {
   TABS,
   billClauses,
+  capitalShortfallHint,
   currencyForSeat,
   fxDisplayIndex,
   getTab,
@@ -22,6 +23,7 @@ export function DrawerShell() {
 
   const cl = billClauses();
   const cost = billCost();
+  const overspent = tab === "bill" && cl.length > 0 && cost > G.capital;
   let name;
   let sub = "";
 
@@ -48,10 +50,11 @@ export function DrawerShell() {
       className={"hud-frame" + (wide ? " wide" : "")}
       role="dialog"
       aria-label="Policy panel"
+      title={overspent ? capitalShortfallHint(cost, G.capital) : undefined}
     >
       <div className="dw-head">
         <h2 id="dwTitle">{name}</h2>
-        <span className="sub" id="dwSub">
+        <span className={"sub" + (overspent ? " alert" : "")} id="dwSub">
           {sub}
         </span>
         <button
