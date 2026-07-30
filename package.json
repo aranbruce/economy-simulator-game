@@ -7,9 +7,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node test/sim.js && node test/calibration.js && node test/mp-room.js && node test/scrollDrawerPartner.js",
-    "balance": "node scripts/balance-30y.mjs",
-    "world-modes": "node scripts/world-modes-30y.mjs"
+    "test": "tsx test/sim.js && tsx test/calibration.js && tsx test/mp-room.js && tsx test/scrollDrawerPartner.js",
+    "typecheck": "tsc --noEmit",
+    "balance": "tsx scripts/balance-30y.mjs",
+    "world-modes": "tsx scripts/world-modes-30y.mjs"
   },
   "dependencies": {
     "next": "^15.1.0",
@@ -20,7 +21,12 @@
   "type": "module",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "postcss": "^8.5.24",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3"
   }
 }

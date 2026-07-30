@@ -14,7 +14,7 @@ import {
   tradeRestShare,
   activePartners,
   clearOpeningCache,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 
 clearOpeningCache();
 

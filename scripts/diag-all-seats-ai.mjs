@@ -1,6 +1,6 @@
 /* 30-year AI fiscal rule run for every seat with a REALM_LAW overlay (+ UK home).
    Mirrors world-modes "all-ai" for the home seat. */
-import { clearOpeningCache, newGame, getG, clone, step, applyAiFiscalRule } from "../lib/sim/engine.js";
+import { clearOpeningCache, newGame, getG, clone, step, applyAiFiscalRule } from "../lib/sim/engine.ts";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
 

@@ -29,10 +29,7 @@ Sandbox mode (on by default) suppresses removal-from-office paths so you can exp
 | `components/` | Game shell, world map, UI |
 | `lib/sim/` | Pure simulation engine (authoritative) |
 | `public/geo/` | Natural Earth topojson |
-| `chancellor.html` | Frozen historical single-file build (not maintained) |
 | `test/` | Smoke and calibration suite |
-
-`chancellor.html` is a legacy artifact of an earlier ~5-bloc world. The live game is modular under `lib/sim/`. Do not regenerate the engine from it.
 
 ## Stack
 

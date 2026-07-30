@@ -13,9 +13,8 @@ positions on a shared ocean). No other countries are drawn. If the map fails
 to load, the game falls back to the procedural country canvas. The map never
 owns game logic.
 
-`chancellor.html` is a **frozen historical artifact** of an older ~5-bloc
-single-file build. The live app is Next.js App Router: UI in `components/`,
-pure sim in `lib/sim/`. Do not regenerate or sync the modular engine from it.
+The live app is Next.js App Router: UI in `components/`, pure sim in
+`lib/sim/`.
 
 ## Commands
 
@@ -23,25 +22,108 @@ pure sim in `lib/sim/`. Do not regenerate or sync the modular engine from it.
 pnpm install
 pnpm dev             # Next.js at http://localhost:3000
 pnpm build           # production build
-pnpm test            # node test/sim.js && node test/calibration.js
+pnpm typecheck       # tsc --noEmit
+pnpm test            # tsx test/sim.js && tsx test/calibration.js && ...
 ```
+
+## TypeScript migration
+
+The codebase is strict-typed `.ts`/`.tsx` throughout — every file under
+`app/`, `components/` and `lib/` is `.ts`/`.tsx`, including
+`lib/sim/engine.ts` (22.7k lines, converted last per the plan) and the three
+panels once deferred as out-of-scope (`TaxesPanel`, `TradePanel`,
+`DiplomacyPanel` — see below). `test/*.js` stay `.js` but run through the
+`tsx` runner rather than Next's compiler. `strict: true` is on
+project-wide, and `pnpm typecheck` covers the whole tree. `checkJs: false`
+remains set (harmless now that no `.js`/`.jsx` app code exists to skip).
+Next.js's own compiler requires the classic (non-native) TypeScript compiler
+API, so `typescript` is pinned to the last 6.x release rather than the 7.x
+native rewrite — do not bump past 6.x until Next.js declares support.
+Standalone scripts (`test/`, `scripts/`) run via `tsx` since they execute
+outside Next's compiler.
+
+`engine.ts`'s ~22.7k lines were typed in a single flat-file pass rather than
+split along the section banners below — getting it to compile clean under
+`strict: true` was the goal, not a rearchitecture. Typing is deliberately
+loose at the legacy-JS boundary: most function parameters and many locals are
+`any` or `Record<string, any>` rather than precisely modelled, matching the
+pragmatic-bulk-pass approach used for the rest of the migration. The
+documented section banners still describe the file's internal organisation;
+splitting it into separate files along those seams (per the original plan) is
+still outstanding and should account for the fact that the actual rendering
+functions (`paintBillPanel`, `renderChrome`, `lineChart`, `TABS`, etc.) live
+inside the "7a. The map" banner range, not the "7. Rendering" one — a literal
+split-at-banners pass would otherwise produce a mislabeled "map.ts" file that
+is mostly UI rendering code.
+
+Alongside this, `dangerouslySetInnerHTML` usage fed by HTML-string functions
+in `engine.ts` was replaced with real JSX fed by typed data-returning siblings
+(`ledgerRows()`, `lineChartSpec()`, `impactStripData()`/`impactPanelData()`/
+`rateImpactData()` with shared `impactChipsData()`/`impactFactionsData()`,
+`fullEffectsData()`/`qualEffectsData()`, `diploHudChips()`). Authored
+despatch/coach copy (small hand-built HTML with `<p>`/`<b>`/`<em>`/`<span>`
+etc.) renders through `components/ui/SafeHtml.tsx`, which parses with
+`DOMParser` (inert) and walks the tree through an explicit tag allowlist —
+safe, and general enough to cover arbitrary event bodies without hand-curating
+each one. Component styling is moving from the hand-written CSS classes in
+`globals.css` to Tailwind utilities — the glass/blur design language itself is
+unchanged, only how it's expressed in markup.
+
+**`TaxesPanel.tsx`, `TradePanel.tsx` and `DiplomacyPanel.tsx` were the last
+three drawers converted, and needed a different treatment from the rest.**
+Unlike every other drawer, they weren't React components with an isolated
+`dangerouslySetInnerHTML` spot — each used to mount an empty div via
+`EnginePaintHost` and let an imperative engine.ts function (`paintTaxesPanel`,
+`paintTradePanel`, `paintDiplomacyPanel`) build and wire the whole panel by
+hand (sliders, buttons, envoy/ultimatum controls, deal proposals, bloc
+accession) via direct DOM manipulation. Converting them meant re-implementing
+each panel's interactivity in React state/handlers rather than swapping a
+render function's output format, so each got its own data-returning siblings
+in `engine.ts` (`compositionBarData()`, `nationTableData()`,
+`relationModifiersData()`, plus reused pure-logic exports like
+`memberAccessionTrack()`, `blocInviteCandidates()`, `ultimatumDemandsFor()`)
+and a set of mutate-then-`bump()` action wrappers in `lib/ui/actions.ts`
+(`setDraftRegime`, `toggleDraftDeal`, `toggleBlocAccession`, `toggleMission`,
+`assignEnvoyAction`, `issueUltimatumAction`, and friends). The
+`paintTaxesPanel`/`paintTradePanel`/`paintDiplomacyPanel` functions and their
+now-unreferenced HTML-string helpers (`partnerDiploCardHtml`,
+`relationModifiersHtml`, `blocMembershipPanelHtml`, etc.) are still defined
+and exported in `engine.ts` — dead code, kept for now rather than deleted, the
+same way `paintPoliciesPanel`/`paintSocietyPanel`/`paintChartsPanel` were left
+in place after their own earlier conversions.
+
+**One deliberate carve-out survives inside these panels' React versions:**
+"Found a trade bloc" and "Invite a member" still open via
+`showBlocFoundModal()`/`showBlocInviteModal()`, which render into the
+despatch shell's fixed DOM nodes (`dpTitle`/`dpBody`/`dpOpts`) rather than
+through JSX. `components/chrome/DespatchModal.tsx` documents this explicitly
+— its `ImperativeDespatchFrame` is the empty shell those two functions paint
+into when open — because the despatch/event modal system is shared,
+already-imperative infrastructure that a single drawer's conversion doesn't
+own. Do not attempt to fold these two flows into TaxesPanel/TradePanel's own
+JSX; call the two functions directly, as their `onClick` handlers already do.
+
+Legacy CSS classes shared between the now-React panels and other authored
+copy (`chip`, `panel`, `hint`, `eyebrow`, `lever`, `seg`, `btn`, `cards`,
+`cat`, `top`, `val`, `yield`, the `diplo-*` family, and more) remain defined
+in `globals.css` — a broad Tailwind-utility migration (replacing those
+classes in component markup) is still outstanding and tracked as its own
+piece of work, not blocked on anything else now that no panel is imperative.
 
 ## Architecture
 
 | Path | Contains |
 |---|---|
 | `app/` | Next.js layout, page (client dynamic GameApp), glass CSS |
-| `lib/sim/engine.js` | Statute book, state, aggregate, step, project, bill, map, events, panel HTML |
-| `lib/sim/worldTrade.js` | Bilateral trade clearing across seats |
-| `lib/sim/fxAreas.js` | Currency-area Taylor rules and FX vs USD |
-| `lib/sim/partners.js` | Partner id → ISO country sets for the world map |
-| `components/game/GameApp.jsx` | Shell: topbar, dock, drawer, despatch; wires the engine |
-| `components/map2d/WorldMap.jsx` | Flat world map, partner colours, click-to-trade |
-| `components/map2d/FlatMap.jsx` | Procedural country canvas fallback |
+| `lib/sim/engine.ts` | Statute book, state, aggregate, step, project, bill, map, events, panel HTML |
+| `lib/sim/worldTrade.ts` | Bilateral trade clearing across seats |
+| `lib/sim/fxAreas.ts` | Currency-area Taylor rules and FX vs USD |
+| `lib/sim/partners.ts` | Partner id → ISO country sets for the world map |
+| `components/game/GameApp.tsx` | Shell: topbar, dock, drawer, despatch; wires the engine |
+| `components/map2d/WorldMap.tsx` | Flat world map, partner colours, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component |
 | `public/geo/countries-110m.json` | Natural Earth topojson |
-| `chancellor.html` | Frozen historical single-file build (not maintained) |
 
-Engine sections (inside `lib/sim/engine.js`) still follow the numbered banners:
+Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
 
 | Section | Contains |
 |---|---|

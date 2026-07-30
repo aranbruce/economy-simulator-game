@@ -13,7 +13,7 @@ import {
   simulate,
   step,
   impactOf,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 
 let failed = 0;
 function assert(cond, msg) {

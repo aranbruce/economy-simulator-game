@@ -18,7 +18,7 @@ import {
   mergeMpInboundAsksFromSnapshot,
   flushMpDiploPressAlerts,
   composePress,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 import {
   createRoom,
   joinRoom,
@@ -26,10 +26,10 @@ import {
   getRoom,
   leaveRoom,
   _resetRoomsForTests,
-} from "../lib/mp/roomStore.js";
-import { startRoom, submitBill, chooseEvent, applyDiploAction } from "../lib/mp/roomPlay.js";
-import { loadRoom, saveRoom, saveRoomCas } from "../lib/mp/roomPersist.js";
-import { ENVOY_ASSIGN_PC, ULTIMATUM_PC } from "../lib/sim/diplomacy.js";
+} from "../lib/mp/roomStore.ts";
+import { startRoom, submitBill, chooseEvent, applyDiploAction } from "../lib/mp/roomPlay.ts";
+import { loadRoom, saveRoom, saveRoomCas } from "../lib/mp/roomPersist.ts";
+import { ENVOY_ASSIGN_PC, ULTIMATUM_PC } from "../lib/sim/diplomacy.ts";
 
 async function main() {
   _resetRoomsForTests();

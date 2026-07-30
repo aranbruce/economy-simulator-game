@@ -175,11 +175,11 @@ import {
   diploMapMarkers,
   diploHudHtml,
   hasFormalProtest,
-} from "../lib/sim/engine.js";
-import { sharedCamp } from "../lib/sim/diplomacy.js";
-import { COUNTRIES } from "../lib/sim/countries.js";
-import { REALM_LAW } from "../lib/sim/realmLaws.js";
-import { partnerForIso } from "../lib/sim/partners.js";
+} from "../lib/sim/engine.ts";
+import { sharedCamp } from "../lib/sim/diplomacy.ts";
+import { COUNTRIES } from "../lib/sim/countries.ts";
+import { REALM_LAW } from "../lib/sim/realmLaws.ts";
+import { partnerForIso } from "../lib/sim/partners.ts";
 
 let failed = 0;
 function assert(cond, msg) {

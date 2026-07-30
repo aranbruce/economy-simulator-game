@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import {
   scrollDrawerPartnerCard,
   partnerCardEl,
-} from "../lib/scrollDrawerPartner.js";
+} from "../lib/scrollDrawerPartner.ts";
 
 {
   const host = {

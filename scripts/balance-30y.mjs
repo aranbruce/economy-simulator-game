@@ -13,7 +13,7 @@ import {
   clone,
   simulate,
   approvalOf,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 
 const YEARS = 30;
 const QUARTERS = YEARS * 4;
