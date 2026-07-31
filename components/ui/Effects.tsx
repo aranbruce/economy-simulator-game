@@ -11,16 +11,16 @@ interface EffectsData {
 export function EffectsBlock({ data }: { data: EffectsData }) {
   return (
     <>
-      <div className="eff">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-soft">
         {data.bits.map((b, i) => (
           <Fragment key={i}>
             {i > 0 ? " · " : ""}
-            {b.bold ? <b>{b.text}</b> : b.text}
+            {b.bold ? <b className="font-[650] text-white">{b.text}</b> : b.text}
           </Fragment>
         ))}
       </div>
       {data.facText ? (
-        <div className="eff" style={{ color: "var(--ink-faint)" }}>
+        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-faint">
           {data.facText}
         </div>
       ) : null}

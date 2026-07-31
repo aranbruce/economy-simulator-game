@@ -18,7 +18,6 @@ const KV_LOG_COOLDOWN_MS = 30000;
 const _kvLogAt = new Map<string, number>();
 
 declare global {
-  // eslint-disable-next-line no-var
   var __econMpRooms: Map<string, Room> | undefined;
 }
 

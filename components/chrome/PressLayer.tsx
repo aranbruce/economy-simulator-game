@@ -82,7 +82,7 @@ export function PressLayer() {
             <ClipBody c={focused} />
             <button
               type="button"
-              className="clip-dismiss"
+              className="mt-4.5 block w-full cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.08)] px-3.5 py-2.5 font-sans text-[13px] font-semibold tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.985]"
               onClick={(e) => {
                 e.stopPropagation();
                 dismissPress(focused.id);

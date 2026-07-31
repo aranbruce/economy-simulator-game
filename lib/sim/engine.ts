@@ -3505,11 +3505,11 @@ function effectiveTariff(partnerId: any, law: any, homeRole?: any, blocMember?: 
   if (shareSameCustomsUnion(partnerId, role, bm)) return 0;
   const lock = tariffLocked(L, role, bm);
   if (lock.mode === "cet" || lock.mode === "full") {
-    var _blocById;
+    let _blocById;
     if (lock.cet != null) return lock.cet;
     const pb = countryBlocId(partnerId, bm);
     if (pb && pb === lock.blocId) return 0;
-    var _blocById_defaultCet;
+    let _blocById_defaultCet;
     return sched.cet != null
       ? sched.cet
       : (_blocById_defaultCet =
@@ -9376,7 +9376,7 @@ function govDemandShares(law: any, econ: any) {
   acct.C = e.C;
   acct.Y = e.C + acct.I + acct.G + acct.X - acct.M;
   e.gdp = Math.max(5, acct.Y);
-  let growth = clamp((e.gdp / prevY - 1) * 400, -18, 18);
+  const growth = clamp((e.gdp / prevY - 1) * 400, -18, 18);
   e.gdp = prevY * (1 + growth / 400);
   if (acct.Y > 0) {
     const kY = e.gdp / acct.Y;
@@ -10113,7 +10113,7 @@ function govDemandShares(law: any, econ: any) {
     if (!a || !b) continue;
     const wasOn = a.on && taxAvailable(t, prevLaw),
       isOn = b.on && taxAvailable(t, law);
-    let d = (isOn ? b.rate : 0) - (wasOn ? a.rate : 0);
+    const d = (isOn ? b.rate : 0) - (wasOn ? a.rate : 0);
     if (!d) continue;
     const weight =
       t.grp === "income" ? 0.55 : t.grp === "consumption" ? 0.4 : 0.25;
@@ -10840,7 +10840,7 @@ function billClauses() {
     ["empOn", "Employee national insurance"],
     ["erOn", "Employer national insurance"],
   ].forEach((param) => {
-    let [k, name] = param;
+    const [k, name] = param;
     if (L.ni[k] === D.ni[k]) return;
     const abolishing = !D.ni[k];
     out.push({
@@ -13209,7 +13209,7 @@ function wireIncomePanel(host: any) {
   const len = series[0] ? series[0].data.length : 0;
   if (len < 2)
     return '<div class="empty">Not enough quarters recorded yet.</div>';
-  let all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
+  const all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
   let mn = Math.min(...all),
     mx = Math.max(...all);
   if (opts.target != null) {
@@ -13348,7 +13348,7 @@ function lineChartSpec(series: any, opts?: any) {
     padB = 20;
   const len = series[0] ? series[0].data.length : 0;
   if (len < 2) return null;
-  let all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
+  const all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
   let mn = Math.min(...all),
     mx = Math.max(...all);
   if (opts.target != null) {
@@ -13993,7 +13993,7 @@ function paintTaxesPanel(host: any) {
     compositionBar() +
     groups
       .map((param) => {
-        let [g, label] = param;
+        const [g, label] = param;
         if (g === "income") return incomePanelHtml();
         const list = TAXES.filter((t) => t.grp === g);
         return (
@@ -14181,7 +14181,7 @@ function paintPoliciesPanel(host: any) {
     '<div class="seg mini" style="margin:8px 0 12px" id="polFilter">' +
     filters
       .map((param) => {
-        let [id, lab] = param;
+        const [id, lab] = param;
         return (
           '<button type="button" data-polfilter="' +
           id +
@@ -14325,7 +14325,7 @@ function paintSocietyPanel(host: any) {
     '<div class="panel" style="padding:11px 13px">' +
     bars
       .map((param) => {
-        let [k, n, v] = param;
+        const [k, n, v] = param;
         return (
           '<div class="frow" style="grid-template-columns:150px 1fr 34px;margin-bottom:4px"><span>' +
           n +
@@ -16024,7 +16024,7 @@ function blocMembershipPanelHtml() {
     const bloc = blocById(bid) || G.customBlocs[bid];
     const members = blocMembers(bid)
       .map((id) => {
-        var _partnerById;
+        let _partnerById;
         return (
           ((_partnerById = partnerById(id)) === null || _partnerById === void 0
             ? void 0
@@ -21213,7 +21213,7 @@ function fullEffects(imp: any, fac: any, cost: any, ch?: any) {
     .sort((a, b) => b[1] - a[1]);
   const facTxt = f
     .map((param) => {
-      let [k, v] = param;
+      const [k, v] = param;
       return cap1(k) + " " + sgn(v, 1);
     })
     .join(", ");
@@ -21275,7 +21275,7 @@ function fullEffectsData(imp: any, fac: any, cost: any, ch?: any) {
   const facTxt = f
     .slice(0, 3)
     .map((param) => {
-      let [k, v] = param;
+      const [k, v] = param;
       return cap1(k) + (v > 0 ? " ↑" : " ↓");
     })
     .join(", ");

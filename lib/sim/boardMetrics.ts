@@ -181,7 +181,7 @@ export function boardMetricColour(role: string, metric: string, G: GameState = g
   }
   if (metric === "deficit") {
     /* Surplus → green; fat deficit → red. */
-    let t = (v - -2) / (10 - -2);
+    const t = (v - -2) / (10 - -2);
     return metricRampCss(t);
   }
   return METRIC_MISSING;

@@ -15,13 +15,18 @@ interface ChartBoxProps {
   title: ReactNode;
   caption: ReactNode;
   children: ReactNode;
+  noMargin?: boolean;
 }
 
-function ChartBox({ title, caption, children }: ChartBoxProps) {
+function ChartBox({ title, caption, children, noMargin }: ChartBoxProps) {
   return (
-    <div className="chartbox">
-      <h3>{title}</h3>
-      <div className="cap">{caption}</div>
+    <div
+      className={`${noMargin ? "mb-0" : "mb-2"} rounded-md border border-edge bg-g-1 px-3.5 pt-3 pb-2`}
+    >
+      <h3 className="m-0 mb-0.5 font-display text-[18px] font-normal tracking-[-.02em]">
+        {title}
+      </h3>
+      <div className="mb-2 text-xs leading-[1.4] text-ink-soft">{caption}</div>
       {children}
     </div>
   );
@@ -58,7 +63,12 @@ interface ChartSpec {
 
 /** Renders the lineChartSpec() data as real SVG — no chart library, per CLAUDE.md. */
 function LineChartSvg({ spec }: { spec: ChartSpec | null }) {
-  if (!spec) return <div className="empty">Not enough quarters recorded yet.</div>;
+  if (!spec)
+    return (
+      <div className="p-4 text-[12.5px] text-ink-faint">
+        Not enough quarters recorded yet.
+      </div>
+    );
   const { w, h, padR, gridLines, targetLine, xLabels, series, targetLabel } = spec;
   return (
     <>
@@ -131,16 +141,22 @@ function LineChartSvg({ spec }: { spec: ChartSpec | null }) {
           </g>
         ))}
       </svg>
-      <div className="legend">
+      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
         {series.map((s, i) => (
           <span key={i}>
-            <i style={{ background: s.color }} />
+            <i
+              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
+              style={{ background: s.color }}
+            />
             {s.label}
           </span>
         ))}
         {targetLabel && (
           <span>
-            <i style={{ background: "#c0392f" }} />
+            <i
+              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
+              style={{ background: "#c0392f" }}
+            />
             {targetLabel}
           </span>
         )}
@@ -154,7 +170,7 @@ export function ChartsPanel() {
 
   if (G.log.length < 2) {
     return (
-      <div className="empty">
+      <div className="p-4 text-[12.5px] text-ink-faint">
         Deliver a bill or two. The charts need at least two quarters of data.
       </div>
     );
@@ -202,8 +218,9 @@ export function ChartsPanel() {
           ])}
         />
       </ChartBox>
-      <div className="chartgrid">
+      <div className="grid grid-cols-2 gap-2 max-[800px]:grid-cols-1">
         <ChartBox
+          noMargin
           title="Inflation and Bank rate"
           caption={
             G.rateManual
@@ -227,6 +244,7 @@ export function ChartsPanel() {
           />
         </ChartBox>
         <ChartBox
+          noMargin
           title={`Currency strength (${fxCode})`}
           caption="Index versus the USD numeraire, 100 at term start. Stronger hurts exports and cheapens imports — watch net trade below."
         >
@@ -245,6 +263,7 @@ export function ChartsPanel() {
           />
         </ChartBox>
         <ChartBox
+          noMargin
           title="Unemployment"
           caption="Okun's relationship: output above trend pulls people into work."
         >
@@ -260,6 +279,7 @@ export function ChartsPanel() {
           />
         </ChartBox>
         <ChartBox
+          noMargin
           title="Debt"
           caption="Per cent of GDP. Interest compounds whether you are looking or not."
         >
@@ -274,7 +294,11 @@ export function ChartsPanel() {
             ])}
           />
         </ChartBox>
-        <ChartBox title="Gilt yield" caption={`What the market charges ${G.country} to borrow.`}>
+        <ChartBox
+          noMargin
+          title="Gilt yield"
+          caption={`What the market charges ${G.country} to borrow.`}
+        >
           <LineChartSvg
             spec={lineChartSpec([
               {

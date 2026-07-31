@@ -52,27 +52,27 @@ export function Chip({
 
   return (
     <div
-      className={`flex-none flex flex-col justify-center py-1 pr-2.5 pl-[9px] rounded-sm text-right min-w-[66px] border-l-2 ${bgCls}`}
+      className={`flex min-w-[66px] flex-none flex-col justify-center rounded-sm border-l-2 py-1 pr-2.5 pl-[9px] text-right ${bgCls}`}
       title={title || undefined}
     >
-      <div className="text-[8.5px] font-semibold text-ink-faint whitespace-nowrap tracking-[.08em] uppercase">
+      <div className="text-[8.5px] font-semibold tracking-[.08em] whitespace-nowrap text-ink-faint uppercase">
         {label}
       </div>
-      <div className={`text-[15px] font-[650] leading-[1.2] whitespace-nowrap tracking-[-.03em] ${valueCls}`}>
+      <div className={`text-[15px] leading-[1.2] font-[650] tracking-[-.03em] whitespace-nowrap ${valueCls}`}>
         {value}
         {unit ? (
-          <small className="text-[9.5px] font-medium text-ink-faint ml-px">{unit}</small>
+          <small className="ml-px text-[9.5px] font-medium text-ink-faint">{unit}</small>
         ) : null}
       </div>
       {delta == null ? (
         <div
-          className="text-[9px] font-semibold leading-[1.1] min-h-[1.1em] text-ink-faint"
+          className="min-h-[1.1em] text-[9px] leading-[1.1] font-semibold text-ink-faint"
           aria-hidden="true"
         >
           &nbsp;
         </div>
       ) : (
-        <div className={`text-[9px] font-semibold leading-[1.1] min-h-[1.1em] ${deltaCls}`}>
+        <div className={`min-h-[1.1em] text-[9px] leading-[1.1] font-semibold ${deltaCls}`}>
           {sgn(delta, 2)}
         </div>
       )}

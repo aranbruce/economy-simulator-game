@@ -32,44 +32,48 @@ function budgetModeOptions(): ["share" | "real" | "service", string][] {
 
 function LedgerTable() {
   const rows: any[] = ledgerRows();
+  const TH = "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
+  const TD = "first:text-left first:text-ink-soft border-b border-white/5 px-2.5 py-1.5 text-right";
   if (!rows.length) {
     return (
-      <div className="ledger-wrap">
-        <div className="empty">No quarters recorded. Set out a bill and deliver it.</div>
+      <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+        <div className="p-4 text-[12.5px] text-ink-faint">
+          No quarters recorded. Set out a bill and deliver it.
+        </div>
       </div>
     );
   }
-  const signCls = (v: number) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
+  const signCls = (v: number) => (v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "");
   return (
-    <div className="ledger-wrap">
-      <table className="ledger">
+    <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+      <table className="w-full min-w-160 border-collapse text-[12.5px] tabular-nums">
         <thead>
           <tr>
-            <th>Quarter</th>
-            <th>Growth</th>
-            <th>Trend</th>
-            <th>Inflation</th>
-            <th>Unemp.</th>
-            <th>Balance</th>
-            <th>Debt</th>
-            <th>Yield</th>
-            <th>Approval</th>
-            <th>Capital</th>
+            <th className={TH}>Quarter</th>
+            <th className={TH}>Growth</th>
+            <th className={TH}>Trend</th>
+            <th className={TH}>Inflation</th>
+            <th className={TH}>Unemp.</th>
+            <th className={TH}>Balance</th>
+            <th className={TH}>Debt</th>
+            <th className={TH}>Yield</th>
+            <th className={TH}>Approval</th>
+            <th className={TH}>Capital</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i}>
-              <td>{r.label}</td>
-              <td className={signCls(r.growth)}>{fmt(r.growth, 1)}</td>
-              <td>{r.trend != null ? r.trend.toFixed(1) : "—"}</td>
-              <td>{r.inflation.toFixed(1)}</td>
-              <td>{r.unemployment.toFixed(1)}</td>
-              <td className={signCls(r.balance)}>{fmt(r.balance, 1)}</td>
-              <td>{r.debt.toFixed(0)}</td>
-              <td>{r.yield.toFixed(2)}</td>
-              <td>{r.approval.toFixed(0)}</td>
-              <td>{Math.round(r.capital)}</td>
+            <tr key={i} className="last:bg-white/4">
+              <td className={TD}>{r.label}</td>
+              <td className={`${TD} ${signCls(r.growth)}`}>{fmt(r.growth, 1)}</td>
+              <td className={TD}>{r.trend != null ? r.trend.toFixed(1) : "—"}</td>
+              <td className={TD}>{r.inflation.toFixed(1)}</td>
+              <td className={TD}>{r.unemployment.toFixed(1)}</td>
+              <td className={`${TD} ${signCls(r.balance)}`}>{fmt(r.balance, 1)}</td>
+              <td className={TD}>{r.debt.toFixed(0)}</td>
+              <td className={TD}>{r.yield.toFixed(2)}</td>
+              <td className={TD}>{r.approval.toFixed(0)}</td>
+              <td className={TD}>{Math.round(r.capital)}</td>
             </tr>
           ))}
         </tbody>
@@ -160,7 +164,7 @@ export function BudgetPanel() {
           );
         })}
       </Panel>
-      <Eyebrow className="mt">The ledger</Eyebrow>
+      <Eyebrow className="mt-5">The ledger</Eyebrow>
       <LedgerTable />
     </>
   );

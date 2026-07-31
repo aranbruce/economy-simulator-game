@@ -39,6 +39,8 @@ import {
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
+import { Button } from "../ui/Button.tsx";
+import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
 import type { Tax, Regime } from "../../lib/sim/types.ts";
 
 const GROUPS: [string, string][] = [
@@ -50,30 +52,30 @@ const GROUPS: [string, string][] = [
 
 function RegimeCards({ G }: { G: any }) {
   return (
-    <div className="cards">
+    <CardGrid>
       {REGIMES.map((r: Regime) => {
         const on = G.draft.regime === r.id;
         const isLaw = G.law.regime === r.id;
         return (
-          <div key={r.id} className={`card ${isLaw ? "on" : ""} ${on && !isLaw ? "staged" : ""}`.trim()}>
-            <h4>
+          <Card key={r.id} on={isLaw} staged={on && !isLaw}>
+            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {r.name}
-              <span className="cat">{isLaw ? "in force" : `${r.pc} capital`}</span>
+              <CardCat>{isLaw ? "in force" : `${r.pc} capital`}</CardCat>
             </h4>
-            <p>{T(r.blurb)}</p>
-            <div className="foot">
+            <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(r.blurb)}</p>
+            <CardFoot>
               {on ? (
-                <span className="pc">{isLaw ? "Current system" : "Staged in the bill"}</span>
+                <CardPrice>{isLaw ? "Current system" : "Staged in the bill"}</CardPrice>
               ) : (
-                <button className="btn" onClick={() => setDraftRegime(r.id)}>
+                <Button className="ml-auto" onClick={() => setDraftRegime(r.id)}>
                   Adopt
-                </button>
+                </Button>
               )}
-            </div>
-          </div>
+            </CardFoot>
+          </Card>
         );
       })}
-    </div>
+    </CardGrid>
   );
 }
 
@@ -86,10 +88,13 @@ function CompositionBar() {
           <rect key={b.key} x={`${b.x}%`} y="0" width={`${b.width}%`} height="22" fill={b.color} />
         ))}
       </svg>
-      <div className="legend">
+      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
         {legend.map((l) => (
           <span key={l.key}>
-            <i style={{ background: l.color }} />
+            <i
+              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
+              style={{ background: l.color }}
+            />
             {l.label} {l.value.toFixed(1)}
           </span>
         ))}
@@ -121,11 +126,11 @@ function CtrlRow({
   onCommit: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-0.5 py-[7px] px-3 border-b border-edge last:border-b-0 text-[13px]">
-      <div className="flex items-baseline gap-2 w-full">
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-[7px] text-[13px] last:border-b-0">
+      <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
         <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">{disp}</span>
-        <span className="text-[11px] w-[42px] text-right font-semibold text-ink-faint" />
+        <span className="w-[42px] text-right text-[11px] font-semibold text-ink-faint" />
       </div>
       <input
         type="range"
@@ -137,7 +142,7 @@ function CtrlRow({
         onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
         onChange={(e) => onCommit(parseFloat(e.currentTarget.value))}
       />
-      {note ? <div className="text-[11px] text-ink-faint mt-0.5">{note}</div> : null}
+      {note ? <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div> : null}
     </div>
   );
 }
@@ -149,14 +154,14 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
 
   if (!avail) {
     return (
-      <div className="py-2 px-3 border-b border-edge last:border-b-0" style={{ opacity: 0.5 }}>
+      <div className="border-b border-edge px-3 py-2 last:border-b-0" style={{ opacity: 0.5 }}>
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
             unavailable
           </span>
         </div>
-        <div className="text-[11px] text-ink-faint mt-0.5">
+        <div className="mt-0.5 text-[11px] text-ink-faint">
           Requires a change to the law on {VICE_BY_ID[t.req![0]].name.toLowerCase()}.
         </div>
       </div>
@@ -164,41 +169,41 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   }
   if (killed) {
     return (
-      <div className="py-2 px-3 border-b border-edge last:border-b-0" style={{ opacity: 0.5 }}>
+      <div className="border-b border-edge px-3 py-2 last:border-b-0" style={{ opacity: 0.5 }}>
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
             abolished
           </span>
         </div>
-        <div className="text-[11px] text-ink-faint mt-0.5">Removed by the flat tax structure.</div>
+        <div className="mt-0.5 text-[11px] text-ink-faint">Removed by the flat tax structure.</div>
       </div>
     );
   }
   if (!s.on) {
     return (
-      <div className="py-2 px-3 border-b border-edge last:border-b-0">
+      <div className="border-b border-edge px-3 py-2 last:border-b-0">
         <div className="flex items-baseline gap-2 text-[13px]">
           <span className="text-ink-soft">{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
             not levied
           </span>
-          <button className="btn" style={{ marginLeft: 8 }} onClick={() => introduceTax(t.id)}>
+          <Button className="ml-2" onClick={() => introduceTax(t.id)}>
             Introduce
-          </button>
+          </Button>
         </div>
-        <div className="text-[11px] text-ink-faint mt-0.5">Introducing it costs {t.pc || 6} political capital.</div>
+        <div className="mt-0.5 text-[11px] text-ink-faint">Introducing it costs {t.pc || 6} political capital.</div>
       </div>
     );
   }
   const y = (rev.by as any)[t.id] || 0;
   const decimals = dp(t);
   return (
-    <div className="py-2 px-3 border-b border-edge last:border-b-0" data-lever={t.id}>
+    <div className="border-b border-edge px-3 py-2 last:border-b-0" data-lever={t.id}>
       <div className="flex items-baseline gap-2 text-[13px]">
         <span className="font-[550]">{t.name}</span>
         <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">{s.rate.toFixed(decimals)}%</span>
-        <span className="text-[11px] w-[42px] text-right font-semibold text-ink-faint" />
+        <span className="w-[42px] text-right text-[11px] font-semibold text-ink-faint" />
       </div>
       <input
         type="range"
@@ -210,16 +215,17 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         onInput={(e) => setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))}
         onChange={(e) => setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))}
       />
-      <div className="text-[11px] text-ink-faint mt-0.5">
+      <div className="mt-0.5 text-[11px] text-ink-faint">
         raises {y.toFixed(2)}% of GDP
         {t.grp === "vice" ? ` · black market ${E.blackLevel.toFixed(0)}%` : ""}{" "}
-        <button
-          className="btn danger"
-          style={{ marginLeft: 8, padding: "2px 7px" }}
+        <Button
+          danger
+          customSize
+          className="ml-2 px-1.75 py-0.5 text-[11.5px]"
           onClick={() => abolishTax(t.id)}
         >
           Abolish
-        </button>
+        </Button>
       </div>
     </div>
   );
@@ -229,8 +235,8 @@ function TaxGroupPanel({ group, label, G, E, rev }: { group: string; label: stri
   const list = TAXES.filter((t: Tax) => t.grp === group);
   return (
     <>
-      <Eyebrow className="mt">{label}</Eyebrow>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+      <Eyebrow className="mt-5">{label}</Eyebrow>
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1">
         {list.map((t: Tax) => (
           <TaxLever key={t.id} t={t} G={G} E={E} rev={rev} />
         ))}
@@ -252,7 +258,7 @@ function IncomeNiPanel({ G }: { G: any }) {
 
   return (
     <>
-      <Eyebrow className="mt">
+      <Eyebrow className="mt-5">
         Income tax <b>{incomeOn ? `${y.income.toFixed(2)}% of GDP` : "abolished"}</b>
         {incomeOn && y.capital != null ? (
           <span style={{ color: "var(--ink-faint)" }}>
@@ -260,13 +266,9 @@ function IncomeNiPanel({ G }: { G: any }) {
             (labour {y.labour.toFixed(2)}, capital {y.capital.toFixed(2)})
           </span>
         ) : null}{" "}
-        <button
-          className={`btn ${incomeOn ? "danger " : ""}tiny`}
-          style={{ marginLeft: 8 }}
-          onClick={() => setIncomeOn(!incomeOn)}
-        >
+        <Button danger={incomeOn} tiny className="ml-2" onClick={() => setIncomeOn(!incomeOn)}>
           {incomeOn ? "Abolish" : "Reintroduce"}
-        </button>
+        </Button>
       </Eyebrow>
       <Hint>
         {incomeOn ? (
@@ -295,7 +297,7 @@ function IncomeNiPanel({ G }: { G: any }) {
         </Panel>
       ) : (
         <>
-          <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
             <CtrlRow
               name="Personal allowance"
               value={I.allowance}
@@ -309,7 +311,7 @@ function IncomeNiPanel({ G }: { G: any }) {
                   {dr < 0.97 ? (
                     <>
                       {" "}
-                      · <b className="warn-t">fiscal drag is raising taxes without a vote</b>
+                      · <b>fiscal drag is raising taxes without a vote</b>
                     </>
                   ) : null}
                 </>
@@ -317,48 +319,51 @@ function IncomeNiPanel({ G }: { G: any }) {
               onInput={(v) => setIncomeAllowance(v)}
               onCommit={(v) => setIncomeAllowance(v)}
             />
-            <div className="flex flex-col items-stretch gap-0.5 py-[7px] px-3 border-b border-edge last:border-b-0 text-[13px]">
-              <div className="flex items-baseline gap-2 w-full">
+            <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-[7px] text-[13px] last:border-b-0">
+              <div className="flex w-full items-baseline gap-2">
                 <span className="font-[550]">Threshold policy</span>
-                <span className="flex w-full bg-g-1 rounded-sm p-0.5 gap-0.5">
+                <span className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                   <button
                     aria-pressed={!!I.uprate}
-                    className="flex-1 bg-transparent border-0 rounded py-1.25 px-1 cursor-pointer text-[10px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2"
+                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                     onClick={() => setIncomeUprate(true)}
                   >
                     Uprate
                   </button>
                   <button
                     aria-pressed={!I.uprate}
-                    className="flex-1 bg-transparent border-0 rounded py-1.25 px-1 cursor-pointer text-[10px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2"
+                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                     onClick={() => setIncomeUprate(false)}
                   >
                     Freeze
                   </button>
                 </span>
               </div>
-              <div className="text-[11px] text-ink-faint mt-0.5">
+              <div className="mt-0.5 text-[11px] text-ink-faint">
                 Freezing thresholds raises real receipts every year without announcing anything.
                 Voters work it out eventually.
               </div>
             </div>
           </div>
-          <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
             {I.bands.map((b: any, i: number) => {
               const nm = BAND_NAMES[i] || `Band ${i + 1}`;
               const top = i + 1 < I.bands.length ? money(I.bands[i + 1].from) : "upwards";
               const dim = flat && i > 0;
               return (
-                <div key={i} className={`bandblock${dim ? " dim" : ""}`}>
-                  <div className="bandhead">
+                <div
+                  key={i}
+                  className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${dim ? "opacity-50" : ""}`}
+                >
+                  <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
                     <b>{nm}</b>
                     <span>
                       {money(b.from)} to {top}
                     </span>
                     {I.bands.length > 1 && i === I.bands.length - 1 ? (
-                      <button className="btn danger tiny" onClick={() => delIncomeBand(i)}>
+                      <Button danger tiny className="ml-auto" onClick={() => delIncomeBand(i)}>
                         Remove
-                      </button>
+                      </Button>
                     ) : null}
                   </div>
                   <CtrlRow
@@ -387,17 +392,17 @@ function IncomeNiPanel({ G }: { G: any }) {
               );
             })}
             {I.bands.length < 6 ? (
-              <div className="bandadd">
-                <button className="btn" onClick={() => addIncomeBand()}>
+              <div className="mt-1.5 flex gap-2">
+                <Button className="ml-auto" onClick={() => addIncomeBand()}>
                   Add a band
-                </button>
-                <span className="pc">Restructuring the bands costs 12 capital</span>
+                </Button>
+                <CardPrice>Restructuring the bands costs 12 capital</CardPrice>
               </div>
             ) : null}
           </div>
           {!flat ? (
             <>
-              <Eyebrow className="mt">
+              <Eyebrow className="mt-5">
                 Capital income <b>{y.capital.toFixed(2)}% of GDP</b>
               </Eyebrow>
               <Hint>
@@ -405,7 +410,7 @@ function IncomeNiPanel({ G }: { G: any }) {
                   ? "Tax on investment returns — dividends and savings interest — not on wealth itself. Both share one flat rate under this system. Selling an asset is capital gains tax."
                   : "Tax on investment returns — dividends and savings interest — not on wealth itself, and not through the labour bands above. Selling an asset is capital gains tax."}
               </Hint>
-              <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+              <div className="overflow-hidden rounded-md border border-edge bg-g-1">
                 {dualCap ? (
                   <CtrlRow
                     name="Capital income rate"
@@ -449,24 +454,28 @@ function IncomeNiPanel({ G }: { G: any }) {
           ) : null}
         </>
       )}
-      <Eyebrow className="mt">
+      <Eyebrow className="mt-5">
         National insurance <b>{(y.employee + y.employer).toFixed(2)}% of GDP</b>
       </Eyebrow>
       <Hint>
         Two separate taxes wearing one name, and the difference is who really pays. Both start where
         income tax starts, so the personal allowance sets the floor for all three.
       </Hint>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
-        <div className={`bandblock${N.empOn ? "" : " dim"}`}>
-          <div className="bandhead">
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+        <div
+          className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.empOn ? "" : "opacity-50"}`}
+        >
+          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
             <b>Employee</b>
             <span>{N.empOn ? `${y.employee.toFixed(2)}% of GDP` : "abolished"}</span>
-            <button
-              className={`btn ${N.empOn ? "danger " : ""}tiny`}
+            <Button
+              danger={N.empOn}
+              tiny
+              className="ml-auto"
               onClick={() => setNiOn("empOn", !N.empOn)}
             >
               {N.empOn ? "Abolish" : "Reintroduce"}
-            </button>
+            </Button>
           </div>
           {N.empOn ? (
             <CtrlRow
@@ -481,23 +490,27 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("empRate", v)}
             />
           ) : (
-            <div className="text-[12.5px] text-ink-soft leading-[1.4]" style={{ margin: "2px 0 0" }}>
+            <div className="text-[12.5px] leading-[1.4] text-ink-soft" style={{ margin: "2px 0 0" }}>
               Scrapped. About{" "}
               {incomeYield(withNi(G.draft, "empOn", true), aggregate(G.draft), G.econ).employee.toFixed(2)}%
               of GDP forgone, and every earner above the allowance keeps it.
             </div>
           )}
         </div>
-        <div className={`bandblock${N.erOn ? "" : " dim"}`}>
-          <div className="bandhead">
+        <div
+          className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.erOn ? "" : "opacity-50"}`}
+        >
+          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
             <b>Employer</b>
             <span>{N.erOn ? `${y.employer.toFixed(2)}% of GDP` : "abolished"}</span>
-            <button
-              className={`btn ${N.erOn ? "danger " : ""}tiny`}
+            <Button
+              danger={N.erOn}
+              tiny
+              className="ml-auto"
               onClick={() => setNiOn("erOn", !N.erOn)}
             >
               {N.erOn ? "Abolish" : "Reintroduce"}
-            </button>
+            </Button>
           </div>
           {N.erOn ? (
             <CtrlRow
@@ -512,7 +525,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("erRate", v)}
             />
           ) : (
-            <div className="text-[12.5px] text-ink-soft leading-[1.4]" style={{ margin: "2px 0 0" }}>
+            <div className="text-[12.5px] leading-[1.4] text-ink-soft" style={{ margin: "2px 0 0" }}>
               Scrapped. About{" "}
               {incomeYield(withNi(G.draft, "erOn", true), aggregate(G.draft), G.econ).employer.toFixed(2)}%
               of GDP forgone, but hiring gets cheaper and structural unemployment falls.
@@ -537,7 +550,7 @@ export function TaxesPanel() {
         within a system are cheap by comparison.
       </Hint>
       <RegimeCards G={G} />
-      <Eyebrow className="mt">Where the money comes from</Eyebrow>
+      <Eyebrow className="mt-5">Where the money comes from</Eyebrow>
       <CompositionBar />
       {GROUPS.map(([group, label]) => (
         <TaxGroupPanel key={group} group={group} label={label} G={G} E={E} rev={rev} />

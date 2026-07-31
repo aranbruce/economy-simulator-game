@@ -17,6 +17,7 @@ import {
 } from "../../lib/sim/engine.ts";
 import type { GameState } from "../../lib/sim/types.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { Button } from "./Button.tsx";
 
 function ensureNations(e: GameState) {
   if (e.nations) {
@@ -127,11 +128,16 @@ interface StatProps {
 }
 
 function Stat({ label, value, note, tone }: StatProps) {
+  const toneCls = tone === "pos" ? "text-green-lt" : tone === "neg" ? "text-red-lt" : "";
   return (
-    <div className="realm-stat">
-      <div className="k">{label}</div>
-      <div className={"v" + (tone ? " " + tone : "")}>{value}</div>
-      {note ? <div className="note">{note}</div> : null}
+    <div className="min-w-[30%]">
+      <div className="text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
+        {label}
+      </div>
+      <div className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-white ${toneCls}`}>
+        {value}
+      </div>
+      {note ? <div className="mt-px text-[11px] text-ink-soft">{note}</div> : null}
     </div>
   );
 }
@@ -177,8 +183,8 @@ export default function RealmStats({
       role="dialog"
       aria-label={snap.name}
     >
-      <div className="realm-card-head">
-        <div>
+      <div className="mb-2.5 flex items-start gap-2.5">
+        <div className="min-w-0 flex-1">
           <div className="stamp">{snap.us ? "Home" : "Partner realm"}</div>
           <h2>{snap.name}</h2>
         </div>
@@ -192,11 +198,11 @@ export default function RealmStats({
         </button>
       </div>
 
-      <p className="realm-card-blurb">
+      <p className="mb-3.5 text-[13px] leading-[1.4] text-ink-soft">
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
-      <div className="realm-stats">
+      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-[720px]:gap-x-3.5 max-[720px]:gap-y-2.5">
         <Stat
           label="GDP"
           value={fmtGdpBn(snap.gdpBn)}
@@ -257,24 +263,23 @@ export default function RealmStats({
       </div>
 
       {snap.tradeShare && (
-        <div className="note trade-note">{snap.tradeShare}</div>
+        <div className="mb-3 text-xs text-ink-soft">{snap.tradeShare}</div>
       )}
 
       {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
-        <div className="realm-card-actions">
+        <div className="mt-0.5 flex flex-wrap gap-2">
           {onOpenDiplomacy && (
-            <button
-              type="button"
-              className="btn"
+            <Button
+              className="min-w-0 flex-1"
               onClick={() => onOpenDiplomacy(role)}
             >
               Open diplomacy
-            </button>
+            </Button>
           )}
           {onOpenTrade && (
-            <button type="button" className="btn" onClick={() => onOpenTrade(role)}>
+            <Button className="min-w-0 flex-1" onClick={() => onOpenTrade(role)}>
               Open trade talks
-            </button>
+            </Button>
           )}
         </div>
       )}

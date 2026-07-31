@@ -894,7 +894,7 @@ export default function GameApp() {
       }
     };
 
-    let closeStream = openMpRoomStream(
+    const closeStream = openMpRoomStream(
       mpSession.code,
       mpSession.token,
       (ev) => {
@@ -988,8 +988,8 @@ export default function GameApp() {
       ) : (
         phase === "play" && (
           <div id="mapLayer" className="flat-fallback">
-            <div className="globe-fallback">
-              <p>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4.5 text-center">
+              <p className="m-0 text-xs text-ink-faint">
                 The world map could not be loaded. Trade partners remain in
                 the Trade drawer; everything else is unaffected.
               </p>
@@ -1039,9 +1039,9 @@ export default function GameApp() {
 
           {mpRoom && (
             <div className="mp-hud hud-frame hud-surface" aria-live="polite">
-              <span className="mp-hud-code">Room {mpRoom.code}</span>
-              <span className="mp-hud-q">Q{mpRoom.q}</span>
-              <span className="mp-hud-status">
+              <span className="font-bold tracking-[.06em]">Room {mpRoom.code}</span>
+              <span>Q{mpRoom.q}</span>
+              <span className="text-ink-soft">
                 {waiting
                   ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount} · edit to withdraw`
                   : `${mpRoom.submittedCount}/${mpRoom.humanCount} delivered`}

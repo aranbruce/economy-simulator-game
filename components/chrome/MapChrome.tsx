@@ -62,7 +62,7 @@ export function MapChrome({ mapMetric, selectedRole, onMetricChange }: MapChrome
       <div id="mapLabel">{labelContent}</div>
       <div
         id="mapMetrics"
-        className="bg-panel backdrop-blur-md backdrop-saturate-130 border border-edge shadow-spec rounded-sm"
+        className="rounded-sm border border-edge bg-panel shadow-spec backdrop-blur-md backdrop-saturate-130"
       >
         <SegControl
           mini

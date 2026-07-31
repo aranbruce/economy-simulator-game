@@ -22,7 +22,11 @@ import {
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
+import { Button } from "../ui/Button.tsx";
+import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
 import type { Vice, ViceState } from "../../lib/sim/types.ts";
+
+const FBAR_TONE: Record<string, string> = { good: "bg-green", bad: "bg-red" };
 
 export function SocietyPanel() {
   const G = useGame();
@@ -57,18 +61,14 @@ export function SocietyPanel() {
   return (
     <>
       <Eyebrow>Where you stand</Eyebrow>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden" style={{ padding: "11px 13px" }}>
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1" style={{ padding: "11px 13px" }}>
         {FACTIONS.map((f) => {
           const v = G.fac[f.id];
           const cls = v > 55 ? "good" : v < 38 ? "bad" : "";
           return (
             <div
               key={f.id}
-              className="frow"
-              style={{
-                gridTemplateColumns: "110px 1fr 34px",
-                marginBottom: 4,
-              }}
+              className="mb-1 grid grid-cols-[110px_1fr_34px] items-center gap-2 text-[12.5px]"
             >
               <span>
                 {f.name}{" "}
@@ -76,51 +76,45 @@ export function SocietyPanel() {
                   {Math.round(f.w * 100)}%
                 </span>
               </span>
-              <span className="fb">
-                <i className={cls} style={{ width: `${v.toFixed(0)}%` }} />
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${cls ? FBAR_TONE[cls] : "bg-ink-soft"}`}
+                  style={{ width: `${v.toFixed(0)}%` }}
+                />
               </span>
-              <span className="fv">{v.toFixed(0)}</span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
             </div>
           );
         })}
         <div
-          className="frow"
-          style={{
-            gridTemplateColumns: "110px 1fr 34px",
-            borderTop: "1px solid var(--rule)",
-            paddingTop: 5,
-            marginTop: 3,
-          }}
+          className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]"
         >
           <span style={{ fontWeight: 600 }}>Approval</span>
-          <span className="fb">
+          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
-              style={{
-                width: `${approvalOf(G.fac).toFixed(0)}%`,
-                background: "var(--red)",
-              }}
+              className="block h-full rounded-none bg-red transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
+              style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
             />
           </span>
-          <span className="fv" style={{ fontWeight: 600 }}>
+          <span className="text-right text-[11.5px] text-ink-soft" style={{ fontWeight: 600 }}>
             {approvalOf(G.fac).toFixed(0)}
           </span>
         </div>
       </div>
 
-      <Eyebrow className="mt">Social indicators</Eyebrow>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden" style={{ padding: "11px 13px" }}>
+      <Eyebrow className="mt-5">Social indicators</Eyebrow>
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1" style={{ padding: "11px 13px" }}>
         {bars.map(([k, n, v]) => (
           <div
             key={k}
-            className="frow"
-            style={{
-              gridTemplateColumns: "150px 1fr 34px",
-              marginBottom: 4,
-            }}
+            className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
           >
             <span>{n}</span>
-            <span className="fb">
+            <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
               <i
+                className="block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
                 style={{
                   width: `${clamp(v, 0, 100).toFixed(0)}%`,
                   background:
@@ -134,17 +128,19 @@ export function SocietyPanel() {
                 }}
               />
             </span>
-            <span className="fv">{v.toFixed(0)}</span>
+            <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+              {v.toFixed(0)}
+            </span>
           </div>
         ))}
       </div>
 
-      <Eyebrow className="mt">Political system</Eyebrow>
+      <Eyebrow className="mt-5">Political system</Eyebrow>
       <Hint>
         Stage any system. A neighbour costs the listed capital; leaping democracy
         ↔ authoritarian costs much more. Factions move when you deliver.
       </Hint>
-      <div className="cards">
+      <CardGrid>
         {POLITY_LADDER.map((id: string) => {
           const m = (POLITY as Record<string, any>)[id];
           const isLaw = id === lawPolity;
@@ -158,48 +154,39 @@ export function SocietyPanel() {
               ? `leap · ${pc} capital`
               : `${pc} capital`;
           return (
-            <div
-              key={id}
-              className={
-                "card" + (isLaw ? " on" : "") + (on && !isLaw ? " staged" : "")
-              }
-            >
-              <h4>
+            <Card key={id} on={isLaw} staged={on && !isLaw}>
+              <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
                 {m.label}
-                <span className="cat">{cat}</span>
+                <CardCat>{cat}</CardCat>
               </h4>
-              <p>{m.blurb}</p>
-              <div className="foot">
+              <p className="m-0 text-xs leading-[1.42] text-ink-soft">{m.blurb}</p>
+              <CardFoot>
                 {on ? (
-                  <span className="pc">
+                  <CardPrice>
                     {isLaw
                       ? "Current system"
                       : leap
                         ? `Staged leap — ${pc} capital`
                         : "Staged in the bill"}
-                  </span>
+                  </CardPrice>
                 ) : (
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setPolity(id)}
-                  >
+                  <Button className="ml-auto" onClick={() => setPolity(id)}>
                     {isLaw ? "Revert" : leap ? "Stage leap" : "Stage"}
-                  </button>
+                  </Button>
                 )}
-              </div>
-            </div>
+              </CardFoot>
+            </Card>
           );
         })}
-      </div>
+      </CardGrid>
 
-      <Eyebrow className="mt">What is legal, and on what terms</Eyebrow>
+      <Eyebrow className="mt-5">What is legal, and on what terms</Eyebrow>
       <Hint>
         Prohibition pushes a market underground: no receipts, more crime.
         Legalising creates a tax base you can then set a duty on, over on the
         Taxes tab.
       </Hint>
-      <div className="cards">
+      <CardGrid>
         {VICE.map((v: Vice) => {
           const cur = G.draft.vice[v.id];
           const inLaw = G.law.vice[v.id];
@@ -208,15 +195,12 @@ export function SocietyPanel() {
             ? fullEffectsData(st.imp, st.fac, 0)
             : qualEffectsData(st.imp, st.fac, 0);
           return (
-            <div
-              key={v.id}
-              className={"card" + (cur !== inLaw ? " staged" : " on")}
-            >
-              <h4>
+            <Card key={v.id} on={cur === inLaw} staged={cur !== inLaw}>
+              <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
                 {v.name}
-                <span className="cat">{v.pc} capital</span>
+                <CardCat>{v.pc} capital</CardCat>
               </h4>
-              <div className="flex w-full bg-g-1 rounded-sm p-0.5 gap-0.5">
+              <div className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                 {v.states.map((s: ViceState) => {
                   const staged = s.id === cur && s.id !== inLaw;
                   return (
@@ -224,7 +208,7 @@ export function SocietyPanel() {
                       key={s.id}
                       type="button"
                       aria-pressed={s.id === cur}
-                      className={`flex-1 bg-transparent border-0 rounded py-1.5 px-1.25 cursor-pointer text-[11px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2${staged ? " bg-accent! text-[#1a1408]!" : ""}`}
+                      className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? " bg-accent! text-[#1a1408]!" : ""}`}
                       onClick={() => setVice(v.id, s.id)}
                     >
                       {s.label}
@@ -232,19 +216,19 @@ export function SocietyPanel() {
                   );
                 })}
               </div>
-              <p>{T(st.blurb)}</p>
+              <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(st.blurb)}</p>
               <EffectsBlock data={effectsData} />
               {v.tax ? (
-                <div className="eff" style={{ color: "var(--ink-faint)" }}>
+                <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-faint">
                   {taxAvailable(TAX_BY_ID[v.tax], G.draft)
                     ? "Duty available"
                     : "No duty can be levied in this state"}
                 </div>
               ) : null}
-            </div>
+            </Card>
           );
         })}
-      </div>
+      </CardGrid>
     </>
   );
 }

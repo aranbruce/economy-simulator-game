@@ -39,9 +39,12 @@ interface ImpactFactionsData {
 function ImpactChips({ chips }: { chips: (ImpactChip | null)[] | null }) {
   if (!chips || !chips.length) return null;
   return (
-    <div className="impchips">
+    <div className="flex flex-wrap gap-1">
       {chips.filter((c): c is ImpactChip => c != null).map((c, i) => (
-        <span key={i} className={c.up ? "up" : "dn"}>
+        <span
+          key={i}
+          className={`rounded-sm px-1.75 py-0.75 text-[10.5px] font-[650] whitespace-nowrap ${c.up ? "bg-green/16 text-green-lt" : "bg-red/16 text-red-lt"}`}
+        >
           {c.name} {sgn(c.value, c.dp)}
         </span>
       ))}
@@ -51,22 +54,26 @@ function ImpactChips({ chips }: { chips: (ImpactChip | null)[] | null }) {
 
 function ImpactFactions({ factions }: { factions: ImpactFactionsData | null }) {
   if (!factions || factions.empty) {
-    return <div className="impfac">No faction moves enough to notice.</div>;
+    return (
+      <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
+        No faction moves enough to notice.
+      </div>
+    );
   }
   return (
-    <div className="impfac">
+    <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
       {factions.best && (
-        <span className="up">
+        <span className="text-green-lt">
           {factions.best.name} {sgn(factions.best.value, 1)}
         </span>
       )}
       {factions.worst && (
-        <span className="dn">
+        <span className="text-red-lt">
           {factions.worst.name} {sgn(factions.worst.value, 1)}
         </span>
       )}
       {factions.gini && (
-        <span className={factions.gini.up ? "up" : "dn"}>
+        <span className={factions.gini.up ? "text-green-lt" : "text-red-lt"}>
           Inequality {sgn(factions.gini.value, 2)}
         </span>
       )}
@@ -78,13 +85,18 @@ function ImpactStrip() {
   const data = impactStripData();
   if (!data) return null;
   const changeWord = `change${data.count === 1 ? "" : "s"}`;
+  const stripHead = (
+    <div className="mb-1.5 flex items-center gap-2 text-[10.5px] font-bold tracking-[.06em] text-ink-soft uppercase">
+      Staged: {data.count} {changeWord} · {data.cost} capital
+    </div>
+  );
   if (data.career) {
     return (
-      <div className="impstrip">
-        <div className="impstrip-h">
-          Staged: {data.count} {changeWord} · {data.cost} capital
+      <div className="mb-3 rounded-md border border-frame bg-accent-dim px-2.75 py-2.25">
+        {stripHead}
+        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-soft">
+          {(data.bits as string[]).join(" · ")}
         </div>
-        <div className="eff">{(data.bits as string[]).join(" · ")}</div>
         <Hint>
           Career mode shows the direction of travel. Turn on Sandbox for exact
           four-quarter forecasts.
@@ -93,10 +105,8 @@ function ImpactStrip() {
     );
   }
   return (
-    <div className="impstrip">
-      <div className="impstrip-h">
-        Staged: {data.count} {changeWord} · {data.cost} capital
-      </div>
+    <div className="mb-3 rounded-md border border-frame bg-accent-dim px-2.75 py-2.25">
+      {stripHead}
       <ImpactChips chips={data.chips} />
       <ImpactFactions factions={data.factions} />
       <Hint>
@@ -112,7 +122,7 @@ function ImpactPanel({ cl }: { cl: any[] }) {
   if (!data) return null;
   return (
     <>
-      <Eyebrow className="mt">What each clause does on its own</Eyebrow>
+      <Eyebrow className="mt-5">What each clause does on its own</Eyebrow>
       <Hint>
         Sandbox only. Each block is that clause alone over four quarters,
         measured against passing nothing at all. Growth is cumulative GDP over
@@ -121,14 +131,16 @@ function ImpactPanel({ cl }: { cl: any[] }) {
         bill, because these things interact.
       </Hint>
       {data.items.map((it: any, i: number) => (
-        <div className="impblock" key={i}>
-          <div className="imphead">
+        <div className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25" key={i}>
+          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
             {it.label}
-            <span className="cost">{it.cost} cap</span>
+            <span className="ml-auto text-[11px] font-[650] whitespace-nowrap text-accent-lt">
+              {it.cost} cap
+            </span>
           </div>
           {it.revenue != null && (
-            <div className="impfac">
-              <span className={it.revenue > 0 ? "up" : "dn"}>
+            <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
+              <span className={it.revenue > 0 ? "text-green-lt" : "text-red-lt"}>
                 Receipts on impact {sgn(it.revenue, 2)} pts
               </span>
             </div>
@@ -138,10 +150,12 @@ function ImpactPanel({ cl }: { cl: any[] }) {
         </div>
       ))}
       {data.whole && (
-        <div className="impblock whole">
-          <div className="imphead">
+        <div className="mb-1.75 rounded-md border border-frame bg-accent-dim px-2.75 py-2.25">
+          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
             The bill as a whole
-            <span className="cost">{data.whole.cost} cap</span>
+            <span className="ml-auto text-[11px] font-[650] whitespace-nowrap text-accent-lt">
+              {data.whole.cost} cap
+            </span>
           </div>
           <ImpactChips chips={data.whole.chips} />
           <ImpactFactions factions={data.whole.factions} />
@@ -155,17 +169,18 @@ function RateImpact() {
   const data = rateImpactData();
   if (!data) return null;
   return (
-    <div className="impblock rate-impact">
-      <div className="imphead">Four quarters at {data.pin.toFixed(2)}% vs the Bank</div>
-      <div
-        className="text-[12.5px] text-ink-soft leading-[1.4]"
-        style={{ margin: "0 0 6px" }}
-      >
+    <div className="mt-2.5 mb-1.75 rounded-md border border-edge bg-g-1 p-3">
+      <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
+        Four quarters at {data.pin.toFixed(2)}% vs the Bank
+      </div>
+      <div className="mb-1.5 text-[12.5px] leading-[1.4] text-ink-soft">
         Same law, pinned rate against the Taylor rule from today's starting
         point.
       </div>
       {data.empty ? (
-        <div className="impfac">No measurable move over four quarters.</div>
+        <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
+          No measurable move over four quarters.
+        </div>
       ) : (
         <>
           <ImpactChips chips={data.chips} />
@@ -191,10 +206,13 @@ export function BillDrawer() {
       {cl.length ? (
         <div id="clauses">
           {cl.map((c: any, i: number) => (
-            <div className="clause" key={i}>
+            <div
+              className="flex items-start gap-2.25 border-b border-edge py-1.75 text-[13px] last-of-type:border-b-0"
+              key={i}
+            >
               <button
                 type="button"
-                className="x"
+                className="flex size-5 flex-none cursor-pointer items-center justify-center rounded-sm border border-edge bg-g-1 p-0 text-ink-soft hover:border-transparent hover:bg-red/30 hover:text-white"
                 title="Remove clause"
                 onClick={() => {
                   billClauses()[i].undo();
@@ -204,52 +222,54 @@ export function BillDrawer() {
                 <CloseIcon />
               </button>
               <span>{c.label}</span>
-              <span className="cost">{c.sunk ? "paid" : c.pc}</span>
+              <span className="ml-auto text-[11.5px] font-[650] whitespace-nowrap text-accent-lt">
+                {c.sunk ? "paid" : c.pc}
+              </span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="empty-bill">
+        <div className="pt-2 pb-2.5 text-[12.5px] leading-normal text-ink-faint">
           No clauses yet. Change anything in Budget, Taxes, Policies, Society,
           Trade or Diplomacy and it appears here to be costed before it becomes
           law.
         </div>
       )}
       {overspent ? (
-        <Hint className="mt-2.5 text-[color:var(--red)]">
+        <Hint className="mt-2.5 text-red">
           {capitalShortfallHint(cost, G.capital)}
         </Hint>
       ) : null}
-      <div className="arith">
-        <div>
+      <div className="mt-3 border-t border-edge pt-2.5 text-[13px]">
+        <div className="flex py-0.75 text-ink-soft">
           <span>Receipts</span>
-          <span>{dr.rev.total.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">{dr.rev.total.toFixed(1)}</span>
         </div>
-        <div>
+        <div className="flex py-0.75 text-ink-soft">
           <span>Departmental</span>
-          <span>{dr.sp.prog.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">{dr.sp.prog.toFixed(1)}</span>
         </div>
-        <div>
+        <div className="flex py-0.75 text-ink-soft">
           <span>Debt interest</span>
-          <span>{dr.sp.interest.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">{dr.sp.interest.toFixed(1)}</span>
         </div>
-        <div className="total">
+        <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
           <span>{dr.balance >= 0 ? "Surplus" : "Deficit"}</span>
-          <span className={dr.balance >= 0 ? "pos" : "neg"}>
+          <span className={`ml-auto ${dr.balance >= 0 ? "text-green-lt" : "text-red-lt"}`}>
             {fmt(dr.balance, 1)}% of GDP
           </span>
         </div>
         {Math.abs(delta) > 0.049 ? (
-          <div className="note" style={{ paddingTop: 5 }}>
+          <div className="pt-1.25 text-[11px] text-ink-faint">
             {sgn(delta, 1)} points versus current law
           </div>
         ) : null}
       </div>
       {G.sandbox ? <ImpactPanel cl={cl} /> : null}
-      <Eyebrow className="mt">Rules</Eyebrow>
+      <Eyebrow className="mt-5">Rules</Eyebrow>
       <Panel padded className="mt-0">
         <div className="flex flex-wrap items-center gap-2.5">
-          <div className="min-w-[140px] flex-1">
+          <div className="min-w-35 flex-1">
             <div className="text-[13.5px] font-semibold">Central Bank</div>
             <Hint className="mt-0.5">
               {G.rateManual
@@ -293,7 +313,7 @@ export function BillDrawer() {
       </Panel>
       <button
         type="button"
-        className="reset mt-3.5"
+        className="mx-auto mt-2.5 block cursor-pointer border-none bg-transparent text-xs font-medium text-ink-faint underline hover:text-ink"
         onClick={() => requestSetup()}
       >
         Start a new government

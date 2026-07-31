@@ -3,6 +3,13 @@
 import { diploHudChips, getTab, setTab } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 
+const CHIP_KIND_STYLES: Record<string, string> = {
+  ult: "text-white bg-red/18 border-red/35",
+  visit: "text-[#1a1408] bg-accent-lt/22 border-accent-lt/40",
+  concede: "text-[#e8fff0] bg-[#30D158]/20 border-[#30D158]/38",
+  defy: "text-white bg-[#FF453A]/20 border-[#FF453A]/40",
+};
+
 export function DiploHud() {
   const G = useGame();
   const chips = diploHudChips(G);
@@ -31,10 +38,14 @@ export function DiploHud() {
       }}
     >
       {chips.map((c: any, i: number) => (
-        <span key={i} className={`diplo-hud-chip ${c.kind}`} title={c.title}>
+        <span
+          key={i}
+          className={`inline-flex items-center gap-[5px] rounded-pill border px-[9px] py-1 font-semibold whitespace-nowrap ${CHIP_KIND_STYLES[c.kind] ?? "border-transparent"}`}
+          title={c.title}
+        >
           {c.name}
           {c.kind === "ult" ? ` · ${c.label} ` : " · visit "}
-          <b>{c.left}Q</b>
+          <b className="font-bold tabular-nums">{c.left}Q</b>
         </span>
       ))}
     </div>

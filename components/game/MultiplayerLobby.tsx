@@ -15,6 +15,7 @@ import {
   realmById,
 } from "../../lib/sim/realms.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
+import { SetupGoButton } from "../ui/SetupGoButton.tsx";
 
 function errMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -170,53 +171,70 @@ export default function MultiplayerLobby({
           </p>
         </HudFrame>
         <HudFrame className="setup-dock hud-surface">
-          <div className="mp-lobby-layout">
-            <div className="mp-code-block">
-              <span className="setup-pick-tag">Room code</span>
-              <div className="mp-code-row">
-                <span className="mp-code-value" aria-label={`Room code ${room.code}`}>
+          <div className="flex w-full flex-col gap-3.5">
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+                Room code
+              </span>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span
+                  className="font-display text-[clamp(28px,4vw,36px)] leading-none font-normal tracking-[.12em] text-ink tabular-nums"
+                  aria-label={`Room code ${room.code}`}
+                >
                   {room.code}
                 </span>
-                <button
-                  type="button"
-                  className="setup-go secondary mp-copy"
+                <SetupGoButton
+                  secondary
+                  customSize
+                  className="px-3.5 py-2 text-[13px]"
                   onClick={() => copyRoomCode(room.code)}
                 >
                   {copied ? "Copied" : "Copy"}
-                </button>
+                </SetupGoButton>
               </div>
-              <p className="setup-mode-hint mp-hint-left">
+              <p className="mt-1 text-left text-[11px] leading-[1.35] text-ink-soft">
                 Unclaimed seats stay AI once the game starts.
               </p>
             </div>
 
-            <div className="setup-pick mp-roster">
-              <div className="mp-roster-head">
-                <span className="setup-pick-tag">Players</span>
+            <div className="flex min-w-0 flex-1 flex-col gap-0">
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+                  Players
+                </span>
                 <strong>
                   {room.humanCount} human{room.humanCount === 1 ? "" : "s"}
                 </strong>
               </div>
-              <ul className="mp-player-list">
+              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
                 {room.players.map((p: any) => {
                   const seat = realmByRole(p.role);
                   return (
-                    <li key={p.seatId + p.name} className="mp-player-row">
-                      <span className="mp-player-name">
+                    <li
+                      key={p.seatId + p.name}
+                      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[10px] border border-white/6 bg-white/4 px-2.5 py-2 text-[13px] leading-[1.3] text-ink max-[720px]:grid-cols-[1fr_auto] max-[720px]:gap-x-2 max-[720px]:gap-y-1"
+                    >
+                      <span className="min-w-0 font-semibold">
                         {p.name}
-                        {p.isYou ? <em> you</em> : null}
+                        {p.isYou ? <em className="ml-1 font-medium text-accent-lt not-italic"> you</em> : null}
                       </span>
-                      <span className="mp-player-seat">{seat.name}</span>
+                      <span className="min-w-0 truncate text-xs text-ink-soft max-[720px]:col-span-full">
+                        {seat.name}
+                      </span>
                       {p.isHost ? (
-                        <span className="mp-player-badge">Host</span>
+                        <span className="justify-self-end rounded-full bg-blue/12 px-1.75 py-0.75 text-[9.5px] font-bold tracking-[.08em] text-accent-lt uppercase">
+                          Host
+                        </span>
                       ) : (
-                        <span className="mp-player-badge quiet">Guest</span>
+                        <span className="justify-self-end rounded-full bg-white/6 px-1.75 py-0.75 text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
+                          Guest
+                        </span>
                       )}
                     </li>
                   );
                 })}
               </ul>
-              <p className="setup-mode-hint mp-hint-left">
+              <p className="mt-1 text-left text-[11px] leading-[1.35] text-ink-soft">
                 {mode === "host"
                   ? ready
                     ? "Everyone in? Start when ready."
@@ -226,12 +244,10 @@ export default function MultiplayerLobby({
             </div>
           </div>
 
-          {error && <p className="mp-error">{error}</p>}
-          <div className="mp-actions">
+          {error && <p className="m-0 text-xs text-red">{error}</p>}
+          <div className="flex flex-wrap items-center gap-2">
             {mode === "host" && (
-              <button
-                type="button"
-                className="setup-go"
+              <SetupGoButton
                 disabled={!ready || starting}
                 onClick={async () => {
                   setStarting(true);
@@ -252,11 +268,11 @@ export default function MultiplayerLobby({
                 }}
               >
                 {starting ? "Starting…" : "Start game"}
-              </button>
+              </SetupGoButton>
             )}
-            <button type="button" className="setup-go secondary" onClick={leaveLobby}>
+            <SetupGoButton secondary onClick={leaveLobby}>
               Leave
-            </button>
+            </SetupGoButton>
           </div>
         </HudFrame>
       </div>
@@ -275,20 +291,28 @@ export default function MultiplayerLobby({
           lobby or join with a friend’s code.
         </p>
       </HudFrame>
-      <HudFrame className="setup-dock hud-surface mp-menu-dock">
-        <div className="mp-lobby-layout">
-          <div className="mp-menu-seat">
-            <div className="setup-pick">
-              <div className="setup-pick-head">
-                <div className="setup-pick-title">
-                  <span className="setup-pick-tag">Your seat</span>
-                  <strong>{realm.name}</strong>
-                  <em>Click another country on the map to change seat — it must be free when you enter.</em>
+      <HudFrame className="setup-dock hud-surface w-[min(820px,100%)]">
+        <div className="flex w-full flex-col gap-3.5">
+          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-[720px]:grid-cols-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-0">
+              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+                <div className="flex min-w-0 flex-1 flex-col gap-0.75">
+                  <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+                    Your seat
+                  </span>
+                  <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
+                    {realm.name}
+                  </strong>
+                  <em className="text-xs leading-[1.4] text-ink-soft not-italic">
+                    Click another country on the map to change seat — it must be free when you enter.
+                  </em>
                 </div>
               </div>
             </div>
-            <label className="setup-name mp-menu-name">
-              <span>Display name</span>
+            <label className="flex w-full min-w-35 flex-1 flex-col gap-1.25">
+              <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+                Display name
+              </span>
               <input
                 type="text"
                 maxLength={34}
@@ -296,36 +320,58 @@ export default function MultiplayerLobby({
                 placeholder={realm.name}
                 onChange={(e) => setName(e.target.value)}
                 aria-label="Display name in the lobby"
+                className="w-full rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-[15px] font-semibold tracking-[-.02em] text-white placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
               />
             </label>
           </div>
 
-          <div className="mp-menu-paths">
-            <section className="mp-path-card" aria-labelledby="mpHostPath">
-              <div className="mp-path-copy">
-                <span className="setup-pick-tag" id="mpHostPath">Host</span>
-                <strong>Create a room</strong>
-                <p>Get a short code to share. Friends join when their seats are free; everyone else stays AI.</p>
+          <div className="grid grid-cols-2 gap-2.5 max-[720px]:grid-cols-1">
+            <section
+              className="flex min-h-full flex-col justify-between gap-3 rounded-md border border-white/7 bg-white/4 px-3.25 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05)]"
+              aria-labelledby="mpHostPath"
+            >
+              <div className="flex flex-col gap-1">
+                <span
+                  className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase"
+                  id="mpHostPath"
+                >
+                  Host
+                </span>
+                <strong className="font-display text-lg leading-[1.15] font-normal tracking-[-.02em] text-ink">
+                  Create a room
+                </strong>
+                <p className="m-0 text-xs leading-[1.4] text-ink-soft">
+                  Get a short code to share. Friends join when their seats are free; everyone else stays AI.
+                </p>
               </div>
-              <button
-                type="button"
-                className="setup-go"
-                disabled={busy}
-                onClick={hostCreate}
-              >
+              <SetupGoButton className="w-full" disabled={busy} onClick={hostCreate}>
                 {busyAction === "create" ? "Creating…" : "Create room"}
-              </button>
+              </SetupGoButton>
             </section>
 
-            <section className="mp-path-card" aria-labelledby="mpJoinPath">
-              <div className="mp-path-copy">
-                <span className="setup-pick-tag" id="mpJoinPath">Join</span>
-                <strong>Enter a room code</strong>
-                <p>Use the six-character code from the host. Your seat must still be open.</p>
+            <section
+              className="flex min-h-full flex-col justify-between gap-3 rounded-md border border-white/7 bg-white/4 px-3.25 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05)]"
+              aria-labelledby="mpJoinPath"
+            >
+              <div className="flex flex-col gap-1">
+                <span
+                  className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase"
+                  id="mpJoinPath"
+                >
+                  Join
+                </span>
+                <strong className="font-display text-lg leading-[1.15] font-normal tracking-[-.02em] text-ink">
+                  Enter a room code
+                </strong>
+                <p className="m-0 text-xs leading-[1.4] text-ink-soft">
+                  Use the six-character code from the host. Your seat must still be open.
+                </p>
               </div>
-              <div className="mp-join-row">
-                <label className="setup-name mp-join-code">
-                  <span>Room code</span>
+              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[560px]:grid-cols-1">
+                <label className="flex w-auto min-w-0 flex-col gap-1.25">
+                  <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+                    Room code
+                  </span>
                   <input
                     type="text"
                     maxLength={6}
@@ -339,24 +385,34 @@ export default function MultiplayerLobby({
                       if (e.key === "Enter" && canJoin && !busy) guestJoin();
                     }}
                     aria-label="Room code"
+                    className="w-full min-w-0 rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-[15px] font-semibold tracking-[.14em] text-white uppercase tabular-nums placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
                   />
                 </label>
-                <button
-                  type="button"
-                  className="setup-go secondary mp-join-btn"
+                <SetupGoButton
+                  secondary
+                  customSize
+                  className="h-fit w-auto flex-none self-end px-4.5 py-2.75 text-[14.5px] whitespace-nowrap"
                   disabled={busy || !canJoin}
                   onClick={guestJoin}
                 >
                   {busyAction === "join" ? "Joining…" : "Join"}
-                </button>
+                </SetupGoButton>
               </div>
             </section>
           </div>
         </div>
 
-        {error && <p className="mp-error" role="alert">{error}</p>}
-        <div className="mp-menu-foot">
-          <button type="button" className="mp-solo-link" onClick={onBack}>
+        {error && (
+          <p className="m-0 text-xs text-red" role="alert">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-center pt-0.5">
+          <button
+            type="button"
+            className="cursor-pointer border-none bg-transparent px-2.5 py-1.5 font-sans text-[12.5px] font-semibold text-ink-soft underline decoration-white/20 underline-offset-[3px] transition-[color,text-decoration-color] duration-160 hover:text-ink hover:decoration-white/45 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-lt"
+            onClick={onBack}
+          >
             Solo instead
           </button>
         </div>

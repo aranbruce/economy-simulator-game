@@ -13,6 +13,8 @@ import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
+import { Button } from "../ui/Button.tsx";
+import { Card, CardGrid, CardFoot, CardPrice } from "../ui/Card.tsx";
 import type { Policy } from "../../lib/sim/types.ts";
 
 const POLICY_CAT_ORDER = [
@@ -50,7 +52,7 @@ export function PoliciesPanel() {
       (id: string) => (POLICY_BY_ID[id] && POLICY_BY_ID[id].name) || id
     );
     return (
-      <div className="eff" style={{ color: "var(--amber)" }}>
+      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-amber">
         Cannot sit with {names.join(", ")}
       </div>
     );
@@ -74,7 +76,7 @@ export function PoliciesPanel() {
       </Hint>
       <SegControl
         mini
-        className="pol-filter"
+        className="mt-2 mb-3"
         value={policyFilter}
         options={[
           ["all", "All"],
@@ -89,8 +91,8 @@ export function PoliciesPanel() {
         if (!list.length) return null;
         return (
           <div key={c}>
-            <Eyebrow className="mt">{c}</Eyebrow>
-            <div className="cards">
+            <Eyebrow className="mt-5">{c}</Eyebrow>
+            <CardGrid>
               {list.map((p: Policy) => {
                 const isLaw = !!G.law.policies[p.id];
                 const staged = !!G.draft.policies[p.id];
@@ -98,38 +100,29 @@ export function PoliciesPanel() {
                   ? fullEffectsData(p.imp, p.fac, p.cost, p.ch)
                   : qualEffectsData(p.imp, p.fac, p.cost, p.ch);
                 return (
-                  <div
-                    key={p.id}
-                    className={
-                      "card" +
-                      (isLaw ? " on" : "") +
-                      (staged !== isLaw ? " staged" : "")
-                    }
-                  >
-                    <h4>{p.name}</h4>
-                    <p>{T(p.blurb)}</p>
+                  <Card key={p.id} on={isLaw} staged={staged !== isLaw}>
+                    <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
+                      {p.name}
+                    </h4>
+                    <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(p.blurb)}</p>
                     <EffectsBlock data={effectsData} />
                     {killLine(p)}
-                    <div className="foot">
-                      <span className="pc">
+                    <CardFoot>
+                      <CardPrice>
                         {staged === isLaw
                           ? isLaw
                             ? "In force"
                             : `${p.pc} capital`
                           : "staged"}
-                      </span>
-                      <button
-                        type="button"
-                        className={"btn" + (staged ? " danger" : "")}
-                        onClick={() => togglePolicy(p)}
-                      >
+                      </CardPrice>
+                      <Button className="ml-auto" danger={staged} onClick={() => togglePolicy(p)}>
                         {staged ? "Repeal" : "Enact"}
-                      </button>
-                    </div>
-                  </div>
+                      </Button>
+                    </CardFoot>
+                  </Card>
                 );
               })}
-            </div>
+            </CardGrid>
           </div>
         );
       })}

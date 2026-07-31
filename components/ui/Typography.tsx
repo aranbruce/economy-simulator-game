@@ -11,8 +11,7 @@ const EYEBROW_BASE =
   "flex items-center gap-[9px] mb-[9px] text-[10px] font-bold text-ink-faint tracking-[.1em] uppercase after:content-[''] after:flex-1 after:h-px after:bg-edge";
 
 export function Eyebrow({ children, className = "" }: TextProps) {
-  const mt = className === "mt" ? "mt-5" : className;
-  return <div className={`${EYEBROW_BASE} ${mt}`.trim()}>{children}</div>;
+  return <div className={`${EYEBROW_BASE} ${className}`.trim()}>{children}</div>;
 }
 
 const HINT_BASE = "text-[12.5px] text-ink-soft leading-[1.4]";

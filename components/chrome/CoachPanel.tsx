@@ -20,53 +20,62 @@ export function CoachPanel() {
       role="complementary"
       aria-label="Tutorial"
     >
-      <div className="coach-panel-head">
-        <span className="coach-panel-kicker">
+      <div className="flex items-center justify-between gap-2.5">
+        <span className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
           Tutorial {panel.step}/{panel.total}
         </span>
         <button
           type="button"
-          className="coach-panel-skip"
+          className="flex-none cursor-pointer rounded-sm border border-edge bg-g-2 px-2.5 py-1.5 text-[11.5px] font-semibold text-ink-soft hover:bg-g-3 hover:text-white"
           onClick={() => skipCoach()}
         >
           Skip
         </button>
       </div>
-      <h3 className="coach-panel-title">{panel.title}</h3>
+      <h3 className="m-0 font-display text-xl leading-[1.2] font-normal tracking-[-.02em]">
+        {panel.title}
+      </h3>
       {panel.body ? (
-        <div className="coach-panel-body">
+        <div className="text-[12.5px] leading-[1.4] text-ink-soft [&_p]:mb-2 [&_p:last-child]:mb-0">
           <SafeHtml html={panel.body} />
         </div>
       ) : null}
       {panel.subtasks && panel.subtasks.length ? (
-        <div className="coach-panel-tasks">
-          <div className="coach-panel-tasks-title">Your tasks</div>
-          <ul className="coach-panel-checks" aria-label="Your tasks">
+        <div className="flex flex-col gap-2">
+          <div className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+            Your tasks
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Your tasks">
             {panel.subtasks.map((s: any) => (
               <li
                 key={s.id}
-                className={s.done ? "is-done" : undefined}
+                className={`m-0 flex items-start gap-2 text-[12.5px] leading-[1.35] font-[550] ${s.done ? "font-[650] text-ink" : "text-ink-soft"}`}
                 aria-checked={s.done}
                 role="checkbox"
               >
-                <span className="coach-check" aria-hidden="true">
+                <span
+                  className={`mt-px inline-flex size-4 flex-none items-center justify-center rounded text-[11px] leading-none text-white ${s.done ? "border-green bg-green text-[#04140a]" : "border-edge bg-g-2"} border-[1.5px]`}
+                  aria-hidden="true"
+                >
                   {s.done ? "✓" : ""}
                 </span>
-                <span className="coach-check-label">{s.label}</span>
+                <span className="min-w-0">{s.label}</span>
               </li>
             ))}
           </ul>
         </div>
       ) : panel.task ? (
-        <div className="coach-panel-tasks">
-          <div className="coach-panel-tasks-title">Your tasks</div>
-          <p className="coach-panel-task">{panel.task}</p>
+        <div className="flex flex-col gap-2">
+          <div className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+            Your tasks
+          </div>
+          <p className="m-0 text-[13px] leading-[1.35] font-[650] text-ink">{panel.task}</p>
         </div>
       ) : null}
       {panel.canContinue ? (
         <button
           type="button"
-          className="coach-panel-go"
+          className={`cursor-pointer self-stretch rounded-sm border-none bg-blue px-3 py-2.5 text-[13px] font-[650] text-white hover:brightness-[1.06] ${panel.subtasks?.length || panel.task ? "mt-3.5" : "mt-1.5"}`}
           onClick={() => continueCoach()}
         >
           {panel.continueLabel || "Continue"}

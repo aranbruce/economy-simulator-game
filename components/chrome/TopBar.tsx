@@ -56,10 +56,10 @@ export function TopBar() {
           )}
           <TopBarTerm />
         </span>
-        <div id="tbMode" className="tb-mode" aria-label="Game mode">
+        <div id="tbMode" className="ml-2 flex gap-0.5 rounded-sm bg-g-1 p-0.5" aria-label="Game mode">
           <button
             type="button"
-            className="mode-toggle"
+            className="cursor-pointer appearance-none rounded border-0 bg-transparent px-2 py-1.25 text-[10px] font-[650] tracking-[.06em] text-ink-faint uppercase focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
             id="modeCareer"
             aria-pressed={!G.sandbox}
             onClick={() => setSandboxMode(false)}
@@ -68,7 +68,7 @@ export function TopBar() {
           </button>
           <button
             type="button"
-            className="mode-toggle"
+            className="cursor-pointer appearance-none rounded border-0 bg-transparent px-2 py-1.25 text-[10px] font-[650] tracking-[.06em] text-ink-faint uppercase focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
             id="modeSandbox"
             aria-pressed={!!G.sandbox}
             title="Cannot be removed from office"

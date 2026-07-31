@@ -55,6 +55,8 @@ import {
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { Lever } from "../ui/Lever.tsx";
+import { Button } from "../ui/Button.tsx";
+import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
 import type { Country, CountryDeal } from "../../lib/sim/countries.ts";
 
 const REGION_ORDER = ["europe", "americas", "asia", "africa", "gulf", "oceania"];
@@ -66,7 +68,7 @@ function CurrencyPanel({ G }: { G: any }) {
   return (
     <>
       <Eyebrow>Currency</Eyebrow>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden" style={{ padding: "12px 14px", marginBottom: 12 }}>
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1" style={{ padding: "12px 14px", marginBottom: 12 }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
           <div style={{ fontSize: 28, fontWeight: 650, letterSpacing: "-.03em", lineHeight: 1, color: fxColor }}>
             {fxIdx.toFixed(1)}
@@ -86,18 +88,27 @@ function CurrencyPanel({ G }: { G: any }) {
 
 function AccessionPipeline({ cur, labels = ["Invite", "Accept", "Align", "Treaty", "Member"] }: { cur: number; labels?: string[] }) {
   return (
-    <div className="acc-pipe">
+    <div className="mt-2.5 mb-1.5 flex flex-wrap items-start gap-0">
       {labels.map((label, i) => {
         const done = i < cur;
         const active = i === cur;
+        const dotTone = done ? "border-green bg-green text-white" : active ? "border-blue bg-blue text-white" : "";
         return (
           <span key={label} style={{ display: "contents" }}>
-            <div className={`acc-step ${done ? "done" : active ? "active" : ""}`.trim()}>
-              <span className="acc-dot">{done ? "✓" : i + 1}</span>
-              <span className="acc-label">{label}</span>
+            <div className={`flex min-w-12 flex-col items-center gap-0.75 ${done || active ? "opacity-100" : "opacity-42"}`}>
+              <span
+                className={`flex size-5.5 items-center justify-center rounded-full border-[1.5px] border-edge text-[10px] leading-none font-bold ${dotTone}`}
+              >
+                {done ? "✓" : i + 1}
+              </span>
+              <span className="max-w-14 text-center text-[10px] leading-[1.2] text-ink-soft">
+                {label}
+              </span>
             </div>
             {i < labels.length - 1 ? (
-              <div className={`acc-line${done ? " done" : ""}`} />
+              <div
+                className={`mx-0.5 mt-2.5 h-0.5 min-w-2.5 flex-[0_1_24px] self-start ${done ? "bg-green" : "bg-edge"}`}
+              />
             ) : null}
           </span>
         );
@@ -110,16 +121,25 @@ function ApprovalTable({ approvals, title = "Member approval" }: { approvals: an
   if (!approvals.length) return null;
   return (
     <>
-      <div className="flex items-center gap-[9px] mb-[9px] text-[10px] font-bold text-ink-faint tracking-[.1em] uppercase after:content-[''] after:flex-1 after:h-px after:bg-edge" style={{ marginTop: 6 }}>
+      <div className="mb-[9px] flex items-center gap-[9px] text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']" style={{ marginTop: 6 }}>
         {title}
       </div>
       {approvals.map((a) => (
-        <div key={a.id} className="frow" style={{ gridTemplateColumns: "90px 1fr 36px", margin: "3px 0" }}>
+        <div
+          key={a.id}
+          className="my-0.75 grid grid-cols-[90px_1fr_36px] items-center gap-2 text-[12.5px]"
+        >
           <span style={{ fontSize: 11 }}>{a.name}</span>
-          <span className="fb">
-            <i className={a.ok ? "good" : "bad"} style={{ width: `${a.rel.toFixed(0)}%` }} />
+          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+            <i
+              className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${a.ok ? "bg-green" : "bg-red"}`}
+              style={{ width: `${a.rel.toFixed(0)}%` }}
+            />
           </span>
-          <span className="fv" style={{ color: a.ok ? "var(--green)" : "var(--red)" }}>
+          <span
+            className="text-right text-[11.5px] font-[650] text-ink-soft"
+            style={{ color: a.ok ? "var(--green)" : "var(--red)" }}
+          >
             {a.rel.toFixed(0)}
           </span>
         </div>
@@ -146,10 +166,10 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
   const blocked = blockers.length > 0;
   const pc = steps.apply || 8;
   return (
-    <div className="card" style={{ marginTop: 8 }}>
-      <h4>
+    <Card className="mt-2">
+      <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {bloc.name}
-        <span className="cat">{bloc.type === "customs_union" ? "Customs union" : "FTA"}</span>
+        <CardCat>{bloc.type === "customs_union" ? "Customs union" : "FTA"}</CardCat>
       </h4>
       <AccessionPipeline cur={0} labels={["Apply", "Align", "Accede"]} />
       <Hint>
@@ -157,19 +177,22 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
         automatically each quarter — no further capital.
       </Hint>
       <Hint>Member relations and policy alignment are checked as stages complete.</Hint>
-      {blocked ? <div className="eff" style={{ color: "var(--red)", display: "block" }}>{blockers[0]}</div> : null}
-      <div className="foot">
-        <span className="pc">{pc} capital</span>
-        <button
-          className={`btn ${staged === "apply" ? "danger" : ""}`.trim()}
+      {blocked ? (
+        <div className="block text-[11px] text-red">{blockers[0]}</div>
+      ) : null}
+      <CardFoot>
+        <CardPrice>{pc} capital</CardPrice>
+        <Button
+          className="ml-auto"
+          danger={staged === "apply"}
           disabled={blocked && staged !== "apply"}
           title={blocked && staged !== "apply" ? blockers.join("; ") : undefined}
           onClick={() => toggleBlocAccession(blocId, blockers.length)}
         >
           {staged === "apply" ? "Cancel" : "Join"}
-        </button>
-      </div>
-    </div>
+        </Button>
+      </CardFoot>
+    </Card>
   );
 }
 
@@ -209,10 +232,14 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
         const blockers = blocInviteBlockers(bid, cid);
         const approvals = blocInviteMemberApprovals(bid, cid);
         return (
-          <div key={cid} className="card staged-bloc-invite" id={`bloc-staged-${cid}`} style={{ marginTop: 8 }}>
-            <h4>
+          <Card
+            key={cid}
+            className="mt-2 border-accent shadow-[0_0_0_1px_rgba(10,132,255,.22)]"
+            id={`bloc-staged-${cid}`}
+          >
+            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               Propose {c ? c.name : cid} join {bloc ? bloc.name : bid}
-              <span className="cat">12 capital</span>
+              <CardCat>12 capital</CardCat>
             </h4>
             <Hint>
               Deliver this bill to send the invitation. After acceptance, accession runs
@@ -221,43 +248,36 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
             <AccessionPipeline cur={0} />
             <ApprovalTable approvals={approvals} />
             {blockers.length ? (
-              <div className="eff" style={{ color: "var(--red)", display: "block" }}>
-                {blockers[0]}
-              </div>
+              <div className="block text-[11px] text-red">{blockers[0]}</div>
             ) : (
-              <div className="eff" style={{ color: "var(--green)", display: "block" }}>
+              <div className="block text-[11px] text-green">
                 Ready to deliver — every member approves.
               </div>
             )}
-            <div className="foot">
-              <button
-                type="button"
-                className="btn danger tiny"
-                onClick={() => toggleBlocInviteDraft(cid)}
-              >
+            <CardFoot>
+              <Button danger tiny className="ml-auto" onClick={() => toggleBlocInviteDraft(cid)}>
                 Cancel
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardFoot>
+          </Card>
         );
       })}
       <BlocAccessionTracker G={G} bid={bid} />
-      <div className="bloc-leave-wrap">
-        <button type="button" className={G.draft.blocLeave ? "btn danger" : "btn"} onClick={() => toggleBlocLeave()}>
+      <div className="mt-3.5 mb-1">
+        <Button danger={!!G.draft.blocLeave} onClick={() => toggleBlocLeave()}>
           {G.draft.blocLeave ? "Cancel leave" : "Leave"}
-        </button>
+        </Button>
       </div>
       <div style={{ marginTop: 12 }}>
-        <button
-          type="button"
-          className="btn"
+        <Button
+          customSize
+          className="w-full px-4 py-2.5 text-[15px] font-semibold"
           disabled={!candidates.length}
           title={candidates.length ? undefined : "No eligible partners — all are in blocs or already invited"}
-          style={{ width: "100%", padding: "10px 16px", fontSize: 15, fontWeight: 600 }}
           onClick={() => showBlocInviteModal(bid)}
         >
           {candidates.length ? `Invite a member (${candidates.length} eligible)` : "Invite a member"}
-        </button>
+        </Button>
       </div>
     </>
   );
@@ -270,26 +290,26 @@ function BlocAccessionTracker({ G, bid }: { G: any; bid: string }) {
   if (!cids.size) return null;
   return (
     <>
-      <div className="flex items-center gap-[9px] mb-[9px] text-[10px] font-bold text-ink-faint tracking-[.1em] uppercase after:content-[''] after:flex-1 after:h-px after:bg-edge" style={{ marginTop: 10 }}>
+      <div className="mb-[9px] flex items-center gap-[9px] text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']" style={{ marginTop: 10 }}>
         Accession pipeline
       </div>
       {Array.from(cids).map((cid) => {
         const t = memberAccessionTrack(bid, cid);
         if (!t) return null;
         return (
-          <div key={cid} className="card acc-track" style={{ marginTop: 8 }}>
-            <h4>
+          <Card key={cid} className="mt-2">
+            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {t.name}
-              <span className="cat">{t.status}</span>
+              <CardCat>{t.status}</CardCat>
             </h4>
             <AccessionPipeline cur={t.cur} />
             <Hint>{t.detail}</Hint>
             {!t.ok ? (
-              <div className="eff" style={{ color: "var(--red)", display: "block" }}>
+              <div className="block text-[11px] text-red">
                 At risk — relations below the threshold
               </div>
             ) : null}
-          </div>
+          </Card>
         );
       })}
     </>
@@ -313,19 +333,19 @@ function BlocNonMemberView({ G }: { G: any }) {
           Accession in progress: <b>{b ? b.name : track.blocId}</b> — advances automatically
           each quarter (no further capital).
         </Hint>
-        <button className="btn tiny" onClick={() => withdrawBlocAccessionDraft()}>
+        <Button tiny onClick={() => withdrawBlocAccessionDraft()}>
           Cancel joining
-        </button>
+        </Button>
         {t ? (
-          <div className="card acc-track" style={{ marginTop: 8 }}>
-            <h4>
+          <Card className="mt-2">
+            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {b ? b.name : track.blocId}
-              <span className="cat">{t.status}</span>
+              <CardCat>{t.status}</CardCat>
             </h4>
             <AccessionPipeline cur={t.cur} />
             {track.step >= 2 ? <ApprovalTable approvals={blocMemberApprovals(track.blocId)} /> : null}
             <Hint>{t.detail}</Hint>
-          </div>
+          </Card>
         ) : null}
       </>
     );
@@ -337,9 +357,9 @@ function BlocNonMemberView({ G }: { G: any }) {
           Accession in progress: <b>{b ? b.name : acc.blocId}</b> — advances automatically each
           quarter.
         </Hint>
-        <button className="btn tiny" onClick={() => withdrawBlocAccessionDraft()}>
+        <Button tiny onClick={() => withdrawBlocAccessionDraft()}>
           Cancel joining
-        </button>
+        </Button>
       </>
     );
   } else {
@@ -367,37 +387,36 @@ function BlocNonMemberView({ G }: { G: any }) {
       {body}
       {!joining ? (
         G.draft.blocCreate ? (
-          <div className="card staged-bloc-create" style={{ marginTop: 12 }}>
-            <h4>
+          <Card className="mt-3">
+            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               Found <b>{G.draft.blocCreate.name || ((CUSTOM_BLOC_TEMPLATES as any)[G.draft.blocCreate.template]?.name ?? "bloc")}</b>
-              <span className="cat">
+              <CardCat>
                 {(CUSTOM_BLOC_TEMPLATES as any)[G.draft.blocCreate.template]?.pc ?? 28} capital
-              </span>
+              </CardCat>
             </h4>
             <Hint>
               {G.draft.blocCreate.template === "deep_integration"
                 ? "Customs union · zero internal tariffs · common external tariff locked at 5%"
                 : "Free trade area · preferential internal rates · members keep independent tariff policy"}
             </Hint>
-            <div className="foot">
-              <button type="button" className="btn danger tiny" onClick={() => unstageBlocCreate()}>
+            <CardFoot>
+              <Button danger tiny className="ml-auto" onClick={() => unstageBlocCreate()}>
                 Cancel
-              </button>
-            </div>
-          </div>
+              </Button>
+            </CardFoot>
+          </Card>
         ) : (
-          <div style={{ marginTop: 12 }}>
-            <button
-              type="button"
-              className="btn"
-              style={{ width: "100%", padding: "10px 16px", fontSize: 15, fontWeight: 600 }}
+          <div className="mt-3">
+            <Button
+              customSize
+              className="w-full px-4 py-2.5 text-[15px] font-semibold"
               onClick={() => {
                 if (playerJoiningBloc()) return;
                 showBlocFoundModal();
               }}
             >
               Found a trade bloc
-            </button>
+            </Button>
           </div>
         )
       ) : null}
@@ -410,7 +429,7 @@ function BlocMembershipPanel({ G }: { G: any }) {
   const bid = countryBlocId(player);
   return (
     <>
-      <Eyebrow className="mt">Trade blocs</Eyebrow>
+      <Eyebrow className="mt-5">Trade blocs</Eyebrow>
       {bid ? <BlocMemberView G={G} bid={bid} /> : <BlocNonMemberView G={G} />}
     </>
   );
@@ -430,7 +449,7 @@ function TariffScheduleSection({ G }: { G: any }) {
           {lock.mode === "full" ? " Set in the bloc capital — you cannot change it." : ""}
         </Hint>
         {lock.mode === "cet" ? (
-          <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
             <Lever
               id="tariffCet"
               name="Common external tariff"
@@ -464,7 +483,7 @@ function TariffScheduleSection({ G }: { G: any }) {
 
   return (
     <>
-      <div className="bg-g-1 rounded-md border border-edge overflow-hidden">
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1">
         <Lever
           id="tariffDefault"
           name="Default external tariff"
@@ -484,7 +503,7 @@ function TariffScheduleSection({ G }: { G: any }) {
         const key = `tariffBloc:${bid}`;
         const val = sched.bloc[bid] != null ? sched.bloc[bid] : sched.default;
         return (
-          <div key={bid} className="bg-g-1 rounded-md border border-edge overflow-hidden">
+          <div key={bid} className="overflow-hidden rounded-md border border-edge bg-g-1">
             <Lever
               id={key}
               name={`${bloc ? bloc.name : bid} (${usedBlocs[bid]} countries)`}
@@ -506,12 +525,12 @@ function TariffScheduleSection({ G }: { G: any }) {
         if (!lone.length) return null;
         return (
           <div key={r}>
-            <Eyebrow className="mt">{(COUNTRY_REGIONS as any)[r] || r} (non-bloc)</Eyebrow>
+            <Eyebrow className="mt-5">{(COUNTRY_REGIONS as any)[r] || r} (non-bloc)</Eyebrow>
             {lone.map((p: Country) => {
               const key = `tariffCountry:${p.id}`;
               const val = sched.country[p.id] != null ? sched.country[p.id] : sched.default;
               return (
-                <div key={p.id} className="bg-g-1 rounded-md border border-edge overflow-hidden">
+                <div key={p.id} className="overflow-hidden rounded-md border border-edge bg-g-1">
                   <Lever
                     id={key}
                     name={p.name}
@@ -557,32 +576,36 @@ function TradeReadout({ G, Eagg }: { G: any; Eagg: any }) {
   );
 }
 
+const NATION_TH =
+  "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
+const NATION_TD = "first:text-left border-b border-white/5 px-2.5 py-1.5 text-right";
+
 function NationTable() {
   const rows = nationTableData();
-  const signCls = (v: number) => (v > 0 ? "pos" : v < 0 ? "neg" : "");
+  const signCls = (v: number) => (v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "");
   return (
-    <div className="ledger-wrap">
-      <table className="ledger">
+    <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+      <table className="w-full min-w-160 border-collapse text-[12.5px] tabular-nums">
         <thead>
           <tr>
-            <th>Country</th>
-            <th>Growth</th>
-            <th>Inflation</th>
-            <th>Deficit</th>
-            <th>Debt</th>
+            <th className={NATION_TH}>Country</th>
+            <th className={NATION_TH}>Growth</th>
+            <th className={NATION_TH}>Inflation</th>
+            <th className={NATION_TH}>Deficit</th>
+            <th className={NATION_TH}>Debt</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r: any, i: number) => (
             <tr key={i} style={r.us ? { background: "rgba(212,175,105,.16)" } : undefined}>
-              <td>
+              <td className={NATION_TD}>
                 {r.name}
                 {r.us ? " · you" : ""}
               </td>
-              <td className={signCls(r.growth)}>{r.growth.toFixed(1)}</td>
-              <td>{r.inflation.toFixed(1)}</td>
-              <td className={signCls(-r.deficit)}>{(-r.deficit).toFixed(1)}</td>
-              <td>{r.debt.toFixed(0)}</td>
+              <td className={`${NATION_TD} ${signCls(r.growth)}`}>{r.growth.toFixed(1)}</td>
+              <td className={NATION_TD}>{r.inflation.toFixed(1)}</td>
+              <td className={`${NATION_TD} ${signCls(-r.deficit)}`}>{(-r.deficit).toFixed(1)}</td>
+              <td className={NATION_TD}>{r.debt.toFixed(0)}</td>
             </tr>
           ))}
         </tbody>
@@ -610,9 +633,9 @@ function PartnerDealRow({
     <div style={{ borderTop: "1px solid var(--doc-3)", paddingTop: 8, marginTop: 4 }}>
       <div style={{ fontSize: 13, fontWeight: 600 }}>
         {d.name}
-        {isBlocExternal ? <span className="cat">bloc treaty</span> : null}
+        {isBlocExternal ? <CardCat>bloc treaty</CardCat> : null}
       </div>
-      <div className="eff" style={{ display: "block", color: "var(--ink-soft)", margin: "3px 0 5px" }}>
+      <div className="my-1.25 block text-[11px] text-ink-soft">
         {d.terms.map((t: string, i: number) => (
           <span key={i}>
             · {t}
@@ -621,14 +644,15 @@ function PartnerDealRow({
         ))}
       </div>
       {unmet.length && !signed ? (
-        <div className="eff" style={{ color: "var(--red)", display: "block" }}>
+        <div className="block text-[11px] text-red">
           Blocked: {unmet.join("; ")}
         </div>
       ) : null}
-      <div className="foot">
-        <span className="pc">{signed ? "ratified" : `${d.pc} capital`}</span>
-        <button
-          className={`btn ${staged ? "danger" : ""}`.trim()}
+      <CardFoot>
+        <CardPrice>{signed ? "ratified" : `${d.pc} capital`}</CardPrice>
+        <Button
+          className="ml-auto"
+          danger={staged}
           disabled={unmet.length > 0 && !staged && !signed}
           onClick={() =>
             isBlocExternal ? toggleBlocExternalDeal(d.id, partnerId) : toggleDraftDeal(d.id)
@@ -645,8 +669,8 @@ function PartnerDealRow({
                 ? "Withdraw"
                 : "Cancel"
               : "Ratify"}
-        </button>
-      </div>
+        </Button>
+      </CardFoot>
     </div>
   );
 }
@@ -666,7 +690,7 @@ function PartnerTradeCard({ p, G, bilat, bilatTotal }: { p: Country; G: any; bil
   let dealsBody: ReactNode = null;
   if (playerInBloc && !founder) {
     dealsBody = (
-      <div className="eff" style={{ color: "var(--ink-faint)", display: "block", marginTop: 6 }}>
+      <div className="mt-1.5 block text-[11px] text-ink-faint">
         Bilateral deals unavailable while in a trade bloc.
       </div>
     );
@@ -701,7 +725,7 @@ function PartnerTradeCard({ p, G, bilat, bilatTotal }: { p: Country; G: any; bil
         <div key={d.id}>
           <PartnerDealRow d={d} signed={signed} staged={staged} unmet={unmet} isBlocExternal={false} partnerId={p.id} />
           {hint ? (
-            <div className="eff" style={{ color: "var(--amber)", display: "block" }}>
+            <div className="block text-[11px] text-amber">
               {hint}
             </div>
           ) : null}
@@ -710,37 +734,40 @@ function PartnerTradeCard({ p, G, bilat, bilatTotal }: { p: Country; G: any; bil
     });
   } else if (partnerInBloc) {
     dealsBody = (
-      <div className="eff" style={{ color: "var(--ink-faint)", display: "block", marginTop: 6 }}>
+      <div className="mt-1.5 block text-[11px] text-ink-faint">
         Partner trades through {bloc ? bloc.name : "their bloc"} — bilateral deals unavailable.
       </div>
     );
   }
 
   return (
-    <div className="card" id={`partner-trade-${p.id}`}>
-      <h4>
+    <Card id={`partner-trade-${p.id}`}>
+      <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {p.name}
-        <span className="cat">{T(shareLabel(G.homeRole, p.id, p.tradeShare))}</span>
+        <CardCat>{T(shareLabel(G.homeRole, p.id, p.tradeShare))}</CardCat>
       </h4>
-      {bloc ? <div className="eff" style={{ color: "var(--ink-faint)" }}>{bloc.name}</div> : null}
-      <p>{p.blurb}</p>
-      <div className="frow" style={{ gridTemplateColumns: "70px 1fr 30px" }}>
+      {bloc ? <div className="text-[11px] text-ink-faint">{bloc.name}</div> : null}
+      <p className="m-0 text-xs leading-[1.42] text-ink-soft">{p.blurb}</p>
+      <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-[11.5px]">
         <span style={{ fontSize: 11 }}>Relations</span>
-        <span className="fb">
-          <i className={rel > 60 ? "good" : rel < 38 ? "bad" : ""} style={{ width: `${rel.toFixed(0)}%` }} />
+        <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+          <i
+            className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${rel > 60 ? "bg-green" : rel < 38 ? "bg-red" : "bg-ink-soft"}`}
+            style={{ width: `${rel.toFixed(0)}%` }}
+          />
         </span>
-        <span className="fv">{rel.toFixed(0)}</span>
+        <span className="text-right text-[11.5px] font-[650] text-ink-soft">{rel.toFixed(0)}</span>
       </div>
-      <div className="eff" style={{ display: "block", color: "var(--ink-soft)", margin: "4px 0" }}>
+      <div className="my-1 block text-[11px] text-ink-soft">
         Exports {Xi.toFixed(1)} ({sharePct}%) · tariff {effectiveTariff(p.id, G.draft).toFixed(1)}%
       </div>
       {stress >= 1 ? (
-        <div className="eff" style={{ color: "var(--red)", display: "block" }}>
+        <div className="block text-[11px] text-red">
           Deal access suspended (stress {stress.toFixed(0)})
         </div>
       ) : null}
       {dealsBody}
-    </div>
+    </Card>
   );
 }
 
@@ -760,12 +787,12 @@ function PartnerCardsByRegion({ G }: { G: any }) {
         if (!list || !list.length) return null;
         return (
           <div key={r}>
-            <Eyebrow className="mt">{(COUNTRY_REGIONS as any)[r] || r}</Eyebrow>
-            <div className="cards">
+            <Eyebrow className="mt-5">{(COUNTRY_REGIONS as any)[r] || r}</Eyebrow>
+            <CardGrid>
               {list.map((p: Country) => (
                 <PartnerTradeCard key={p.id} p={p} G={G} bilat={bilat} bilatTotal={bilatTotal} />
               ))}
-            </div>
+            </CardGrid>
           </div>
         );
       })}
@@ -783,16 +810,16 @@ export function TradePanel() {
     <>
       <CurrencyPanel G={G} />
       <BlocMembershipPanel G={G} />
-      <Eyebrow className="mt">Tariffs</Eyebrow>
+      <Eyebrow className="mt-5">Tariffs</Eyebrow>
       <Hint>
         Set rates by bloc or country. Partners in the same bloc share one lever. Customs-union
         members trade at zero internally.
       </Hint>
       <TradeReadout G={G} Eagg={Eagg} />
       <TariffScheduleSection G={G} />
-      <Eyebrow className="mt">How {G.country} compares</Eyebrow>
+      <Eyebrow className="mt-5">How {G.country} compares</Eyebrow>
       <NationTable />
-      <Eyebrow className="mt">Partners and agreements</Eyebrow>
+      <Eyebrow className="mt-5">Partners and agreements</Eyebrow>
       <PartnerCardsByRegion G={G} />
     </>
   );

@@ -16,6 +16,7 @@ import {
   polityOf,
 } from "../../lib/sim/engine.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
+import { SetupGoButton } from "../ui/SetupGoButton.tsx";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role: string) {
@@ -53,9 +54,13 @@ function modeHint(sandbox: boolean, meta: any) {
 
 function SetupStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="setup-stat">
-      <span className="setup-stat-k">{label}</span>
-      <span className="setup-stat-v">{value}</span>
+    <div className="flex min-w-0 flex-col gap-px">
+      <span className="text-[9px] font-bold tracking-[.08em] text-ink-faint uppercase">
+        {label}
+      </span>
+      <span className="text-[13px] font-semibold tracking-[-.02em] text-ink tabular-nums">
+        {value}
+      </span>
     </div>
   );
 }
@@ -122,15 +127,21 @@ export default function CountryPicker({
       </HudFrame>
 
       <HudFrame className="setup-dock hud-surface">
-        <div className="setup-pick">
-          <div className="setup-pick-head">
-            <div className="setup-pick-title">
+        <div className="flex min-w-0 flex-1 flex-col gap-0">
+          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.75">
               <strong>{realm.name}</strong>
               <em>{realm.blurb}</em>
             </div>
-            <div className="setup-mode" role="group" aria-label="Game mode">
-              <span className="setup-mode-label">Mode</span>
-              <div className="flex w-full bg-g-1 rounded-sm p-0.5 gap-0.5">
+            <div
+              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-[560px]:max-w-none max-[560px]:items-start"
+              role="group"
+              aria-label="Game mode"
+            >
+              <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+                Mode
+              </span>
+              <div className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                 <button
                   type="button"
                   aria-pressed={!sandbox}
@@ -140,7 +151,7 @@ export default function CountryPicker({
                       ? "Tutorial runs in Sandbox"
                       : undefined
                   }
-                  className="flex-1 bg-transparent border-0 rounded py-1.25 px-1 cursor-pointer text-[10px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2 disabled:cursor-not-allowed"
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                   onClick={() => {
                     if (!sandboxLocked) setSandbox(false);
                   }}
@@ -152,26 +163,34 @@ export default function CountryPicker({
                   aria-pressed={sandbox}
                   onClick={() => setSandbox(true)}
                   title="Cannot be removed from office"
-                  className="flex-1 bg-transparent border-0 rounded py-1.25 px-1 cursor-pointer text-[10px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2"
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                 >
                   Sandbox
                 </button>
               </div>
-              <p className="setup-mode-hint">{modeHint(sandbox, meta)}</p>
-              <label className="setup-check">
+              <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-[560px]:text-left">
+                {modeHint(sandbox, meta)}
+              </p>
+              <label className="mt-0.5 flex max-w-full cursor-pointer items-start gap-2 text-left max-[560px]:max-w-none">
                 <input
                   type="checkbox"
                   checked={tutorial}
                   onChange={(e) => setTutorialOn(e.target.checked)}
+                  className="mt-0.75 flex-none accent-blue"
                 />
-                <span>
-                  <strong>Tutorial</strong>
-                  <em>Sandbox walkthrough as the United Kingdom.</em>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <strong className="text-xs font-[650] text-ink">Tutorial</strong>
+                  <em className="text-[11px] leading-[1.35] text-ink-soft not-italic">
+                    Sandbox walkthrough as the United Kingdom.
+                  </em>
                 </span>
               </label>
             </div>
           </div>
-          <div className="setup-books" aria-label={`Opening books for ${realm.name}`}>
+          <div
+            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-[560px]:grid-cols-2"
+            aria-label={`Opening books for ${realm.name}`}
+          >
             <SetupStat label="Polity" value={meta.label} />
             <SetupStat label="GDP" value={fmtGdpBn(books.gdpBn)} />
             <SetupStat label="Debt" value={books.debt.toFixed(0) + "%"} />
@@ -181,10 +200,8 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="setup-actions">
-          <button
-            type="button"
-            className="setup-go"
+        <div className="flex flex-wrap items-center justify-end gap-2 max-[560px]:flex-col max-[560px]:items-stretch">
+          <SetupGoButton
             onClick={() =>
               onStart(
                 tutorial
@@ -208,22 +225,21 @@ export default function CountryPicker({
             }
           >
             Get started
-          </button>
+          </SetupGoButton>
           {typeof onMultiplayer === "function" && (
-            <button
-              type="button"
-              className="setup-go secondary"
+            <SetupGoButton
+              secondary
               onClick={() => onMultiplayer({ realm, name, sandbox })}
               disabled={tutorial}
               title={tutorial ? "Leave the tutorial to open multiplayer" : undefined}
             >
               Multiplayer lobby
-            </button>
+            </SetupGoButton>
           )}
           {typeof onResume === "function" && (
-            <button type="button" className="setup-go secondary" onClick={onResume}>
+            <SetupGoButton secondary onClick={onResume}>
               Resume multiplayer
-            </button>
+            </SetupGoButton>
           )}
         </div>
       </HudFrame>

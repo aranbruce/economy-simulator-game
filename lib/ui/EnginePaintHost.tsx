@@ -16,5 +16,5 @@ export function EnginePaintHost({ paint }: EnginePaintHostProps) {
     if (ref.current && paint) paint(ref.current);
   }, [tick, paint]);
 
-  return <div ref={ref} className="engine-paint-host" />;
+  return <div ref={ref} />;
 }

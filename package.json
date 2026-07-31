@@ -9,6 +9,10 @@
     "start": "next start",
     "test": "tsx test/sim.js && tsx test/calibration.js && tsx test/mp-room.js && tsx test/scrollDrawerPartner.js",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "balance": "tsx scripts/balance-30y.mjs",
     "world-modes": "tsx scripts/world-modes-30y.mjs"
   },
@@ -24,7 +28,12 @@
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.12",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-tailwindcss": "^4.2.0",
     "postcss": "^8.5.24",
+    "prettier": "^3.9.6",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.1",
     "typescript": "^6.0.3"
