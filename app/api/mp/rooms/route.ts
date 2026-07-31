@@ -14,14 +14,14 @@ export async function POST(request: NextRequest) {
     if ("error" in result) {
       return Response.json(
         { error: result.error, store: mpStoreMode() },
-        { status: result.status || 500 }
+        { status: result.status || 500 },
       );
     }
     return Response.json(result);
   } catch (err) {
     return Response.json(
       { error: err instanceof Error ? err.message : "Failed to create room" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

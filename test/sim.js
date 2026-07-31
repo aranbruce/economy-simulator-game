@@ -191,7 +191,8 @@ function assert(cond, msg) {
   }
 }
 function ensureSched(law) {
-  if (!law.tariffSchedule) law.tariffSchedule = { default: 4, country: {}, bloc: {} };
+  if (!law.tariffSchedule)
+    law.tariffSchedule = { default: 4, country: {}, bloc: {} };
   if (!law.tariffSchedule.country) law.tariffSchedule.country = {};
 }
 
@@ -201,25 +202,25 @@ const bal = balanceOf(G.law, G.econ);
 const deficitPct = -bal.balance;
 assert(
   deficitPct > 4 && deficitPct < 6,
-  `opening deficit near UK band (got ${deficitPct.toFixed(2)}% of GDP)`
+  `opening deficit near UK band (got ${deficitPct.toFixed(2)}% of GDP)`,
 );
 assert(G.econ.debt === 94, "opening debt is 94% of GDP");
 assert(G.econ.rate === 3.75, "opening Bank rate is 3.75%");
 assert(G.econ.inflation === 2.9, "opening inflation is 2.9%");
 assert(
   Math.abs(G.econ.privateWealth - 80) < 0.01,
-  `opening privateWealth is 80% of GDP (got ${G.econ.privateWealth})`
+  `opening privateWealth is 80% of GDP (got ${G.econ.privateWealth})`,
 );
 {
   const g0 = step(G, G.law, G.law, true).growth;
   const g1 = step(G, G.law, G.law, true).growth;
   assert(
     Math.abs(g0) < 2 && Math.abs(g1) < 2,
-    `opening growth stays quiet (got ${g0.toFixed(2)} then ${g1.toFixed(2)})`
+    `opening growth stays quiet (got ${g0.toFixed(2)} then ${g1.toFixed(2)})`,
   );
   assert(
     Math.abs(g0 - g1) < 1.2,
-    `Q1→Q2 growth swing is small without a bill (got ${Math.abs(g0 - g1).toFixed(2)}pp)`
+    `Q1→Q2 growth swing is small without a bill (got ${Math.abs(g0 - g1).toFixed(2)}pp)`,
   );
   /* Balance chip and Deficit card both read the logged outturn (deficit = −balance).
      A live balanceOf drifts once the cyclical shares move — do not use it for either. */
@@ -227,11 +228,11 @@ assert(
   const lastBal = G.log[G.log.length - 1].balance;
   assert(
     Math.abs(lastBal - G.econ.balGovt) < 1e-9,
-    "logged balance equals sectoral balGovt"
+    "logged balance equals sectoral balGovt",
   );
   assert(
     Math.abs(balanceOf(G.law, G.econ).balance - lastBal) > 0.01,
-    "live balanceOf drifts from outturn (chip must use the log)"
+    "live balanceOf drifts from outturn (chip must use the log)",
   );
 }
 newGame();
@@ -272,7 +273,7 @@ G.capital = snapG.capital;
 step(G, G.law, G.prevLaw, true);
 assert(
   JSON.stringify(G.econ) === JSON.stringify(mid),
-  "step(det=true) is deterministic"
+  "step(det=true) is deterministic",
 );
 
 assert(POLICIES.length > 10, `policies loaded (${POLICIES.length})`);
@@ -283,7 +284,7 @@ G = getG();
 const path = simulate(G.law, 8);
 assert(
   path && Array.isArray(path.rows) && path.rows.length === 8,
-  "simulate returns eight quarterly rows"
+  "simulate returns eight quarterly rows",
 );
 
 /* Event options must leave only structural mod keys — never growth/inflation. */
@@ -321,7 +322,12 @@ for (const ev of EVENTS) {
       applyEventOption(opt);
     } catch (err) {
       bannedHit++;
-      console.error("FAIL: applyEventOption threw on", ev.id, opt.b, err.message);
+      console.error(
+        "FAIL: applyEventOption threw on",
+        ev.id,
+        opt.b,
+        err.message,
+      );
       continue;
     }
     for (const m of G.mods) {
@@ -337,7 +343,10 @@ for (const ev of EVENTS) {
     });
   }
 }
-assert(bannedHit === 0, `no event option leaves growth/inflation mods (${optCount} options)`);
+assert(
+  bannedHit === 0,
+  `no event option leaves growth/inflation mods (${optCount} options)`,
+);
 
 /* Social pressure channels press targets — not a one-shot stock smash. */
 newGame();
@@ -347,7 +356,7 @@ applyEventOption({ shocks: [{ channel: "srv", points: -10, q: 8 }] });
 for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
 assert(
   G.econ.services < svc0 - 1,
-  `srv shock degrades services over time (${svc0.toFixed(1)} → ${G.econ.services.toFixed(1)})`
+  `srv shock degrades services over time (${svc0.toFixed(1)} → ${G.econ.services.toFixed(1)})`,
 );
 
 /* Boom is a TFP revision, not a debt write-down. */
@@ -359,12 +368,17 @@ const boom = EVENTS.find((e) => e.id === "boom");
 applyEventOption(boom.opts[0]);
 assert(Math.abs(G.econ.debt - boomDebt0) < 1e-9, "boom does not smash debt");
 step(G, G.law, G.law, true);
-assert(G.econ.A > boomA0, `boom lifts TFP via tfp channel (${boomA0.toFixed(4)} → ${G.econ.A.toFixed(4)})`);
+assert(
+  G.econ.A > boomA0,
+  `boom lifts TFP via tfp channel (${boomA0.toFixed(4)} → ${G.econ.A.toFixed(4)})`,
+);
 
 /* Event option f() bodies must not assign outcome stocks directly. */
 {
   const src = EVENTS.map((e) =>
-    e.opts.map((o) => (o.f ? Function.prototype.toString.call(o.f) : "")).join("\n")
+    e.opts
+      .map((o) => (o.f ? Function.prototype.toString.call(o.f) : ""))
+      .join("\n"),
   ).join("\n");
   const bannedAssign = [
     /G\.econ\.services\s*[+\-*/]?=/,
@@ -382,7 +396,10 @@ assert(G.econ.A > boomA0, `boom lifts TFP via tfp channel (${boomA0.toFixed(4)} 
       console.error("FAIL: event f() still assigns outcome stock matching", re);
     }
   }
-  assert(smash === 0, "event option f() does not assign services/health/crime/gdp/inflation/A/debt");
+  assert(
+    smash === 0,
+    "event option f() does not assign services/health/crime/gdp/inflation/A/debt",
+  );
 }
 
 /* Foreign-tariff style shock: tot + worldPartner should worsen net trade and
@@ -401,15 +418,16 @@ applyEventOption({
 const hit = simulate(G.law, 6);
 const baseNT = base.rows.reduce((a, r) => a + (r.netTrade ?? r.X - r.M), 0);
 const hitNT = hit.rows.reduce((a, r) => a + (r.netTrade ?? r.X - r.M), 0);
-const baseInf = base.rows.reduce((a, r) => a + r.inflation, 0) / base.rows.length;
+const baseInf =
+  base.rows.reduce((a, r) => a + r.inflation, 0) / base.rows.length;
 const hitInf = hit.rows.reduce((a, r) => a + r.inflation, 0) / hit.rows.length;
 assert(
   hitNT < baseNT,
-  `tariff shock worsens cumulative net trade (${hitNT.toFixed(2)} vs ${baseNT.toFixed(2)})`
+  `tariff shock worsens cumulative net trade (${hitNT.toFixed(2)} vs ${baseNT.toFixed(2)})`,
 );
 assert(
   hitInf >= baseInf - 0.05,
-  `tariff shock does not lower average inflation (${hitInf.toFixed(2)} vs ${baseInf.toFixed(2)})`
+  `tariff shock does not lower average inflation (${hitInf.toFixed(2)} vs ${baseInf.toFixed(2)})`,
 );
 
 /* Housing / mortgage transmission: fixation lag and rate → weaker consumption. */
@@ -451,7 +469,7 @@ newGame();
 G = getG();
 assert(
   G.econ.mortgageDebt > 40 && G.econ.housePrice > 90,
-  `housing stocks initialise (debt ${G.econ.mortgageDebt}, hp ${G.econ.housePrice})`
+  `housing stocks initialise (debt ${G.econ.mortgageDebt}, hp ${G.econ.housePrice})`,
 );
 
 const mort0 = G.econ.mortgageRate;
@@ -460,7 +478,7 @@ step(G, G.law, G.prevLaw, true);
 const mortDelta = G.econ.mortgageRate - mort0;
 assert(
   mortDelta > 0 && mortDelta < 1.5,
-  `mortgage fixation: rate +2 moves mortgageRate by ${mortDelta.toFixed(3)} (< full pass-through)`
+  `mortgage fixation: rate +2 moves mortgageRate by ${mortDelta.toFixed(3)} (< full pass-through)`,
 );
 
 const loose = pathAtPinnedRate(3.75, 8);
@@ -469,19 +487,19 @@ const sumG = (rows) => rows.reduce((a, r) => a + r.growth, 0);
 const sumI = (rows) => rows.reduce((a, r) => a + r.I, 0);
 assert(
   sumG(tight.rows) < sumG(loose.rows),
-  `higher Bank rate lowers cumulative growth (${sumG(tight.rows).toFixed(2)} vs ${sumG(loose.rows).toFixed(2)})`
+  `higher Bank rate lowers cumulative growth (${sumG(tight.rows).toFixed(2)} vs ${sumG(loose.rows).toFixed(2)})`,
 );
 assert(
   sumI(tight.rows) < sumI(loose.rows),
-  `higher Bank rate lowers cumulative investment (${sumI(tight.rows).toFixed(2)} vs ${sumI(loose.rows).toFixed(2)})`
+  `higher Bank rate lowers cumulative investment (${sumI(tight.rows).toFixed(2)} vs ${sumI(loose.rows).toFixed(2)})`,
 );
 assert(
   tight.end.econ.mortgageRate > loose.end.econ.mortgageRate,
-  "pinned high rate lifts effective mortgage rate over eight quarters"
+  "pinned high rate lifts effective mortgage rate over eight quarters",
 );
 assert(
   tight.end.econ.housePrice < loose.end.econ.housePrice,
-  `higher rates weigh on house prices (${tight.end.econ.housePrice.toFixed(2)} vs ${loose.end.econ.housePrice.toFixed(2)})`
+  `higher rates weigh on house prices (${tight.end.econ.housePrice.toFixed(2)} vs ${loose.end.econ.housePrice.toFixed(2)})`,
 );
 /* Consumption levels are buffered by tax stabilisers and a state-dependent
    constrained share, so the mortgage channel is checked via service and wealth
@@ -496,7 +514,7 @@ assert(G.rateManual === false, "fresh game defaults to Bank rate mode");
   for (let i = 0; i < 8; i++) step(G, G.law, G.prevLaw, true);
   assert(
     Math.abs(G.econ.rate - r0) > 0.01,
-    `Bank mode moves the rate under Taylor (${r0.toFixed(2)} → ${G.econ.rate.toFixed(2)})`
+    `Bank mode moves the rate under Taylor (${r0.toFixed(2)} → ${G.econ.rate.toFixed(2)})`,
   );
 }
 newGame();
@@ -507,29 +525,32 @@ G.econ.rate = 5.0;
 for (let i = 0; i < 6; i++) step(G, G.law, G.prevLaw, true);
 assert(
   Math.abs(G.econ.rate - 5.0) < 1e-9,
-  `manual mode holds the rate at 5.0 (got ${G.econ.rate})`
+  `manual mode holds the rate at 5.0 (got ${G.econ.rate})`,
 );
 {
   const pinned = simulate(G.law, 4);
   assert(
     Math.abs(pinned.end.econ.rate - 5.0) < 1e-9,
-    `simulate respects manual rate pin (got ${pinned.end.econ.rate})`
+    `simulate respects manual rate pin (got ${pinned.end.econ.rate})`,
   );
 }
 assert(
   Math.abs(G.econ.rate - 5.0) < 1e-9,
-  "simulate does not leak a Taylor drift into live manual rate"
+  "simulate does not leak a Taylor drift into live manual rate",
 );
 {
   const im = impactOfRatePin(4);
   assert(Math.abs(im.pin - 5.0) < 1e-9, "rate impact reports the pinned level");
   assert(
     im.head.growth < -0.05,
-    `pinning above the Bank cuts cumulative growth vs Taylor (${im.head.growth.toFixed(2)})`
+    `pinning above the Bank cuts cumulative growth vs Taylor (${im.head.growth.toFixed(2)})`,
   );
   const before = G.econ.rate;
   impactOfRatePin(4);
-  assert(G.econ.rate === before && G.rateManual === true, "rate impact preview does not mutate live state");
+  assert(
+    G.econ.rate === before && G.rateManual === true,
+    "rate impact preview does not mutate live state",
+  );
 }
 newGame();
 G = getG();
@@ -538,26 +559,26 @@ G.manualRate = -0.5;
 G.econ.rate = -0.5;
 for (let i = 0; i < 4; i++) step(G, G.law, G.prevLaw, true);
 assert(
-  Math.abs(G.econ.rate - (-0.5)) < 1e-9,
-  `manual mode can hold a negative rate (got ${G.econ.rate})`
+  Math.abs(G.econ.rate - -0.5) < 1e-9,
+  `manual mode can hold a negative rate (got ${G.econ.rate})`,
 );
 G.manualRate = -2;
 G.econ.rate = -2;
 for (let i = 0; i < 4; i++) step(G, G.law, G.prevLaw, true);
 assert(
-  Math.abs(G.econ.rate - (-2)) < 1e-9,
-  `manual mode can hold at −2% (got ${G.econ.rate})`
+  Math.abs(G.econ.rate - -2) < 1e-9,
+  `manual mode can hold at −2% (got ${G.econ.rate})`,
 );
 G.manualRate = -3;
 G.econ.rate = -3;
 step(G, G.law, G.prevLaw, true);
 assert(
-  Math.abs(G.econ.rate - (-2)) < 1e-9,
-  `manual mode clamps below −2% (got ${G.econ.rate})`
+  Math.abs(G.econ.rate - -2) < 1e-9,
+  `manual mode clamps below −2% (got ${G.econ.rate})`,
 );
 assert(
   tight.end.econ.mortgageRate - 3.75 > loose.end.econ.mortgageRate - 3.75,
-  "tight path carries a larger mortgage-rate gap versus neutral"
+  "tight path carries a larger mortgage-rate gap versus neutral",
 );
 
 /* Content `imp` must not write pot/gro/inf/nairu — those are structural only. */
@@ -593,11 +614,11 @@ G = getG();
 const E0 = aggregate(G.law);
 assert(
   E0.pot === undefined && !("pot" in E0),
-  "aggregate no longer exposes pot"
+  "aggregate no longer exposes pot",
 );
 assert(
   (E0.tfp !== undefined || E0.ucost !== undefined) && E0.open <= 0,
-  "aggregate still carries structural and openness channels"
+  "aggregate still carries structural and openness channels",
 );
 
 /* Indirect-tax echo: a fuel-duty rise lifts inflation on impact vs baseline. */
@@ -611,7 +632,7 @@ fuelLaw.taxes.fuel.rate = Math.min(25, fuelLaw.taxes.fuel.rate + 8);
 const hitFuel = simulate(fuelLaw, 4);
 assert(
   hitFuel.rows[0].inflation > baseFuel.rows[0].inflation,
-  `fuel duty rise lifts first-quarter inflation (${hitFuel.rows[0].inflation.toFixed(2)} vs ${baseFuel.rows[0].inflation.toFixed(2)})`
+  `fuel duty rise lifts first-quarter inflation (${hitFuel.rows[0].inflation.toFixed(2)} vs ${baseFuel.rows[0].inflation.toFixed(2)})`,
 );
 
 /* Demography: dependency and population stocks move; open visas raise working-age stock. */
@@ -619,14 +640,14 @@ newGame();
 G = getG();
 assert(
   G.econ.popWork > 50 && G.econ.popOld > 10 && G.econ.dependency > 0.2,
-  `demography stocks initialise (work ${G.econ.popWork}, dep ${G.econ.dependency.toFixed(3)})`
+  `demography stocks initialise (work ${G.econ.popWork}, dep ${G.econ.dependency.toFixed(3)})`,
 );
 const dep0 = G.econ.dependency;
 const work0 = G.econ.popWork;
 for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
 assert(
   Math.abs(G.econ.dependency - dep0) > 0.001 || G.econ.popWork !== work0,
-  `demography moves over forty quarters (dep ${G.econ.dependency.toFixed(3)}, work ${G.econ.popWork.toFixed(2)})`
+  `demography moves over forty quarters (dep ${G.econ.dependency.toFixed(3)}, work ${G.econ.popWork.toFixed(2)})`,
 );
 newGame();
 G = getG();
@@ -638,7 +659,7 @@ visaLaw.policies.openVisas = true;
 const open = simulate(visaLaw, 16);
 assert(
   open.end.econ.popWork > closed.end.econ.popWork,
-  `open visas raise working-age population (${open.end.econ.popWork.toFixed(2)} vs ${closed.end.econ.popWork.toFixed(2)})`
+  `open visas raise working-age population (${open.end.econ.popWork.toFixed(2)} vs ${closed.end.econ.popWork.toFixed(2)})`,
 );
 
 /* Housing stock-flow: planning raises the dwelling stock vs rent controls. */
@@ -646,7 +667,7 @@ newGame();
 G = getG();
 assert(
   G.econ.housingStock > 80 && G.econ.rentIndex > 80,
-  `housing stock-flow initialises (H ${G.econ.housingStock}, rent ${G.econ.rentIndex})`
+  `housing stock-flow initialises (H ${G.econ.housingStock}, rent ${G.econ.rentIndex})`,
 );
 const planLaw = clone(G.law);
 planLaw.policies.planning = true;
@@ -656,7 +677,7 @@ const planPath = simulate(planLaw, 20);
 const rentPath = simulate(rentLaw, 20);
 assert(
   planPath.end.econ.housingStock > rentPath.end.econ.housingStock,
-  `planning builds more dwellings than rent control (${planPath.end.econ.housingStock.toFixed(2)} vs ${rentPath.end.econ.housingStock.toFixed(2)})`
+  `planning builds more dwellings than rent control (${planPath.end.econ.housingStock.toFixed(2)} vs ${rentPath.end.econ.housingStock.toFixed(2)})`,
 );
 
 /* Credit accelerator: bank capital hit raises spreads and user cost. */
@@ -664,7 +685,7 @@ newGame();
 G = getG();
 assert(
   G.econ.bankCapital > 4 && G.econ.bankLeverage > 6,
-  `bank stocks initialise (cap ${G.econ.bankCapital}, lev ${G.econ.bankLeverage.toFixed(2)})`
+  `bank stocks initialise (cap ${G.econ.bankCapital}, lev ${G.econ.bankLeverage.toFixed(2)})`,
 );
 const beforeSpread = G.econ.creditSpread;
 G.econ.bankCapital = 3;
@@ -672,7 +693,7 @@ G.econ.riskPremium = 1.5;
 step(G, G.law, G.prevLaw, true);
 assert(
   G.econ.creditSpread > beforeSpread,
-  `weak bank capital / gilt scare lifts credit spread (${G.econ.creditSpread.toFixed(3)} vs ${beforeSpread.toFixed(3)})`
+  `weak bank capital / gilt scare lifts credit spread (${G.econ.creditSpread.toFixed(3)} vs ${beforeSpread.toFixed(3)})`,
 );
 
 /* Distributional Gini: UBI lowers measured inequality vs the baseline schedule. */
@@ -684,14 +705,14 @@ ubiLaw.policies.ubi = true;
 const ubiGini = incomeProfile(ubiLaw, G.econ).gini;
 assert(
   ubiGini < baseGini - 0.5,
-  `UBI lowers distributional Gini (${ubiGini.toFixed(2)} vs ${baseGini.toFixed(2)})`
+  `UBI lowers distributional Gini (${ubiGini.toFixed(2)} vs ${baseGini.toFixed(2)})`,
 );
 const flatLaw = clone(G.law);
 flatLaw.regime = "flat";
 const flatGini = incomeProfile(flatLaw, G.econ).gini;
 assert(
   flatGini > baseGini,
-  `flat tax raises distributional Gini (${flatGini.toFixed(2)} vs ${baseGini.toFixed(2)})`
+  `flat tax raises distributional Gini (${flatGini.toFixed(2)} vs ${baseGini.toFixed(2)})`,
 );
 
 /* Per-seat income distribution: base gini pin leaves the table unchanged;
@@ -700,23 +721,27 @@ assert(
 {
   clearOpeningCache();
   const baseAt35 = buildIncomeDist(BASE_DIST_GINI);
-  assert(baseAt35.length === BASE_INCOME_DIST.length, "buildIncomeDist(35) keeps slice count");
+  assert(
+    baseAt35.length === BASE_INCOME_DIST.length,
+    "buildIncomeDist(35) keeps slice count",
+  );
   for (let i = 0; i < BASE_INCOME_DIST.length; i++) {
     assert(
       Math.abs(baseAt35[i].inc - BASE_INCOME_DIST[i].inc) < 0.01 &&
         baseAt35[i].w === BASE_INCOME_DIST[i].w,
-      `buildIncomeDist(35) matches BASE_INCOME_DIST slice ${i}`
+      `buildIncomeDist(35) matches BASE_INCOME_DIST slice ${i}`,
     );
   }
   const sa = preTaxGini(incomeDistForRole("south_africa"));
   const nl = preTaxGini(incomeDistForRole("netherlands"));
   assert(
     sa > nl + 2,
-    `South Africa pre-tax Gini exceeds Netherlands (${sa.toFixed(1)} vs ${nl.toFixed(1)})`
+    `South Africa pre-tax Gini exceeds Netherlands (${sa.toFixed(1)} vs ${nl.toFixed(1)})`,
   );
   assert(
-    NATION_PROFILE.south_africa.soc0.gini > NATION_PROFILE.netherlands.soc0.gini,
-    "profile pins order South Africa above Netherlands"
+    NATION_PROFILE.south_africa.soc0.gini >
+      NATION_PROFILE.netherlands.soc0.gini,
+    "profile pins order South Africa above Netherlands",
   );
   newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
   G = getG();
@@ -726,8 +751,10 @@ assert(
   for (let q = 0; q < 4; q++) step(G, G.law, G.prevLaw || G.law, true);
   assert(
     G.econ.incomeDist.length === dist0.length &&
-      G.econ.incomeDist.every((s, i) => s.inc === dist0[i].inc && s.w === dist0[i].w),
-    "step leaves incomeDist unchanged"
+      G.econ.incomeDist.every(
+        (s, i) => s.inc === dist0[i].inc && s.w === dist0[i].w,
+      ),
+    "step leaves incomeDist unchanged",
   );
   clearOpeningCache();
   newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
@@ -735,7 +762,7 @@ assert(
   const y1 = incomeYield(G.law, aggregate(G.law), G.econ).income;
   assert(
     Math.abs(y0 - y1) < 0.05,
-    `home income tax yield stable across opens (${y0.toFixed(2)} vs ${y1.toFixed(2)})`
+    `home income tax yield stable across opens (${y0.toFixed(2)} vs ${y1.toFixed(2)})`,
   );
 }
 
@@ -744,8 +771,10 @@ newGame();
 G = getG();
 step(G, G.law, G.prevLaw, true);
 assert(
-  G.econ.bilateralX && G.econ.bilateralX.united_states > 0 && G.econ.bilateralX.france > G.econ.bilateralX.saudi,
-  "bilateral export vector initialises with france > gulf"
+  G.econ.bilateralX &&
+    G.econ.bilateralX.united_states > 0 &&
+    G.econ.bilateralX.france > G.econ.bilateralX.saudi,
+  "bilateral export vector initialises with france > gulf",
 );
 newGame();
 G = getG();
@@ -753,20 +782,22 @@ const baseBilat = simulate(G.law, 6);
 newGame();
 G = getG();
 applyEventOption({
-  shocks: [{ channel: "worldPartner", partner: "united_states", points: -4.0, q: 6 }],
+  shocks: [
+    { channel: "worldPartner", partner: "united_states", points: -4.0, q: 6 },
+  ],
 });
 const hitBilat = simulate(G.law, 6);
 const baseFed = baseBilat.end.econ.bilateralX?.united_states ?? 0;
 const hitFed = hitBilat.end.econ.bilateralX?.united_states ?? 0;
 assert(
   hitFed < baseFed,
-  `united_states partner shock cuts bilateral X_fed (${hitFed.toFixed(3)} vs ${baseFed.toFixed(3)})`
+  `united_states partner shock cuts bilateral X_fed (${hitFed.toFixed(3)} vs ${baseFed.toFixed(3)})`,
 );
 const baseCont = baseBilat.end.econ.bilateralX?.france ?? 0;
 const hitCont = hitBilat.end.econ.bilateralX?.france ?? 0;
 assert(
   Math.abs(hitCont - baseCont) < Math.abs(hitFed - baseFed) + 0.5,
-  "partner shock mainly hits the named bilateral, not france equally"
+  "partner shock mainly hits the named bilateral, not france equally",
 );
 
 /* World demand from partner GDP: opening pinned; large partners move worldY more. */
@@ -776,20 +807,20 @@ assert(
   G = getG();
   assert(
     Math.abs(G.econ.worldY - 100) < 1e-6,
-    `opening worldY is 100 (got ${G.econ.worldY})`
+    `opening worldY is 100 (got ${G.econ.worldY})`,
   );
   assert(
     G.econ.worldDemand0 > 0,
-    `worldDemand0 is set at open (got ${G.econ.worldDemand0})`
+    `worldDemand0 is set at open (got ${G.econ.worldDemand0})`,
   );
   assert(
     Math.abs((G.econ.worldRestY || 0) - 100) < 1e-6,
-    `opening worldRestY is 100 (got ${G.econ.worldRestY})`
+    `opening worldRestY is 100 (got ${G.econ.worldRestY})`,
   );
   const D0 = worldDemandBn(G.econ, G.homeRole);
   assert(
     Math.abs(D0 - G.econ.worldDemand0) < 0.01,
-    `worldDemandBn matches stored baseline (${D0.toFixed(1)} vs ${G.econ.worldDemand0.toFixed(1)})`
+    `worldDemandBn matches stored baseline (${D0.toFixed(1)} vs ${G.econ.worldDemand0.toFixed(1)})`,
   );
 
   G.econ.nations.united_states.y = 120;
@@ -803,7 +834,7 @@ assert(
   const dGulf = yGulf - 100;
   assert(
     dFed > dGulf,
-    `equal % boom: Federated lifts worldY more than Gulf (${dFed.toFixed(3)} vs ${dGulf.toFixed(3)})`
+    `equal % boom: Federated lifts worldY more than Gulf (${dFed.toFixed(3)} vs ${dGulf.toFixed(3)})`,
   );
 
   G.econ.nations.united_states.y = 100;
@@ -812,7 +843,7 @@ assert(
   const yRest = refreshWorldY(G.econ, G.homeRole);
   assert(
     yRest > 100,
-    `rest-of-world boom lifts worldY (got ${yRest.toFixed(3)})`
+    `rest-of-world boom lifts worldY (got ${yRest.toFixed(3)})`,
   );
   G.econ.worldRestY = 100;
   refreshWorldY(G.econ, G.homeRole);
@@ -822,11 +853,11 @@ assert(
   step(G, G.law, G.prevLaw, true);
   assert(
     G.econ.worldRestY > restBefore,
-    `world channel grows worldRestY (${G.econ.worldRestY.toFixed(3)} vs ${restBefore.toFixed(3)})`
+    `world channel grows worldRestY (${G.econ.worldRestY.toFixed(3)} vs ${restBefore.toFixed(3)})`,
   );
   assert(
     G.econ.worldY > 100,
-    `world channel lifts aggregate worldY (got ${G.econ.worldY.toFixed(3)})`
+    `world channel lifts aggregate worldY (got ${G.econ.worldY.toFixed(3)})`,
   );
 }
 
@@ -840,7 +871,7 @@ G = getG();
   const expected = p0 * (1 + (2 + 8) / 400);
   assert(
     Math.abs(G.econ.worldP - expected) < 1e-9,
-    `worldInfl raises worldP (${G.econ.worldP.toFixed(6)} vs ${expected.toFixed(6)})`
+    `worldInfl raises worldP (${G.econ.worldP.toFixed(6)} vs ${expected.toFixed(6)})`,
   );
 }
 newGame();
@@ -851,7 +882,7 @@ G = getG();
   step(G, G.law, G.prevLaw, true);
   assert(
     G.econ.fx < fx0,
-    `higher worldRate depreciates fx (${G.econ.fx.toFixed(4)} vs ${fx0.toFixed(4)})`
+    `higher worldRate depreciates fx (${G.econ.fx.toFixed(4)} vs ${fx0.toFixed(4)})`,
   );
 }
 newGame();
@@ -862,7 +893,7 @@ G = getG();
   step(G, G.law, G.prevLaw, true);
   assert(
     G.econ.A > a0,
-    `worldTfp spills into domestic A (${G.econ.A.toFixed(4)} vs ${a0.toFixed(4)}, spill=${WORLD_TFP_SPILL})`
+    `worldTfp spills into domestic A (${G.econ.A.toFixed(4)} vs ${a0.toFixed(4)}, spill=${WORLD_TFP_SPILL})`,
   );
 }
 
@@ -878,7 +909,7 @@ G = getG();
   step(G, G.law, G.prevLaw, true);
   assert(
     G.world[partnerId].econ.gdp < y0,
-    `world shock hits partner GDP (${G.world[partnerId].econ.gdp.toFixed(3)} vs ${y0.toFixed(3)})`
+    `world shock hits partner GDP (${G.world[partnerId].econ.gdp.toFixed(3)} vs ${y0.toFixed(3)})`,
   );
 }
 
@@ -889,8 +920,9 @@ G = getG();
   const majors = EVENTS.filter((e) => e.major);
   assert(majors.length === 9, `nine major episodes (got ${majors.length})`);
   assert(
-    G.nextMajorQ >= MAJOR_GAP_MIN && G.nextMajorQ < MAJOR_GAP_MIN + MAJOR_GAP_SPAN,
-    `opening nextMajorQ in 16–32 band (got ${G.nextMajorQ})`
+    G.nextMajorQ >= MAJOR_GAP_MIN &&
+      G.nextMajorQ < MAJOR_GAP_MIN + MAJOR_GAP_SPAN,
+    `opening nextMajorQ in 16–32 band (got ${G.nextMajorQ})`,
   );
   G.nextMajorQ = 999;
   assert(rollMajorEvent() === null, "major not drawn before nextMajorQ");
@@ -898,9 +930,15 @@ G = getG();
   const major = EVENTS.find((e) => e.id === "globalRecess");
   applyEventOption(major.opts[0]);
   beginEpisode(major, major.opts[0]);
-  assert(G.episode && G.episode.id === "globalRecess", "beginEpisode sets active episode");
+  assert(
+    G.episode && G.episode.id === "globalRecess",
+    "beginEpisode sets active episode",
+  );
   const dur = major.duration != null ? major.duration : 8;
-  assert(G.episode.endsQ === G.q + dur, `episode ends after duration (endsQ=${G.episode.endsQ}, want +${dur})`);
+  assert(
+    G.episode.endsQ === G.q + dur,
+    `episode ends after duration (endsQ=${G.episode.endsQ}, want +${dur})`,
+  );
   G.nextMajorQ = G.q;
   assert(rollMajorEvent() === null, "no second major while episode active");
   const endsQ = G.episode.endsQ;
@@ -911,9 +949,12 @@ G = getG();
   assert(
     G.nextMajorQ >= gapBefore + MAJOR_GAP_MIN &&
       G.nextMajorQ < gapBefore + MAJOR_GAP_MIN + MAJOR_GAP_SPAN,
-    `endEpisode schedules next major 16–32q out (got ${G.nextMajorQ} from ${gapBefore})`
+    `endEpisode schedules next major 16–32q out (got ${G.nextMajorQ} from ${gapBefore})`,
   );
-  assert(scheduleNextMajorQ(0, true) === 24, "deterministic scheduleNextMajorQ uses mid gap");
+  assert(
+    scheduleNextMajorQ(0, true) === 24,
+    "deterministic scheduleNextMajorQ uses mid gap",
+  );
 }
 
 /* Trade war raises tariffs and unwind restores them. */
@@ -926,13 +967,16 @@ G = getG();
   applyEventOption(opt);
   beginEpisode(war, opt);
   const during = tariffScheduleAverage(G.law, G.homeRole, G.blocMember);
-  assert(during > before, `trade war raises tariff average (${during.toFixed(2)} vs ${before.toFixed(2)})`);
+  assert(
+    during > before,
+    `trade war raises tariff average (${during.toFixed(2)} vs ${before.toFixed(2)})`,
+  );
   assert(G.episode && G.episode.tariffSnap, "trade war stores tariff snapshot");
   endEpisode();
   const after = tariffScheduleAverage(G.law, G.homeRole, G.blocMember);
   assert(
     Math.abs(after - before) < 1e-9,
-    `trade war unwind restores tariffs (${after.toFixed(2)} vs ${before.toFixed(2)})`
+    `trade war unwind restores tariffs (${after.toFixed(2)} vs ${before.toFixed(2)})`,
   );
 }
 
@@ -946,11 +990,11 @@ applyEventOption({ shocks: [{ channel: "uncertainty", points: 2.0, q: 6 }] });
 const jittery = simulate(G.law, 6);
 assert(
   jittery.end.econ.uncertainty > calm.end.econ.uncertainty,
-  `uncertainty stock persists (${jittery.end.econ.uncertainty.toFixed(2)} vs ${calm.end.econ.uncertainty.toFixed(2)})`
+  `uncertainty stock persists (${jittery.end.econ.uncertainty.toFixed(2)} vs ${calm.end.econ.uncertainty.toFixed(2)})`,
 );
 assert(
   jittery.end.econ.C < calm.end.econ.C,
-  `uncertainty lowers consumption (${jittery.end.econ.C.toFixed(2)} vs ${calm.end.econ.C.toFixed(2)})`
+  `uncertainty lowers consumption (${jittery.end.econ.C.toFixed(2)} vs ${calm.end.econ.C.toFixed(2)})`,
 );
 
 /* Triple lock: pension index rises with max(wage, CPI, 2.5%). */
@@ -962,14 +1006,14 @@ const idx0 = G.econ.pensionIndex;
 for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
 assert(
   G.econ.pensionIndex > idx0 * (1 + 2.4 / 400) ** 7,
-  `triple lock lifts pension index (${G.econ.pensionIndex.toFixed(4)} from ${idx0})`
+  `triple lock lifts pension index (${G.econ.pensionIndex.toFixed(4)} from ${idx0})`,
 );
 const spendWith = welfareCost(G.law, G.econ);
 G.law.policies.tripleLock = false;
 const spendWithout = welfareCost(G.law, G.econ);
 assert(
   spendWith > spendWithout,
-  `triple lock raises welfare cost (${spendWith.toFixed(2)} vs ${spendWithout.toFixed(2)})`
+  `triple lock raises welfare cost (${spendWith.toFixed(2)} vs ${spendWithout.toFixed(2)})`,
 );
 
 /* Allowance taper: £100k+ loses allowance; creates higher MTR in the window. */
@@ -977,15 +1021,16 @@ newGame();
 G = getG();
 assert(
   personalAllowance(90000, G.law) === G.law.income.allowance,
-  "allowance intact below taper"
+  "allowance intact below taper",
 );
 assert(
   personalAllowance(110000, G.law) < G.law.income.allowance,
-  `taper cuts allowance at £110k (${personalAllowance(110000, G.law).toFixed(0)})`
+  `taper cuts allowance at £110k (${personalAllowance(110000, G.law).toFixed(0)})`,
 );
 assert(
-  personalAllowance(110000, G.law) === G.law.income.allowance - 0.5 * (110000 - TAPER_START),
-  "taper withdraws 50p in the pound"
+  personalAllowance(110000, G.law) ===
+    G.law.income.allowance - 0.5 * (110000 - TAPER_START),
+  "taper withdraws 50p in the pound",
 );
 const baseRev = incomeYield(G.law, aggregate(G.law), G.econ).income;
 const noTaperLaw = clone(G.law);
@@ -995,7 +1040,7 @@ noTaperLaw.income.bands = [{ from: noTaperLaw.income.allowance, rate: 20 }];
 const flatRev = incomeYield(noTaperLaw, aggregate(noTaperLaw), G.econ).income;
 assert(
   Math.abs(baseRev - flatRev) > 0.01,
-  `taper/progressive schedule differs from flat (${baseRev.toFixed(2)} vs ${flatRev.toFixed(2)})`
+  `taper/progressive schedule differs from flat (${baseRev.toFixed(2)} vs ${flatRev.toFixed(2)})`,
 );
 
 /* Threshold slider max tracks wages so uprating never pins the thumb. */
@@ -1004,24 +1049,24 @@ G = getG();
 const openMax = thresholdSliderMax(30000, G.law.income.allowance, 250);
 assert(
   openMax >= 30000 && openMax >= G.law.income.allowance,
-  `opening allowance slider max covers base and live value (${openMax})`
+  `opening allowance slider max covers base and live value (${openMax})`,
 );
 G.econ.wageIndex = 2.5;
 const scaledMax = thresholdSliderMax(30000, G.law.income.allowance, 250);
 assert(
   scaledMax >= 30000 * 2.5,
-  `wage growth lifts allowance slider max (${scaledMax} >= ${30000 * 2.5})`
+  `wage growth lifts allowance slider max (${scaledMax} >= ${30000 * 2.5})`,
 );
 G.econ.wageIndex = 1;
 const pastCeil = thresholdSliderMax(30000, 40000, 250);
 assert(
   pastCeil >= 40000 * 1.15,
-  `slider max keeps headroom above an overshot live value (${pastCeil})`
+  `slider max keeps headroom above an overshot live value (${pastCeil})`,
 );
 const bandMax = thresholdSliderMax(300000, 350000, 1000);
 assert(
   bandMax >= 350000,
-  `band-floor slider max covers an overshot threshold (${bandMax})`
+  `band-floor slider max covers an overshot threshold (${bandMax})`,
 );
 
 /* Hold-service: raising the spend slider must raise the held standard, even if
@@ -1043,18 +1088,18 @@ assert(
   /* Mimic a slider drag that updated spend but forgot hold (pre-fix path). */
   G.draft.spend[id] = Math.min(
     DEPTS.find((d) => d.id === id).max,
-    G.draft.spend[id] + 1.5
+    G.draft.spend[id] + 1.5,
   );
   const staleHold = G.draft.hold[id];
   assert(
     Math.abs(staleHold - hold0) < 1e-9,
-    "precondition: hold still at the old standard before sync"
+    "precondition: hold still at the old standard before sync",
   );
   syncServiceHolds(G.draft, G.econ);
   const hold1 = G.draft.hold[id];
   assert(
     hold1 > hold0 + 1,
-    `syncServiceHolds lifts the held standard with the slider (${hold0.toFixed(1)} → ${hold1.toFixed(1)})`
+    `syncServiceHolds lifts the held standard with the slider (${hold0.toFixed(1)} → ${hold1.toFixed(1)})`,
   );
 
   G.prevLaw = clone(G.law);
@@ -1063,27 +1108,29 @@ assert(
   G.draft = clone(G.law);
   assert(
     Math.abs(G.law.hold[id] - hold1) < 1e-9,
-    "held standard survives the next quarter"
+    "held standard survives the next quarter",
   );
   assert(
     Math.abs(serviceScore(id, G.law, G.econ) - hold1) < 0.75,
-    `outturn service score tracks the new hold (got ${serviceScore(id, G.law, G.econ).toFixed(1)}, want ${hold1.toFixed(1)})`
+    `outturn service score tracks the new hold (got ${serviceScore(id, G.law, G.econ).toFixed(1)}, want ${hold1.toFixed(1)})`,
   );
 
   /* Undoing a spend clause must restore hold too. */
   G.draft.spend[id] = G.draft.spend[id] + 1;
   syncServiceHolds(G.draft, G.econ);
   const raisedHold = G.draft.hold[id];
-  const spendCl = billClauses().find((c) => /Health/.test(c.label) && /points of GDP/.test(c.label));
+  const spendCl = billClauses().find(
+    (c) => /Health/.test(c.label) && /points of GDP/.test(c.label),
+  );
   assert(spendCl, "raising health spend creates a bill clause");
   spendCl.undo();
   assert(
     Math.abs(G.draft.spend[id] - G.law.spend[id]) < 1e-9,
-    "undo restores spend"
+    "undo restores spend",
   );
   assert(
     Math.abs(G.draft.hold[id] - G.law.hold[id]) < 1e-9,
-    `undo restores hold (got ${G.draft.hold[id]}, law ${G.law.hold[id]}, raised was ${raisedHold})`
+    `undo restores hold (got ${G.draft.hold[id]}, law ${G.law.hold[id]}, raised was ${raisedHold})`,
   );
 }
 
@@ -1092,8 +1139,14 @@ assert(
   clearOpeningCache();
   newGame({ sandbox: true });
   G = getG();
-  assert(Math.abs(dragRatio(G.law, G.econ) - 1) < 0.01, "UK opens at full real allowance");
-  assert(G.econ.allowBase === 12570, "UK allowBase is the UK opening allowance");
+  assert(
+    Math.abs(dragRatio(G.law, G.econ) - 1) < 0.01,
+    "UK opens at full real allowance",
+  );
+  assert(
+    G.econ.allowBase === 12570,
+    "UK allowBase is the UK opening allowance",
+  );
   assert(Math.abs((G.econ.cpiIndex || 1) - 1) < 1e-9, "cpiIndex opens at 1");
 
   G.law.income.uprate = true;
@@ -1101,7 +1154,7 @@ assert(
   for (let i = 0; i < 12; i++) step(G, G.law, G.law, true);
   assert(
     Math.abs(dragRatio(G.law, G.econ) - 1) < 0.005,
-    `Uprate holds CPI-real allowance near 100 (${(dragRatio(G.law, G.econ) * 100).toFixed(2)})`
+    `Uprate holds CPI-real allowance near 100 (${(dragRatio(G.law, G.econ) * 100).toFixed(2)})`,
   );
 
   clearOpeningCache();
@@ -1112,16 +1165,19 @@ assert(
   for (let i = 0; i < 12; i++) step(G, G.law, G.law, true);
   assert(
     dragRatio(G.law, G.econ) < 0.97,
-    `Freeze erodes CPI-real allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(2)})`
+    `Freeze erodes CPI-real allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(2)})`,
   );
 
   clearOpeningCache();
   newGame({ sandbox: true, homeRole: "russia" });
   G = getG();
-  assert(G.econ.allowBase === G.law.income.allowance, "russia allowBase matches seat opening");
+  assert(
+    G.econ.allowBase === G.law.income.allowance,
+    "russia allowBase matches seat opening",
+  );
   assert(
     Math.abs(dragRatio(G.law, G.econ) - 1) < 0.02,
-    `russia opens near full real allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(1)})`
+    `russia opens near full real allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(1)})`,
   );
 
   clearOpeningCache();
@@ -1129,7 +1185,7 @@ assert(
   G = getG();
   assert(
     Math.abs(dragRatio(G.law, G.econ) - 1) < 0.02,
-    `saudi opens near full real allowance despite higher cash allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(1)})`
+    `saudi opens near full real allowance despite higher cash allowance (${(dragRatio(G.law, G.econ) * 100).toFixed(1)})`,
   );
 }
 
@@ -1138,7 +1194,7 @@ newGame();
 G = getG();
 assert(
   Math.abs(G.econ.privateWealth - PRIVATE_WEALTH0) < 0.01,
-  "privateWealth opens at PRIVATE_WEALTH0"
+  "privateWealth opens at PRIVATE_WEALTH0",
 );
 {
   newGame();
@@ -1152,7 +1208,7 @@ assert(
   step(G, G.law, G.law, true);
   assert(
     G.econ.C > cLow,
-    `higher privateWealth lifts consumption (${G.econ.C.toFixed(2)} vs ${cLow.toFixed(2)})`
+    `higher privateWealth lifts consumption (${G.econ.C.toFixed(2)} vs ${cLow.toFixed(2)})`,
   );
 }
 newGame();
@@ -1163,7 +1219,10 @@ G = getG();
     step(G, G.law, G.law, true);
     maxAbs = Math.max(maxAbs, Math.abs(G.econ.balResidual || 0));
   }
-  assert(maxAbs < 1.5, `sectoral |balResidual| stays small over 40Q (got ${maxAbs.toFixed(3)})`);
+  assert(
+    maxAbs < 1.5,
+    `sectoral |balResidual| stays small over 40Q (got ${maxAbs.toFixed(3)})`,
+  );
 }
 
 /* Dual income: capital taxed at flat capitalRate, separate from labour bands. */
@@ -1171,7 +1230,10 @@ newGame();
 G = getG();
 {
   const prog = incomeYield(G.law, aggregate(G.law), G.econ);
-  assert(prog.capital > 0.5, `progressive raises capital income tax (${prog.capital.toFixed(2)})`);
+  assert(
+    prog.capital > 0.5,
+    `progressive raises capital income tax (${prog.capital.toFixed(2)})`,
+  );
   const dual = clone(G.law);
   dual.regime = "dual";
   dual.income.capitalRate = 10;
@@ -1180,11 +1242,11 @@ G = getG();
   const highCap = incomeYield(dual, aggregate(dual), G.econ);
   assert(
     highCap.capital > lowCap.capital + 0.5,
-    `dual capitalRate moves capital receipts (${lowCap.capital.toFixed(2)} → ${highCap.capital.toFixed(2)})`
+    `dual capitalRate moves capital receipts (${lowCap.capital.toFixed(2)} → ${highCap.capital.toFixed(2)})`,
   );
   assert(
     Math.abs(highCap.labour - lowCap.labour) < 0.05,
-    "dual capitalRate does not move labour income tax"
+    "dual capitalRate does not move labour income tax",
   );
 }
 
@@ -1193,7 +1255,7 @@ newGame();
 G = getG();
 assert(
   G.econ.bankLoans > 50 && G.econ.bankDeposits > 40,
-  `bank loan book initialises (${G.econ.bankLoans}, deposits ${G.econ.bankDeposits})`
+  `bank loan book initialises (${G.econ.bankLoans}, deposits ${G.econ.bankDeposits})`,
 );
 const cap0 = G.econ.bankCapital;
 G.econ.unemployment = 12;
@@ -1201,7 +1263,7 @@ G.econ.nairu = 4.1;
 for (let i = 0; i < 6; i++) step(G, G.law, G.law, true);
 assert(
   G.econ.bankCapital < cap0,
-  `loan losses erode bank capital when unemployment is high (${G.econ.bankCapital.toFixed(2)} vs ${cap0})`
+  `loan losses erode bank capital when unemployment is high (${G.econ.bankCapital.toFixed(2)} vs ${cap0})`,
 );
 newGame();
 G = getG();
@@ -1209,66 +1271,83 @@ const debt0 = G.econ.debt;
 recapitaliseBank(G.econ, 3, 1.8);
 assert(
   G.econ.debt > debt0 && G.econ.bankCapital >= 8,
-  `fiscal recap raises debt and restores capital (debt ${G.econ.debt.toFixed(1)}, cap ${G.econ.bankCapital.toFixed(1)})`
+  `fiscal recap raises debt and restores capital (debt ${G.econ.debt.toFixed(1)}, cap ${G.econ.bankCapital.toFixed(1)})`,
 );
 
 /* Floating press clippings — template copy from bill clauses and event options. */
 newGame();
 G = getG();
-assert(Array.isArray(G.press) && G.press.length === 0, "newGame starts with empty press");
+assert(
+  Array.isArray(G.press) && G.press.length === 0,
+  "newGame starts with empty press",
+);
 assert(
   !MUTABLE.includes("press"),
-  "press is display state and stays out of MUTABLE"
+  "press is display state and stays out of MUTABLE",
 );
 
-const emptyClips = composePress({ clauses:[], cost:0, balDelta:0, event:null, option:null, q:0 });
+const emptyClips = composePress({
+  clauses: [],
+  cost: 0,
+  balDelta: 0,
+  event: null,
+  option: null,
+  q: 0,
+});
 assert(emptyClips.length === 0, "quiet quarter produces no clippings");
 
 const billClips = composePress({
-  clauses:[
-    { label:"Enact Carbon price", pc:12 },
-    { label:"VAT, 20% to 22%", pc:4 },
-    { label:"Health +0.5 points of GDP", pc:2 },
+  clauses: [
+    { label: "Enact Carbon price", pc: 12 },
+    { label: "VAT, 20% to 22%", pc: 4 },
+    { label: "Health +0.5 points of GDP", pc: 2 },
   ],
-  cost:18,
-  balDelta:-0.4,
-  q:0,
+  cost: 18,
+  balDelta: -0.4,
+  q: 0,
 });
-assert(billClips.length === 1 && billClips[0].kind === "bill", "non-empty bill yields one bill clipping");
 assert(
-  /Chancellor's bill:\s*3 measures/.test(billClips[0].headline),
-  "multi-clause bill uses count headline"
+  billClips.length === 1 && billClips[0].kind === "bill",
+  "non-empty bill yields one bill clipping",
 );
 assert(
-  /Carbon price/.test(billClips[0].lede) && /deficit widens/.test(billClips[0].lede),
-  "bill lede names a clause and fiscal direction"
+  /Chancellor's bill:\s*3 measures/.test(billClips[0].headline),
+  "multi-clause bill uses count headline",
+);
+assert(
+  /Carbon price/.test(billClips[0].lede) &&
+    /deficit widens/.test(billClips[0].lede),
+  "bill lede names a clause and fiscal direction",
 );
 
 const ev = EVENTS[0];
 const opt = ev.opts[0];
 const eventClips = composePress({
-  clauses:[],
-  event:ev,
-  option:opt,
-  q:2,
+  clauses: [],
+  event: ev,
+  option: opt,
+  q: 2,
 });
-assert(eventClips.length === 1 && eventClips[0].kind === "event", "event option yields one event clipping");
+assert(
+  eventClips.length === 1 && eventClips[0].kind === "event",
+  "event option yields one event clipping",
+);
 assert(
   eventClips[0].headline.indexOf(opt.b) >= 0 || opt.b.indexOf("{C}") >= 0,
-  "event headline comes from the chosen option"
+  "event headline comes from the chosen option",
 );
 assert(
   eventClips[0].masthead === ev.stamp || eventClips[0].masthead === "Despatch",
-  "event masthead comes from the despatch stamp"
+  "event masthead comes from the despatch stamp",
 );
 
 const both = composePress({
-  clauses:[{ label:"Abolish fuel duty", pc:8 }],
-  cost:8,
-  balDelta:0.2,
-  event:ev,
-  option:opt,
-  q:1,
+  clauses: [{ label: "Abolish fuel duty", pc: 8 }],
+  cost: 8,
+  balDelta: 0.2,
+  event: ev,
+  option: opt,
+  q: 1,
 });
 assert(both.length === 2, "bill plus event yields two clippings");
 
@@ -1276,8 +1355,14 @@ const econBefore = JSON.stringify(G.econ);
 const pressBefore = G.press.length;
 pushPress(billClips);
 assert(G.press.length === pressBefore + 1, "pushPress appends to G.press");
-assert(JSON.stringify(G.econ) === econBefore, "pushPress does not mutate live econ");
-assert(G.press[G.press.length - 1].headline.indexOf("Chancellor") >= 0, "pushed clip keeps headline");
+assert(
+  JSON.stringify(G.econ) === econBefore,
+  "pushPress does not mutate live econ",
+);
+assert(
+  G.press[G.press.length - 1].headline.indexOf("Chancellor") >= 0,
+  "pushed clip keeps headline",
+);
 
 /* Cap at three visible scraps */
 pushPress(billClips);
@@ -1287,16 +1372,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 
 /* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
 {
-  const quiet = briefingImpactLines({ head: {}, fac: {} }, { kind: "bill", clauses: [] });
+  const quiet = briefingImpactLines(
+    { head: {}, fac: {} },
+    { kind: "bill", clauses: [] },
+  );
   assert(quiet.length === 0, "empty impact yields no briefing lines");
 
   const noopBill = briefingImpactLines(
     { head: { growth: 0.01, balance: 0.01 }, fac: { business: 0.1 } },
-    { kind: "bill", clauses: [{ label: "VAT, 20% to 21%", pc: 2 }] }
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 21%", pc: 2 }] },
   );
   assert(
     noopBill.length === 1 && /barely moves the dial/.test(noopBill[0]),
-    "near-zero bill impact still gets a barely-moves line"
+    "near-zero bill impact still gets a barely-moves line",
   );
 
   const rich = briefingImpactLines(
@@ -1316,11 +1404,20 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       },
       fac: { business: 1.2, workers: -0.9, capital: 0.1 },
     },
-    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] },
   );
-  assert(rich.length >= 2, "material impact yields economic and approval lines");
-  assert(/over the next year, compared with standing still/.test(rich[0]), "economic impact closes with year-ahead comparison");
-  assert(/growth/i.test(rich[0]) && /deficit/i.test(rich[0]), "economic impact names growth and deficit");
+  assert(
+    rich.length >= 2,
+    "material impact yields economic and approval lines",
+  );
+  assert(
+    /over the next year, compared with standing still/.test(rich[0]),
+    "economic impact closes with year-ahead comparison",
+  );
+  assert(
+    /growth/i.test(rich[0]) && /deficit/i.test(rich[0]),
+    "economic impact names growth and deficit",
+  );
   assert(/polls/i.test(rich[1]), "approval sits in its own line");
 
   const parts = briefingImpactParts(
@@ -1340,10 +1437,16 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       },
       fac: { business: 1.2, workers: -0.9, capital: 0.1 },
     },
-    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] },
   );
-  assert(parts && parts.economic && parts.approval, "impact parts split economic and approval");
-  assert(/growth/i.test(parts.economic) && /deficit/i.test(parts.economic), "economic box covers growth and deficit");
+  assert(
+    parts && parts.economic && parts.approval,
+    "impact parts split economic and approval",
+  );
+  assert(
+    /growth/i.test(parts.economic) && /deficit/i.test(parts.economic),
+    "economic box covers growth and deficit",
+  );
   assert(/polls/i.test(parts.approval), "approval box covers polls");
   assert(/Business/.test(parts.politics), "faction warmth stays with approval");
 
@@ -1364,21 +1467,50 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       },
       fac: {},
     },
-    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] }
+    { kind: "bill", clauses: [{ label: "VAT, 20% to 22%", pc: 4 }] },
   );
-  assert(/growth/i.test(macro[0]) && /inflation/i.test(macro[0]) && /deficit/i.test(macro[0]), "material growth, inflation and deficit are always mentioned");
-  assert(!/polls/i.test(macro[0]), "approval stays out of the economic line when split");
+  assert(
+    /growth/i.test(macro[0]) &&
+      /inflation/i.test(macro[0]) &&
+      /deficit/i.test(macro[0]),
+    "material growth, inflation and deficit are always mentioned",
+  );
+  assert(
+    !/polls/i.test(macro[0]),
+    "approval stays out of the economic line when split",
+  );
 
   const decision = briefingImpactLines(
-    { head: { growth: -0.2, balance: 0, debt: 0, inflation: 0, unemployment: 0, yield: 0, approval: 0, services: 0, trend: 0, potential: 0, fx: 0 }, fac: {} },
-    { kind: "decision" }
+    {
+      head: {
+        growth: -0.2,
+        balance: 0,
+        debt: 0,
+        inflation: 0,
+        unemployment: 0,
+        yield: 0,
+        approval: 0,
+        services: 0,
+        trend: 0,
+        potential: 0,
+        fx: 0,
+      },
+      fac: {},
+    },
+    { kind: "decision" },
   );
-  assert(/over the next year, compared with doing nothing/.test(decision[0]), "event impact uses decision comparison");
+  assert(
+    /over the next year, compared with doing nothing/.test(decision[0]),
+    "event impact uses decision comparison",
+  );
 
   const merged = mergeBriefingImpact(["Outturn colour."], rich);
   assert(merged[0] === rich[0], "legacy merge still puts impact lines first");
   assert(merged.length <= 4, "merged briefing stays short");
-  assert(merged.includes("Outturn colour."), "outturn survives when there is room");
+  assert(
+    merged.includes("Outturn colour."),
+    "outturn survives when there is room",
+  );
 
   newGame();
   G = getG();
@@ -1388,9 +1520,20 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     kind: "bill",
     clauses: [{ label: "VAT up", pc: 4 }],
   });
-  assert(liveParts && liveParts.economic, "live VAT rise produces economic impact box");
-  assert(/growth/i.test(liveParts.economic) && /inflation/i.test(liveParts.economic) && /deficit/i.test(liveParts.economic), "live VAT mentions growth, inflation and deficit");
-  assert(liveParts.approval && /polls/i.test(liveParts.approval), "live VAT puts approval in its own box");
+  assert(
+    liveParts && liveParts.economic,
+    "live VAT rise produces economic impact box",
+  );
+  assert(
+    /growth/i.test(liveParts.economic) &&
+      /inflation/i.test(liveParts.economic) &&
+      /deficit/i.test(liveParts.economic),
+    "live VAT mentions growth, inflation and deficit",
+  );
+  assert(
+    liveParts.approval && /polls/i.test(liveParts.approval),
+    "live VAT puts approval in its own box",
+  );
   G.briefImpact = liveParts;
   const briefSnap = JSON.stringify(G.econ);
   const E = aggregate(G.law);
@@ -1401,58 +1544,83 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     sp: spending(G.law, E, G.econ),
     deficit: 4.5,
   });
-  assert(JSON.stringify(G.econ) === briefSnap, "briefing impact does not mutate econ");
+  assert(
+    JSON.stringify(G.econ) === briefSnap,
+    "briefing impact does not mutate econ",
+  );
 
   const html = briefingHtml(G.brief, { impact: liveParts });
-  assert(/briefing-impact--econ/.test(html) && /briefing-impact--approval/.test(html), "briefingHtml renders both impact boxes");
-  assert(/Next year/.test(html) && /Approval/.test(html), "briefingHtml labels next year and approval sections");
-  assert(/Four-quarter total/.test(html), "briefingHtml explains year-ahead horizon");
-  assert(/This quarter/.test(html), "briefingHtml still renders outturn section");
+  assert(
+    /briefing-impact--econ/.test(html) &&
+      /briefing-impact--approval/.test(html),
+    "briefingHtml renders both impact boxes",
+  );
+  assert(
+    /Next year/.test(html) && /Approval/.test(html),
+    "briefingHtml labels next year and approval sections",
+  );
+  assert(
+    /Four-quarter total/.test(html),
+    "briefingHtml explains year-ahead horizon",
+  );
+  assert(
+    /This quarter/.test(html),
+    "briefingHtml still renders outturn section",
+  );
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
 {
   newGame();
   G = getG();
-  assert(PARTNERS.length === 27, `twenty-seven sovereign partners incl. kingdom (got ${PARTNERS.length})`);
-  assert(activePartners("home").length === 26, "twenty-six partners when playing as United Kingdom");
+  assert(
+    PARTNERS.length === 27,
+    `twenty-seven sovereign partners incl. kingdom (got ${PARTNERS.length})`,
+  );
+  assert(
+    activePartners("home").length === 26,
+    "twenty-six partners when playing as United Kingdom",
+  );
   assert(
     PARTNERS.some((p) => p.id === "russia"),
-    "Russia is a trade partner"
+    "Russia is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "india"),
-    "India is a trade partner"
+    "India is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "nigeria"),
-    "Nigeria is a trade partner"
+    "Nigeria is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "brazil"),
-    "Brazil is a trade partner"
+    "Brazil is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "canada"),
-    "Canada is a trade partner"
+    "Canada is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "korea"),
-    "Korea is a trade partner"
+    "Korea is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "indonesia"),
-    "Indonesia is a trade partner"
+    "Indonesia is a trade partner",
   );
   assert(
     PARTNERS.some((p) => p.id === "kingdom"),
-    "United Kingdom is a displaceable partner seat"
+    "United Kingdom is a displaceable partner seat",
   );
   const homePartners = activePartners("home");
-  const named = homePartners.reduce((s, p) => s + partnerShare("home", p.id), 0);
+  const named = homePartners.reduce(
+    (s, p) => s + partnerShare("home", p.id),
+    0,
+  );
   assert(
     Math.abs(named + tradeRestShare("home") - 1) < 1e-9,
-    `active trade shares + rest sum to 1 (named ${named}, rest ${tradeRestShare("home")})`
+    `active trade shares + rest sum to 1 (named ${named}, rest ${tradeRestShare("home")})`,
   );
   assert(!!G.econ.nations, "opening econ carries partner nation books");
   assert(G.rel.russia === 38, "Northern Reach opens with frosty relations");
@@ -1469,63 +1637,101 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
         Math.abs(n.growth - prof.trend) < 0.01 &&
         Math.abs(n.inflation - prof.inflation0) < 0.01 &&
         Math.abs(n.y - 100) < 0.01,
-      `${p.id} opens at profile (debt ${n.debt}, deficit ${n.deficit}, g ${n.growth}, pi ${n.inflation})`
+      `${p.id} opens at profile (debt ${n.debt}, deficit ${n.deficit}, g ${n.growth}, pi ${n.inflation})`,
     );
   }
-  assert(NATION_PROFILE.united_states.debt0 >= 120, "US debt opens above 120% of GDP");
-  assert(NATION_PROFILE.china.deficit0 >= 6, "China fiscal stance is wide (augmented)");
-  assert(NATION_PROFILE.saudi.deficit0 < 3, "Gulf is near fiscal balance, not a large surplus");
+  assert(
+    NATION_PROFILE.united_states.debt0 >= 120,
+    "US debt opens above 120% of GDP",
+  );
+  assert(
+    NATION_PROFILE.china.deficit0 >= 6,
+    "China fiscal stance is wide (augmented)",
+  );
+  assert(
+    NATION_PROFILE.saudi.deficit0 < 3,
+    "Gulf is near fiscal balance, not a large surplus",
+  );
   assert(
     NATION_PROFILE.russia.debt0 < 25 && NATION_PROFILE.russia.trend < 2,
-    "Northern Reach opens Russia-like (low debt, soft trend growth)"
+    "Northern Reach opens Russia-like (low debt, soft trend growth)",
   );
   assert(
     NATION_PROFILE.india.trend >= 5.5 && NATION_PROFILE.india.debt0 > 70,
-    "India opens India-like (fast growth, high debt)"
+    "India opens India-like (fast growth, high debt)",
   );
   assert(
     NATION_PROFILE.nigeria.trend >= 3 && NATION_PROFILE.nigeria.inflation0 >= 5,
-    "Nigeria opens Africa-like (growth with sticky inflation)"
+    "Nigeria opens Africa-like (growth with sticky inflation)",
   );
   assert(
     NATION_PROFILE.brazil.debt0 > 50 && NATION_PROFILE.brazil.trend < 4,
-    "Brazil opens LatAm-like (middling debt, soft growth)"
+    "Brazil opens LatAm-like (middling debt, soft growth)",
   );
   assert(
     NATION_PROFILE.australia.trend < 3,
-    "Commonwealth without India is slower-growing"
+    "Commonwealth without India is slower-growing",
   );
-  assert(NATION_PROFILE.canada.debt0 >= 90 && NATION_PROFILE.canada.debt0 <= 130, "Canada debt mid-high");
-  assert(NATION_PROFILE.korea.shareX >= 35 && NATION_PROFILE.korea.trend >= 1.5, "Korea export-heavy with solid trend");
-  assert(NATION_PROFILE.indonesia.trend >= 4, "Indonesia opens on a fast-growth path");
-  assert(NATION_PROFILE.argentina.inflation0 >= 15, "Argentina opens with high inflation");
-  assert(NATION_PROFILE.turkey.inflation0 >= 12, "Türkiye opens with high inflation");
+  assert(
+    NATION_PROFILE.canada.debt0 >= 90 && NATION_PROFILE.canada.debt0 <= 130,
+    "Canada debt mid-high",
+  );
+  assert(
+    NATION_PROFILE.korea.shareX >= 35 && NATION_PROFILE.korea.trend >= 1.5,
+    "Korea export-heavy with solid trend",
+  );
+  assert(
+    NATION_PROFILE.indonesia.trend >= 4,
+    "Indonesia opens on a fast-growth path",
+  );
+  assert(
+    NATION_PROFILE.argentina.inflation0 >= 15,
+    "Argentina opens with high inflation",
+  );
+  assert(
+    NATION_PROFILE.turkey.inflation0 >= 12,
+    "Türkiye opens with high inflation",
+  );
   assert(NATION_PROFILE.vietnam.trend >= 5, "Vietnam opens fast-growing");
-  assert(NATION_PROFILE.poland.trend >= 2, "Poland opens with solid catch-up growth");
+  assert(
+    NATION_PROFILE.poland.trend >= 2,
+    "Poland opens with solid catch-up growth",
+  );
   for (const id in NATION_PROFILE) {
     assert(
       NATION_PROFILE[id].gdp0 > 0,
-      `${id} has a positive opening GDP level`
+      `${id} has a positive opening GDP level`,
     );
   }
   assert(
     NATION_PROFILE.united_states.gdp0 > NATION_PROFILE.china.gdp0 &&
       NATION_PROFILE.china.gdp0 > NATION_PROFILE.kingdom.gdp0 &&
       NATION_PROFILE.kingdom.gdp0 > NATION_PROFILE.france.gdp0,
-    "opening GDP order: US > China > Kingdom > France"
+    "opening GDP order: US > China > Kingdom > France",
   );
-  assert(gdp0ForSeat("home") === NATION_PROFILE.kingdom.gdp0, "home seat uses Kingdom GDP level");
-  assert(fmtGdpBn(3600) === "$3.6tn", `fmtGdpBn(3600) is $3.6tn (got ${fmtGdpBn(3600)})`);
-  assert(fmtGdpBn(33000) === "$33tn", `fmtGdpBn(33000) is $33tn (got ${fmtGdpBn(33000)})`);
+  assert(
+    gdp0ForSeat("home") === NATION_PROFILE.kingdom.gdp0,
+    "home seat uses Kingdom GDP level",
+  );
+  assert(
+    fmtGdpBn(3600) === "$3.6tn",
+    `fmtGdpBn(3600) is $3.6tn (got ${fmtGdpBn(3600)})`,
+  );
+  assert(
+    fmtGdpBn(33000) === "$33tn",
+    `fmtGdpBn(33000) is $33tn (got ${fmtGdpBn(33000)})`,
+  );
   newGame();
   G = getG();
   assert(
     Math.abs(realmGdpBn("home", G) - NATION_PROFILE.kingdom.gdp0) < 0.01,
-    "home GDP bn tracks opening level at index 100"
+    "home GDP bn tracks opening level at index 100",
   );
   assert(
-    Math.abs(realmGdpBn("united_states", G) - NATION_PROFILE.united_states.gdp0) < 0.01,
-    "partner GDP bn tracks opening level at index 100"
+    Math.abs(
+      realmGdpBn("united_states", G) - NATION_PROFILE.united_states.gdp0,
+    ) < 0.01,
+    "partner GDP bn tracks opening level at index 100",
   );
 }
 
@@ -1533,66 +1739,118 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  assert(G.log.length === SETTLE_QUARTERS, `opening log is settle history (got ${G.log.length})`);
-  assert(G.log.every((r) => r.pre), "settle rows are marked pre-term");
+  assert(
+    G.log.length === SETTLE_QUARTERS,
+    `opening log is settle history (got ${G.log.length})`,
+  );
+  assert(
+    G.log.every((r) => r.pre),
+    "settle rows are marked pre-term",
+  );
   assert(
     Math.abs(G.log[G.log.length - 1].debt - G.econ.debt) < 0.05,
-    "last settle row debt matches live books"
+    "last settle row debt matches live books",
   );
   const beforeLen = G.log.length;
   step(G, G.law, G.law, true);
-  assert(G.log.length === beforeLen + 1, "first live step appends without wiping history");
+  assert(
+    G.log.length === beforeLen + 1,
+    "first live step appends without wiping history",
+  );
   assert(!G.log[G.log.length - 1].pre, "live quarter is not pre-term");
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
+  newGame({
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
   G = getG();
-  assert(G.econ.debt === 126, `united_states opens at debt 126 (got ${G.econ.debt})`);
-  assert(Math.abs(G.econ.inflation - 2.4) < 0.01, `united_states inflation 2.4 (got ${G.econ.inflation})`);
+  assert(
+    G.econ.debt === 126,
+    `united_states opens at debt 126 (got ${G.econ.debt})`,
+  );
+  assert(
+    Math.abs(G.econ.inflation - 2.4) < 0.01,
+    `united_states inflation 2.4 (got ${G.econ.inflation})`,
+  );
   {
     const d = -balanceOf(G.law, G.econ).balance;
-    assert(Math.abs(d - 7.5) < 0.15, `united_states deficit near 7.5 (got ${d.toFixed(2)})`);
+    assert(
+      Math.abs(d - 7.5) < 0.15,
+      `united_states deficit near 7.5 (got ${d.toFixed(2)})`,
+    );
   }
-  assert(Math.abs(G.econ.trendGrowth - 2.3) < 1.05, `united_states trend near 2.3 (got ${G.econ.trendGrowth})`);
+  assert(
+    Math.abs(G.econ.trendGrowth - 2.3) < 1.05,
+    `united_states trend near 2.3 (got ${G.econ.trendGrowth})`,
+  );
   assert(
     Math.abs(potentialGrowth(G.law, aggregate(G.law), G.econ) - 2.3) < 1.05,
-    `united_states live potential near 2.3 (got ${potentialGrowth(G.law, aggregate(G.law), G.econ)})`
+    `united_states live potential near 2.3 (got ${potentialGrowth(G.law, aggregate(G.law), G.econ)})`,
   );
   assert(
     partnerForIso("826", "840", "united_states") === "kingdom",
-    "UK coastline is United Kingdom partner when sitting in United States"
+    "UK coastline is United Kingdom partner when sitting in United States",
   );
   assert(
     partnerForIso("826", "826", "home") === "home",
-    "UK coastline is home when sitting as United Kingdom"
+    "UK coastline is home when sitting as United Kingdom",
   );
   const fedPartners = activePartners("united_states");
   assert(
     fedPartners.some((p) => p.id === "kingdom") &&
       !fedPartners.some((p) => p.id === "united_states"),
-    "active partners include kingdom and exclude united_states seat"
+    "active partners include kingdom and exclude united_states seat",
   );
-  assert(!!G.econ.nations.kingdom, "kingdom nation books exist when playing elsewhere");
+  assert(
+    !!G.econ.nations.kingdom,
+    "kingdom nation books exist when playing elsewhere",
+  );
   assert(
     Math.abs(G.econ.nations.kingdom.debt - 94) < 0.01,
-    "kingdom partner opens at UK debt"
+    "kingdom partner opens at UK debt",
   );
   assert(!G.law.taxes.vat.on, "United States open without a federal VAT");
-  assert(G.law.taxes.corpTax.rate === 26, "United States open at combined federal+state 26% corporation tax");
-  assert(G.law.spend.defence === 3.5, "United States open with higher defence share");
-  assert(G.law.vice.cannabis === "legal", "United States open with legal cannabis");
-  assert(!!G.law.policies.planning && !!G.law.policies.dereg, "United States open with planning and labour deregulation");
-  assert(!G.law.taxes.digitalTax.on, "United States do not open with a digital services tax");
+  assert(
+    G.law.taxes.corpTax.rate === 26,
+    "United States open at combined federal+state 26% corporation tax",
+  );
+  assert(
+    G.law.spend.defence === 3.5,
+    "United States open with higher defence share",
+  );
+  assert(
+    G.law.vice.cannabis === "legal",
+    "United States open with legal cannabis",
+  );
+  assert(
+    !!G.law.policies.planning && !!G.law.policies.dereg,
+    "United States open with planning and labour deregulation",
+  );
+  assert(
+    !G.law.taxes.digitalTax.on,
+    "United States do not open with a digital services tax",
+  );
 
   newGame({ homeRole: "saudi", homeIso: "682", country: "Gulf Investors" });
   G = getG();
   assert(G.econ.debt === 30, `saudi opens at debt 30 (got ${G.econ.debt})`);
   {
     const d = -balanceOf(G.law, G.econ).balance;
-    assert(Math.abs(d - 0.5) < 0.15, `saudi deficit near 0.5 (got ${d.toFixed(2)})`);
+    assert(
+      Math.abs(d - 0.5) < 0.15,
+      `saudi deficit near 0.5 (got ${d.toFixed(2)})`,
+    );
   }
   assert(G.law.income.on === false, "Saudi opens without personal income tax");
-  assert(G.law.vice.alcohol === "banned", "Saudi opens with alcohol prohibition");
-  assert(!G.law.taxes.alcoholDuty.on, "Gulf alcohol duty is off under prohibition");
+  assert(
+    G.law.vice.alcohol === "banned",
+    "Saudi opens with alcohol prohibition",
+  );
+  assert(
+    !G.law.taxes.alcoholDuty.on,
+    "Gulf alcohol duty is off under prohibition",
+  );
   assert(!!G.law.policies.swf, "Saudi opens with a sovereign wealth fund");
   assert(G.law.spend.defence === 7.0, "Saudi opens with a high defence share");
 
@@ -1600,71 +1858,145 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   assert(G.law.taxes.vat.rate === 20, "France opens at 20% VAT");
   assert(G.law.spend.welfare >= 15, "France opens with a large welfare share");
-  assert(G.law.spend.defence >= 1.5 && G.law.spend.defence <= 2.2, "France opens near the NATO defence band");
-  assert(!!G.law.policies.netZero && !!G.law.policies.cbam, "France opens on a net-zero / CBAM footing");
-  assert(!!G.law.policies.socialCare, "France opens with free personal social care");
+  assert(
+    G.law.spend.defence >= 1.5 && G.law.spend.defence <= 2.2,
+    "France opens near the NATO defence band",
+  );
+  assert(
+    !!G.law.policies.netZero && !!G.law.policies.cbam,
+    "France opens on a net-zero / CBAM footing",
+  );
+  assert(
+    !!G.law.policies.socialCare,
+    "France opens with free personal social care",
+  );
 
   newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
   const adj0 = G.econ.otherRevAdj;
   const yRel0 = G.econ.yRel;
   project(4);
-  assert(G.econ.otherRevAdj === adj0 && G.econ.yRel === yRel0, "project leaves opening plugs / supply intact");
+  assert(
+    G.econ.otherRevAdj === adj0 && G.econ.yRel === yRel0,
+    "project leaves opening plugs / supply intact",
+  );
   assert(G.law.spend.infra >= 5, "China opens with heavy infrastructure spend");
   assert(G.law.taxes.vat.rate === 13, "China opens at 13% VAT");
   assert(G.law.spend.research >= 1.3, "China opens with high research spend");
-  assert(!!G.law.policies.rnd && !!G.law.policies.closeBorders, "China opens with industrial strategy and strict borders");
+  assert(
+    !!G.law.policies.rnd && !!G.law.policies.closeBorders,
+    "China opens with industrial strategy and strict borders",
+  );
   assert(G.law.vice.gambling === "banned", "China opens with gambling banned");
   /* pinOpeningHeadlines must keep the seat's income schedule, not UK defaults. */
-  assert(G.law.income.allowance === 8000, "Eastern income allowance survives settle pins");
+  assert(
+    G.law.income.allowance === 8000,
+    "Eastern income allowance survives settle pins",
+  );
   assert(G.law.ni.erRate === 16, "Eastern employer NI survives settle pins");
-  assert(G.econ.trendBias == null || G.econ.trendBias === 0, "no residual trendBias on Eastern open");
+  assert(
+    G.econ.trendBias == null || G.econ.trendBias === 0,
+    "no residual trendBias on Eastern open",
+  );
 
   newGame({ homeRole: "russia", homeIso: "643", country: "Northern Reach" });
   G = getG();
-  assert(G.law.spend.defence >= 4.5, "Northern Reach opens with elevated defence");
-  assert(G.law.regime === "dual", "Northern Reach opens on a dual income-tax regime");
-  assert(!!G.law.taxes.windfall.on, "Northern Reach opens with an energy windfall levy");
-  assert(G.law.vice.alcohol === "liberal", "Northern Reach opens with liberalised alcohol");
+  assert(
+    G.law.spend.defence >= 4.5,
+    "Northern Reach opens with elevated defence",
+  );
+  assert(
+    G.law.regime === "dual",
+    "Northern Reach opens on a dual income-tax regime",
+  );
+  assert(
+    !!G.law.taxes.windfall.on,
+    "Northern Reach opens with an energy windfall levy",
+  );
+  assert(
+    G.law.vice.alcohol === "liberal",
+    "Northern Reach opens with liberalised alcohol",
+  );
   assert(!!G.law.policies.conscript, "Northern Reach opens with conscription");
-  assert(!G.law.policies.closeBorders, "Northern Reach does not open with migration caps (brain drain is in migBase)");
+  assert(
+    !G.law.policies.closeBorders,
+    "Northern Reach does not open with migration caps (brain drain is in migBase)",
+  );
 
   newGame({ homeRole: "india", homeIso: "356", country: "India" });
   G = getG();
   assert(G.law.taxes.vat.rate === 18, "India opens at GST-like 18% VAT");
-  assert(G.law.spend.health <= 3.0, "India opens with thin public health spend");
-  assert(G.law.taxes.tobaccoDuty.rate >= 70, "India opens with heavy tobacco duty");
+  assert(
+    G.law.spend.health <= 3.0,
+    "India opens with thin public health spend",
+  );
+  assert(
+    G.law.taxes.tobaccoDuty.rate >= 70,
+    "India opens with heavy tobacco duty",
+  );
   assert(G.law.vice.gambling === "banned", "India opens with gambling banned");
   assert(!!G.law.policies.digitalId, "India opens with digital identity");
 
-  newGame({ homeRole: "nigeria", homeIso: "566", country: "Green Coast Republic" });
+  newGame({
+    homeRole: "nigeria",
+    homeIso: "566",
+    country: "Green Coast Republic",
+  });
   G = getG();
   assert(G.law.spend.welfare <= 4.5, "Nigeria opens with a thin welfare state");
   assert(G.law.tariff >= 9, "Nigeria opens with higher tariffs");
   assert(!!G.law.taxes.touristLevy.on, "Nigeria opens with a visitor levy");
-  assert(!!G.law.taxes.windfall.on, "Nigeria opens with a commodity windfall levy");
+  assert(
+    !!G.law.taxes.windfall.on,
+    "Nigeria opens with a commodity windfall levy",
+  );
   assert(!G.law.taxes.carbon.on, "Nigeria does not open with a carbon price");
 
-  newGame({ homeRole: "brazil", homeIso: "076", country: "Atlantic Federation" });
+  newGame({
+    homeRole: "brazil",
+    homeIso: "076",
+    country: "Atlantic Federation",
+  });
   G = getG();
   assert(G.law.taxes.vat.rate >= 17, "Brazil opens VAT-heavy");
   assert(G.law.spend.welfare >= 12, "Brazil opens pension-heavy");
-  assert(G.law.vice.cannabis === "decrim", "Brazil opens with cannabis decriminalised");
-  assert(!G.law.taxes.cannabisDuty.on, "Brazil cannabis duty is off under decrim");
-  assert(!!G.law.policies.socialHousing, "Brazil opens with mass social housebuilding");
+  assert(
+    G.law.vice.cannabis === "decrim",
+    "Brazil opens with cannabis decriminalised",
+  );
+  assert(
+    !G.law.taxes.cannabisDuty.on,
+    "Brazil cannabis duty is off under decrim",
+  );
+  assert(
+    !!G.law.policies.socialHousing,
+    "Brazil opens with mass social housebuilding",
+  );
 
   newGame({ homeRole: "australia", homeIso: "036", country: "Southern Cross" });
   G = getG();
   assert(G.law.taxes.vat.rate === 10, "Australia opens at 10% GST");
-  assert(G.law.taxes.corpTax.rate === 30, "Australia opens at 30% corporation tax");
+  assert(
+    G.law.taxes.corpTax.rate === 30,
+    "Australia opens at 30% corporation tax",
+  );
   assert(!G.law.taxes.inherit.on, "Australia opens without inheritance tax");
-  assert(!G.law.ni.empOn && G.law.ni.erOn, "Australia opens with employer-only payroll tax");
-  assert(!!G.law.policies.netZero && !!G.law.policies.openVisas, "Australia opens with net zero and open visas");
+  assert(
+    !G.law.ni.empOn && G.law.ni.erOn,
+    "Australia opens with employer-only payroll tax",
+  );
+  assert(
+    !!G.law.policies.netZero && !!G.law.policies.openVisas,
+    "Australia opens with net zero and open visas",
+  );
 
   /* Home seat keeps the UK baseLaw (no REALM_LAW overlay). */
   newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
   G = getG();
-  assert(G.law.taxes.vat.on && G.law.taxes.vat.rate === 20, "UK opens at UK 20% VAT");
+  assert(
+    G.law.taxes.vat.on && G.law.taxes.vat.rate === 20,
+    "UK opens at UK 20% VAT",
+  );
   assert(G.law.spend.welfare === 13.3, "UK opens at UK welfare share");
   assert(G.law.income.allowance === 12570, "UK opens at UK personal allowance");
 
@@ -1674,7 +2006,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     for (const c of COUNTRIES) {
       if (c.id === "kingdom") continue;
       const key = realmLawKey(c.id);
-      assert(!!REALM_LAW[key], `${c.id} resolves a REALM_LAW overlay (key ${key})`);
+      assert(
+        !!REALM_LAW[key],
+        `${c.id} resolves a REALM_LAW overlay (key ${key})`,
+      );
       const law = lawForRole(c.id);
       const distinct =
         law.taxes.vat.rate !== uk.taxes.vat.rate ||
@@ -1687,8 +2022,14 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   }
   newGame({ homeRole: "germany", homeIso: "276", country: "Germany" });
   G = getG();
-  assert(G.law.taxes.vat.rate >= 19 && G.law.taxes.vat.rate <= 21, `Germany opens near 19–21% VAT (got ${G.law.taxes.vat.rate})`);
-  assert(G.law.spend.research >= 1.0, "Germany opens with elevated research spend");
+  assert(
+    G.law.taxes.vat.rate >= 19 && G.law.taxes.vat.rate <= 21,
+    `Germany opens near 19–21% VAT (got ${G.law.taxes.vat.rate})`,
+  );
+  assert(
+    G.law.spend.research >= 1.0,
+    "Germany opens with elevated research spend",
+  );
 
   newGame({ homeRole: "japan", homeIso: "392", country: "Japan" });
   G = getG();
@@ -1709,13 +2050,25 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 /* Society layer opens from NATION_PROFILE.soc0, not a shared UK default. */
 {
   const uk = NATION_PROFILE.kingdom.soc0;
-  assert(uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55, "UK soc0 is the UK baseline");
+  assert(
+    uk && uk.liberty === 58 && uk.crime === 28 && uk.services === 55,
+    "UK soc0 is the UK baseline",
+  );
 
   newGame({ homeRole: "home", homeIso: "826", country: "United Kingdom" });
   G = getG();
-  assert(Math.abs(G.econ.liberty - 58) < 0.6, `UK liberty near 58 (got ${G.econ.liberty})`);
-  assert(Math.abs(G.econ.crime - 28) < 0.6, `UK crime near 28 (got ${G.econ.crime})`);
-  assert(Math.abs(G.econ.services - 55) < 2.5, `UK services near 55 (got ${G.econ.services})`);
+  assert(
+    Math.abs(G.econ.liberty - 58) < 0.6,
+    `UK liberty near 58 (got ${G.econ.liberty})`,
+  );
+  assert(
+    Math.abs(G.econ.crime - 28) < 0.6,
+    `UK crime near 28 (got ${G.econ.crime})`,
+  );
+  assert(
+    Math.abs(G.econ.services - 55) < 2.5,
+    `UK services near 55 (got ${G.econ.services})`,
+  );
 
   for (const c of COUNTRIES) {
     if (c.id === "kingdom") continue;
@@ -1735,14 +2088,23 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   newGame({ homeRole: "germany", homeIso: "276", country: "Germany" });
   G = getG();
   assert(G.econ.liberty0 === 62, "Germany liberty0 is 62");
-  assert(Math.abs(G.econ.liberty - 62) < 1.0, `Germany liberty near 62 (got ${G.econ.liberty})`);
+  assert(
+    Math.abs(G.econ.liberty - 62) < 1.0,
+    `Germany liberty near 62 (got ${G.econ.liberty})`,
+  );
   assert(G.econ.crime0 === 22, "Germany crime0 is 22");
-  assert(Math.abs(G.econ.crime - 22) < 1.5, `Germany crime near 22 (got ${G.econ.crime})`);
+  assert(
+    Math.abs(G.econ.crime - 22) < 1.5,
+    `Germany crime near 22 (got ${G.econ.crime})`,
+  );
 
   newGame({ homeRole: "china", homeIso: "156", country: "China" });
   G = getG();
   assert(G.econ.liberty0 === 18, "China liberty0 is 18");
-  assert(G.econ.liberty < 30, `China liberty well below UK (got ${G.econ.liberty})`);
+  assert(
+    G.econ.liberty < 30,
+    `China liberty well below UK (got ${G.econ.liberty})`,
+  );
   assert(G.econ.openness0 === 35, "China openness0 is 35");
 
   newGame({ homeRole: "japan", homeIso: "392", country: "Japan" });
@@ -1751,14 +2113,24 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.econ.crime < 20, `Japan crime well below UK (got ${G.econ.crime})`);
   assert(G.econ.services0 === 68, "Japan services0 is 68");
 
-  newGame({ homeRole: "netherlands", homeIso: "528", country: "Low Countries" });
+  newGame({
+    homeRole: "netherlands",
+    homeIso: "528",
+    country: "Low Countries",
+  });
   G = getG();
   assert(G.econ.liberty0 === 72, "Netherlands liberty0 is 72");
   assert(G.econ.openness0 === 68, "Netherlands openness0 is 68");
   /* Anchors hold through early quarters rather than crawling back to UK. */
   for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
-  assert(G.econ.liberty > 65, `Netherlands liberty stays elevated after 8Q (got ${G.econ.liberty})`);
-  assert(G.econ.openness > 60, `Netherlands openness stays elevated after 8Q (got ${G.econ.openness})`);
+  assert(
+    G.econ.liberty > 65,
+    `Netherlands liberty stays elevated after 8Q (got ${G.econ.liberty})`,
+  );
+  assert(
+    G.econ.openness > 60,
+    `Netherlands openness stays elevated after 8Q (got ${G.econ.openness})`,
+  );
 
   /* Opening-delta anchoring: unchanged statute holds near soc0; removing a
      liberty-negative opening policy raises liberty (policy content still bites). */
@@ -1768,11 +2140,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
   assert(
     Math.abs(G.econ.liberty - 18) < 4,
-    `China liberty holds near soc0 under unchanged law (got ${G.econ.liberty})`
+    `China liberty holds near soc0 under unchanged law (got ${G.econ.liberty})`,
   );
   assert(
     Math.abs(G.econ.crime - 24) < 8,
-    `China crime holds near soc0 under unchanged law (got ${G.econ.crime})`
+    `China crime holds near soc0 under unchanged law (got ${G.econ.crime})`,
   );
   const libBefore = G.econ.liberty;
   assert(G.law.policies.digitalId, "China opens with digital identity");
@@ -1780,7 +2152,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 16; i++) step(G, G.law, G.law, true);
   assert(
     G.econ.liberty > libBefore + 3,
-    `Repealing digitalId raises China liberty (${libBefore.toFixed(1)} → ${G.econ.liberty.toFixed(1)})`
+    `Repealing digitalId raises China liberty (${libBefore.toFixed(1)} → ${G.econ.liberty.toFixed(1)})`,
   );
 }
 
@@ -1801,7 +2173,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     assert(!!p && POLITY_IDS.includes(p), `${id} has a valid polity (${p})`);
   }
   for (const [id, kind] of Object.entries(expect)) {
-    assert(polityIdOf(id === "kingdom" ? "home" : id) === kind, `${id} polity is ${kind}`);
+    assert(
+      polityIdOf(id === "kingdom" ? "home" : id) === kind,
+      `${id} polity is ${kind}`,
+    );
   }
   assert(termLenOf("home") === 20, "Kingdom termLen is 20");
   assert(termLenOf("china") === 40, "China termLen is 40");
@@ -1809,7 +2184,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(polityOf("china").capitalRegen === 0.55, "China capitalRegen is 0.55");
   assert(polityOf("home").capitalRegen === 1, "Kingdom capitalRegen is 1");
 
-  newGame({ sandbox: true, homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  newGame({
+    sandbox: true,
+    homeRole: "china",
+    homeIso: "156",
+    country: "Eastern Republic",
+  });
   G = getG();
   G.q = 20;
   assert(!termReviewDue(), "China is not due a term review at q=20");
@@ -1820,7 +2200,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(G.term === termBefore + 1, "China congress advances the term");
   assert(!G.over, "China sandbox congress does not end the run");
 
-  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({
+    sandbox: true,
+    homeRole: "home",
+    homeIso: "826",
+    country: "The Kingdom",
+  });
   G = getG();
   G.q = 20;
   assert(termReviewDue(), "Kingdom is due an election at q=20");
@@ -1842,14 +2227,22 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   }
   const kg = capitalGain("home", "826", "The Kingdom");
   const cg = capitalGain("china", "156", "Eastern Republic");
-  assert(kg > 0 && cg > 0, `capital gains positive (kingdom ${kg.toFixed(2)}, china ${cg.toFixed(2)})`);
+  assert(
+    kg > 0 && cg > 0,
+    `capital gains positive (kingdom ${kg.toFixed(2)}, china ${cg.toFixed(2)})`,
+  );
   assert(
     Math.abs(cg / kg - 0.55) < 0.08,
-    `China capital gain ~55% of Kingdom (got ${(cg / kg).toFixed(3)})`
+    `China capital gain ~55% of Kingdom (got ${(cg / kg).toFixed(3)})`,
   );
 
   /* Elite coup: three quarters of low patriots ends China Career. */
-  newGame({ sandbox: false, homeRole: "china", homeIso: "156", country: "Eastern Republic" });
+  newGame({
+    sandbox: false,
+    homeRole: "china",
+    homeIso: "156",
+    country: "Eastern Republic",
+  });
   G = getG();
   G.sandbox = false;
   for (const f of FACTIONS) G.fac[f.id] = 50;
@@ -1861,92 +2254,180 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   checkCrises({});
   assert(G.over, "China Career ends after three low-patriot quarters");
 
-  newGame({ sandbox: false, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({
+    sandbox: false,
+    homeRole: "home",
+    homeIso: "826",
+    country: "The Kingdom",
+  });
   G = getG();
   G.sandbox = false;
   for (const f of FACTIONS) G.fac[f.id] = 50;
   G.lowRun = 0;
   checkCrises({});
-  assert(G.lowRun === 0 && !G.over, "Kingdom at 50% approval does not tick the coup clock");
+  assert(
+    G.lowRun === 0 && !G.over,
+    "Kingdom at 50% approval does not tick the coup clock",
+  );
   for (const f of FACTIONS) G.fac[f.id] = 15;
   checkCrises({});
   checkCrises({});
   checkCrises({});
-  assert(!G.over && G.lowRun === 3, "Kingdom still needs a fourth low-approval quarter");
+  assert(
+    !G.over && G.lowRun === 3,
+    "Kingdom still needs a fourth low-approval quarter",
+  );
   checkCrises({});
   assert(G.over, "Kingdom Career ends after four low-approval quarters");
 
   /* newGovt flavour for authoritarian focus has no "election". */
-  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({
+    sandbox: true,
+    homeRole: "home",
+    homeIso: "826",
+    country: "The Kingdom",
+  });
   G = getG();
   const newGovt = EVENTS.find((e) => e.id === "newGovt");
   G.eventFocus = "china";
-  const chinaText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
-  assert(!/election/i.test(chinaText), "China newGovt text does not say election");
-  assert(/reshuffle|leadership/i.test(chinaText), "China newGovt mentions leadership reshuffle");
+  const chinaText =
+    typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(
+    !/election/i.test(chinaText),
+    "China newGovt text does not say election",
+  );
+  assert(
+    /reshuffle|leadership/i.test(chinaText),
+    "China newGovt mentions leadership reshuffle",
+  );
   G.eventFocus = "saudi";
-  const saudiText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
-  assert(!/election/i.test(saudiText), "Saudi newGovt text does not say election");
-  assert(/reshuffle|leadership/i.test(saudiText), "Saudi newGovt mentions leadership reshuffle");
+  const saudiText =
+    typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(
+    !/election/i.test(saudiText),
+    "Saudi newGovt text does not say election",
+  );
+  assert(
+    /reshuffle|leadership/i.test(saudiText),
+    "Saudi newGovt mentions leadership reshuffle",
+  );
   G.eventFocus = "germany";
-  const demText = typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
-  assert(/election/i.test(demText), "Democratic newGovt text still says election");
-  const prepared = prepareEvent(Object.assign({}, newGovt, {
-    resolve: () => ({ focus: "china" }),
-  }));
-  assert(prepared && !/election/i.test(prepared.text), "prepareEvent resolves China newGovt without election");
-  assert(prepared && /reshuffle|leadership/i.test(prepared.title), "prepareEvent China title is a reshuffle");
+  const demText =
+    typeof newGovt.text === "function" ? newGovt.text() : newGovt.text;
+  assert(
+    /election/i.test(demText),
+    "Democratic newGovt text still says election",
+  );
+  const prepared = prepareEvent(
+    Object.assign({}, newGovt, {
+      resolve: () => ({ focus: "china" }),
+    }),
+  );
+  assert(
+    prepared && !/election/i.test(prepared.text),
+    "prepareEvent resolves China newGovt without election",
+  );
+  assert(
+    prepared && /reshuffle|leadership/i.test(prepared.title),
+    "prepareEvent China title is a reshuffle",
+  );
 }
 
 /* Polity change (Society), affinity, and bill shocks. */
 {
   assert(MUTABLE.includes("polityShift"), "polityShift is on MUTABLE");
 
-  newGame({ sandbox: true, homeRole: "home", homeIso: "826", country: "The Kingdom" });
+  newGame({
+    sandbox: true,
+    homeRole: "home",
+    homeIso: "826",
+    country: "The Kingdom",
+  });
   G = getG();
   assert(G.law.polity === "democracy", "Kingdom law.polity is democracy");
-  assert(polityReachable("democracy").join(",") === "democracy,hybrid,authoritarian", "all three polities are reachable");
-  assert(polityCanReach("democracy", "authoritarian"), "democracy can leap to authoritarian");
-  assert(POLITY_IDS.includes("monarchy") === false, "monarchy is not a live polity type");
-  assert(polityChangePc("democracy", "hybrid") === POLITY.hybrid.changePc, "adjacent hybrid costs changePc");
   assert(
-    polityChangePc("democracy", "authoritarian") === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
-    "democracy→authoritarian leap costs changePc + leap extra"
+    polityReachable("democracy").join(",") === "democracy,hybrid,authoritarian",
+    "all three polities are reachable",
   );
   assert(
-    polityChangePc("authoritarian", "democracy") === POLITY.democracy.changePc + POLITY_LEAP_EXTRA,
-    "authoritarian→democracy leap costs changePc + leap extra"
+    polityCanReach("democracy", "authoritarian"),
+    "democracy can leap to authoritarian",
+  );
+  assert(
+    POLITY_IDS.includes("monarchy") === false,
+    "monarchy is not a live polity type",
+  );
+  assert(
+    polityChangePc("democracy", "hybrid") === POLITY.hybrid.changePc,
+    "adjacent hybrid costs changePc",
+  );
+  assert(
+    polityChangePc("democracy", "authoritarian") ===
+      POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
+    "democracy→authoritarian leap costs changePc + leap extra",
+  );
+  assert(
+    polityChangePc("authoritarian", "democracy") ===
+      POLITY.democracy.changePc + POLITY_LEAP_EXTRA,
+    "authoritarian→democracy leap costs changePc + leap extra",
   );
 
   G.draft.polity = "authoritarian";
   let cl = billClauses();
   const leapCl = cl.find((c) => /political system/.test(c.label));
   assert(!!leapCl, "leap polity change is a bill clause");
-  assert(leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA, "leap clause uses leap PC");
+  assert(
+    leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
+    "leap clause uses leap PC",
+  );
   assert(clausesIn("society", cl), "polity clause counts toward Society");
 
   G.draft.polity = "hybrid";
   cl = billClauses();
   const polityCl = cl.find((c) => /political system/.test(c.label));
   assert(!!polityCl, "adjacent polity change is a bill clause");
-  assert(polityCl.pc === POLITY.hybrid.changePc, "hybrid polity change costs changePc");
+  assert(
+    polityCl.pc === POLITY.hybrid.changePc,
+    "hybrid polity change costs changePc",
+  );
 
   const libShock = polityShockFac("authoritarian", "hybrid");
-  assert(libShock.urban === 8 && libShock.patriots === -10, "liberalising shock lifts urban and hits patriots");
+  assert(
+    libShock.urban === 8 && libShock.patriots === -10,
+    "liberalising shock lifts urban and hits patriots",
+  );
   const tightShock = polityShockFac("democracy", "hybrid");
-  assert(tightShock.patriots === 8 && tightShock.urban === -10, "tightening shock lifts patriots and hits urban");
+  assert(
+    tightShock.patriots === 8 && tightShock.urban === -10,
+    "tightening shock lifts patriots and hits urban",
+  );
 
   const prev = clone(G.law);
   const next = clone(G.law);
   next.polity = "hybrid";
   const shock = billShock(next, prev);
-  assert(shock.urban === -10 && shock.patriots === 8, "billShock applies tightening polity hits");
+  assert(
+    shock.urban === -10 && shock.patriots === 8,
+    "billShock applies tightening polity hits",
+  );
 
-  assert(polityAffinity("authoritarian", "authoritarian") === 1, "same polity affinity is 1");
-  assert(polityAffinity("authoritarian", "democracy") === -0.7, "democracy↔authoritarian affinity is −0.7");
-  const chinaRussia = REL_POLITY * polityAffinity("authoritarian", profilePolityId("russia"));
-  const chinaNl = REL_POLITY * polityAffinity("authoritarian", profilePolityId("netherlands"));
-  assert(chinaRussia > chinaNl + 5, `China–Russia affinity target exceeds China–Netherlands (${chinaRussia} vs ${chinaNl})`);
+  assert(
+    polityAffinity("authoritarian", "authoritarian") === 1,
+    "same polity affinity is 1",
+  );
+  assert(
+    polityAffinity("authoritarian", "democracy") === -0.7,
+    "democracy↔authoritarian affinity is −0.7",
+  );
+  const chinaRussia =
+    REL_POLITY * polityAffinity("authoritarian", profilePolityId("russia"));
+  const chinaNl =
+    REL_POLITY *
+    polityAffinity("authoritarian", profilePolityId("netherlands"));
+  assert(
+    chinaRussia > chinaNl + 5,
+    `China–Russia affinity target exceeds China–Netherlands (${chinaRussia} vs ${chinaNl})`,
+  );
 
   G.capital = 80;
   G.draft.polity = "hybrid";
@@ -1954,21 +2435,48 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const from = G.law.polity;
   G.law = clone(G.draft);
   G.polityShift = { from, to: "hybrid", q: G.q };
-  assert(G.polityShift.to === "hybrid", "polityShift records the enacted change");
-  assert(EVENTS.some((e) => e.id === "polityBacklash"), "polityBacklash event exists");
-  assert(EVENTS.some((e) => e.id === "polityConsolidation"), "polityConsolidation event exists");
-  assert(EVENTS.some((e) => e.id === "polityRecognition"), "polityRecognition event exists");
+  assert(
+    G.polityShift.to === "hybrid",
+    "polityShift records the enacted change",
+  );
+  assert(
+    EVENTS.some((e) => e.id === "polityBacklash"),
+    "polityBacklash event exists",
+  );
+  assert(
+    EVENTS.some((e) => e.id === "polityConsolidation"),
+    "polityConsolidation event exists",
+  );
+  assert(
+    EVENTS.some((e) => e.id === "polityRecognition"),
+    "polityRecognition event exists",
+  );
 }
 
 /* Live potential growth tracks NATION_PROFILE.trend bands for every playable
    seat (derived from demography + yRel catch-up — not pinned tfpTrend). */
 {
   const seats = [
-    { role: "home", trend: 1.2, opts: { homeRole: "home", homeIso: "826", country: "United Kingdom" } },
+    {
+      role: "home",
+      trend: 1.2,
+      opts: { homeRole: "home", homeIso: "826", country: "United Kingdom" },
+    },
     ...[
-      ["france", "250"], ["united_states", "840"], ["china", "156"], ["russia", "643"],
-      ["india", "356"], ["nigeria", "566"], ["brazil", "076"], ["australia", "036"], ["saudi", "682"],
-      ["canada", "124"], ["korea", "410"], ["indonesia", "360"], ["argentina", "032"], ["poland", "616"],
+      ["france", "250"],
+      ["united_states", "840"],
+      ["china", "156"],
+      ["russia", "643"],
+      ["india", "356"],
+      ["nigeria", "566"],
+      ["brazil", "076"],
+      ["australia", "036"],
+      ["saudi", "682"],
+      ["canada", "124"],
+      ["korea", "410"],
+      ["indonesia", "360"],
+      ["argentina", "032"],
+      ["poland", "616"],
     ].map(([role, iso]) => ({
       role,
       trend: NATION_PROFILE[role].trend,
@@ -1981,19 +2489,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     const pot = potentialGrowth(G.law, aggregate(G.law), G.econ);
     assert(
       Math.abs(pot - s.trend) < 1.05,
-      `${s.role} live potential near ${s.trend} (got ${pot.toFixed(2)})`
+      `${s.role} live potential near ${s.trend} (got ${pot.toFixed(2)})`,
     );
     assert(
       G.econ.yRel != null && G.econ.birthRate != null && G.econ.migBase != null,
-      `${s.role} carries structural demography / relative-income fields`
+      `${s.role} carries structural demography / relative-income fields`,
     );
     assert(
       G.econ.tfpTrend == null && G.econ.labourTrend == null,
-      `${s.role} has no hard-coded tfpTrend / labourTrend`
+      `${s.role} has no hard-coded tfpTrend / labourTrend`,
     );
     assert(
       G.econ.trendBias == null || G.econ.trendBias === 0,
-      `${s.role} has no residual trendBias`
+      `${s.role} has no residual trendBias`,
     );
     let sum = 0;
     for (let i = 0; i < 20; i++) {
@@ -2003,87 +2511,149 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     const mean = sum / 20;
     assert(
       Math.abs(mean - s.trend) < 1.25,
-      `${s.role} mean 20Q trend near ${s.trend} (got ${mean.toFixed(2)})`
+      `${s.role} mean 20Q trend near ${s.trend} (got ${mean.toFixed(2)})`,
     );
   }
   /* High-CPI seats open with a Taylor-consistent Bank rate, not UK 3.75%. */
-  newGame({ homeRole: "nigeria", homeIso: "566", country: "Green Coast Republic" });
+  newGame({
+    homeRole: "nigeria",
+    homeIso: "566",
+    country: "Green Coast Republic",
+  });
   G = getG();
-  assert(G.econ.rate > 8, `Nigeria opens with a high Bank rate (got ${G.econ.rate})`);
+  assert(
+    G.econ.rate > 8,
+    `Nigeria opens with a high Bank rate (got ${G.econ.rate})`,
+  );
   newGame({ homeRole: "russia", homeIso: "643", country: "Northern Reach" });
   G = getG();
-  assert(G.econ.rate > 6, `Northern Reach opens with a high Bank rate (got ${G.econ.rate})`);
+  assert(
+    G.econ.rate > 6,
+    `Northern Reach opens with a high Bank rate (got ${G.econ.rate})`,
+  );
 }
 
 /* Multi-seat authenticity: trade matrix, demography, labour, rel/deals, openness, FX, fac. */
 {
   assert(
     Math.abs(tradeRestShare("home") - 0.04) < 0.005,
-    `UK rest-of-world share near 4% (got ${tradeRestShare("home")})`
+    `UK rest-of-world share near 4% (got ${tradeRestShare("home")})`,
   );
   assert(
     Math.abs(tradeRestShare("france") - 0.04) < 0.02,
-    `Continental rest-of-world near 4% not ~45% (got ${tradeRestShare("france")})`
+    `Continental rest-of-world near 4% not ~45% (got ${tradeRestShare("france")})`,
   );
   assert(
     partnerShare("united_states", "china") > partnerShare("home", "china"),
-    "US→China trade weight exceeds UK→China"
+    "US→China trade weight exceeds UK→China",
   );
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
   const ceuDeals = dealsForPartner(partnerById("france"), "france");
-  assert(ceuDeals.length === 0, "Continental home sees no CEU accession deals on Continental");
-  assert(G.rel.russia != null && G.rel.russia < 40, "Continental opens frosty with Northern Reach");
-  assert(G.econ.dependency > 0.32, `Continental opens with older dependency (got ${G.econ.dependency})`);
-  assert(Math.abs(G.econ.unemployment - NATION_PROFILE.france.unemployment0) < 0.05, `Continental opens at unemployment ${NATION_PROFILE.france.unemployment0} (got ${G.econ.unemployment})`);
-  assert(G.econ.shareX >= 35, `Continental opens trade-open (shareX ${G.econ.shareX})`);
+  assert(
+    ceuDeals.length === 0,
+    "Continental home sees no CEU accession deals on Continental",
+  );
+  assert(
+    G.rel.russia != null && G.rel.russia < 40,
+    "Continental opens frosty with Northern Reach",
+  );
+  assert(
+    G.econ.dependency > 0.32,
+    `Continental opens with older dependency (got ${G.econ.dependency})`,
+  );
+  assert(
+    Math.abs(G.econ.unemployment - NATION_PROFILE.france.unemployment0) < 0.05,
+    `Continental opens at unemployment ${NATION_PROFILE.france.unemployment0} (got ${G.econ.unemployment})`,
+  );
+  assert(
+    G.econ.shareX >= 35,
+    `Continental opens trade-open (shareX ${G.econ.shareX})`,
+  );
 
   newGame({ homeRole: "india", homeIso: "356", country: "India" });
   G = getG();
-  assert(G.econ.dependency < 0.26, `India opens young (dep ${G.econ.dependency})`);
-  assert(G.econ.popChild > 35, `India opens with a large child stock (got ${G.econ.popChild})`);
-  assert(Math.abs(G.econ.unemployment - NATION_PROFILE.india.unemployment0) < 0.05, "India unemployment matches profile");
-  assert(Math.abs(G.econ.nairu - NATION_PROFILE.india.nairu0) < 0.05, "India NAIRU matches profile");
+  assert(
+    G.econ.dependency < 0.26,
+    `India opens young (dep ${G.econ.dependency})`,
+  );
+  assert(
+    G.econ.popChild > 35,
+    `India opens with a large child stock (got ${G.econ.popChild})`,
+  );
+  assert(
+    Math.abs(G.econ.unemployment - NATION_PROFILE.india.unemployment0) < 0.05,
+    "India unemployment matches profile",
+  );
+  assert(
+    Math.abs(G.econ.nairu - NATION_PROFILE.india.nairu0) < 0.05,
+    "India NAIRU matches profile",
+  );
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
+  newGame({
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
   G = getG();
-  assert(G.econ.shareX <= 16, `United States open less trade-intensive (shareX ${G.econ.shareX})`);
-  assert(G.econ.fxUip < 0.02, `United States damp FX UIP (got ${G.econ.fxUip})`);
-  assert(G.econ.worldRate >= 3.0, `US worldRate near domestic (got ${G.econ.worldRate})`);
+  assert(
+    G.econ.shareX <= 16,
+    `United States open less trade-intensive (shareX ${G.econ.shareX})`,
+  );
+  assert(
+    G.econ.fxUip < 0.02,
+    `United States damp FX UIP (got ${G.econ.fxUip})`,
+  );
+  assert(
+    G.econ.worldRate >= 3.0,
+    `US worldRate near domestic (got ${G.econ.worldRate})`,
+  );
   assert(G.rel.china < 40, `US opens cool with China (got ${G.rel.china})`);
   assert(!!G.law.deals.cw_fta, "US opens with Commonwealth FTA ratified");
-  assert(G.fac.business > FAC_0.business, "US opens with higher business approval");
+  assert(
+    G.fac.business > FAC_0.business,
+    "US opens with higher business approval",
+  );
 
   newGame({ homeRole: "saudi", homeIso: "682", country: "Saudi Arabia" });
   G = getG();
-  assert(G.fac.patriots > FAC_0.patriots, "Saudi opens with higher patriot approval");
-  assert(G.econ.shareX >= 38, `Saudi opens export-heavy (shareX ${G.econ.shareX})`);
+  assert(
+    G.fac.patriots > FAC_0.patriots,
+    "Saudi opens with higher patriot approval",
+  );
+  assert(
+    G.econ.shareX >= 38,
+    `Saudi opens export-heavy (shareX ${G.econ.shareX})`,
+  );
 
   newGame({ homeRole: "australia", homeIso: "036", country: "CW" });
   G = getG();
-  assert(!!G.law.deals.king_services, "Australia opens with UK services access");
+  assert(
+    !!G.law.deals.king_services,
+    "Australia opens with UK services access",
+  );
 }
 
 /* Knowledge stock R: research spend accumulates; education still lifts potential via h. */
 {
   assert(
     DEPTS.some((d) => d.id === "research"),
-    "research is a budget department"
+    "research is a budget department",
   );
   newGame();
   G = getG();
   assert(
     Math.abs(G.econ.R - R0) < 0.01,
-    `opening knowledge stock near R0 (got ${G.econ.R}, want ${R0})`
+    `opening knowledge stock near R0 (got ${G.econ.R}, want ${R0})`,
   );
   assert(
     Math.abs(knowledgeTfp(G.econ)) < 1e-9,
-    "knowledge TFP contribution is zero at R0"
+    "knowledge TFP contribution is zero at R0",
   );
   assert(
     Math.abs(researchEffort(G.law, aggregate(G.law)) - 0.7) < 1e-9,
-    "baseline research effort equals the research budget"
+    "baseline research effort equals the research budget",
   );
 
   const base = simulate(G.law, 20);
@@ -2092,11 +2662,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const hi = simulate(hiLaw, 20);
   assert(
     hi.end.econ.R > base.end.econ.R + 1,
-    `higher research spend raises R over 20Q (${base.end.econ.R.toFixed(2)} → ${hi.end.econ.R.toFixed(2)})`
+    `higher research spend raises R over 20Q (${base.end.econ.R.toFixed(2)} → ${hi.end.econ.R.toFixed(2)})`,
   );
   assert(
     hi.end.econ.potential > base.end.econ.potential,
-    `higher research raises potential (${base.end.econ.potential.toFixed(2)} → ${hi.end.econ.potential.toFixed(2)})`
+    `higher research raises potential (${base.end.econ.potential.toFixed(2)} → ${hi.end.econ.potential.toFixed(2)})`,
   );
 
   const cutLaw = clone(G.law);
@@ -2105,7 +2675,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const R8 = cut.end.econ.R;
   assert(
     R8 < R0 && R8 > R0 * 0.7,
-    `cutting research decays R slowly, not a cliff (${R0.toFixed(2)} → ${R8.toFixed(2)} in 8Q)`
+    `cutting research decays R slowly, not a cliff (${R0.toFixed(2)} → ${R8.toFixed(2)} in 8Q)`,
   );
 
   newGame();
@@ -2117,7 +2687,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const edu1 = potentialLevel(eduLaw, aggregate(eduLaw), G.econ);
   assert(
     edu1 > edu0,
-    `education spend lifts potential via human capital with research fixed (${edu0.toFixed(3)} → ${edu1.toFixed(3)})`
+    `education spend lifts potential via human capital with research fixed (${edu0.toFixed(3)} → ${edu1.toFixed(3)})`,
   );
 
   newGame();
@@ -2127,11 +2697,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const E_rnd = aggregate(rndLaw);
   assert(
     E_rnd.rndEffort > 0 && Math.abs(E_rnd.tfp) < 1e-9,
-    `research credits add rndEffort (${E_rnd.rndEffort}) without a flat tfp bump (${E_rnd.tfp})`
+    `research credits add rndEffort (${E_rnd.rndEffort}) without a flat tfp bump (${E_rnd.tfp})`,
   );
   assert(
     Math.abs(E_rnd.rndEffort - 0.55) < 1e-9,
-    `research credits induce ~1:1 private effort with their fiscal cost (got ${E_rnd.rndEffort})`
+    `research credits induce ~1:1 private effort with their fiscal cost (got ${E_rnd.rndEffort})`,
   );
   const withCredits = simulate(rndLaw, 16);
   newGame();
@@ -2139,7 +2709,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const without = simulate(G.law, 16);
   assert(
     withCredits.end.econ.R > without.end.econ.R,
-    `research credits raise the knowledge stock (${without.end.econ.R.toFixed(2)} → ${withCredits.end.econ.R.toFixed(2)})`
+    `research credits raise the knowledge stock (${without.end.econ.R.toFixed(2)} → ${withCredits.end.econ.R.toFixed(2)})`,
   );
   /* Private lab spend is demand now (I), not only a knowledge-stock flow — so
      four-quarter cumulative growth should not read as a pure fiscal contraction. */
@@ -2150,7 +2720,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const imRnd = impactOf(rndOnly, simulate(G.law, 4), 4);
   assert(
     imRnd.head.growth > -0.01,
-    `research credits are not a short-run growth tax (4Q growth ${imRnd.head.growth.toFixed(3)})`
+    `research credits are not a short-run growth tax (4Q growth ${imRnd.head.growth.toFixed(3)})`,
   );
 }
 
@@ -2166,14 +2736,14 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const im = impactOf(cut, base, 4);
   assert(
     im.head.growth > 0.05,
-    `employer NI cut raises cumulative growth over 4Q (got ${im.head.growth.toFixed(3)})`
+    `employer NI cut raises cumulative growth over 4Q (got ${im.head.growth.toFixed(3)})`,
   );
   const add = clone(G.law);
   add.income.bands[2].rate -= 10;
   const imAdd = impactOf(add, base, 4);
   assert(
     imAdd.head.growth < 0,
-    `unfunded additional-rate cut stays weakly contractionary on cumulative growth (got ${imAdd.head.growth.toFixed(3)})`
+    `unfunded additional-rate cut stays weakly contractionary on cumulative growth (got ${imAdd.head.growth.toFixed(3)})`,
   );
 }
 
@@ -2184,46 +2754,54 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(MISSIONS.length === 3, "missions are summit, protest, sanctions");
   assert(
     !MISSIONS.some((m) => m.id === "concession"),
-    "concession is not a staged mission"
+    "concession is not a staged mission",
   );
   assert(
     MISSION_EVENTS.every((ev) => !ev.missions.includes("concession")),
-    "mission events are summit-only"
+    "mission events are summit-only",
   );
   const demarche = MISSIONS.find((m) => m.id === "demarche");
-  assert(demarche && demarche.pc === 4 && demarche.impulse === -5, "protest is cheap escalate rung");
+  assert(
+    demarche && demarche.pc === 4 && demarche.impulse === -5,
+    "protest is cheap escalate rung",
+  );
   G.draft.missions = { france: "summit" };
   const cl = billClauses();
   assert(
     cl.some((c) => /summit|State visit/i.test(c.label)),
-    "staging a summit creates a bill clause"
+    "staging a summit creates a bill clause",
   );
   const cost = cl.reduce((a, c) => a + c.pc, 0);
   const cap0 = G.capital;
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
-  assert(isVisitActive(G, "france"), "summit begins a two-quarter state visit on enact");
+  assert(
+    isVisitActive(G, "france"),
+    "summit begins a two-quarter state visit on enact",
+  );
   assert(
     !G.missionEvents || G.missionEvents.length === 0,
-    "summit does not queue mission event until deliver queues visit events"
+    "summit does not queue mission event until deliver queues visit events",
   );
   queueSummitVisitEvents(G);
   assert(
-    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].missionId === "summit",
-    "first deliver during summit visit queues one mission event"
+    G.missionEvents &&
+      G.missionEvents.length === 1 &&
+      G.missionEvents[0].missionId === "summit",
+    "first deliver during summit visit queues one mission event",
   );
   assert(
     (G.econ.relImpulse.france || 0) < 10,
-    "summit no longer applies full relImpulse on enact"
+    "summit no longer applies full relImpulse on enact",
   );
   assert(
     G.econ.missionCd.france === 3,
-    "summit sets a three-quarter mission cooldown"
+    "summit sets a three-quarter mission cooldown",
   );
   const rel0 = G.rel.france;
   step(G, G.law, G.prevLaw, true);
   assert(
     G.rel.france > rel0,
-    `summit impulse lifts france relations (${rel0.toFixed(1)} → ${G.rel.france.toFixed(1)})`
+    `summit impulse lifts france relations (${rel0.toFixed(1)} → ${G.rel.france.toFixed(1)})`,
   );
   assert(cap0 >= cost, "opening capital covers a summit");
 }
@@ -2238,7 +2816,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const coldX = G.econ.bilateralX.russia;
   assert(
     coldX < warmX,
-    `cold relations cut bilateral exports (${coldX.toFixed(3)} vs ${warmX.toFixed(3)})`
+    `cold relations cut bilateral exports (${coldX.toFixed(3)} vs ${warmX.toFixed(3)})`,
   );
 }
 
@@ -2263,7 +2841,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const coldRetal = G.econ.retaliation;
   assert(
     coldRetal > warmRetal,
-    `cold relations amplify retaliation (${coldRetal.toFixed(3)} vs ${warmRetal.toFixed(3)})`
+    `cold relations amplify retaliation (${coldRetal.toFixed(3)} vs ${warmRetal.toFixed(3)})`,
   );
 }
 
@@ -2276,7 +2854,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.tariffSchedule.cet = 15;
   G.draft.tariffSchedule.default = 15;
   billClauses();
-  assert(G.draft.tariffSchedule.cet === 4, "billClauses snaps draft tariff to the lock");
+  assert(
+    G.draft.tariffSchedule.cet === 4,
+    "billClauses snaps draft tariff to the lock",
+  );
 }
 
 {
@@ -2299,7 +2880,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  assert(!EVENTS.find((e) => e.id === "allianceOffer"), "allianceOffer event removed");
+  assert(
+    !EVENTS.find((e) => e.id === "allianceOffer"),
+    "allianceOffer event removed",
+  );
 
   G.capital = 200;
   G.rel.france = 58;
@@ -2311,9 +2895,14 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.tariffSchedule.default = 7;
   G.draft.tariff = 7;
 
-  assert(blocJoinBlockers("continental_union", "apply").length === 0, "CU application clears with chair + tariff");
+  assert(
+    blocJoinBlockers("continental_union", "apply").length === 0,
+    "CU application clears with chair + tariff",
+  );
   G.draft.blocAccession = { blocId: "continental_union", phase: "apply" };
-  const applyCost = billClauses().filter((c) => c.label && c.label.includes("Application to join")).reduce((s, c) => s + c.pc, 0);
+  const applyCost = billClauses()
+    .filter((c) => c.label && c.label.includes("Application to join"))
+    .reduce((s, c) => s + c.pc, 0);
   assert(applyCost > 0, "application costs capital once");
   enact();
   const pid = playerCountryId();
@@ -2323,21 +2912,30 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       G.blocAccessionByCountry[pid].blocId === "continental_union" &&
       G.blocAccessionByCountry[pid].step === 1 &&
       G.blocAccessionByCountry[pid].self,
-    "application starts automatic accession pipeline"
+    "application starts automatic accession pipeline",
   );
-  assert(G.blocAccession && G.blocAccession.step === 1, "application mirrors accession step 1");
-  assert(!canCreateCustomBloc(), "cannot found a bloc while accession is in progress");
+  assert(
+    G.blocAccession && G.blocAccession.step === 1,
+    "application mirrors accession step 1",
+  );
+  assert(
+    !canCreateCustomBloc(),
+    "cannot found a bloc while accession is in progress",
+  );
   G.draft.blocCreate = { name: "Shadow League", template: "shallow_fta" };
   assert(
     billClauses().every((c) => !c.label || !/^Found /.test(c.label)),
-    "Found is not a capital clause while ascending"
+    "Found is not a capital clause while ascending",
   );
   G.draft.blocCreate = null;
   {
     const savedAcc = clone(G.blocAccessionByCountry[pid]);
     const savedMirror = clone(G.blocAccession);
     assert(withdrawBlocAccession(G, pid), "cancel joining clears accession");
-    assert(!G.blocAccessionByCountry[pid], "shared accession cleared on withdraw");
+    assert(
+      !G.blocAccessionByCountry[pid],
+      "shared accession cleared on withdraw",
+    );
     assert(!G.blocAccession, "seat accession cleared on withdraw");
     assert(canCreateCustomBloc(), "founding unlocked after cancel joining");
     /* Restore so the automatic accession path below still runs. */
@@ -2350,18 +2948,21 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.blocAccession = { blocId: "continental_union", phase: "align" };
   assert(
     billClauses().every((c) => !c.label || !c.label.includes("alignment")),
-    "alignment is not a capital clause"
+    "alignment is not a capital clause",
   );
   G.draft.blocAccession = null;
 
   step(G, G.law, G.law, true);
   assert(
     G.blocAccessionByCountry[pid] && G.blocAccessionByCountry[pid].step === 2,
-    "accession advances to alignment after one quarter"
+    "accession advances to alignment after one quarter",
   );
 
   step(G, G.law, G.law, true);
-  assert(countryBlocId(pid) === "continental_union", "accession treaty joins continental union automatically");
+  assert(
+    countryBlocId(pid) === "continental_union",
+    "accession treaty joins continental union automatically",
+  );
   assert(G.law.tariffSchedule.cet === 4, "accession locks CET at 4");
   assert(!G.blocAccession, "accession state cleared after join");
   assert(!G.blocAccessionByCountry[pid], "pipeline cleared after join");
@@ -2378,9 +2979,15 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.rel.netherlands = 55;
   G.draft.tariffSchedule.default = 7;
   const blockers = blocJoinBlockers("continental_union", "accede");
-  assert(blockers.some((b) => b.includes("Germany")), "unanimous gate blocks when one member is below threshold");
+  assert(
+    blockers.some((b) => b.includes("Germany")),
+    "unanimous gate blocks when one member is below threshold",
+  );
   const approvals = blocMemberApprovals("continental_union");
-  assert(approvals.some((a) => a.id === "germany" && !a.ok), "germany flagged in member approvals");
+  assert(
+    approvals.some((a) => a.id === "germany" && !a.ok),
+    "germany flagged in member approvals",
+  );
 }
 
 {
@@ -2390,7 +2997,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.policies.closeBorders = true;
   G.draft.tariffSchedule.default = 7;
   const blockers = blocJoinBlockers("continental_union", "align");
-  assert(blockers.some((b) => b.includes("close borders") || b.includes("migration")), "close borders blocks alignment");
+  assert(
+    blockers.some(
+      (b) => b.includes("close borders") || b.includes("migration"),
+    ),
+    "close borders blocks alignment",
+  );
 }
 
 {
@@ -2399,7 +3011,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   joinBloc("continental_union", G.law);
   const frDeal = DEAL_BY_ID.fr_fta;
   const blockers = dealBlockers(frDeal);
-  assert(blockers.some((b) => b.includes("trade bloc")), "bilateral deals blocked while in a bloc");
+  assert(
+    blockers.some((b) => b.includes("trade bloc")),
+    "bilateral deals blocked while in a bloc",
+  );
 }
 
 {
@@ -2407,7 +3022,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   const deDeal = DEAL_BY_ID.de_fta;
   const blockers = dealBlockers(deDeal);
-  assert(blockers.some((b) => b.includes("their bloc")), "cannot bilateral with partner in a bloc");
+  assert(
+    blockers.some((b) => b.includes("their bloc")),
+    "cannot bilateral with partner in a bloc",
+  );
 }
 
 {
@@ -2433,7 +3051,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   };
   G.blocAccession = { blocId: "continental_union", step: 2 };
   step(G, G.law, G.law, true);
-  assert(countryBlocId(playerCountryId()) === "continental_union", "auto accession joins on final stage");
+  assert(
+    countryBlocId(playerCountryId()) === "continental_union",
+    "auto accession joins on final stage",
+  );
   assert(!G.law.deals.fr_fta, "bilateral deals cleared on accession");
 }
 
@@ -2451,16 +3072,25 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.blocInvite = { india: true };
   const capBefore = G.capital;
   enact();
-  assert(!G.blocInvites || !G.blocInvites.india, "low member rel blocks invite enact");
+  assert(
+    !G.blocInvites || !G.blocInvites.india,
+    "low member rel blocks invite enact",
+  );
   assert(G.capital === capBefore, "blocked invite bill does not spend capital");
-  assert(blocInviteBlockers("continental_union", "india").some((b) => b.includes("Germany")), "germany blocks member-proposed invite");
+  assert(
+    blocInviteBlockers("continental_union", "india").some((b) =>
+      b.includes("Germany"),
+    ),
+    "germany blocks member-proposed invite",
+  );
 
   G.rel.germany = 55;
   G.draft.blocInvite = { india: true };
   enact();
   assert(
-    G.blocAccessionByCountry.india && G.blocAccessionByCountry.india.blocId === "continental_union",
-    "unanimous approval sends invite and accession begins"
+    G.blocAccessionByCountry.india &&
+      G.blocAccessionByCountry.india.blocId === "continental_union",
+    "unanimous approval sends invite and accession begins",
   );
   let joined = false;
   for (let i = 0; i < 12; i++) {
@@ -2476,51 +3106,93 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
-  assert(G.world && G.world.germany && G.world.germany.econ, "world bags exist for partners");
+  assert(
+    G.world && G.world.germany && G.world.germany.econ,
+    "world bags exist for partners",
+  );
   assert(G.world.india && G.world.india.econ, "india world bag exists");
-  assert(!G.world.france || G.world.france.isPlayer, "player seat is mirrored, not a separate AI bag");
-  const access0 = (G.econ.partnerAccessEff && G.econ.partnerAccessEff.india) || 0;
+  assert(
+    !G.world.france || G.world.france.isPlayer,
+    "player seat is mirrored, not a separate AI bag",
+  );
+  const access0 =
+    (G.econ.partnerAccessEff && G.econ.partnerAccessEff.india) || 0;
   const tBefore = effectiveTariff("india", G.law, G.homeRole, G.blocMember);
   finalizeBlocJoin(G, "india", "continental_union", G.law);
-  assert(countryBlocId("india") === "continental_union", "finalizeBlocJoin sets membership");
+  assert(
+    countryBlocId("india") === "continental_union",
+    "finalizeBlocJoin sets membership",
+  );
   const tAfter = effectiveTariff("india", G.law, G.homeRole, G.blocMember);
-  assert(tAfter < tBefore || tAfter === 0, "CU join zeros/cuts tariff on new member");
+  assert(
+    tAfter < tBefore || tAfter === 0,
+    "CU join zeros/cuts tariff on new member",
+  );
   const access = partnerAccessTargets(G.law, G.homeRole, G.blocMember);
-  assert((access.india || 0) > 0, "player bloc access targets include new member");
+  assert(
+    (access.india || 0) > 0,
+    "player bloc access targets include new member",
+  );
   assert(
     (G.econ.partnerAccessEff.india || 0) > access0,
-    "player phased access moves when a partner joins the bloc"
+    "player phased access moves when a partner joins the bloc",
   );
   const g0 = G.world.germany.econ.gdp;
   step(G, G.law, G.law, true);
   assert(
     G.world.germany.econ.gdp !== g0 || G.world.germany.econ._lastGrowth != null,
-    "partner world bags advance with the country macro"
+    "partner world bags advance with the country macro",
   );
   const snapWorld = JSON.stringify(Object.keys(G.world).sort());
   const worldGdp = G.world.germany.econ.gdp;
   project(2);
-  assert(G.world.germany.econ.gdp === worldGdp, "project() does not mutate partner world bags");
-  assert(JSON.stringify(Object.keys(G.world).sort()) === snapWorld, "project() preserves world seat set");
+  assert(
+    G.world.germany.econ.gdp === worldGdp,
+    "project() does not mutate partner world bags",
+  );
+  assert(
+    JSON.stringify(Object.keys(G.world).sort()) === snapWorld,
+    "project() preserves world seat set",
+  );
 }
 
 {
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
-  assert(countryBlocId(playerCountryId()) === "continental_union", "France starts in continental union");
-  assert(blocInviteBlockers("continental_union", "kingdom").length === 0, "kingdom invite clears at open as france");
+  assert(
+    countryBlocId(playerCountryId()) === "continental_union",
+    "France starts in continental union",
+  );
+  assert(
+    blocInviteBlockers("continental_union", "kingdom").length === 0,
+    "kingdom invite clears at open as france",
+  );
   G.draft.blocInvite = { kingdom: true };
   const cl = billClauses();
-  assert(cl.some((c) => c.label.includes("United Kingdom") && c.label.includes("Continental Union")), "staging propose kingdom adds bill clause");
+  assert(
+    cl.some(
+      (c) =>
+        c.label.includes("United Kingdom") &&
+        c.label.includes("Continental Union"),
+    ),
+    "staging propose kingdom adds bill clause",
+  );
   G.capital = 200;
   enact();
   assert(
-    G.blocAccessionByCountry.kingdom && G.blocAccessionByCountry.kingdom.blocId === "continental_union",
-    "france can propose and deliver kingdom invite"
+    G.blocAccessionByCountry.kingdom &&
+      G.blocAccessionByCountry.kingdom.blocId === "continental_union",
+    "france can propose and deliver kingdom invite",
   );
   G.draft.blocInvite = { kingdom: true };
-  assert(billClauses().length === 0, "stale invite does not block an empty bill");
-  assert(!G.draft.blocInvite.kingdom, "stale staged invite cleared once accession started");
+  assert(
+    billClauses().length === 0,
+    "stale invite does not block an empty bill",
+  );
+  assert(
+    !G.draft.blocInvite.kingdom,
+    "stale staged invite cleared once accession started",
+  );
 }
 
 {
@@ -2535,9 +3207,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   applyEventOption(sanctions.opts[0]);
   assert(
     G.rel.russia < 20,
-    `sanctions against northern cut northern relations (got ${G.rel.russia})`
+    `sanctions against northern cut northern relations (got ${G.rel.russia})`,
   );
-  assert(!G.law.deals.ru_energy, "full sanctions tear up deals with the target");
+  assert(
+    !G.law.deals.ru_energy,
+    "full sanctions tear up deals with the target",
+  );
 }
 
 {
@@ -2546,7 +3221,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const ids = new Set(activePartners().map((p) => p.id));
   for (let i = 0; i < 30; i++) {
     const p = pickEventPartner();
-    assert(p && ids.has(p.id), `pickEventPartner stays on active seats (${p && p.id})`);
+    assert(
+      p && ids.has(p.id),
+      `pickEventPartner stays on active seats (${p && p.id})`,
+    );
   }
 }
 
@@ -2562,11 +3240,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const basePath = simulate(G.law, 16);
   assert(
     path.end.econ.popChild > basePath.end.econ.popChild + 0.15,
-    `childcare fertility raises popChild (${path.end.econ.popChild.toFixed(2)} vs ${basePath.end.econ.popChild.toFixed(2)})`
+    `childcare fertility raises popChild (${path.end.econ.popChild.toFixed(2)} vs ${basePath.end.econ.popChild.toFixed(2)})`,
   );
   assert(
     aggregate(fertLaw).fertility > 0,
-    "childcare exposes a fertility channel"
+    "childcare exposes a fertility channel",
   );
 }
 
@@ -2591,11 +3269,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const meanI = iAfter.reduce((a, b) => a + b, 0) / iAfter.length;
   assert(
     peakSpread > G.econ.creditSpread + 0.04,
-    `house-price crash lifts credit spread (peak ${peakSpread.toFixed(3)} vs baseline ${G.econ.creditSpread.toFixed(3)})`
+    `house-price crash lifts credit spread (peak ${peakSpread.toFixed(3)} vs baseline ${G.econ.creditSpread.toFixed(3)})`,
   );
   assert(
     meanI < G.econ.I - 0.05,
-    `credit scarring cuts investment vs baseline (mean ${meanI.toFixed(2)} vs ${G.econ.I.toFixed(2)})`
+    `credit scarring cuts investment vs baseline (mean ${meanI.toFixed(2)} vs ${G.econ.I.toFixed(2)})`,
   );
 }
 
@@ -2608,10 +3286,19 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.econ.bankStressCd = 0;
   G.econ.bankStress = false;
   step(G, G.law, G.law, false);
-  assert(G.econ.bankStress, "endogenous bankStress fires on thin capital / high leverage");
-  assert(G.econ.creditSpread >= 1.5, `stressed credit floor (got ${G.econ.creditSpread.toFixed(2)})`);
+  assert(
+    G.econ.bankStress,
+    "endogenous bankStress fires on thin capital / high leverage",
+  );
+  assert(
+    G.econ.creditSpread >= 1.5,
+    `stressed credit floor (got ${G.econ.creditSpread.toFixed(2)})`,
+  );
   const bankEv = EVENTS.find((e) => e.id === "bank");
-  assert(bankEv && !bankEv.cond(), "scripted bank event gated while stressed / on cooldown");
+  assert(
+    bankEv && !bankEv.cond(),
+    "scripted bank event gated while stressed / on cooldown",
+  );
 }
 
 /* Sandbox impact exposes trend and potential. */
@@ -2626,7 +3313,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(im.head.potential != null, "impact reports potential");
   assert(
     im.head.trend > 0.01 || im.head.potential > 0.05,
-    `research lift raises trend or potential (trend ${im.head.trend}, pot ${im.head.potential})`
+    `research lift raises trend or potential (trend ${im.head.trend}, pot ${im.head.potential})`,
   );
 }
 
@@ -2637,34 +3324,40 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.law.tariffSchedule.bloc.continental_union = 4;
   assert(
     Math.abs(effectiveTariff("germany", G.law) - 4) < 0.01,
-    "bloc member uses bloc tariff rate"
+    "bloc member uses bloc tariff rate",
   );
   assert(
     effectiveTariff("india", G.law) === G.law.tariffSchedule.default,
-    "non-bloc partner uses default schedule"
+    "non-bloc partner uses default schedule",
   );
   joinBloc("continental_union", G.law);
   assert(
     effectiveTariff("germany", G.law) === 0,
-    "customs union internal tariff is zero"
+    "customs union internal tariff is zero",
   );
-  assert(!joinBloc("pacific_accord", G.law), "exclusive membership blocks second bloc join");
+  assert(
+    !joinBloc("pacific_accord", G.law),
+    "exclusive membership blocks second bloc join",
+  );
   leaveBloc(G.law);
   assert(!countryBlocId(playerCountryId()), "leaveBloc clears membership");
   assert(G.law.tariffSchedule.cet == null, "leaving CU clears CET");
   assert(
     (G.diploAlerts || []).some((a) => a.kind === "bloc_self_left"),
-    "leaving posts a leave alert"
+    "leaving posts a leave alert",
   );
   {
     const fresh = diploOutcomeAlertsForBrief(G.diploAlerts, G.q);
     const leaveClips1 = composePress({ ultimatumOutcomes: fresh, q: G.q });
-    assert(leaveClips1.some((c) => /leaves/i.test(c.headline)), "leave produces a press clip");
+    assert(
+      leaveClips1.some((c) => /leaves/i.test(c.headline)),
+      "leave produces a press clip",
+    );
     markDiploAlertsNoted(fresh);
     G.q = (G.q || 0) + 1;
     assert(
       diploOutcomeAlertsForBrief(G.diploAlerts, G.q).length === 0,
-      "noted leave alert does not reappear next quarter"
+      "noted leave alert does not reappear next quarter",
     );
   }
 
@@ -2673,7 +3366,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.capital = 200;
   G.draft = clone(G.law);
   G.draft.blocLeave = true;
-  assert(billClauses().some((c) => /^Leave /.test(c.label)), "leave stages as a bill clause");
+  assert(
+    billClauses().some((c) => /^Leave /.test(c.label)),
+    "leave stages as a bill clause",
+  );
   enact();
   assert(!countryBlocId(playerCountryId()), "enacting Leave clears membership");
   assert(G.law.tariffSchedule.cet == null, "enacting Leave clears CET");
@@ -2688,7 +3384,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!countryBlocId("india"), "invite does not instant-join");
   assert(
     G.blocAccessionByCountry.india && G.blocAccessionByCountry.india.step === 1,
-    "warm relations start accession pipeline"
+    "warm relations start accession pipeline",
   );
   let customJoined = false;
   for (let i = 0; i < 10; i++) {
@@ -2701,9 +3397,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(customJoined, "india joins custom bloc after accession pipeline");
   assert(
     (G.diploAlerts || []).some(
-      (a) => a.kind === "bloc_member_joined" && a.partnerId === "india" && a.blocId === blocId
+      (a) =>
+        a.kind === "bloc_member_joined" &&
+        a.partnerId === "india" &&
+        a.blocId === blocId,
     ),
-    "founding country is notified when invitee becomes a full member"
+    "founding country is notified when invitee becomes a full member",
   );
   {
     const joinClips = composePress({
@@ -2711,20 +3410,25 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       q: G.q,
     });
     assert(
-      joinClips.some((c) => /joins/i.test(c.headline) && /India/i.test(c.headline + c.lede)),
-      "full membership produces a newspaper clip for the inviter"
+      joinClips.some(
+        (c) => /joins/i.test(c.headline) && /India/i.test(c.headline + c.lede),
+      ),
+      "full membership produces a newspaper clip for the inviter",
     );
   }
   /* Regression: leaving a founded custom bloc must remove the founder from
    * customBlocs[blocId].members, and the founder must be able to rejoin
    * via the 3-stage bloc accession flow. */
   const playerId = playerCountryId();
-  assert(G.customBlocs[blocId].members.includes(playerId), "founder is tracked as a member");
+  assert(
+    G.customBlocs[blocId].members.includes(playerId),
+    "founder is tracked as a member",
+  );
   leaveBloc(G.law);
   assert(!countryBlocId(playerId), "founder left the custom bloc");
   assert(
     !G.customBlocs[blocId].members.includes(playerId),
-    "leaving removes founder from customBlocs[blocId].members"
+    "leaving removes founder from customBlocs[blocId].members",
   );
 
   G.capital = 200;
@@ -2735,21 +3439,31 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     G.blocAccessionByCountry &&
       G.blocAccessionByCountry[playerId] &&
       G.blocAccessionByCountry[playerId].step === 1,
-    "custom application advances to step 1"
+    "custom application advances to step 1",
   );
 
   step(G, G.law, G.law, true);
   assert(
-    G.blocAccessionByCountry[playerId] && G.blocAccessionByCountry[playerId].step === 2,
-    "custom alignment advances to step 2 automatically"
+    G.blocAccessionByCountry[playerId] &&
+      G.blocAccessionByCountry[playerId].step === 2,
+    "custom alignment advances to step 2 automatically",
   );
 
   step(G, G.law, G.law, true);
-  assert(countryBlocId(playerId) === blocId, "custom accession treaty rejoins the bloc automatically");
-  assert(G.customBlocs[blocId].members.includes(playerId), "rejoining restores founder in members list");
+  assert(
+    countryBlocId(playerId) === blocId,
+    "custom accession treaty rejoins the bloc automatically",
+  );
+  assert(
+    G.customBlocs[blocId].members.includes(playerId),
+    "rejoining restores founder in members list",
+  );
   const snap = clone(G.blocMember);
   project(2);
-  assert(JSON.stringify(G.blocMember) === JSON.stringify(snap), "project() preserves blocMember");
+  assert(
+    JSON.stringify(G.blocMember) === JSON.stringify(snap),
+    "project() preserves blocMember",
+  );
 
   leaveBloc(G.law);
   assert(!countryBlocId(playerId), "founder can leave again after rejoin");
@@ -2778,19 +3492,31 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const importDeal = ftaSim.end.econ.importTariff;
   assert(
     importDeal < importBase - 0.5,
-    `FTA lowers phased import tariff level (${importDeal.toFixed(2)} vs ${importBase.toFixed(2)})`
+    `FTA lowers phased import tariff level (${importDeal.toFixed(2)} vs ${importBase.toFixed(2)})`,
   );
 
   newGame();
   G = getG();
   const E0 = aggregate(G.law);
-  const beforeCu = importTariffLevel(G.law, E0, G.econ, G.homeRole, G.blocMember);
+  const beforeCu = importTariffLevel(
+    G.law,
+    E0,
+    G.econ,
+    G.homeRole,
+    G.blocMember,
+  );
   joinBloc("continental_union", G.law);
   const E1 = aggregate(G.law);
-  const afterCu = importTariffLevel(G.law, E1, G.econ, G.homeRole, G.blocMember);
+  const afterCu = importTariffLevel(
+    G.law,
+    E1,
+    G.econ,
+    G.homeRole,
+    G.blocMember,
+  );
   assert(
     afterCu < beforeCu - 0.3,
-    `CU join lowers trade-weighted import tariff (${afterCu.toFixed(2)} vs ${beforeCu.toFixed(2)})`
+    `CU join lowers trade-weighted import tariff (${afterCu.toFixed(2)} vs ${beforeCu.toFixed(2)})`,
   );
 
   newGame();
@@ -2803,7 +3529,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const hitTar = simulate(hikeLaw, 1);
   assert(
     hitTar.rows[0].inflation > baseTar.rows[0].inflation,
-    `tariff schedule hike lifts first-quarter inflation (${hitTar.rows[0].inflation.toFixed(2)} vs ${baseTar.rows[0].inflation.toFixed(2)})`
+    `tariff schedule hike lifts first-quarter inflation (${hitTar.rows[0].inflation.toFixed(2)} vs ${baseTar.rows[0].inflation.toFixed(2)})`,
   );
 
   newGame();
@@ -2816,17 +3542,18 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const cuQ1 = simulate(G.law, 1, { blocMember: G.blocMember });
   assert(
     cuQ1.rows[0].inflation <= baseQ1.rows[0].inflation + 0.05,
-    `CU join does not spike Q1 inflation (${cuQ1.rows[0].inflation.toFixed(2)} vs ${baseQ1.rows[0].inflation.toFixed(2)})`
+    `CU join does not spike Q1 inflation (${cuQ1.rows[0].inflation.toFixed(2)} vs ${baseQ1.rows[0].inflation.toFixed(2)})`,
   );
 
   newGame();
   G = getG();
   G.law.deals.fr_fta = true;
   step(G, G.law, G.law, true);
-  const ftaAccess = (G.econ.partnerAccessEff && G.econ.partnerAccessEff.france) || 0;
+  const ftaAccess =
+    (G.econ.partnerAccessEff && G.econ.partnerAccessEff.france) || 0;
   assert(
     ftaAccess < (DEAL_BY_ID.fr_fta.ch.access || 0),
-    `FTA partner access phases in (${ftaAccess.toFixed(2)} vs ${DEAL_BY_ID.fr_fta.ch.access})`
+    `FTA partner access phases in (${ftaAccess.toFixed(2)} vs ${DEAL_BY_ID.fr_fta.ch.access})`,
   );
 
   newGame();
@@ -2834,18 +3561,22 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   joinBloc("continental_union", G.law);
   G.law.tariffSchedule.cet = 4;
   step(G, G.law, G.law, true);
-  const cuAccessQ1 = (G.econ.partnerAccessEff && G.econ.partnerAccessEff.germany) || 0;
+  const cuAccessQ1 =
+    (G.econ.partnerAccessEff && G.econ.partnerAccessEff.germany) || 0;
   const Ecu = aggregate(G.law, G.homeRole, G.blocMember);
   const targetDe = (Ecu.partnerAccess && Ecu.partnerAccess.germany) || 0;
   assert(
     cuAccessQ1 < targetDe * 0.2,
-    `CU partner access is small in Q1 (${cuAccessQ1.toFixed(2)} of ${targetDe.toFixed(1)} target)`
+    `CU partner access is small in Q1 (${cuAccessQ1.toFixed(2)} of ${targetDe.toFixed(1)} target)`,
   );
   const cu40 = simulate(G.law, 40, { blocMember: G.blocMember });
-  const cuAccess40 = (cu40.end.econ.partnerAccessEff && cu40.end.econ.partnerAccessEff.germany) || 0;
+  const cuAccess40 =
+    (cu40.end.econ.partnerAccessEff &&
+      cu40.end.econ.partnerAccessEff.germany) ||
+    0;
   assert(
     cuAccess40 > targetDe * 0.5,
-    `CU partner access passes halfway by ~40q (${cuAccess40.toFixed(2)} of ${targetDe.toFixed(1)})`
+    `CU partner access passes halfway by ~40q (${cuAccess40.toFixed(2)} of ${targetDe.toFixed(1)})`,
   );
 
   newGame();
@@ -2858,11 +3589,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const cu20 = simulate(G.law, 20, { blocMember: G.blocMember });
   assert(
     cu20.end.econ.tradeDepth > base20.end.econ.tradeDepth + 5,
-    `CU join raises trade depth over 20q (${cu20.end.econ.tradeDepth.toFixed(1)} vs ${base20.end.econ.tradeDepth.toFixed(1)})`
+    `CU join raises trade depth over 20q (${cu20.end.econ.tradeDepth.toFixed(1)} vs ${base20.end.econ.tradeDepth.toFixed(1)})`,
   );
   assert(
     cu20.end.econ.A > base20.end.econ.A,
-    `CU join lifts TFP stock over 20q (${cu20.end.econ.A.toFixed(4)} vs ${base20.end.econ.A.toFixed(4)})`
+    `CU join lifts TFP stock over 20q (${cu20.end.econ.A.toFixed(4)} vs ${base20.end.econ.A.toFixed(4)})`,
   );
 }
 
@@ -2877,7 +3608,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
   assert(
     Math.abs(G.world.germany.econ.rate - G.world.italy.econ.rate) < 1.5,
-    `EUR members share a rate band (DE ${G.world.germany.econ.rate.toFixed(2)} vs IT ${G.world.italy.econ.rate.toFixed(2)}; open ${deRate0.toFixed(2)}/${itRate0.toFixed(2)})`
+    `EUR members share a rate band (DE ${G.world.germany.econ.rate.toFixed(2)} vs IT ${G.world.italy.econ.rate.toFixed(2)}; open ${deRate0.toFixed(2)}/${itRate0.toFixed(2)})`,
   );
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
@@ -2902,13 +3633,16 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const avg = (a) => a.reduce((s, v) => s + (v || 0), 0) / a.length;
   assert(
     avg(joinIN) > avg(baseIN) - 0.05,
-    `india growth after CU join not worse than outsider path (${avg(joinIN).toFixed(3)} vs ${avg(baseIN).toFixed(3)})`
+    `india growth after CU join not worse than outsider path (${avg(joinIN).toFixed(3)} vs ${avg(baseIN).toFixed(3)})`,
   );
   assert(
     avg(joinDE) > avg(baseDE) - 0.08,
-    `germany growth with india in CU not sharply worse (${avg(joinDE).toFixed(3)} vs ${avg(baseDE).toFixed(3)})`
+    `germany growth with india in CU not sharply worse (${avg(joinDE).toFixed(3)} vs ${avg(baseDE).toFixed(3)})`,
   );
-  assert(effectiveTariff("india", G.law, G.homeRole, G.blocMember) === 0, "internal CU tariff on india is zero");
+  assert(
+    effectiveTariff("india", G.law, G.homeRole, G.blocMember) === 0,
+    "internal CU tariff on india is zero",
+  );
 }
 
 /* FX exposure, currency metadata, and USD GDP valuation. */
@@ -2916,8 +3650,9 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   clearOpeningCache();
   for (const id of Object.keys(NATION_PROFILE)) {
     assert(
-      typeof NATION_PROFILE[id].currency === "string" && NATION_PROFILE[id].currency.length === 3,
-      `${id} has a 3-letter currency code`
+      typeof NATION_PROFILE[id].currency === "string" &&
+        NATION_PROFILE[id].currency.length === 3,
+      `${id} has a 3-letter currency code`,
     );
   }
   assert(NATION_PROFILE.kingdom.currency === "GBP", "UK currency is GBP");
@@ -2929,24 +3664,29 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(currencyForSeat("brazil") === "BRL", "brazil seat currency BRL");
   assert(
     IMPACT_ROWS.some((r) => r.k === "fx"),
-    "sandbox IMPACT_ROWS includes currency strength"
+    "sandbox IMPACT_ROWS includes currency strength",
   );
 
   newGame();
   G = getG();
   assert(G.econ.fx0 != null && G.econ.fx0 > 0, "home fx0 pinned after settle");
-  assert(Math.abs(fxDisplayIndex("home", G) - 100) < 0.05, "currency strength opens at 100");
   assert(
-    Math.abs(realmGdpBn("home", G) - NATION_PROFILE.kingdom.gdp0) < 0.5,
-    "home USD GDP opens at gdp0 after FX normalisation"
+    Math.abs(fxDisplayIndex("home", G) - 100) < 0.05,
+    "currency strength opens at 100",
   );
   assert(
-    Math.abs(realmGdpBn("united_states", G) - NATION_PROFILE.united_states.gdp0) < 0.5,
-    "partner USD GDP opens at gdp0 after FX normalisation"
+    Math.abs(realmGdpBn("home", G) - NATION_PROFILE.kingdom.gdp0) < 0.5,
+    "home USD GDP opens at gdp0 after FX normalisation",
+  );
+  assert(
+    Math.abs(
+      realmGdpBn("united_states", G) - NATION_PROFILE.united_states.gdp0,
+    ) < 0.5,
+    "partner USD GDP opens at gdp0 after FX normalisation",
   );
   assert(
     Math.abs(realmGdpBn("japan", G) - NATION_PROFILE.japan.gdp0) < 0.5,
-    "japan partner USD GDP opens at gdp0"
+    "japan partner USD GDP opens at gdp0",
   );
   for (const id of ["germany", "japan", "brazil"]) {
     const n = G.econ.nations[id];
@@ -2959,11 +3699,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const gdpAfter = realmGdpBn("home", G);
   assert(
     Math.abs(gdpAfter / gdpBefore - 0.9) < 0.01,
-    `10% depreciation cuts USD GDP ~10% (got ${(gdpAfter / gdpBefore).toFixed(3)})`
+    `10% depreciation cuts USD GDP ~10% (got ${(gdpAfter / gdpBefore).toFixed(3)})`,
   );
   assert(
     Math.abs(fxDisplayIndex("home", G) - 90) < 0.05,
-    "fxDisplayIndex tracks depreciation"
+    "fxDisplayIndex tracks depreciation",
   );
   G.econ.fx = fx0;
 
@@ -2973,40 +3713,48 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 16; i++) step(G, G.law, G.law, true);
   assert(
     Math.abs(G.econ.nations.germany.fx - gerFx0) > 0.004,
-    `partner FX moves under fiscal stress (got ${G.econ.nations.germany.fx.toFixed(4)} from ${gerFx0.toFixed(4)})`
+    `partner FX moves under fiscal stress (got ${G.econ.nations.germany.fx.toFixed(4)} from ${gerFx0.toFixed(4)})`,
   );
   assert(
     G.log[G.log.length - 1].fx != null,
-    "quarterly log records currency strength"
+    "quarterly log records currency strength",
   );
 
-  newGame({ homeRole: "brazil", homeIso: "076", country: "Atlantic Federation" });
+  newGame({
+    homeRole: "brazil",
+    homeIso: "076",
+    country: "Atlantic Federation",
+  });
   G = getG();
   assert(currencyForSeat(G.homeRole) === "BRL", "Brazil seat shows BRL");
   assert(
     Math.abs(realmGdpBn("home", G) - NATION_PROFILE.brazil.gdp0) < 0.5,
-    "Brazil USD GDP opens at gdp0"
+    "Brazil USD GDP opens at gdp0",
   );
   const brBefore = realmGdpBn("home", G);
   G.econ.fx = G.econ.fx0 * 0.88;
   assert(
     Math.abs(realmGdpBn("home", G) / brBefore - 0.88) < 0.01,
-    "Brazil depreciation shrinks USD GDP"
+    "Brazil depreciation shrinks USD GDP",
   );
 
-  newGame({ homeRole: "united_states", homeIso: "840", country: "United States" });
+  newGame({
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
   G = getG();
   assert(G.econ.fxUip < 0.02, `US fxUip stays damped (got ${G.econ.fxUip})`);
   assert(currencyForSeat(G.homeRole) === "USD", "US seat currency is USD");
   assert(
     Math.abs(realmGdpBn("home", G) - NATION_PROFILE.united_states.gdp0) < 1,
-    "US USD GDP opens at gdp0"
+    "US USD GDP opens at gdp0",
   );
   const usFx = G.econ.fx;
   for (let i = 0; i < 8; i++) step(G, G.law, G.law, true);
   assert(
     Math.abs(G.econ.fx / usFx - 1) < 0.08,
-    `US currency barely drifts over 8q (${G.econ.fx.toFixed(4)} vs ${usFx.toFixed(4)})`
+    `US currency barely drifts over 8q (${G.econ.fx.toFixed(4)} vs ${usFx.toFixed(4)})`,
   );
 }
 
@@ -3036,11 +3784,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const avg = (a) => a.reduce((s, v) => s + v, 0) / a.length;
   assert(
     avg(hitX) < avg(baseX) - 0.35,
-    `global recess cuts exports (base X ${avg(baseX).toFixed(2)} → ${avg(hitX).toFixed(2)})`
+    `global recess cuts exports (base X ${avg(baseX).toFixed(2)} → ${avg(hitX).toFixed(2)})`,
   );
   assert(
     avg(hitG) < 0.55,
-    `global recess weighs on growth (avg ${avg(hitG).toFixed(2)})`
+    `global recess weighs on growth (avg ${avg(hitG).toFixed(2)})`,
   );
 }
 
@@ -3048,7 +3796,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  assert(G.econ.yRel0 != null && G.econ.potential0 != null, "home pins yRel0 / potential0");
+  assert(
+    G.econ.yRel0 != null && G.econ.potential0 != null,
+    "home pins yRel0 / potential0",
+  );
   const cn0 = G.world.china.econ.yRel;
   const catch0 = (() => {
     const y = cn0;
@@ -3058,12 +3809,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const cn1 = G.world.china.econ.yRel;
   assert(
     cn1 > cn0 + 0.03,
-    `china yRel rises as it outgrows the frontier (${cn0.toFixed(3)} → ${cn1.toFixed(3)})`
+    `china yRel rises as it outgrows the frontier (${cn0.toFixed(3)} → ${cn1.toFixed(3)})`,
   );
   const catch1 = 2.15 * Math.max(0, Math.log(1 / Math.max(0.08, cn1)));
   assert(
     catch1 < catch0 - 0.05,
-    `china catch-up TFP fades as yRel rises (${catch0.toFixed(2)} → ${catch1.toFixed(2)})`
+    `china catch-up TFP fades as yRel rises (${catch0.toFixed(2)} → ${catch1.toFixed(2)})`,
   );
 }
 
@@ -3074,14 +3825,15 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const jp = G.world.japan;
   const spend0 = jp.law.spend.health + jp.law.spend.welfare;
   for (let i = 0; i < 40; i++) step(G, G.law, G.law, true);
-  const spend1 = G.world.japan.law.spend.health + G.world.japan.law.spend.welfare;
+  const spend1 =
+    G.world.japan.law.spend.health + G.world.japan.law.spend.welfare;
   assert(
     spend1 < spend0 - 0.3 || G.world.japan.econ.debt < 380,
-    `japan fiscal rule tightens spend or holds debt off the clamp (spend ${spend0.toFixed(1)}→${spend1.toFixed(1)}, debt ${G.world.japan.econ.debt.toFixed(0)})`
+    `japan fiscal rule tightens spend or holds debt off the clamp (spend ${spend0.toFixed(1)}→${spend1.toFixed(1)}, debt ${G.world.japan.econ.debt.toFixed(0)})`,
   );
   assert(
     G.world.japan.econ.gdp > 70,
-    `japan does not collapse to a rump economy (gdp index ${G.world.japan.econ.gdp.toFixed(1)})`
+    `japan does not collapse to a rump economy (gdp index ${G.world.japan.econ.gdp.toFixed(1)})`,
   );
 }
 
@@ -3092,17 +3844,18 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 80; i++) step(G, G.law, G.law, true);
   for (const id of ["germany", "france", "united_states", "japan", "china"]) {
     const e = G.world[id].econ;
-    const anchor = e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id].debt0;
+    const anchor =
+      e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id].debt0;
     const target = Math.min(260, Math.max(50, anchor));
     const bandHi = target + Math.min(30, 14 + target * 0.14);
     const bandLo = target - Math.min(22, 12 + target * 0.12);
     assert(
       e.debt < bandHi + 35,
-      `AI ${id} stays near its debt band (debt ${e.debt.toFixed(0)}, bandHi ${bandHi.toFixed(0)}, anchor ${anchor})`
+      `AI ${id} stays near its debt band (debt ${e.debt.toFixed(0)}, bandHi ${bandHi.toFixed(0)}, anchor ${anchor})`,
     );
     assert(
       e.debt > Math.min(bandLo, 0) - 80,
-      `AI ${id} does not run away to a huge creditor position (debt ${e.debt.toFixed(0)}, bandLo ${bandLo.toFixed(0)})`
+      `AI ${id} does not run away to a huge creditor position (debt ${e.debt.toFixed(0)}, bandLo ${bandLo.toFixed(0)})`,
     );
   }
 }
@@ -3112,7 +3865,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const ids = TABS.map((t) => t.id);
   const tradeAt = ids.indexOf("trade");
   const diploAt = ids.indexOf("diplomacy");
-  assert(tradeAt >= 0 && diploAt === tradeAt + 1, "Diplomacy tab sits next to Trade");
+  assert(
+    tradeAt >= 0 && diploAt === tradeAt + 1,
+    "Diplomacy tab sits next to Trade",
+  );
   assert(TABS[diploAt].icon === "seal", "Diplomacy uses the seal dock icon");
   newGame();
   G = getG();
@@ -3126,41 +3882,54 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
 {
   newGame();
   G = getG();
-  assert(G.econ.relBase && G.econ.relBase.canada != null, "relBase seeded on newGame");
+  assert(
+    G.econ.relBase && G.econ.relBase.canada != null,
+    "relBase seeded on newGame",
+  );
   assert(Array.isArray(G.envoys) && G.envoys.length === 2, "two envoy slots");
-  assert(MUTABLE.includes("envoys") && MUTABLE.includes("ultimatums"), "envoys/ultimatums on MUTABLE");
+  assert(
+    MUTABLE.includes("envoys") && MUTABLE.includes("ultimatums"),
+    "envoys/ultimatums on MUTABLE",
+  );
 
   const modsCa = relationModifiers("canada");
   const baseLine = modsCa.find((m) => m.kind === "base");
-  assert(baseLine && baseLine.pts === G.econ.relBase.canada, "Canada base line equals relBase");
   assert(
-    modsCa.some((m) => /Similar governments|Polity affinity|Regime clash/.test(m.label)),
-    "polity affinity appears on Canada"
+    baseLine && baseLine.pts === G.econ.relBase.canada,
+    "Canada base line equals relBase",
+  );
+  assert(
+    modsCa.some((m) =>
+      /Similar governments|Polity affinity|Regime clash/.test(m.label),
+    ),
+    "polity affinity appears on Canada",
   );
 
   G.law.deals.fr_fta = true;
   G.draft.deals.fr_fta = true;
   assert(
-    relationModifiers("france").some((m) => m.label === "Ratified deals" && m.pts >= 9),
-    "ratified deal shows +9 live modifier"
+    relationModifiers("france").some(
+      (m) => m.label === "Ratified deals" && m.pts >= 9,
+    ),
+    "ratified deal shows +9 live modifier",
   );
 
   const openCa = G.rel.canada;
   for (let i = 0; i < 40; i++) step(G, G.law, G.prevLaw, true);
   assert(
     Math.abs(G.rel.canada - openCa) < 4 && G.rel.canada > 55,
-    `quiet Canada stays near special relationship (${openCa.toFixed(1)} → ${G.rel.canada.toFixed(1)})`
+    `quiet Canada stays near special relationship (${openCa.toFixed(1)} → ${G.rel.canada.toFixed(1)})`,
   );
   assert(
     relationModifiers("france").some((m) => m.label === "Ratified deals"),
-    "active deal does not decay over 40q"
+    "active deal does not decay over 40q",
   );
   delete G.law.deals.fr_fta;
   delete G.draft.deals.fr_fta;
   step(G, G.law, G.prevLaw, true);
   assert(
     !relationModifiers("france").some((m) => m.label === "Ratified deals"),
-    "withdrawn deal clears live bonus next step"
+    "withdrawn deal clears live bonus next step",
   );
 }
 
@@ -3171,12 +3940,13 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const baseRu = G.econ.relBase.russia;
   for (let i = 0; i < 40; i++) step(G, G.law, G.prevLaw, true);
   assert(
-    G.rel.russia < 48 && Math.abs(G.rel.russia - relationTarget("russia")) < 1.5,
-    `Russia stays cool near its target (open ${openRu}, base ${baseRu.toFixed(1)}, now ${G.rel.russia.toFixed(1)})`
+    G.rel.russia < 48 &&
+      Math.abs(G.rel.russia - relationTarget("russia")) < 1.5,
+    `Russia stays cool near its target (open ${openRu}, base ${baseRu.toFixed(1)}, now ${G.rel.russia.toFixed(1)})`,
   );
   assert(
     !(G.econ.diploLedger.russia || []).length,
-    "quiet Russia has no historic ledger entry inventing the chill"
+    "quiet Russia has no historic ledger entry inventing the chill",
   );
 }
 
@@ -3186,29 +3956,34 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.capital = 80;
   const cap0 = G.capital;
   assert(assignEnvoy("france"), "assign envoy succeeds with capital");
-  assert(G.capital === cap0 - ENVOY_ASSIGN_PC, "envoy assign spends capital immediately");
+  assert(
+    G.capital === cap0 - ENVOY_ASSIGN_PC,
+    "envoy assign spends capital immediately",
+  );
   assert(G.envoys.includes("france"), "france occupies an envoy slot");
   const envoyCl = billClauses().find((c) => /envoy/i.test(c.label));
   assert(envoyCl, "same-quarter envoy assign appears as a Programme clause");
   assert(envoyCl.sunk, "envoy capital already paid is marked sunk");
   assert(
     billClauses().every((c) => c.sunk || !c.pc),
-    "sunk envoy does not add unpaid capital to the Programme"
+    "sunk envoy does not add unpaid capital to the Programme",
   );
   assert(
-    relationModifiers("france").some((m) => m.label === "Envoy posted" && m.pts === ENVOY_TARGET),
-    "envoy posts +2 live modifier"
+    relationModifiers("france").some(
+      (m) => m.label === "Envoy posted" && m.pts === ENVOY_TARGET,
+    ),
+    "envoy posts +2 live modifier",
   );
   for (let i = 0; i < 12; i++) step(G, G.law, G.prevLaw, true);
   assert(
     relationModifiers("france").some((m) => m.label === "Envoy posted"),
-    "active envoy does not decay"
+    "active envoy does not decay",
   );
   recallEnvoy("france");
   step(G, G.law, G.prevLaw, true);
   assert(
     !relationModifiers("france").some((m) => m.label === "Envoy posted"),
-    "recall clears envoy bonus next step"
+    "recall clears envoy bonus next step",
   );
 
   G.capital = ENVOY_ASSIGN_PC - 1;
@@ -3222,8 +3997,14 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(assignEnvoy("france"), "first envoy slot fills");
   assert(assignEnvoy("germany"), "second envoy slot fills");
   assert(!assignEnvoy("japan"), "third envoy assign rejected when slots full");
-  assert(!G.envoys.includes("japan"), "full slots do not overwrite an existing envoy");
-  assert(G.envoys.includes("france") && G.envoys.includes("germany"), "prior envoys retained");
+  assert(
+    !G.envoys.includes("japan"),
+    "full slots do not overwrite an existing envoy",
+  );
+  assert(
+    G.envoys.includes("france") && G.envoys.includes("germany"),
+    "prior envoys retained",
+  );
 }
 
 {
@@ -3233,7 +4014,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(assignEnvoy("france"), "assign france");
   const capAfter = G.capital;
   assert(assignEnvoy("france"), "duplicate assign is idempotent success");
-  assert(G.capital === capAfter, "idempotent assign does not re-charge capital");
+  assert(
+    G.capital === capAfter,
+    "idempotent assign does not re-charge capital",
+  );
   assert(recallEnvoy("france"), "recall france");
   assert(!G.envoys.includes("france"), "slot vacated");
   assert(recallEnvoy("france"), "duplicate recall is idempotent success");
@@ -3248,18 +4032,25 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.eventSponsors = ["france", "united_states"];
   const sanctions = EVENTS.find((e) => e.id === "sanctions");
   applyEventOption(sanctions.opts[0]);
-  assert(G.econ.sanctionStance.russia && G.econ.sanctionStance.russia.against, "sanctions set against stance");
   assert(
-    (G.econ.diploLedger.russia || []).some((x) => /Joined sanctions/.test(x.label) && x.pts < 0),
-    "sanctions against add negative ledger"
+    G.econ.sanctionStance.russia && G.econ.sanctionStance.russia.against,
+    "sanctions set against stance",
+  );
+  assert(
+    (G.econ.diploLedger.russia || []).some(
+      (x) => /Joined sanctions/.test(x.label) && x.pts < 0,
+    ),
+    "sanctions against add negative ledger",
   );
   assert(
     G.econ.sanctionStance.france && G.econ.sanctionStance.france.with,
-    "sponsors get with stance"
+    "sponsors get with stance",
   );
   assert(
-    (G.econ.diploLedger.france || []).some((x) => /Stood with them/.test(x.label) && x.pts > 0),
-    "sponsors get positive ledger credit"
+    (G.econ.diploLedger.france || []).some(
+      (x) => /Stood with them/.test(x.label) && x.pts > 0,
+    ),
+    "sponsors get positive ledger credit",
   );
 }
 
@@ -3270,29 +4061,44 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.deals.mx_trade = true;
   applySphereTrespassOnDeal("mx_trade", true);
   assert(
-    relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
-    "Mexico deal puts live US sphere trespass"
+    relationModifiers("united_states").some((m) =>
+      /Encroaching on their sphere/.test(m.label),
+    ),
+    "Mexico deal puts live US sphere trespass",
   );
   assert(
-    (G.econ.diploLedger.united_states || []).some((x) => /sphere/i.test(x.id) || /sphere/i.test(x.label)),
-    "sphere trespass writes a ledger scar on the patron"
+    (G.econ.diploLedger.united_states || []).some(
+      (x) => /sphere/i.test(x.id) || /sphere/i.test(x.label),
+    ),
+    "sphere trespass writes a ledger scar on the patron",
   );
-  const scar0 = (G.econ.diploLedger.united_states || []).find((x) => String(x.id).includes("sphere"));
+  const scar0 = (G.econ.diploLedger.united_states || []).find((x) =>
+    String(x.id).includes("sphere"),
+  );
   const pts0 = scar0 && scar0.pts;
   for (let i = 0; i < 8; i++) step(G, G.law, G.prevLaw, true);
   assert(
-    relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
-    "live sphere trespass persists while the deal stands"
+    relationModifiers("united_states").some((m) =>
+      /Encroaching on their sphere/.test(m.label),
+    ),
+    "live sphere trespass persists while the deal stands",
   );
   delete G.law.deals.mx_trade;
   delete G.draft.deals.mx_trade;
   step(G, G.law, G.prevLaw, true);
   assert(
-    !relationModifiers("united_states").some((m) => /Encroaching on their sphere/.test(m.label)),
-    "withdraw clears live sphere trespass"
+    !relationModifiers("united_states").some((m) =>
+      /Encroaching on their sphere/.test(m.label),
+    ),
+    "withdraw clears live sphere trespass",
   );
-  const scar1 = (G.econ.diploLedger.united_states || []).find((x) => String(x.id).includes("sphere"));
-  assert(scar1 && Math.abs(scar1.pts) < Math.abs(pts0), "sphere ledger scar decays over quarters");
+  const scar1 = (G.econ.diploLedger.united_states || []).find((x) =>
+    String(x.id).includes("sphere"),
+  );
+  assert(
+    scar1 && Math.abs(scar1.pts) < Math.abs(pts0),
+    "sphere ledger scar decays over quarters",
+  );
 }
 
 {
@@ -3300,40 +4106,65 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.law.polity = "authoritarian";
   assert(
-    relationModifiers("canada").some((m) => m.label === "Regime clash" && m.pts < 0),
-    "democracy→authoritarian shows Regime clash vs Canada"
+    relationModifiers("canada").some(
+      (m) => m.label === "Regime clash" && m.pts < 0,
+    ),
+    "democracy→authoritarian shows Regime clash vs Canada",
   );
 
   newGame();
   G = getG();
-  const align0 = relationModifiers("canada").find((m) => /Policy align|Policy diverge/.test(m.label));
-  assert(align0 && align0.pts > 0, "policy alignment positive at opening vs Canada");
+  const align0 = relationModifiers("canada").find((m) =>
+    /Policy align|Policy diverge/.test(m.label),
+  );
+  assert(
+    align0 && align0.pts > 0,
+    "policy alignment positive at opening vs Canada",
+  );
   // Force divergence across the watchlist so the live line stays visible.
   for (const k of [
-    "closeBorders", "openVisas", "netZero", "nuclear", "conscript",
-    "fracking", "digitalId", "minWage", "fiscalRule", "rnd", "swf",
+    "closeBorders",
+    "openVisas",
+    "netZero",
+    "nuclear",
+    "conscript",
+    "fracking",
+    "digitalId",
+    "minWage",
+    "fiscalRule",
+    "rnd",
+    "swf",
   ]) {
     G.law.policies[k] = !G.world.canada.law.policies[k];
   }
   G.draft.policies = Object.assign({}, G.law.policies);
-  const align1 = relationModifiers("canada").find((m) => /Policy align|Policy diverge/.test(m.label));
-  assert(align1 && align1.pts < 0, "policy divergence line present after watchlist flip");
+  const align1 = relationModifiers("canada").find((m) =>
+    /Policy align|Policy diverge/.test(m.label),
+  );
+  assert(
+    align1 && align1.pts < 0,
+    "policy divergence line present after watchlist flip",
+  );
   assert(
     align1.pts < align0.pts,
-    `policy divergence lowers alignment (${align0.pts.toFixed(1)} → ${align1.pts.toFixed(1)})`
+    `policy divergence lowers alignment (${align0.pts.toFixed(1)} → ${align1.pts.toFixed(1)})`,
   );
 }
 
 {
   newGame();
   G = getG();
-  addDiploLedger(G, "germany", { id: "test_scar", label: "Test grievance", pts: -10 });
+  addDiploLedger(G, "germany", {
+    id: "test_scar",
+    label: "Test grievance",
+    pts: -10,
+  });
   const p0 = G.econ.diploLedger.germany[0].pts;
   step(G, G.law, G.prevLaw, true);
   const p1 = G.econ.diploLedger.germany[0].pts;
   assert(
     Math.abs(p1 - p0 * LEDGER_DECAY) < 0.01,
-    `ledger decays at ${LEDGER_DECAY}/q (${p0.toFixed(2)} → ${p1.toFixed(2)})`
+    `ledger decays at ${LEDGER_DECAY}/q (${p0.toFixed(2)} → ${p1.toFixed(2)})`,
   );
 }
 
@@ -3343,14 +4174,22 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.missions = { china: "demarche" };
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
-    (G.econ.diploLedger.china || []).some((x) => /Formal protest/.test(x.label) && x.pts === -3),
-    "demarche adds named grievance ledger entry (−3)"
+    (G.econ.diploLedger.china || []).some(
+      (x) => /Formal protest/.test(x.label) && x.pts === -3,
+    ),
+    "demarche adds named grievance ledger entry (−3)",
   );
-  assert((G.econ.relImpulse.china || 0) === -5, "demarche applies −5 relImpulse");
-  assert(hasFormalProtest(G.econ, "china"), "formal protest detected for leverage");
+  assert(
+    (G.econ.relImpulse.china || 0) === -5,
+    "demarche applies −5 relImpulse",
+  );
+  assert(
+    hasFormalProtest(G.econ, "china"),
+    "formal protest detected for leverage",
+  );
   assert(
     !(G.econ.sanctionStance.china && G.econ.sanctionStance.china.against),
-    "demarche does not set sanctions stance"
+    "demarche does not set sanctions stance",
   );
 }
 
@@ -3360,19 +4199,35 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   /* Warm partner: protest alone should unlock ultimatum leverage. */
   G.rel.japan = 70;
   G.capital = 50;
-  assert(!canIssueUltimatum("japan").ok, "warm Japan lacks ultimatum leverage before protest");
+  assert(
+    !canIssueUltimatum("japan").ok,
+    "warm Japan lacks ultimatum leverage before protest",
+  );
   G.draft.missions = { japan: "demarche" };
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
-  assert(canIssueUltimatum("japan").ok, "formal protest unlocks ultimatum leverage");
+  assert(
+    canIssueUltimatum("japan").ok,
+    "formal protest unlocks ultimatum leverage",
+  );
   const depsJp = {
-    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
-    DEAL_BY_ID, aggregate, realmGdpBn,
+    partnerShare,
+    playerCountryId,
+    effectiveTariff,
+    lawForRole,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    DEAL_BY_ID,
+    aggregate,
+    realmGdpBn,
   };
   const p0 = baseP("japan", "political", G, depsJp);
   /* Strip protest and compare — bump should be present with protest. */
   G.econ.diploLedger.japan = [];
   const p1 = baseP("japan", "political", G, depsJp);
-  G.econ.diploLedger.japan = [{ id: "mission_demarche_0", label: "Formal protest", pts: -3 }];
+  G.econ.diploLedger.japan = [
+    { id: "mission_demarche_0", label: "Formal protest", pts: -3 },
+  ];
   const p2 = baseP("japan", "political", G, depsJp);
   assert(p2 > p1 + 0.02, "formal protest raises ultimatum concede odds");
   assert(p0 > p1, "protest path raises baseP vs clean ledger");
@@ -3387,15 +4242,26 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
     G.econ.sanctionStance.russia && G.econ.sanctionStance.russia.against,
-    "sanctions mission sets against stance"
+    "sanctions mission sets against stance",
   );
   assert(
-    (G.econ.diploLedger.russia || []).some((x) => /Restrictive measures/.test(x.label) && x.pts === -10),
-    "sanctions mission adds ledger −10"
+    (G.econ.diploLedger.russia || []).some(
+      (x) => /Restrictive measures/.test(x.label) && x.pts === -10,
+    ),
+    "sanctions mission adds ledger −10",
   );
-  assert((G.econ.relImpulse.russia || 0) === -14, "sanctions mission applies −14 impulse");
-  assert((G.econ.retaliation || 0) >= retal0 + 0.8 - 1e-9, "sanctions mission nudges retaliation");
-  assert((G.econ.uncertainty || 0) >= unc0 + 0.15 - 1e-9, "sanctions mission raises uncertainty");
+  assert(
+    (G.econ.relImpulse.russia || 0) === -14,
+    "sanctions mission applies −14 impulse",
+  );
+  assert(
+    (G.econ.retaliation || 0) >= retal0 + 0.8 - 1e-9,
+    "sanctions mission nudges retaliation",
+  );
+  assert(
+    (G.econ.uncertainty || 0) >= unc0 + 0.15 - 1e-9,
+    "sanctions mission raises uncertainty",
+  );
 }
 
 {
@@ -3405,19 +4271,22 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.missions = { france: "sanctionsPosture" };
   assert(
     !billClauses().some((c) => /Restrictive measures/i.test(c.label)),
-    "billClauses drops sanctions staged during a state visit"
+    "billClauses drops sanctions staged during a state visit",
   );
   assert(
     !(G.draft.missions && G.draft.missions.france),
-    "prune clears sanctions from draft while visit active"
+    "prune clears sanctions from draft while visit active",
   );
   G.draft.missions = { france: "sanctionsPosture" };
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
     !(G.econ.sanctionStance.france && G.econ.sanctionStance.france.against),
-    "sanctions mission skipped while state visit active"
+    "sanctions mission skipped while state visit active",
   );
-  assert(!(G.econ.relImpulse.france <= -14), "no sanctions impulse during visit");
+  assert(
+    !(G.econ.relImpulse.france <= -14),
+    "no sanctions impulse during visit",
+  );
 }
 
 {
@@ -3432,27 +4301,51 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     G.world.russia.law.tariffSchedule.country[G.homeRole || "home"] = 12;
   }
   const deps = {
-    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
-    DEAL_BY_ID, aggregate, realmGdpBn,
+    partnerShare,
+    playerCountryId,
+    effectiveTariff,
+    lawForRole,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    DEAL_BY_ID,
+    aggregate,
+    realmGdpBn,
   };
   const tcBase = baseP("russia", "tariffCut", G, deps);
   assert(tcBase >= 0.48, "asymmetric tariffs raise concede band");
   assert(canIssueUltimatum("russia").ok, "ultimatum available vs cool Russia");
   const cap0 = G.capital;
-  assert(issueUltimatum("russia", "tariffCut"), "issue ultimatum spends capital");
-  assert(G.capital === cap0 - ULTIMATUM_PC, "ultimatum costs capital immediately");
-  assert(G.ultimatums.russia && G.ultimatums.russia.status === "pending", "ultimatum pending");
+  assert(
+    issueUltimatum("russia", "tariffCut"),
+    "issue ultimatum spends capital",
+  );
+  assert(
+    G.capital === cap0 - ULTIMATUM_PC,
+    "ultimatum costs capital immediately",
+  );
+  assert(
+    G.ultimatums.russia && G.ultimatums.russia.status === "pending",
+    "ultimatum pending",
+  );
   assert(
     !billClauses().some((c) => /ultimatum/i.test(c.label)),
-    "ultimatum is not a bill clause"
+    "ultimatum is not a bill clause",
   );
   G.q = G.ultimatums.russia.expiresQ;
   processUltimatums(G, true);
   assert(!G.ultimatums.russia, "pending ultimatum cleared on resolve");
-  const conceded = (G.econ.diploLedger.russia || []).some((x) => /Backed down/.test(x.label));
-  const defied = (G.econ.diploLedger.russia || []).some((x) => /Defied our ultimatum/.test(x.label));
+  const conceded = (G.econ.diploLedger.russia || []).some((x) =>
+    /Backed down/.test(x.label),
+  );
+  const defied = (G.econ.diploLedger.russia || []).some((x) =>
+    /Defied our ultimatum/.test(x.label),
+  );
   assert(conceded || defied, "tariffCut ultimatum resolves");
-  assert(tcBase >= 0.5 ? conceded : defied, "det resolve follows baseP threshold");
+  assert(
+    tcBase >= 0.5 ? conceded : defied,
+    "det resolve follows baseP threshold",
+  );
 }
 
 {
@@ -3465,8 +4358,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.q = G.ultimatums.france.expiresQ;
   processUltimatums(G, true);
   assert(
-    (G.econ.diploLedger.france || []).some((x) => /Defied our ultimatum/.test(x.label)),
-    "warmish France without leverage defies"
+    (G.econ.diploLedger.france || []).some((x) =>
+      /Defied our ultimatum/.test(x.label),
+    ),
+    "warmish France without leverage defies",
   );
 }
 
@@ -3475,14 +4370,25 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.capital = 80;
   assignEnvoy("japan");
-  G.ultimatums = { china: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" } };
+  G.ultimatums = {
+    china: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" },
+  };
   const snapEnv = clone(G.envoys);
   const snapUlt = clone(G.ultimatums);
   const beforeRel = clone(G.rel);
   simulate(G.law, 4);
-  assert(JSON.stringify(G.envoys) === JSON.stringify(snapEnv), "simulate does not mutate envoys");
-  assert(JSON.stringify(G.ultimatums) === JSON.stringify(snapUlt), "simulate does not mutate ultimatums");
-  assert(JSON.stringify(G.rel) === JSON.stringify(beforeRel), "simulate does not mutate live rel");
+  assert(
+    JSON.stringify(G.envoys) === JSON.stringify(snapEnv),
+    "simulate does not mutate envoys",
+  );
+  assert(
+    JSON.stringify(G.ultimatums) === JSON.stringify(snapUlt),
+    "simulate does not mutate ultimatums",
+  );
+  assert(
+    JSON.stringify(G.rel) === JSON.stringify(beforeRel),
+    "simulate does not mutate live rel",
+  );
 }
 
 /* ---- Diplomatic map markers ---- */
@@ -3497,37 +4403,44 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.rel.russia = 40;
   issueUltimatum("russia", "tariffCut");
   const markers = diploMapMarkers(G);
-  assert(markers.length === 3, "envoy + staged summit + ultimatum produce three markers");
   assert(
-    markers.some((m) => m.partnerId === "france" && m.kind === "envoy"),
-    "france envoy marker"
+    markers.length === 3,
+    "envoy + staged summit + ultimatum produce three markers",
   );
   assert(
-    markers.some((m) => m.partnerId === "germany" && m.kind === "summit_staged"),
-    "germany staged summit marker"
+    markers.some((m) => m.partnerId === "france" && m.kind === "envoy"),
+    "france envoy marker",
+  );
+  assert(
+    markers.some(
+      (m) => m.partnerId === "germany" && m.kind === "summit_staged",
+    ),
+    "germany staged summit marker",
   );
   assert(
     markers.some((m) => m.partnerId === "russia" && m.kind === "ultimatum"),
-    "russia ultimatum marker"
+    "russia ultimatum marker",
   );
 
   G.draft.missions = { germany: "summit" };
   beginActiveVisit(G, "germany", "summit");
   const withVisit = diploMapMarkers(G);
   assert(
-    !withVisit.some((m) => m.partnerId === "germany" && m.kind === "summit_staged"),
-    "active visit replaces staged summit marker"
+    !withVisit.some(
+      (m) => m.partnerId === "germany" && m.kind === "summit_staged",
+    ),
+    "active visit replaces staged summit marker",
   );
   assert(
     withVisit.some((m) => m.partnerId === "germany" && m.kind === "summit"),
-    "active visit shows summit marker"
+    "active visit shows summit marker",
   );
 
   G.q = G.ultimatums.russia.expiresQ;
   processUltimatums(G, true);
   assert(
     !diploMapMarkers(G).some((m) => m.kind === "ultimatum"),
-    "resolved ultimatum drops from map markers"
+    "resolved ultimatum drops from map markers",
   );
 }
 
@@ -3545,7 +4458,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     },
   };
   project(4);
-  assert(G.ultimatums.france && G.ultimatums.france.status === "pending", "project with policy ultimatum does not throw or mutate live ult");
+  assert(
+    G.ultimatums.france && G.ultimatums.france.status === "pending",
+    "project with policy ultimatum does not throw or mutate live ult",
+  );
 }
 
 /* ---- Contextual ultimatums and mission events ---- */
@@ -3561,13 +4477,23 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     G.world.china.law.tariffSchedule.country[G.homeRole || "home"] = 12;
   }
   const deps = {
-    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
-    DEAL_BY_ID, aggregate, realmGdpBn, activePartners, sharedCamp,
+    partnerShare,
+    playerCountryId,
+    effectiveTariff,
+    lawForRole,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    DEAL_BY_ID,
+    aggregate,
+    realmGdpBn,
+    activePartners,
+    sharedCamp,
   };
   const demandsCn = ultimatumDemandsFor("china", G, deps);
   assert(
     demandsCn.some((d) => d.id === "tariffCut"),
-    "high partner tariff on player unlocks tariffCut"
+    "high partner tariff on player unlocks tariffCut",
   );
 
   for (const k of ["closeBorders", "openVisas", "conscript"]) {
@@ -3577,7 +4503,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const demandsCa = ultimatumDemandsFor("canada", G, deps);
   assert(
     demandsCa.some((d) => d.id === "policyChange"),
-    "policy divergence unlocks policyChange"
+    "policy divergence unlocks policyChange",
   );
 
   G.law.polity = "democracy";
@@ -3585,7 +4511,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const demandsRu = ultimatumDemandsFor("russia", G, deps);
   assert(
     demandsRu.some((d) => d.id === "regimeReform"),
-    "democracy vs authoritarian unlocks regimeReform"
+    "democracy vs authoritarian unlocks regimeReform",
   );
 
   ensureSched(G.law);
@@ -3598,7 +4524,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   const demandsFr = ultimatumDemandsFor("france", G, deps);
   assert(
     !demandsFr.some((d) => d.id === "tariffCut"),
-    "symmetric tariffs omit tariffCut"
+    "symmetric tariffs omit tariffCut",
   );
 }
 
@@ -3607,8 +4533,16 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.rel.russia = 25;
   const deps = {
-    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
-    DEAL_BY_ID, aggregate, realmGdpBn,
+    partnerShare,
+    playerCountryId,
+    effectiveTariff,
+    lawForRole,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    DEAL_BY_ID,
+    aggregate,
+    realmGdpBn,
   };
   const cold = baseP("russia", "political", G, deps);
   G.rel.russia = 55;
@@ -3618,7 +4552,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.rel.russia = 30;
   const lowInterest = baseP("russia", "regimeReform", G, deps);
   const highInterest = baseP("russia", "political", G, deps);
-  assert(highInterest > lowInterest, "regimeReform stays lower than political at same rel");
+  assert(
+    highInterest > lowInterest,
+    "regimeReform stays lower than political at same rel",
+  );
 
   ensureSched(G.law);
   G.law.tariffSchedule.country.china = 4;
@@ -3627,7 +4564,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     G.world.china.law.tariffSchedule.country[G.homeRole || "home"] = 10;
   }
   const interest = partnerSelfInterest("tariffCut", "china", G, deps);
-  assert(interestTag(interest) === "Against their interest" || interest < 0, "tariffCut interest tag when protectionist");
+  assert(
+    interestTag(interest) === "Against their interest" || interest < 0,
+    "tariffCut interest tag when protectionist",
+  );
 }
 
 {
@@ -3635,25 +4575,49 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.rel.russia = 30;
   const deps = {
-    partnerShare, playerCountryId, effectiveTariff, lawForRole, polityIdOf, profilePolityId, polityAffinity,
-    DEAL_BY_ID, aggregate, realmGdpBn,
+    partnerShare,
+    playerCountryId,
+    effectiveTariff,
+    lawForRole,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    DEAL_BY_ID,
+    aggregate,
+    realmGdpBn,
   };
   const base = baseP("russia", "regimeReform", G, deps);
-  assert(base < 0.25, "regimeReform vs authoritarian stays low even with leverage");
-  assert(concedeP("russia", "regimeReform", G, deps, true) === base, "det concedeP equals baseP (no jitter)");
+  assert(
+    base < 0.25,
+    "regimeReform vs authoritarian stays low even with leverage",
+  );
+  assert(
+    concedeP("russia", "regimeReform", G, deps, true) === base,
+    "det concedeP equals baseP (no jitter)",
+  );
 
   G.rel.russia = 28;
   G.q = 2;
-  assert(baseP("russia", "political", G, deps) < 0.5, "political ultimatum to defiant partner stays below det threshold");
-  G.ultimatums = { russia: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" } };
+  assert(
+    baseP("russia", "political", G, deps) < 0.5,
+    "political ultimatum to defiant partner stays below det threshold",
+  );
+  G.ultimatums = {
+    russia: { demand: "political", sentQ: 0, expiresQ: 2, status: "pending" },
+  };
   processUltimatums(G, true);
   assert(
-    (G.econ.diploLedger.russia || []).some((x) => /Defied our ultimatum/.test(x.label)),
-    "det resolve defies when baseP < 0.5"
+    (G.econ.diploLedger.russia || []).some((x) =>
+      /Defied our ultimatum/.test(x.label),
+    ),
+    "det resolve defies when baseP < 0.5",
   );
   assert(
-    G.diploAlerts && G.diploAlerts.some((a) => a.kind === "ult_defy" && a.partnerId === "russia"),
-    "ultimatum defy creates diplo alert"
+    G.diploAlerts &&
+      G.diploAlerts.some(
+        (a) => a.kind === "ult_defy" && a.partnerId === "russia",
+      ),
+    "ultimatum defy creates diplo alert",
   );
 }
 
@@ -3662,7 +4626,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   G.capital = 50;
   assert(issueUltimatum("germany", "tariffCut"), "player pick stores demand");
-  assert(G.ultimatums.germany && G.ultimatums.germany.demand === "tariffCut", "ultimatum stores tariffCut demand");
+  assert(
+    G.ultimatums.germany && G.ultimatums.germany.demand === "tariffCut",
+    "ultimatum stores tariffCut demand",
+  );
 }
 
 {
@@ -3673,31 +4640,59 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(isVisitActive(G, "japan"), "staging summit starts the visit on enact");
   queueSummitVisitEvents(G);
   assert(
-    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].partnerId === "japan",
-    "first deliver queues one summit mission event"
+    G.missionEvents &&
+      G.missionEvents.length === 1 &&
+      G.missionEvents[0].partnerId === "japan",
+    "first deliver queues one summit mission event",
   );
-  assert(G.activeVisits.japan.eventsFired === 1, "first summit event slot consumed");
+  assert(
+    G.activeVisits.japan.eventsFired === 1,
+    "first summit event slot consumed",
+  );
   G.missionEvents = [];
   step(G, G.law, G.prevLaw, true);
   queueSummitVisitEvents(G);
   assert(
-    G.missionEvents && G.missionEvents.length === 1 && G.missionEvents[0].eventIndex === 1,
-    "second deliver during visit queues second summit event"
+    G.missionEvents &&
+      G.missionEvents.length === 1 &&
+      G.missionEvents[0].eventIndex === 1,
+    "second deliver during visit queues second summit event",
   );
-  assert(G.activeVisits.japan.eventsFired === 2, "both summit event slots consumed");
+  assert(
+    G.activeVisits.japan.eventsFired === 2,
+    "both summit event slots consumed",
+  );
   G.missionEvents = [];
   step(G, G.law, G.prevLaw, true);
   queueSummitVisitEvents(G);
   assert(!G.missionEvents.length, "no third summit event after visit ends");
-  const ev = rollMissionEvent("summit", "japan", G, {
-    partnerShare, playerCountryId, activePartners, sharedCamp, partnerById, lawForRole, DEAL_BY_ID,
-  }, true);
-  assert(ev && ev.opts && ev.opts.length >= 2, "rollMissionEvent returns event with options");
+  const ev = rollMissionEvent(
+    "summit",
+    "japan",
+    G,
+    {
+      partnerShare,
+      playerCountryId,
+      activePartners,
+      sharedCamp,
+      partnerById,
+      lawForRole,
+      DEAL_BY_ID,
+    },
+    true,
+  );
+  assert(
+    ev && ev.opts && ev.opts.length >= 2,
+    "rollMissionEvent returns event with options",
+  );
   const rel0 = G.rel.japan;
-  applyMissionEventOption(ev.opts[0], { partnerId: "japan", rivalId: ev.rivalId });
+  applyMissionEventOption(ev.opts[0], {
+    partnerId: "japan",
+    rivalId: ev.rivalId,
+  });
   assert(
     G.rel.japan !== rel0 || (G.econ.relImpulse.japan || 0) > 0,
-    "mission option moves relations or relImpulse"
+    "mission option moves relations or relImpulse",
   );
 }
 
@@ -3707,20 +4702,29 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.missionEvents = [{ partnerId: "france", missionId: "summit", q: 0 }];
   const snap = clone(G.missionEvents);
   simulate(G.law, 4);
-  assert(JSON.stringify(G.missionEvents) === JSON.stringify(snap), "simulate does not mutate missionEvents");
+  assert(
+    JSON.stringify(G.missionEvents) === JSON.stringify(snap),
+    "simulate does not mutate missionEvents",
+  );
   assert(MUTABLE.includes("missionEvents"), "missionEvents on MUTABLE");
 }
 
 {
   newGame();
   G = getG();
-  assert(!G.activeVisits || !Object.keys(G.activeVisits).length, "no active visits at opening");
+  assert(
+    !G.activeVisits || !Object.keys(G.activeVisits).length,
+    "no active visits at opening",
+  );
   beginActiveVisit(G, "france", "summit");
   assert(isVisitActive(G, "france"), "summit visit is active after begin");
-  assert(visitQuartersLeft(G, "france") === VISIT_DURATION, "summit visit lasts two quarters");
+  assert(
+    visitQuartersLeft(G, "france") === VISIT_DURATION,
+    "summit visit lasts two quarters",
+  );
   assert(
     relationModifiers("france").some((m) => m.label === "State visit underway"),
-    "active visit shows live modifier"
+    "active visit shows live modifier",
   );
   step(G, G.law, G.prevLaw, true);
   assert(isVisitActive(G, "france"), "visit still active after one quarter");
@@ -3728,8 +4732,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   step(G, G.law, G.prevLaw, true);
   assert(!isVisitActive(G, "france"), "visit ends after two quarters");
   assert(
-    !relationModifiers("france").some((m) => m.label === "State visit underway"),
-    "visit modifier clears when visit ends"
+    !relationModifiers("france").some(
+      (m) => m.label === "State visit underway",
+    ),
+    "visit modifier clears when visit ends",
   );
 }
 
@@ -3739,7 +4745,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   beginActiveVisit(G, "japan", "summit");
   const snap = clone(G.activeVisits);
   simulate(G.law, 4);
-  assert(JSON.stringify(G.activeVisits) === JSON.stringify(snap), "simulate does not mutate activeVisits");
+  assert(
+    JSON.stringify(G.activeVisits) === JSON.stringify(snap),
+    "simulate does not mutate activeVisits",
+  );
   assert(MUTABLE.includes("activeVisits"), "activeVisits on MUTABLE");
 }
 
@@ -3748,58 +4757,119 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G = getG();
   beginActiveVisit(G, "japan", "summit");
   G.ultimatums = {
-    germany: { demand: "tariffCut", label: "Cut tariffs", sentQ: 0, expiresQ: 3, status: "pending" },
+    germany: {
+      demand: "tariffCut",
+      label: "Cut tariffs",
+      sentQ: 0,
+      expiresQ: 3,
+      status: "pending",
+    },
   };
   const hud = diploHudHtml(G);
   assert(/japan/i.test(hud) && /visit/i.test(hud), "hud shows active visit");
-  assert(/germany/i.test(hud) && /Cut tariffs/i.test(hud), "hud shows live ultimatum");
-  assert(!diploHudHtml({ ...G, activeVisits: {}, ultimatums: {} }), "empty hud when nothing active");
+  assert(
+    /germany/i.test(hud) && /Cut tariffs/i.test(hud),
+    "hud shows live ultimatum",
+  );
+  assert(
+    !diploHudHtml({ ...G, activeVisits: {}, ultimatums: {} }),
+    "empty hud when nothing active",
+  );
 }
 
 {
   newGame();
   G = getG();
-  G.diploAlerts = [{
-    kind: "ult_concede",
-    partnerId: "germany",
-    demand: "tariffCut",
-    label: "Cut tariffs on our exports",
-    impacts: {
-      diplomatic: "they lose face on the world stage · our leverage rises",
-      economic: "their tariffs on our goods fall 2 points",
-    },
-    q: 1,
-  }];
-  const concedeClips = composePress({ ultimatumOutcomes: G.diploAlerts, q: 1 });
-  assert(concedeClips.length === 1 && concedeClips[0].kind === "ultimatum", "ultimatum concede yields press clipping");
-  assert(/backs down/i.test(concedeClips[0].headline), "concede headline names partner climbdown");
-  assert(/Diplomatic Courier/.test(concedeClips[0].masthead), "concede uses diplomatic masthead");
-  assert(/Diplomatically/i.test(concedeClips[0].lede), "concede lede names diplomatic impact");
-  assert(/Economically/i.test(concedeClips[0].lede), "concede lede names economic impact");
-  assert(/tariffs on our goods fall/i.test(concedeClips[0].lede), "concede lede describes tariff impact");
-  const defyClips = composePress({
-    ultimatumOutcomes: [{
-      kind: "ult_defy",
-      partnerId: "france",
-      demand: "marketAccess",
-      label: "Open market access",
+  G.diploAlerts = [
+    {
+      kind: "ult_concede",
+      partnerId: "germany",
+      demand: "tariffCut",
+      label: "Cut tariffs on our exports",
       impacts: {
-        diplomatic: "relations plunge and their trust in our ultimatum collapses",
-        economic: "trade retaliation rises · business uncertainty lingers four quarters",
+        diplomatic: "they lose face on the world stage · our leverage rises",
+        economic: "their tariffs on our goods fall 2 points",
       },
-      q: 2,
-    }],
+      q: 1,
+    },
+  ];
+  const concedeClips = composePress({ ultimatumOutcomes: G.diploAlerts, q: 1 });
+  assert(
+    concedeClips.length === 1 && concedeClips[0].kind === "ultimatum",
+    "ultimatum concede yields press clipping",
+  );
+  assert(
+    /backs down/i.test(concedeClips[0].headline),
+    "concede headline names partner climbdown",
+  );
+  assert(
+    /Diplomatic Courier/.test(concedeClips[0].masthead),
+    "concede uses diplomatic masthead",
+  );
+  assert(
+    /Diplomatically/i.test(concedeClips[0].lede),
+    "concede lede names diplomatic impact",
+  );
+  assert(
+    /Economically/i.test(concedeClips[0].lede),
+    "concede lede names economic impact",
+  );
+  assert(
+    /tariffs on our goods fall/i.test(concedeClips[0].lede),
+    "concede lede describes tariff impact",
+  );
+  const defyClips = composePress({
+    ultimatumOutcomes: [
+      {
+        kind: "ult_defy",
+        partnerId: "france",
+        demand: "marketAccess",
+        label: "Open market access",
+        impacts: {
+          diplomatic:
+            "relations plunge and their trust in our ultimatum collapses",
+          economic:
+            "trade retaliation rises · business uncertainty lingers four quarters",
+        },
+        q: 2,
+      },
+    ],
     q: 2,
   });
-  assert(/defies/i.test(defyClips[0].headline), "defy headline names rejection");
-  assert(!/\{C\}/.test(defyClips[0].headline), "defy headline substitutes country name");
-  assert(!/\{C\}/.test(defyClips[0].lede), "defy lede substitutes country name");
-  assert(/Open market access/.test(defyClips[0].lede), "defy lede keeps demand label");
-  assert(/retaliation rises/i.test(defyClips[0].lede), "defy lede describes retaliation impact");
-  assert(/Diplomatically/i.test(defyClips[0].lede) && /Economically/i.test(defyClips[0].lede), "defy lede splits diplomatic and economic impact");
-  assert(/World Post/.test(defyClips[0].masthead), "defy uses world press masthead");
+  assert(
+    /defies/i.test(defyClips[0].headline),
+    "defy headline names rejection",
+  );
+  assert(
+    !/\{C\}/.test(defyClips[0].headline),
+    "defy headline substitutes country name",
+  );
+  assert(
+    !/\{C\}/.test(defyClips[0].lede),
+    "defy lede substitutes country name",
+  );
+  assert(
+    /Open market access/.test(defyClips[0].lede),
+    "defy lede keeps demand label",
+  );
+  assert(
+    /retaliation rises/i.test(defyClips[0].lede),
+    "defy lede describes retaliation impact",
+  );
+  assert(
+    /Diplomatically/i.test(defyClips[0].lede) &&
+      /Economically/i.test(defyClips[0].lede),
+    "defy lede splits diplomatic and economic impact",
+  );
+  assert(
+    /World Post/.test(defyClips[0].masthead),
+    "defy uses world press masthead",
+  );
   const hud = diploHudHtml(G);
-  assert(!/conceded/i.test(hud || ""), "ultimatum outcomes no longer appear on diplo hud");
+  assert(
+    !/conceded/i.test(hud || ""),
+    "ultimatum outcomes no longer appear on diplo hud",
+  );
   assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
 }
 
@@ -3807,30 +4877,54 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   console.log("\n— tutorial coach + capital shortfall —");
   newGame({ silent: true });
   let G = getG();
-  assert(G.coachDone === true && G.coach == null, "default newGame skips coach");
+  assert(
+    G.coachDone === true && G.coach == null,
+    "default newGame skips coach",
+  );
   assert(MUTABLE.includes("coach"), "coach on MUTABLE");
 
   const hint = capitalShortfallHint(18, 9);
-  assert(/18/.test(hint) && /9/.test(hint), "shortfall hint names need and have");
+  assert(
+    /18/.test(hint) && /9/.test(hint),
+    "shortfall hint names need and have",
+  );
   assert(/rebuilds each quarter/i.test(hint), "shortfall hint explains regen");
 
   newGame({ silent: true, tutorial: true });
   G = getG();
   assert(G.sandbox === true, "tutorial forces sandbox");
-  assert(G.coachDone === false && G.coach && G.coach.step === 0, "tutorial seeds coach at step 0");
-  assert(G.homeRole === "home" && G.country === "United Kingdom", "tutorial locks United Kingdom");
+  assert(
+    G.coachDone === false && G.coach && G.coach.step === 0,
+    "tutorial seeds coach at step 0",
+  );
+  assert(
+    G.homeRole === "home" && G.country === "United Kingdom",
+    "tutorial locks United Kingdom",
+  );
   G.q = 8;
   G.setPiece8 = false;
   G.lastEventQ = -10;
   G.nextMajorQ = 0;
-  assert(rollEvent() === null, "tutorial suppresses ordinary events and set-pieces");
+  assert(
+    rollEvent() === null,
+    "tutorial suppresses ordinary events and set-pieces",
+  );
   assert(rollMajorEvent() === null, "tutorial suppresses major episodes");
   G.q = 0;
   G.nextMajorQ = scheduleNextMajorQ(0, false);
 
-  newGame({ silent: true, tutorial: true, homeRole: "france", country: "France", homeIso: "250" });
+  newGame({
+    silent: true,
+    tutorial: true,
+    homeRole: "france",
+    country: "France",
+    homeIso: "250",
+  });
   G = getG();
-  assert(G.homeRole === "home" && G.country === "United Kingdom", "tutorial overrides non-UK start");
+  assert(
+    G.homeRole === "home" && G.country === "United Kingdom",
+    "tutorial overrides non-UK start",
+  );
   skipCoach();
   G = getG();
   assert(G.coachDone === true && G.coach == null, "skipCoach clears coach");
@@ -3840,12 +4934,18 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(getDespatch(), "tutorial morning note opens without silent");
   skipCoach();
   G = getG();
-  assert(G.coachDone === true && G.coach == null, "skip from morning note clears coach");
+  assert(
+    G.coachDone === true && G.coach == null,
+    "skip from morning note clears coach",
+  );
   assert(!getDespatch(), "skipCoach dismisses morning note");
   beginCoachStep(0);
   G = getG();
   /* Direct beginCoachStep still works for tests; the morning-note handler guards restart. */
-  assert(G.coach && G.coach.step === 0, "beginCoachStep can still seed after skip when called directly");
+  assert(
+    G.coach && G.coach.step === 0,
+    "beginCoachStep can still seed after skip when called directly",
+  );
   skipCoach();
 
   newGame({ silent: true, tutorial: true });
@@ -3858,18 +4958,33 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(panel0 && panel0.canContinue, "intro panel offers Continue");
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 1 && G.coach.phase === "await", "Continue starts budget await");
+  assert(
+    G.coach && G.coach.step === 1 && G.coach.phase === "await",
+    "Continue starts budget await",
+  );
   assert(getTab() !== "budget", "budget step does not auto-open Budget");
   assert(!getDespatch(), "coach await does not open blocking despatch");
   let panelBudget = getCoachPanel();
-  assert(panelBudget && panelBudget.subtasks && panelBudget.subtasks.length === 2, "budget step lists subtasks");
-  assert(panelBudget.subtasks.every((s) => !s.done), "budget subtasks start incomplete");
+  assert(
+    panelBudget && panelBudget.subtasks && panelBudget.subtasks.length === 2,
+    "budget step lists subtasks",
+  );
+  assert(
+    panelBudget.subtasks.every((s) => !s.done),
+    "budget subtasks start incomplete",
+  );
 
   G.draft.spend.education = G.law.spend.education + 0.5;
   assert(!tickCoach(), "education rise without Budget open does not advance");
   panelBudget = getCoachPanel();
-  assert(panelBudget.subtasks.find((s) => s.id === "edu").done, "education subtask checks without tab");
-  assert(!panelBudget.subtasks.find((s) => s.id === "tab").done, "Open Budget still unchecked");
+  assert(
+    panelBudget.subtasks.find((s) => s.id === "edu").done,
+    "education subtask checks without tab",
+  );
+  assert(
+    !panelBudget.subtasks.find((s) => s.id === "tab").done,
+    "Open Budget still unchecked",
+  );
   G.draft.spend.education = G.law.spend.education;
   setTab("budget");
   G.draft.spend.education = G.law.spend.education + 0.4;
@@ -3877,28 +4992,55 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.spend.education = G.law.spend.education + 0.5;
   assert(tickCoach(), "education +0.5 with Budget open readies budget step");
   G = getG();
-  assert(G.coach && G.coach.step === 1 && G.coach.phase === "ready", "budget waits for Next after both checkboxes");
-  assert(billClauses().some((c) => /Education/.test(c.label)), "education still staged into deficit step");
+  assert(
+    G.coach && G.coach.step === 1 && G.coach.phase === "ready",
+    "budget waits for Next after both checkboxes",
+  );
+  assert(
+    billClauses().some((c) => /Education/.test(c.label)),
+    "education still staged into deficit step",
+  );
   const panelBudgetReady = getCoachPanel();
-  assert(panelBudgetReady && panelBudgetReady.canContinue, "budget Next unlocks when checkboxes done");
+  assert(
+    panelBudgetReady && panelBudgetReady.canContinue,
+    "budget Next unlocks when checkboxes done",
+  );
   continueCoach();
   G = getG();
   assert(G.coach && G.coach.step === 2, "Next advances to deficit step");
 
   setTab("bill");
   G = getG();
-  assert(G.coach && G.coach.step === 2 && G.coach.phase === "ready", "opening Programme readies deficit step");
-  assert(billClauses().some((c) => /Education/.test(c.label)), "education still staged until Next");
+  assert(
+    G.coach && G.coach.step === 2 && G.coach.phase === "ready",
+    "opening Programme readies deficit step",
+  );
+  assert(
+    billClauses().some((c) => /Education/.test(c.label)),
+    "education still staged until Next",
+  );
   const panelDef = getCoachPanel();
-  assert(panelDef && panelDef.subtasks && panelDef.subtasks.length === 1, "deficit step has one Programme checkbox");
+  assert(
+    panelDef && panelDef.subtasks && panelDef.subtasks.length === 1,
+    "deficit step has one Programme checkbox",
+  );
   assert(panelDef.canContinue, "deficit Next unlocks when Programme open");
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 3 && G.coach.phase === "await", "Next advances to taxes");
-  assert(billClauses().some((c) => /Education/.test(c.label)), "education stays staged after deficit Next");
+  assert(
+    G.coach && G.coach.step === 3 && G.coach.phase === "await",
+    "Next advances to taxes",
+  );
+  assert(
+    billClauses().some((c) => /Education/.test(c.label)),
+    "education stays staged after deficit Next",
+  );
   assert(getTab() !== "taxes", "taxes step does not auto-open Taxes");
   const panelTax = getCoachPanel();
-  assert(panelTax && panelTax.subtasks && panelTax.subtasks.length === 3, "taxes step lists three subtasks");
+  assert(
+    panelTax && panelTax.subtasks && panelTax.subtasks.length === 3,
+    "taxes step lists three subtasks",
+  );
   assert(!panelTax.canContinue, "taxes Next locked until checkboxes done");
 
   G.draft.taxes.vat.rate = G.law.taxes.vat.rate + 3;
@@ -3910,36 +5052,69 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.taxes.vat.rate = G.law.taxes.vat.rate + 3;
   assert(!tickCoach(), "VAT alone does not advance");
   let panelTaxMid = getCoachPanel();
-  assert(panelTaxMid.subtasks.find((s) => s.id === "vat").done, "VAT subtask checks while corp pending");
-  assert(!panelTaxMid.subtasks.find((s) => s.id === "corp").done, "corp subtask still open");
+  assert(
+    panelTaxMid.subtasks.find((s) => s.id === "vat").done,
+    "VAT subtask checks while corp pending",
+  );
+  assert(
+    !panelTaxMid.subtasks.find((s) => s.id === "corp").done,
+    "corp subtask still open",
+  );
   G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate + 4;
   assert(!tickCoach(), "corp +4 with VAT +3 does not advance");
   G.draft.taxes.corpTax.rate = G.law.taxes.corpTax.rate + 5;
   assert(tickCoach(), "VAT +3 and corp +5 with Taxes open readies taxes step");
   G = getG();
-  assert(G.coach && G.coach.step === 3 && G.coach.phase === "ready", "taxes waits for Next after checkboxes");
-  assert(getCoachPanel()?.canContinue, "taxes Next unlocks when checkboxes done");
+  assert(
+    G.coach && G.coach.step === 3 && G.coach.phase === "ready",
+    "taxes waits for Next after checkboxes",
+  );
+  assert(
+    getCoachPanel()?.canContinue,
+    "taxes Next unlocks when checkboxes done",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 4, "Next advances to books step after taxes");
+  assert(
+    G.coach && G.coach.step === 4,
+    "Next advances to books step after taxes",
+  );
 
   setTab("bill");
   G = getG();
-  assert(G.coach && G.coach.step === 4 && G.coach.phase === "ready", "opening Programme readies books step");
-  assert(getCoachPanel()?.subtasks?.length === 1, "books step has one Programme checkbox");
+  assert(
+    G.coach && G.coach.step === 4 && G.coach.phase === "ready",
+    "opening Programme readies books step",
+  );
+  assert(
+    getCoachPanel()?.subtasks?.length === 1,
+    "books step has one Programme checkbox",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 5 && G.coach.phase === "await", "Next advances to policies");
+  assert(
+    G.coach && G.coach.step === 5 && G.coach.phase === "await",
+    "Next advances to policies",
+  );
 
-  assert(!(G.law.policies && G.law.policies.skills), "skills guarantee off at opening");
+  assert(
+    !(G.law.policies && G.law.policies.skills),
+    "skills guarantee off at opening",
+  );
   G.draft.policies.skills = true;
   assert(!tickCoach(), "skills without Policies open does not advance");
   delete G.draft.policies.skills;
   setTab("policies");
   G.draft.policies.skills = true;
-  assert(tickCoach(), "enacting skills with Policies open readies policies step");
+  assert(
+    tickCoach(),
+    "enacting skills with Policies open readies policies step",
+  );
   G = getG();
-  assert(G.coach && G.coach.step === 5 && G.coach.phase === "ready", "policies waits for Next");
+  assert(
+    G.coach && G.coach.step === 5 && G.coach.phase === "ready",
+    "policies waits for Next",
+  );
   continueCoach();
   G = getG();
   assert(G.coach && G.coach.step === 6, "Next advances to trade after skills");
@@ -3947,39 +5122,67 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   if (!G.law.tariffSchedule) {
     G.law.tariffSchedule = { default: 3, cet: null, bloc: {}, country: {} };
   }
-  if (!G.draft.tariffSchedule) G.draft.tariffSchedule = clone(G.law.tariffSchedule);
-  const baseDefault = G.law.tariffSchedule.default != null ? G.law.tariffSchedule.default : 3;
+  if (!G.draft.tariffSchedule)
+    G.draft.tariffSchedule = clone(G.law.tariffSchedule);
+  const baseDefault =
+    G.law.tariffSchedule.default != null ? G.law.tariffSchedule.default : 3;
   G.draft.tariffSchedule.default = baseDefault - 1;
-  assert(!tickCoach(), "default tariff cut without Trade open does not advance");
+  assert(
+    !tickCoach(),
+    "default tariff cut without Trade open does not advance",
+  );
   G.draft.tariffSchedule.default = baseDefault;
   setTab("trade");
   G.draft.tariffSchedule.default = baseDefault - 1;
   assert(tickCoach(), "default tariff −1 with Trade open readies trade step");
   G = getG();
-  assert(G.coach && G.coach.step === 6 && G.coach.phase === "ready", "trade step waits for Next after tariff cut");
+  assert(
+    G.coach && G.coach.step === 6 && G.coach.phase === "ready",
+    "trade step waits for Next after tariff cut",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 7 && G.coach.phase === "await", "Next advances to post-trade Programme review");
+  assert(
+    G.coach && G.coach.step === 7 && G.coach.phase === "await",
+    "Next advances to post-trade Programme review",
+  );
 
   setTab("bill");
   G = getG();
-  assert(G.coach && G.coach.step === 7 && G.coach.phase === "ready", "opening Programme readies tradeBooks step");
+  assert(
+    G.coach && G.coach.step === 7 && G.coach.phase === "ready",
+    "opening Programme readies tradeBooks step",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 8 && G.coach.phase === "await", "Next advances to accession");
-  assert(getTab() == null, "accession step closes drawer so Join is a deliberate look");
+  assert(
+    G.coach && G.coach.step === 8 && G.coach.phase === "await",
+    "Next advances to accession",
+  );
+  assert(
+    getTab() == null,
+    "accession step closes drawer so Join is a deliberate look",
+  );
 
   assert(!tickCoach(), "accession does not ready without Trade open");
   setTab("trade");
   G = getG();
-  assert(G.coach && G.coach.step === 8 && G.coach.phase === "ready", "reopening Trade readies accession step");
   assert(
-    blocJoinBlockers("continental_union", "apply").some((b) => /France/i.test(b)),
-    "Continental Union Join blocked on France relations"
+    G.coach && G.coach.step === 8 && G.coach.phase === "ready",
+    "reopening Trade readies accession step",
+  );
+  assert(
+    blocJoinBlockers("continental_union", "apply").some((b) =>
+      /France/i.test(b),
+    ),
+    "Continental Union Join blocked on France relations",
   );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 9 && G.coach.phase === "await", "Next advances to diplomacy");
+  assert(
+    G.coach && G.coach.step === 9 && G.coach.phase === "await",
+    "Next advances to diplomacy",
+  );
 
   if (!G.draft.missions) G.draft.missions = {};
   G.draft.missions.germany = "summit";
@@ -3990,16 +5193,26 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   delete G.draft.missions.france;
   setTab("diplomacy");
   G.draft.missions.france = "summit";
-  assert(tickCoach(), "France summit with Diplomacy open readies diplomacy step");
+  assert(
+    tickCoach(),
+    "France summit with Diplomacy open readies diplomacy step",
+  );
   G = getG();
-  assert(G.coach && G.coach.step === 9 && G.coach.phase === "ready", "diplomacy waits for Next");
+  assert(
+    G.coach && G.coach.step === 9 && G.coach.phase === "ready",
+    "diplomacy waits for Next",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 10 && G.coach.phase === "brief", "forecast brief after diplomacy");
+  assert(
+    G.coach && G.coach.step === 10 && G.coach.phase === "brief",
+    "forecast brief after diplomacy",
+  );
   const panelForecast = getCoachPanel();
   assert(
-    panelForecast && /Forecast on current policy/i.test(panelForecast.body || ""),
-    "forecast step explains Forecast on current policy"
+    panelForecast &&
+      /Forecast on current policy/i.test(panelForecast.body || ""),
+    "forecast step explains Forecast on current policy",
   );
   continueCoach();
   G = getG();
@@ -4015,18 +5228,27 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   /* Early Deliver during the forecast brief must still clear the deliver step. */
   beginCoachStep(10);
   G = getG();
-  assert(G.coach && G.coach.step === 10 && G.coach.phase === "brief", "back on forecast brief");
+  assert(
+    G.coach && G.coach.step === 10 && G.coach.phase === "brief",
+    "back on forecast brief",
+  );
   const forecastStartQ = G.coach.startQ;
   G.q = forecastStartQ + 1;
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 12, "early Deliver during forecast advances past deliver step");
+  assert(
+    G.coach && G.coach.step === 12,
+    "early Deliver during forecast advances past deliver step",
+  );
 
   assert(!tickCoach(), "France at 50 does not clear warmFrance");
   G.rel.france = 52;
   assert(tickCoach(), "France at 52 advances to joinCU");
   G = getG();
-  assert(G.coach && G.coach.step === 13 && G.coach.phase === "await", "joinCU step after warm France");
+  assert(
+    G.coach && G.coach.step === 13 && G.coach.phase === "await",
+    "joinCU step after warm France",
+  );
   assert(getTab() == null, "joinCU closes drawer for a deliberate Join");
 
   assert(!tickCoach(), "joinCU does not advance without Trade + staged Join");
@@ -4035,7 +5257,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   G.draft.blocAccession = { blocId: "continental_union", phase: "apply" };
   assert(tickCoach(), "staging CU Join readies joinCU step");
   G = getG();
-  assert(G.coach && G.coach.step === 13 && G.coach.phase === "ready", "joinCU waits for Next");
+  assert(
+    G.coach && G.coach.step === 13 && G.coach.phase === "ready",
+    "joinCU waits for Next",
+  );
   continueCoach();
   G = getG();
   assert(G.coach && G.coach.step === 14, "Next advances to deliverJoin");
@@ -4043,15 +5268,29 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(!tickCoach(), "deliverJoin waits for filed accession");
   G.blocAccession = { blocId: "continental_union", step: 1 };
   G.blocAccessionByCountry = {
-    kingdom: { blocId: "continental_union", step: 1, sinceQ: G.q + 1, self: true },
+    kingdom: {
+      blocId: "continental_union",
+      step: 1,
+      sinceQ: G.q + 1,
+      self: true,
+    },
   };
   assert(tickCoach(), "filed accession advances to accessionWait");
   G = getG();
   assert(G.coach && G.coach.step === 15, "accessionWait after filing");
   let panelAcc = getCoachPanel();
-  assert(panelAcc && panelAcc.subtasks && panelAcc.subtasks.length === 3, "accessionWait lists three stages");
-  assert(panelAcc.subtasks.find((s) => s.id === "applied").done, "application subtask done");
-  assert(!panelAcc.subtasks.find((s) => s.id === "member").done, "not yet a member");
+  assert(
+    panelAcc && panelAcc.subtasks && panelAcc.subtasks.length === 3,
+    "accessionWait lists three stages",
+  );
+  assert(
+    panelAcc.subtasks.find((s) => s.id === "applied").done,
+    "application subtask done",
+  );
+  assert(
+    !panelAcc.subtasks.find((s) => s.id === "member").done,
+    "not yet a member",
+  );
 
   assert(!tickCoach(), "accessionWait waits for membership");
   G.blocMember.kingdom = "continental_union";
@@ -4059,12 +5298,23 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   delete G.blocAccessionByCountry.kingdom;
   assert(tickCoach(), "CU membership readies accessionWait");
   G = getG();
-  assert(G.coach && G.coach.step === 15 && G.coach.phase === "ready", "accessionWait waits for Next when member");
+  assert(
+    G.coach && G.coach.step === 15 && G.coach.phase === "ready",
+    "accessionWait waits for Next when member",
+  );
   continueCoach();
   G = getG();
-  assert(G.coach && G.coach.step === 16 && G.coach.phase === "brief", "done step is congrats brief");
+  assert(
+    G.coach && G.coach.step === 16 && G.coach.phase === "brief",
+    "done step is congrats brief",
+  );
   const panelDone = getCoachPanel();
-  assert(panelDone && panelDone.canContinue && /away|Congratulations/i.test(panelDone.body || ""), "done panel congratulates");
+  assert(
+    panelDone &&
+      panelDone.canContinue &&
+      /away|Congratulations/i.test(panelDone.body || ""),
+    "done panel congratulates",
+  );
   continueCoach();
   G = getG();
   assert(G.coachDone === true && G.coach == null, "Finish clears coach");

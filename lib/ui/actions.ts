@@ -17,6 +17,8 @@ import {
   assignEnvoy,
   recallEnvoy,
   issueUltimatum,
+  hideDespatchShell,
+  CUSTOM_BLOC_TEMPLATES,
 } from "../sim/engine.ts";
 
 const TRANSFER_DEPTS: Record<string, number> = { welfare: 1 };
@@ -169,7 +171,10 @@ export function toggleBlocExternalDeal(dealId: string, partnerId: string) {
   bump();
 }
 
-export function toggleBlocAccession(blocId: string, blocJoinBlockersLen: number) {
+export function toggleBlocAccession(
+  blocId: string,
+  blocJoinBlockersLen: number,
+) {
   const G = getG();
   const phase = "apply";
   if (
@@ -234,10 +239,34 @@ export function toggleBlocInviteDraft(candidateId: string) {
   bump();
 }
 
+export function confirmBlocFound(name: string, templateId: string) {
+  const G = getG();
+  const tpl = (CUSTOM_BLOC_TEMPLATES as any)[templateId];
+  const trimmed = (name || "").trim().slice(0, 34);
+  G.draft.blocAccession = null;
+  G.draft.blocCreate = {
+    name: trimmed || (tpl ? tpl.name : "Trade bloc"),
+    template: templateId,
+  };
+  hideDespatchShell();
+  bump();
+}
+
+export function confirmBlocInvite(candidateId: string) {
+  toggleBlocInvite(candidateId);
+  hideDespatchShell();
+  bump();
+}
+
 export function toggleMission(partnerId: string, missionId: string) {
   const G = getG();
   const already = G.draft.missions[partnerId] === missionId;
-  if (!already && missionId === "sanctionsPosture" && isVisitActive(G, partnerId)) return;
+  if (
+    !already &&
+    missionId === "sanctionsPosture" &&
+    isVisitActive(G, partnerId)
+  )
+    return;
   if (already) delete G.draft.missions[partnerId];
   else G.draft.missions[partnerId] = missionId;
   bump();
@@ -261,7 +290,10 @@ export function recallEnvoyAction(partnerId: string) {
   if (recallEnvoy(partnerId)) bump();
 }
 
-export function issueUltimatumAction(partnerId: string, demandId: string | null) {
+export function issueUltimatumAction(
+  partnerId: string,
+  demandId: string | null,
+) {
   const G = getG();
   if (G.mp && typeof G.mp.onDiploAction === "function") {
     Promise.resolve(

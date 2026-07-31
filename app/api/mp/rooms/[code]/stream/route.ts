@@ -22,7 +22,7 @@ const KV_REFRESH_MS = 5000;
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ code: string }> }
+  { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
   const token = request.nextUrl.searchParams.get("token") || "";
@@ -67,7 +67,9 @@ export async function GET(
         pollTimer = heartbeatTimer = lifetimeTimer = null;
       };
 
-      send(`data: ${JSON.stringify({ version: lastVersion, q: room0.snapshot?.q ?? 0 })}\n\n`);
+      send(
+        `data: ${JSON.stringify({ version: lastVersion, q: room0.snapshot?.q ?? 0 })}\n\n`,
+      );
 
       const tick = async () => {
         if (closed || inflight) return;
@@ -95,7 +97,7 @@ export async function GET(
               `data: ${JSON.stringify({
                 version: room.version,
                 q: room.snapshot ? room.snapshot.q : 0,
-              })}\n\n`
+              })}\n\n`,
             );
           }
         } catch {

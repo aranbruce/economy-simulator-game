@@ -23,13 +23,13 @@ Sandbox mode (on by default) suppresses removal-from-office paths so you can exp
 
 ## Layout
 
-| Path | Contains |
-|---|---|
-| `app/` | Next.js App Router, glass CSS |
-| `components/` | Game shell, world map, UI |
-| `lib/sim/` | Pure simulation engine (authoritative) |
-| `public/geo/` | Natural Earth topojson |
-| `test/` | Smoke and calibration suite |
+| Path          | Contains                               |
+| ------------- | -------------------------------------- |
+| `app/`        | Next.js App Router, glass CSS          |
+| `components/` | Game shell, world map, UI              |
+| `lib/sim/`    | Pure simulation engine (authoritative) |
+| `public/geo/` | Natural Earth topojson                 |
+| `test/`       | Smoke and calibration suite            |
 
 ## Stack
 

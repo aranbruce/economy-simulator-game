@@ -243,7 +243,10 @@ interface CoachSubtask {
 }
 
 /** Multi-part checklist for a step (or null / single-item → use `task` string). */
-export function coachSubtasks(stepIndex: number, ctx: CoachCtx): CoachSubtask[] | null {
+export function coachSubtasks(
+  stepIndex: number,
+  ctx: CoachCtx,
+): CoachSubtask[] | null {
   const step = COACH_STEPS[stepIndex];
   if (!step || !step.task) return null;
   const draft = (ctx && ctx.draft) || {};

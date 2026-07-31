@@ -16,7 +16,11 @@ interface MapChromeProps {
   onMetricChange: (metric: string) => void;
 }
 
-export function MapChrome({ mapMetric, selectedRole, onMetricChange }: MapChromeProps) {
+export function MapChrome({
+  mapMetric,
+  selectedRole,
+  onMetricChange,
+}: MapChromeProps) {
   const G = useGame();
 
   let labelContent;
@@ -29,7 +33,10 @@ export function MapChrome({ mapMetric, selectedRole, onMetricChange }: MapChrome
     labelContent = (
       <>
         <b>{G.country}</b>
-        <span>{note}{fig ? ` · ${fig}` : ""}</span>
+        <span>
+          {note}
+          {fig ? ` · ${fig}` : ""}
+        </span>
       </>
     );
   } else if (selectedRole) {

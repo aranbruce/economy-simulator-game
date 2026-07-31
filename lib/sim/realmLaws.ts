@@ -31,7 +31,8 @@ export function applyRealmLawOverlay(law: any, overlay: any) {
   }
   if (overlay.income) {
     Object.assign(law.income, overlay.income);
-    if (overlay.income.bands) law.income.bands = overlay.income.bands.map((b: any) => ({ ...b }));
+    if (overlay.income.bands)
+      law.income.bands = overlay.income.bands.map((b: any) => ({ ...b }));
   }
   if (overlay.ni) Object.assign(law.ni, overlay.ni);
   if (overlay.policies) {
@@ -154,7 +155,13 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 6 },
-    policies: { minWage: true, planning: true, dereg: true, openVisas: true, fracking: true },
+    policies: {
+      minWage: true,
+      planning: true,
+      dereg: true,
+      openVisas: true,
+      fracking: true,
+    },
     vice: {
       cannabis: "legal",
       psychedelics: "medical",
@@ -201,7 +208,13 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 8, erRate: 16 },
-    policies: { rnd: true, skills: true, digitalId: true, closeBorders: true, fiscalRule: true },
+    policies: {
+      rnd: true,
+      skills: true,
+      digitalId: true,
+      closeBorders: true,
+      fiscalRule: true,
+    },
     vice: {
       cannabis: "banned",
       psychedelics: "banned",
@@ -297,7 +310,12 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 8 },
-    policies: { openVisas: false, skills: true, digitalId: true, minWage: true },
+    policies: {
+      openVisas: false,
+      skills: true,
+      digitalId: true,
+      minWage: true,
+    },
     vice: {
       cannabis: "banned",
       psychedelics: "banned",
@@ -440,7 +458,13 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 25,
     },
     ni: { empOn: false, erOn: true, empRate: 0, erRate: 11 },
-    policies: { minWage: true, netZero: true, openVisas: true, skills: true, fiscalRule: true },
+    policies: {
+      minWage: true,
+      netZero: true,
+      openVisas: true,
+      skills: true,
+      fiscalRule: true,
+    },
     vice: {
       cannabis: "decrim",
       psychedelics: "medical",
@@ -488,7 +512,13 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 0,
     },
     ni: { empOn: false, erOn: false, empRate: 0, erRate: 0 },
-    policies: { swf: true, nuclear: true, closeBorders: true, conscript: true, fracking: true },
+    policies: {
+      swf: true,
+      nuclear: true,
+      closeBorders: true,
+      conscript: true,
+      fracking: true,
+    },
     vice: {
       cannabis: "banned",
       psychedelics: "banned",
@@ -533,7 +563,13 @@ export const REALM_LAW: Record<string, any> = {
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 8 },
     regime: "dual",
-    policies: { openVisas: true, skills: true, netZero: true, minWage: true, fiscalRule: true },
+    policies: {
+      openVisas: true,
+      skills: true,
+      netZero: true,
+      minWage: true,
+      fiscalRule: true,
+    },
     vice: {
       cannabis: "legal",
       psychedelics: "medical",
@@ -578,7 +614,13 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 22,
     },
     ni: { empOn: true, erOn: true, empRate: 7, erRate: 10 },
-    policies: { skills: true, rnd: true, minWage: true, digitalId: true, conscript: true },
+    policies: {
+      skills: true,
+      rnd: true,
+      minWage: true,
+      digitalId: true,
+      conscript: true,
+    },
     vice: {
       cannabis: "banned",
       psychedelics: "banned",
@@ -991,7 +1033,12 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 14 },
-    policies: { minWage: true, netZero: true, socialCare: true, fiscalRule: true },
+    policies: {
+      minWage: true,
+      netZero: true,
+      socialCare: true,
+      fiscalRule: true,
+    },
     vice: {
       cannabis: "decrim",
       psychedelics: "banned",
@@ -1036,7 +1083,12 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 14 },
-    policies: { minWage: true, netZero: true, childcare: true, openVisas: true },
+    policies: {
+      minWage: true,
+      netZero: true,
+      childcare: true,
+      openVisas: true,
+    },
     vice: {
       cannabis: "decrim",
       psychedelics: "banned",
@@ -1177,7 +1229,12 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 12 },
-    policies: { fiscalRule: true, skills: true, nuclear: true, digitalId: true },
+    policies: {
+      fiscalRule: true,
+      skills: true,
+      nuclear: true,
+      digitalId: true,
+    },
     vice: {
       cannabis: "banned",
       psychedelics: "banned",
@@ -1270,7 +1327,12 @@ export const REALM_LAW: Record<string, any> = {
       capitalRate: 22,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 8 },
-    policies: { minWage: true, skills: true, police: true, socialHousing: true },
+    policies: {
+      minWage: true,
+      skills: true,
+      police: true,
+      socialHousing: true,
+    },
     vice: {
       cannabis: "decrim",
       psychedelics: "banned",

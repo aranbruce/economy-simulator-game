@@ -8,14 +8,14 @@ export const HOME_ISO = DEFAULT_HOME_ISO;
 
 /** Country id → single ISO (anchor territory on the map). */
 export const PARTNER_ISO: Record<string, string[]> = Object.fromEntries(
-  COUNTRIES.map((c: any) => [c.id, [c.iso]])
+  COUNTRIES.map((c: any) => [c.id, [c.iso]]),
 );
 
 /** Resolve which board role owns an ISO. */
 export function partnerForIso(
   iso: string | number,
   homeIso: string = HOME_ISO,
-  homeRole: string | null = null
+  homeRole: string | null = null,
 ) {
   const id = String(iso).padStart(3, "0");
   const home = String(homeIso || HOME_ISO).padStart(3, "0");

@@ -111,7 +111,11 @@ function homeDeficit(G: GameState) {
   return -balanceOf(G.law, G.econ).balance;
 }
 
-export function boardMetricValue(role: string, metric: string, G: GameState = getG()) {
+export function boardMetricValue(
+  role: string,
+  metric: string,
+  G: GameState = getG(),
+) {
   if (!G) return null;
   if (metric === "countries" || metric === "blocs") return null;
   if (role === "home") {
@@ -130,7 +134,11 @@ export function boardMetricValue(role: string, metric: string, G: GameState = ge
 }
 
 /** Formatted figure for the active map mode, or null when the mode has none. */
-export function boardMetricValueLabel(role: string, metric: string, G: GameState = getG()) {
+export function boardMetricValueLabel(
+  role: string,
+  metric: string,
+  G: GameState = getG(),
+) {
   if (metric === "blocs") return boardMetricBlocName(role, G);
   const v = boardMetricValue(role, metric, G);
   if (v == null || !Number.isFinite(+v)) return null;
@@ -145,7 +153,7 @@ export function boardMetricMapLabel(
   role: string,
   metric: string | null,
   displayName?: string | null,
-  G: GameState = getG()
+  G: GameState = getG(),
 ) {
   const name = displayName || role;
   if (!metric || metric === "countries") return name;
@@ -154,7 +162,11 @@ export function boardMetricMapLabel(
   return name + " · " + fig;
 }
 
-export function boardMetricColour(role: string, metric: string, G: GameState = getG()) {
+export function boardMetricColour(
+  role: string,
+  metric: string,
+  G: GameState = getG(),
+) {
   if (!G) return METRIC_MISSING;
   if (metric === "countries") {
     if (role === "home") return HOME_MARK;

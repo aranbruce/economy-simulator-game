@@ -40,14 +40,16 @@ function ImpactChips({ chips }: { chips: (ImpactChip | null)[] | null }) {
   if (!chips || !chips.length) return null;
   return (
     <div className="flex flex-wrap gap-1">
-      {chips.filter((c): c is ImpactChip => c != null).map((c, i) => (
-        <span
-          key={i}
-          className={`rounded-sm px-1.75 py-0.75 text-[10.5px] font-[650] whitespace-nowrap ${c.up ? "bg-green/16 text-green-lt" : "bg-red/16 text-red-lt"}`}
-        >
-          {c.name} {sgn(c.value, c.dp)}
-        </span>
-      ))}
+      {chips
+        .filter((c): c is ImpactChip => c != null)
+        .map((c, i) => (
+          <span
+            key={i}
+            className={`rounded-sm px-1.75 py-0.75 text-[10.5px] font-[650] whitespace-nowrap ${c.up ? "bg-green/16 text-green-lt" : "bg-red/16 text-red-lt"}`}
+          >
+            {c.name} {sgn(c.value, c.dp)}
+          </span>
+        ))}
     </div>
   );
 }
@@ -126,12 +128,15 @@ function ImpactPanel({ cl }: { cl: any[] }) {
       <Hint>
         Sandbox only. Each block is that clause alone over four quarters,
         measured against passing nothing at all. Growth is cumulative GDP over
-        the path, not the final quarter's pace. Trend growth and Potential are
-        the supply-side long-run score. They will not add up to the whole
+        the path, not the final quarter&rsquo;s pace. Trend growth and Potential
+        are the supply-side long-run score. They will not add up to the whole
         bill, because these things interact.
       </Hint>
       {data.items.map((it: any, i: number) => (
-        <div className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25" key={i}>
+        <div
+          className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25"
+          key={i}
+        >
           <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
             {it.label}
             <span className="ml-auto text-[11px] font-[650] whitespace-nowrap text-accent-lt">
@@ -140,7 +145,9 @@ function ImpactPanel({ cl }: { cl: any[] }) {
           </div>
           {it.revenue != null && (
             <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
-              <span className={it.revenue > 0 ? "text-green-lt" : "text-red-lt"}>
+              <span
+                className={it.revenue > 0 ? "text-green-lt" : "text-red-lt"}
+              >
                 Receipts on impact {sgn(it.revenue, 2)} pts
               </span>
             </div>
@@ -174,8 +181,8 @@ function RateImpact() {
         Four quarters at {data.pin.toFixed(2)}% vs the Bank
       </div>
       <div className="mb-1.5 text-[12.5px] leading-[1.4] text-ink-soft">
-        Same law, pinned rate against the Taylor rule from today's starting
-        point.
+        Same law, pinned rate against the Taylor rule from today&rsquo;s
+        starting point.
       </div>
       {data.empty ? (
         <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
@@ -243,19 +250,27 @@ export function BillDrawer() {
       <div className="mt-3 border-t border-edge pt-2.5 text-[13px]">
         <div className="flex py-0.75 text-ink-soft">
           <span>Receipts</span>
-          <span className="ml-auto font-[650] text-white">{dr.rev.total.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">
+            {dr.rev.total.toFixed(1)}
+          </span>
         </div>
         <div className="flex py-0.75 text-ink-soft">
           <span>Departmental</span>
-          <span className="ml-auto font-[650] text-white">{dr.sp.prog.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">
+            {dr.sp.prog.toFixed(1)}
+          </span>
         </div>
         <div className="flex py-0.75 text-ink-soft">
           <span>Debt interest</span>
-          <span className="ml-auto font-[650] text-white">{dr.sp.interest.toFixed(1)}</span>
+          <span className="ml-auto font-[650] text-white">
+            {dr.sp.interest.toFixed(1)}
+          </span>
         </div>
         <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
           <span>{dr.balance >= 0 ? "Surplus" : "Deficit"}</span>
-          <span className={`ml-auto ${dr.balance >= 0 ? "text-green-lt" : "text-red-lt"}`}>
+          <span
+            className={`ml-auto ${dr.balance >= 0 ? "text-green-lt" : "text-red-lt"}`}
+          >
             {fmt(dr.balance, 1)}% of GDP
           </span>
         </div>

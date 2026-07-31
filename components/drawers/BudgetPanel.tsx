@@ -10,10 +10,7 @@ import {
   welfareAdequacy,
   welfareCost,
 } from "../../lib/sim/engine.ts";
-import {
-  setDraftSpend,
-  setDraftSpendMode,
-} from "../../lib/ui/actions.ts";
+import { setDraftSpend, setDraftSpendMode } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Lever } from "../ui/Lever.tsx";
@@ -32,8 +29,10 @@ function budgetModeOptions(): ["share" | "real" | "service", string][] {
 
 function LedgerTable() {
   const rows: any[] = ledgerRows();
-  const TH = "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
-  const TD = "first:text-left first:text-ink-soft border-b border-white/5 px-2.5 py-1.5 text-right";
+  const TH =
+    "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
+  const TD =
+    "first:text-left first:text-ink-soft border-b border-white/5 px-2.5 py-1.5 text-right";
   if (!rows.length) {
     return (
       <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
@@ -43,7 +42,8 @@ function LedgerTable() {
       </div>
     );
   }
-  const signCls = (v: number) => (v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "");
+  const signCls = (v: number) =>
+    v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "";
   return (
     <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
       <table className="w-full min-w-160 border-collapse text-[12.5px] tabular-nums">
@@ -65,11 +65,17 @@ function LedgerTable() {
           {rows.map((r, i) => (
             <tr key={i} className="last:bg-white/4">
               <td className={TD}>{r.label}</td>
-              <td className={`${TD} ${signCls(r.growth)}`}>{fmt(r.growth, 1)}</td>
-              <td className={TD}>{r.trend != null ? r.trend.toFixed(1) : "—"}</td>
+              <td className={`${TD} ${signCls(r.growth)}`}>
+                {fmt(r.growth, 1)}
+              </td>
+              <td className={TD}>
+                {r.trend != null ? r.trend.toFixed(1) : "—"}
+              </td>
               <td className={TD}>{r.inflation.toFixed(1)}</td>
               <td className={TD}>{r.unemployment.toFixed(1)}</td>
-              <td className={`${TD} ${signCls(r.balance)}`}>{fmt(r.balance, 1)}</td>
+              <td className={`${TD} ${signCls(r.balance)}`}>
+                {fmt(r.balance, 1)}
+              </td>
               <td className={TD}>{r.debt.toFixed(0)}</td>
               <td className={TD}>{r.yield.toFixed(2)}</td>
               <td className={TD}>{r.approval.toFixed(0)}</td>
@@ -115,8 +121,8 @@ export function BudgetPanel() {
                   note={
                     <>
                       costs <b>{bill.toFixed(2)}%</b> of GDP at today’s
-                      unemployment · per claimant {(adeq * 100).toFixed(0)}%
-                      of the opening rate
+                      unemployment · per claimant {(adeq * 100).toFixed(0)}% of
+                      the opening rate
                     </>
                   }
                   onInput={(id, v) => {
@@ -127,7 +133,8 @@ export function BudgetPanel() {
               </div>
             );
           }
-          const score = held != null ? held : serviceScore(d.id, G.draft, G.econ);
+          const score =
+            held != null ? held : serviceScore(d.id, G.draft, G.econ);
           const holdCost = spendForScore(d.id, score, G.econ);
           return (
             <div key={d.id}>
@@ -143,8 +150,8 @@ export function BudgetPanel() {
                 base={G.law.spend[d.id]}
                 note={
                   <>
-                    service level <b>{score.toFixed(0)}</b> / 100 · holding
-                    this level costs {holdCost.toFixed(2)}% of GDP
+                    service level <b>{score.toFixed(0)}</b> / 100 · holding this
+                    level costs {holdCost.toFixed(2)}% of GDP
                   </>
                 }
                 onInput={(id, v) => {

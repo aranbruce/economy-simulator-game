@@ -34,7 +34,7 @@ async function req(path: string, opts: ReqOpts = {}) {
       throw new MpApiError(
         data.error || res.statusText || "Request failed",
         res.status,
-        data
+        data,
       );
     }
     return data;
@@ -42,7 +42,7 @@ async function req(path: string, opts: ReqOpts = {}) {
     if (err instanceof Error && err.name === "AbortError") {
       throw new MpApiError(
         "Timed out — check your connection or Redis settings",
-        408
+        408,
       );
     }
     throw err;
@@ -117,7 +117,11 @@ export function applyMpDiplo(code: string, body: unknown) {
  * Subscribe to room version bumps via SSE. Returns a close() function.
  * onEvent receives parsed payloads like { version, q }.
  */
-export function openMpRoomStream(code: string, token: string, onEvent: (data: any) => void) {
+export function openMpRoomStream(
+  code: string,
+  token: string,
+  onEvent: (data: any) => void,
+) {
   const url =
     `/api/mp/rooms/${encodeURIComponent(code)}/stream` +
     `?token=${encodeURIComponent(token)}`;

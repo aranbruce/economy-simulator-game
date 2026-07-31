@@ -12,8 +12,18 @@ const CARD_BASE =
   "flex flex-col gap-1.25 rounded-md border border-edge bg-g-1 px-3 py-2.75 transition duration-180 hover:-translate-y-px hover:border-[rgba(180,200,230,.22)] hover:bg-white/6";
 
 /** The `.card` primitive — content tiles for policies, taxes, trade deals, diplomacy, etc. */
-export function Card({ on, staged, className = "", children, ...rest }: CardProps) {
-  const state = on ? "border-green/38 bg-green/10" : staged ? "border-frame bg-accent-dim" : "";
+export function Card({
+  on,
+  staged,
+  className = "",
+  children,
+  ...rest
+}: CardProps) {
+  const state = on
+    ? "border-green/38 bg-green/10"
+    : staged
+      ? "border-frame bg-accent-dim"
+      : "";
   return (
     <div className={`${CARD_BASE} ${state} ${className}`.trim()} {...rest}>
       {children}
@@ -22,7 +32,13 @@ export function Card({ on, staged, className = "", children, ...rest }: CardProp
 }
 
 /** The `.cards` responsive grid that wraps `Card` tiles. */
-export function CardGrid({ className = "", children }: { className?: string; children: ReactNode }) {
+export function CardGrid({
+  className = "",
+  children,
+}: {
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <div
       className={`grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2 max-[720px]:grid-cols-1 max-[720px]:gap-1.75 ${className}`.trim()}
@@ -51,9 +67,13 @@ export function CardCat({ children }: { children: ReactNode }) {
 
 /** `.card .foot` — the bottom row (price + action button). */
 export function CardFoot({ children }: { children: ReactNode }) {
-  return <div className="mt-auto flex items-center gap-2 pt-0.5">{children}</div>;
+  return (
+    <div className="mt-auto flex items-center gap-2 pt-0.5">{children}</div>
+  );
 }
 
 export function CardPrice({ children }: { children: ReactNode }) {
-  return <span className="text-[11px] font-medium text-ink-faint">{children}</span>;
+  return (
+    <span className="text-[11px] font-medium text-ink-faint">{children}</span>
+  );
 }

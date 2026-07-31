@@ -69,7 +69,8 @@ function LineChartSvg({ spec }: { spec: ChartSpec | null }) {
         Not enough quarters recorded yet.
       </div>
     );
-  const { w, h, padR, gridLines, targetLine, xLabels, series, targetLabel } = spec;
+  const { w, h, padR, gridLines, targetLine, xLabels, series, targetLabel } =
+    spec;
   return (
     <>
       <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} role="img">
@@ -128,7 +129,12 @@ function LineChartSvg({ spec }: { spec: ChartSpec | null }) {
               strokeWidth={s.wide ? 2 : 1.4}
               strokeDasharray={s.dash ? "4 3" : undefined}
             />
-            <circle cx={s.lastPoint[0]} cy={s.lastPoint[1]} r={2.2} fill={s.color} />
+            <circle
+              cx={s.lastPoint[0]}
+              cy={s.lastPoint[1]}
+              r={2.2}
+              fill={s.color}
+            />
             <text
               x={w - padR + 6}
               y={s.lastPoint[1] + 3}
@@ -183,14 +189,7 @@ export function ChartsPanel() {
     ? (G.econ.gdp / G.econ.potential - 1) * 100
     : 0;
   const fxCode = currencyForSeat(G.homeRole);
-  const facColors = [
-    COL.blue,
-    COL.ox,
-    COL.brass,
-    COL.plum,
-    COL.green,
-    COL.ink,
-  ];
+  const facColors = [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink];
 
   return (
     <>
@@ -239,7 +238,7 @@ export function ChartsPanel() {
                 },
                 { label: "Bank rate", color: COL.blue, data: col("rate") },
               ],
-              { target: 2, targetLabel: "Target" }
+              { target: 2, targetLabel: "Target" },
             )}
           />
         </ChartBox>
@@ -258,7 +257,7 @@ export function ChartsPanel() {
                   wide: true,
                 },
               ],
-              { target: 100, targetLabel: "Opening" }
+              { target: 100, targetLabel: "Opening" },
             )}
           />
         </ChartBox>
@@ -317,13 +316,11 @@ export function ChartsPanel() {
       >
         <LineChartSvg
           spec={lineChartSpec(
-            FACTIONS.map(
-              (f: any, i: number): ChartSeriesInput => ({
-                label: f.name,
-                color: facColors[i],
-                data: G.log.map((r: any) => r.fac[f.id]),
-              })
-            ).concat([
+            FACTIONS.map((f: any, i: number): ChartSeriesInput => ({
+              label: f.name,
+              color: facColors[i],
+              data: G.log.map((r: any) => r.fac[f.id]),
+            })).concat([
               {
                 label: "Overall",
                 color: COL.soft,
@@ -331,7 +328,7 @@ export function ChartsPanel() {
                 wide: true,
                 dash: true,
               },
-            ])
+            ]),
           )}
         />
       </ChartBox>
@@ -349,7 +346,7 @@ export function ChartsPanel() {
                 wide: true,
               },
             ],
-            { target: 100, targetLabel: "Where it started" }
+            { target: 100, targetLabel: "Where it started" },
           )}
         />
       </ChartBox>
@@ -394,8 +391,18 @@ export function ChartsPanel() {
       >
         <LineChartSvg
           spec={lineChartSpec([
-            { label: "Consumption", color: COL.blue, data: col("C"), wide: true },
-            { label: "Government", color: COL.green, data: col("Gov"), wide: true },
+            {
+              label: "Consumption",
+              color: COL.blue,
+              data: col("C"),
+              wide: true,
+            },
+            {
+              label: "Government",
+              color: COL.green,
+              data: col("Gov"),
+              wide: true,
+            },
             { label: "Investment", color: COL.plum, data: col("I") },
             { label: "Exports", color: COL.brass, data: col("X") },
             { label: "Imports", color: COL.ox, data: col("M") },
@@ -416,7 +423,7 @@ export function ChartsPanel() {
                 wide: true,
               },
             ],
-            { zero: true }
+            { zero: true },
           )}
         />
       </ChartBox>
@@ -426,7 +433,12 @@ export function ChartsPanel() {
       >
         <LineChartSvg
           spec={lineChartSpec([
-            { label: "Receipts", color: COL.green, data: col("rev"), wide: true },
+            {
+              label: "Receipts",
+              color: COL.green,
+              data: col("rev"),
+              wide: true,
+            },
             {
               label: "Departmental spending",
               color: COL.ox,

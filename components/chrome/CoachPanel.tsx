@@ -21,7 +21,7 @@ export function CoachPanel() {
       aria-label="Tutorial"
     >
       <div className="flex items-center justify-between gap-2.5">
-        <span className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+        <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
           Tutorial {panel.step}/{panel.total}
         </span>
         <button
@@ -42,10 +42,13 @@ export function CoachPanel() {
       ) : null}
       {panel.subtasks && panel.subtasks.length ? (
         <div className="flex flex-col gap-2">
-          <div className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+          <div className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
             Your tasks
           </div>
-          <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label="Your tasks">
+          <ul
+            className="m-0 flex list-none flex-col gap-1.5 p-0"
+            aria-label="Your tasks"
+          >
             {panel.subtasks.map((s: any) => (
               <li
                 key={s.id}
@@ -66,10 +69,12 @@ export function CoachPanel() {
         </div>
       ) : panel.task ? (
         <div className="flex flex-col gap-2">
-          <div className="text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+          <div className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
             Your tasks
           </div>
-          <p className="m-0 text-[13px] leading-[1.35] font-[650] text-ink">{panel.task}</p>
+          <p className="m-0 text-[13px] leading-[1.35] font-[650] text-ink">
+            {panel.task}
+          </p>
         </div>
       ) : null}
       {panel.canContinue ? (

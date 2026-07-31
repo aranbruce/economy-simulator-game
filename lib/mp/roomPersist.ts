@@ -29,13 +29,9 @@ function roomsMap(): Map<string, Room> {
 
 function kvConfig() {
   const url =
-    process.env.KV_REST_API_URL ||
-    process.env.UPSTASH_REDIS_REST_URL ||
-    "";
+    process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL || "";
   const token =
-    process.env.KV_REST_API_TOKEN ||
-    process.env.UPSTASH_REDIS_REST_TOKEN ||
-    "";
+    process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN || "";
   if (!url || !token) return null;
   return { url: url.replace(/\/$/, ""), token };
 }
@@ -64,7 +60,8 @@ function roomKey(code: string) {
 
 function logKvFailure(kind: string, err: unknown) {
   const msg = err instanceof Error ? err.message : String(err);
-  const key = kind + ":" + (msg.includes("timed out") ? "timeout" : msg.slice(0, 80));
+  const key =
+    kind + ":" + (msg.includes("timed out") ? "timeout" : msg.slice(0, 80));
   const now = Date.now();
   const prev = _kvLogAt.get(key) || 0;
   if (now - prev < KV_LOG_COOLDOWN_MS) return;
@@ -127,7 +124,7 @@ function cloneRoom(room: Room | null | undefined): Room | null {
 
 export async function loadRoom(
   codeStr: string,
-  opts: { preferMemory?: boolean } = {}
+  opts: { preferMemory?: boolean } = {},
 ): Promise<Room | null> {
   const key = String(codeStr || "").toUpperCase();
   if (!key) return null;

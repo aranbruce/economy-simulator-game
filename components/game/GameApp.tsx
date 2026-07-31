@@ -83,7 +83,7 @@ export default function GameApp() {
   const [homeRole, setHomeRole] = useState("home");
   const [tutorialLock, setTutorialLock] = useState(false);
   const [setupRole, setSetupRole] = useState(
-    () => realmById(DEFAULT_REALM_ID).role
+    () => realmById(DEFAULT_REALM_ID).role,
   );
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
@@ -96,7 +96,10 @@ export default function GameApp() {
   const pendingAfterNewGame = useRef<(() => any) | null>(null);
   const mpSessionRef = useRef<any>(null);
   const lastMpVersion = useRef(0);
-  const hostStartGateRef = useRef<{ resolve: (v?: any) => void; reject: (err: any) => void } | null>(null);
+  const hostStartGateRef = useRef<{
+    resolve: (v?: any) => void;
+    reject: (err: any) => void;
+  } | null>(null);
   const lastBriefQ = useRef(-1);
   const lastMorningNoteQ = useRef(-1);
   const lastBriefingCompleteQ = useRef(-1);
@@ -110,25 +113,26 @@ export default function GameApp() {
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
 
-  const exitMpToSetup = useCallback(
-    (notice?: string | null) => {
-      clearMpSession();
-      setMpSession(null);
-      mpSessionRef.current = null;
-      setMpRoom(null);
-      setWaiting(false);
-      setTutorialLock(false);
-      setPhase("setup");
-      if (notice) {
-        /* Defer so setup chrome is mounted; use alert for reliability outside play shell. */
-        setTimeout(() => alert(notice), 0);
-      }
-    },
-    []
-  );
+  const exitMpToSetup = useCallback((notice?: string | null) => {
+    clearMpSession();
+    setMpSession(null);
+    mpSessionRef.current = null;
+    setMpRoom(null);
+    setWaiting(false);
+    setTutorialLock(false);
+    setPhase("setup");
+    if (notice) {
+      /* Defer so setup chrome is mounted; use alert for reliability outside play shell. */
+      setTimeout(() => alert(notice), 0);
+    }
+  }, []);
 
-  const applyMpSnapshotRef = useRef<((snapshot: any, sess: any, opts?: any) => void) | null>(null);
-  const unsubmitMpConfirmRef = useRef<((opts?: any) => Promise<boolean>) | null>(null);
+  const applyMpSnapshotRef = useRef<
+    ((snapshot: any, sess: any, opts?: any) => void) | null
+  >(null);
+  const unsubmitMpConfirmRef = useRef<
+    ((opts?: any) => Promise<boolean>) | null
+  >(null);
   const flushDiploQueueRef = useRef<(() => Promise<void>) | null>(null);
 
   const resolveDiploFlushWaiters = useCallback(() => {
@@ -165,7 +169,10 @@ export default function GameApp() {
            stale submission. applyDiplo also withdraws atomically as backup. */
           if (pendingUnsubmitRef.current) {
             await pendingUnsubmitRef.current;
-          } else if (needsUnsubmitBeforeDiploRef.current && unsubmitMpConfirmRef.current) {
+          } else if (
+            needsUnsubmitBeforeDiploRef.current &&
+            unsubmitMpConfirmRef.current
+          ) {
             await unsubmitMpConfirmRef.current({ silent: true });
             needsUnsubmitBeforeDiploRef.current = false;
           }
@@ -231,92 +238,109 @@ export default function GameApp() {
     }
   }, [bump, resolveDiploFlushWaiters]);
 
-  const attachMpEventHandler = useCallback((mp: any) => {
-    if (!mp) return mp;
-    mp.onEventChoice = async (payload: any) => {
-      const s = mpSessionRef.current || mp;
-      if (!s?.code || !s?.token) return;
-      try {
-        const data = await chooseMpEvent(s.code, {
-          token: s.token,
-          ...payload,
-        });
-        lastMpVersion.current = data.room.version;
-        setMpRoom(data.room);
-        if (applyMpSnapshotRef.current) {
-          applyMpSnapshotRef.current(data.room.snapshot, s, {
-            brief: true,
-            you: data.room.you,
+  const attachMpEventHandler = useCallback(
+    (mp: any) => {
+      if (!mp) return mp;
+      mp.onEventChoice = async (payload: any) => {
+        const s = mpSessionRef.current || mp;
+        if (!s?.code || !s?.token) return;
+        try {
+          const data = await chooseMpEvent(s.code, {
+            token: s.token,
+            ...payload,
+          });
+          lastMpVersion.current = data.room.version;
+          setMpRoom(data.room);
+          if (applyMpSnapshotRef.current) {
+            applyMpSnapshotRef.current(data.room.snapshot, s, {
+              brief: true,
+              you: data.room.you,
+            });
+          }
+          bump();
+        } catch (err) {
+          console.error(err);
+          alert(errMessage(err, "Could not resolve event"));
+        }
+      };
+      mp.onAutoUnsubmit = () => {
+        if (unsubmitMpConfirmRef.current)
+          unsubmitMpConfirmRef.current({ silent: true });
+      };
+      mp.onDiploAction = (payload: any) => {
+        const s = mpSessionRef.current || mp;
+        if (!s?.code || !s?.token) return { ok: false, error: "Not in a room" };
+        const G0 = getG();
+        if (!G0) return { ok: false, error: "No game" };
+
+        const snap = snapshotMpDiploUi(G0);
+        const wasWaiting = !!G0.mp?.waiting;
+        /* Kick server withdraw in this turn before optimistic paint / queue work. */
+        if (
+          wasWaiting &&
+          unsubmitMpConfirmRef.current &&
+          !pendingUnsubmitRef.current
+        ) {
+          needsUnsubmitBeforeDiploRef.current = true;
+          pendingUnsubmitRef.current = Promise.resolve(
+            unsubmitMpConfirmRef.current({ silent: true }),
+          ).finally(() => {
+            pendingUnsubmitRef.current = null;
+            needsUnsubmitBeforeDiploRef.current = false;
           });
         }
+        const local = applyLocalMpDiploAction(payload.action, payload);
+        if (!local.ok)
+          return { ok: false, error: local.error || "Action failed" };
+        if (wasWaiting && G0.mp) {
+          G0.mp.waiting = false;
+          clearMpLockedSubmission(G0);
+          setWaiting(false);
+        }
         bump();
-      } catch (err) {
-        console.error(err);
-        alert(errMessage(err, "Could not resolve event"));
-      }
-    };
-    mp.onAutoUnsubmit = () => {
-      if (unsubmitMpConfirmRef.current) unsubmitMpConfirmRef.current({ silent: true });
-    };
-    mp.onDiploAction = (payload: any) => {
-      const s = mpSessionRef.current || mp;
-      if (!s?.code || !s?.token) return { ok: false, error: "Not in a room" };
-      const G0 = getG();
-      if (!G0) return { ok: false, error: "No game" };
+        render();
 
-      const snap = snapshotMpDiploUi(G0);
-      const wasWaiting = !!G0.mp?.waiting;
-      /* Kick server withdraw in this turn before optimistic paint / queue work. */
-      if (wasWaiting && unsubmitMpConfirmRef.current && !pendingUnsubmitRef.current) {
-        needsUnsubmitBeforeDiploRef.current = true;
-        pendingUnsubmitRef.current = Promise.resolve(
-          unsubmitMpConfirmRef.current({ silent: true })
-        ).finally(() => {
-          pendingUnsubmitRef.current = null;
-          needsUnsubmitBeforeDiploRef.current = false;
+        /* Coalesce superseded assign/recall/ultimatum for the same partner. */
+        const act = payload.action;
+        const pid = payload.partnerId;
+        diploQueueRef.current = diploQueueRef.current.filter((q) => {
+          if (q.partnerId !== pid) return true;
+          if (
+            (act === "assignEnvoy" || act === "recallEnvoy") &&
+            (q.action === "assignEnvoy" || q.action === "recallEnvoy")
+          ) {
+            return false;
+          }
+          if (act === "issueUltimatum" && q.action === "issueUltimatum")
+            return false;
+          if (
+            act === "withdrawBlocAccession" &&
+            q.action === "withdrawBlocAccession"
+          ) {
+            return false;
+          }
+          return true;
         });
-      }
-      const local = applyLocalMpDiploAction(payload.action, payload);
-      if (!local.ok) return { ok: false, error: local.error || "Action failed" };
-      if (wasWaiting && G0.mp) {
-        G0.mp.waiting = false;
-        clearMpLockedSubmission(G0);
-        setWaiting(false);
-      }
-      bump();
-      render();
-
-      /* Coalesce superseded assign/recall/ultimatum for the same partner. */
-      const act = payload.action;
-      const pid = payload.partnerId;
-      diploQueueRef.current = diploQueueRef.current.filter((q) => {
-        if (q.partnerId !== pid) return true;
-        if (
-          (act === "assignEnvoy" || act === "recallEnvoy") &&
-          (q.action === "assignEnvoy" || q.action === "recallEnvoy")
-        ) {
-          return false;
-        }
-        if (act === "issueUltimatum" && q.action === "issueUltimatum") return false;
-        if (act === "withdrawBlocAccession" && q.action === "withdrawBlocAccession") {
-          return false;
-        }
-        return true;
-      });
-      diploQueueRef.current.push({
-        action: payload.action,
-        partnerId: payload.partnerId,
-        demandId: payload.demandId,
-        snap,
-      });
-      pumpDiploQueue();
-      return { ok: true, pending: true };
-    };
-    return mp;
-  }, [bump, pumpDiploQueue]);
+        diploQueueRef.current.push({
+          action: payload.action,
+          partnerId: payload.partnerId,
+          demandId: payload.demandId,
+          snap,
+        });
+        pumpDiploQueue();
+        return { ok: true, pending: true };
+      };
+      return mp;
+    },
+    [bump, pumpDiploQueue],
+  );
 
   const applyMpSnapshot = useCallback(
-    (snapshot: any, sess: any, { brief, you }: { brief?: boolean; you?: any } = {}) => {
+    (
+      snapshot: any,
+      sess: any,
+      { brief, you }: { brief?: boolean; you?: any } = {},
+    ) => {
       const role = you?.role || sess.role;
       const seatId = you?.seatId || null;
       const name = you?.name || sess.name;
@@ -349,7 +373,9 @@ export default function GameApp() {
         const inboundMap = pol && pol.inboundUltimatums;
         const inboundKey = inboundMap
           ? Object.keys(inboundMap)
-              .filter((id) => inboundMap[id] && inboundMap[id].status === "pending")
+              .filter(
+                (id) => inboundMap[id] && inboundMap[id].status === "pending",
+              )
               .sort()
               .map((id) => id + ":" + (inboundMap[id].demand || ""))
               .join("|")
@@ -393,7 +419,7 @@ export default function GameApp() {
         }
       }
     },
-    [attachMpEventHandler]
+    [attachMpEventHandler],
   );
   applyMpSnapshotRef.current = applyMpSnapshot;
 
@@ -408,7 +434,9 @@ export default function GameApp() {
     G.mp.waiting = waiting;
     G.mp.submittedCount = mpRoom ? mpRoom.submittedCount : 0;
     G.mp.humanCount = mpRoom ? mpRoom.humanCount : 0;
-    const db = document.getElementById("deliverBtn") as HTMLButtonElement | null;
+    const db = document.getElementById(
+      "deliverBtn",
+    ) as HTMLButtonElement | null;
     if (db && waiting) {
       db.disabled = false;
       db.textContent =
@@ -451,7 +479,8 @@ export default function GameApp() {
       root.style.setProperty("--drawer-bottom", `${bottom}px`);
     };
     sync();
-    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(sync) : null;
+    const ro =
+      typeof ResizeObserver === "function" ? new ResizeObserver(sync) : null;
     const topbar = document.getElementById("topbar");
     const dock = document.getElementById("dock");
     const stats = document.getElementById("tbStats");
@@ -500,7 +529,7 @@ export default function GameApp() {
         newGame(opts);
       }
     },
-    [attachMpEventHandler]
+    [attachMpEventHandler],
   );
 
   const beginGame = useCallback(
@@ -516,7 +545,7 @@ export default function GameApp() {
       }
       setPhase("play");
     },
-    [bootstrapPlay]
+    [bootstrapPlay],
   );
 
   const enterMpPlay = useCallback(
@@ -553,86 +582,89 @@ export default function GameApp() {
         seatId: opts.room?.you?.seatId,
       });
     },
-    [beginGame]
+    [beginGame],
   );
 
-  const handleHostStart = useCallback(async ({ code, token, role, name, homeIso: iso, room }: any) => {
-    const mp = { code, token, role, name, homeIso: iso };
-    const lobbySnap = {
-      code,
-      token,
-      room: room || null,
-    };
-    setMpSession(mp);
-    mpSessionRef.current = mp;
-    saveMpSession(mp);
-    setWaiting(false);
-    setMpRoom(null);
+  const handleHostStart = useCallback(
+    async ({ code, token, role, name, homeIso: iso, room }: any) => {
+      const mp = { code, token, role, name, homeIso: iso };
+      const lobbySnap = {
+        code,
+        token,
+        room: room || null,
+      };
+      setMpSession(mp);
+      mpSessionRef.current = mp;
+      saveMpSession(mp);
+      setWaiting(false);
+      setMpRoom(null);
 
-    const gate = new Promise((resolve, reject) => {
-      hostStartGateRef.current = { resolve, reject };
-    });
+      const gate = new Promise((resolve, reject) => {
+        hostStartGateRef.current = { resolve, reject };
+      });
 
-    newGame({
-      country: name,
-      homeRole: role,
-      homeIso: iso,
-      silent: true,
-    });
-    const bootG = getG();
-    if (bootG) bootG.mp = { bootstrapping: true };
-    bump();
-    pendingAfterNewGame.current = async () => {
+      newGame({
+        country: name,
+        homeRole: role,
+        homeIso: iso,
+        silent: true,
+      });
+      const bootG = getG();
+      if (bootG) bootG.mp = { bootstrapping: true };
+      bump();
+      pendingAfterNewGame.current = async () => {
+        try {
+          const snap = exportGameSnapshot(getG());
+          const data = await startMpRoom(code, { token, snapshot: snap });
+          lastMpVersion.current = data.room.version;
+          setMpRoom(data.room);
+          const wired = attachMpEventHandler({
+            ...mp,
+            seatId: data.room.you?.seatId,
+          });
+          hydrateGameSnapshot(data.room.snapshot, {
+            homeRole: role,
+            seatId: data.room.you?.seatId,
+            homeIso: iso,
+            country: name,
+            mp: wired,
+          });
+          const G = getG();
+          G.mp = wired;
+          G.coachDone = true;
+          render();
+          hostStartGateRef.current?.resolve();
+          hostStartGateRef.current = null;
+        } catch (err) {
+          hostStartGateRef.current?.reject(err);
+          hostStartGateRef.current = null;
+          throw err;
+        }
+      };
+      setRealmId(realmByRole(role).id);
+      setHomeIso(iso);
+      setHomeRole(role);
+      setSelectedRole(null);
+      setPhase("play");
+
       try {
-        const snap = exportGameSnapshot(getG());
-        const data = await startMpRoom(code, { token, snapshot: snap });
-        lastMpVersion.current = data.room.version;
-        setMpRoom(data.room);
-        const wired = attachMpEventHandler({
-          ...mp,
-          seatId: data.room.you?.seatId,
-        });
-        hydrateGameSnapshot(data.room.snapshot, {
-          homeRole: role,
-          seatId: data.room.you?.seatId,
-          homeIso: iso,
-          country: name,
-          mp: wired,
-        });
-        const G = getG();
-        G.mp = wired;
-        G.coachDone = true;
-        render();
-        hostStartGateRef.current?.resolve();
-        hostStartGateRef.current = null;
+        await gate;
       } catch (err) {
-        hostStartGateRef.current?.reject(err);
-        hostStartGateRef.current = null;
+        /* Start failed after leaving the lobby — put them back with the room intact. */
+        const failG = getG();
+        if (failG?.mp?.bootstrapping) failG.mp = null;
+        clearMpSession();
+        setMpSession(null);
+        mpSessionRef.current = null;
+        setMpRoom(null);
+        setWaiting(false);
+        setLobbyBootstrap(lobbySnap);
+        setPhase("lobby");
         throw err;
       }
-    };
-    setRealmId(realmByRole(role).id);
-    setHomeIso(iso);
-    setHomeRole(role);
-    setSelectedRole(null);
-    setPhase("play");
-
-    try {
-      await gate;
-    } catch (err) {
-      /* Start failed after leaving the lobby — put them back with the room intact. */
-      const failG = getG();
-      if (failG?.mp?.bootstrapping) failG.mp = null;
-      clearMpSession();
-      setMpSession(null);
-      mpSessionRef.current = null;
-      setMpRoom(null);
-      setWaiting(false);
-      setLobbyBootstrap(lobbySnap);
-      setPhase("lobby");
-      throw err;
-    }
-  }, [attachMpEventHandler, bump]);
+    },
+    [attachMpEventHandler, bump],
+  );
 
   const handleResume = useCallback(async () => {
     const saved = loadMpSession();
@@ -642,7 +674,7 @@ export default function GameApp() {
       if (!data.room || data.room.status !== "playing" || !data.room.snapshot) {
         clearMpSession();
         alert(
-          "That multiplayer room is no longer available (it may have ended or the server restarted)."
+          "That multiplayer room is no longer available (it may have ended or the server restarted).",
         );
         return;
       }
@@ -660,7 +692,7 @@ export default function GameApp() {
       alert(
         errStatus(err) === 404
           ? "That multiplayer room was lost (host left, or the server recycled without shared KV storage)."
-          : errMessage(err, "Could not resume multiplayer game")
+          : errMessage(err, "Could not resume multiplayer game"),
       );
     }
   }, [enterMpPlay]);
@@ -672,7 +704,7 @@ export default function GameApp() {
         hydrate: opts.room.snapshot,
       });
     },
-    [enterMpPlay]
+    [enterMpPlay],
   );
 
   const submitMpConfirm = useCallback(async () => {
@@ -711,7 +743,7 @@ export default function GameApp() {
       console.error(err);
       if (errStatus(err) === 404) {
         exitMpToSetup(
-          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
+          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage).",
         );
         return;
       }
@@ -719,39 +751,42 @@ export default function GameApp() {
     }
   }, [bump, applyMpSnapshot, exitMpToSetup]);
 
-  const unsubmitMpConfirm = useCallback(async (opts: { silent?: boolean } = {}) => {
-    const sess = mpSessionRef.current;
-    if (!sess) return false;
-    if (unsubmitInFlight.current) return false;
-    unsubmitInFlight.current = true;
-    try {
-      const data = await unsubmitMpBill(sess.code, { token: sess.token });
-      setMpRoom(data.room);
-      lastMpVersion.current = data.room.version;
-      const stillWaiting = !!data.room.you?.submitted;
-      const G = getG();
-      if (G?.mp) {
-        G.mp.waiting = stillWaiting;
-        if (!stillWaiting) clearMpLockedSubmission(G);
-      }
-      setWaiting(stillWaiting);
-      bump();
-      render();
-      return true;
-    } catch (err) {
-      console.error(err);
-      if (errStatus(err) === 404) {
-        exitMpToSetup(
-          "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
-        );
+  const unsubmitMpConfirm = useCallback(
+    async (opts: { silent?: boolean } = {}) => {
+      const sess = mpSessionRef.current;
+      if (!sess) return false;
+      if (unsubmitInFlight.current) return false;
+      unsubmitInFlight.current = true;
+      try {
+        const data = await unsubmitMpBill(sess.code, { token: sess.token });
+        setMpRoom(data.room);
+        lastMpVersion.current = data.room.version;
+        const stillWaiting = !!data.room.you?.submitted;
+        const G = getG();
+        if (G?.mp) {
+          G.mp.waiting = stillWaiting;
+          if (!stillWaiting) clearMpLockedSubmission(G);
+        }
+        setWaiting(stillWaiting);
+        bump();
+        render();
+        return true;
+      } catch (err) {
+        console.error(err);
+        if (errStatus(err) === 404) {
+          exitMpToSetup(
+            "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage).",
+          );
+          return false;
+        }
+        if (!opts.silent) alert(errMessage(err, "Could not withdraw"));
         return false;
+      } finally {
+        unsubmitInFlight.current = false;
       }
-      if (!opts.silent) alert(errMessage(err, "Could not withdraw"));
-      return false;
-    } finally {
-      unsubmitInFlight.current = false;
-    }
-  }, [bump, exitMpToSetup]);
+    },
+    [bump, exitMpToSetup],
+  );
   unsubmitMpConfirmRef.current = unsubmitMpConfirm;
 
   useEffect(() => {
@@ -810,12 +845,14 @@ export default function GameApp() {
     const afterNewGame = pendingAfterNewGame.current;
     if (afterNewGame) {
       pendingAfterNewGame.current = null;
-      Promise.resolve(afterNewGame()).catch((err) => {
-        console.error(err);
-        if (!mpSessionRef.current) {
-          alert(err.message || "Could not start multiplayer");
-        }
-      }).finally(() => bump());
+      Promise.resolve(afterNewGame())
+        .catch((err) => {
+          console.error(err);
+          if (!mpSessionRef.current) {
+            alert(err.message || "Could not start multiplayer");
+          }
+        })
+        .finally(() => bump());
       return;
     }
     if (getG()) render();
@@ -843,10 +880,7 @@ export default function GameApp() {
           return data.room;
         });
         setWaiting(!!data.room.you?.submitted);
-        if (
-          data.room.version !== lastMpVersion.current &&
-          data.room.snapshot
-        ) {
+        if (data.room.version !== lastMpVersion.current && data.room.snapshot) {
           const prevQ = getG()?.q;
           lastMpVersion.current = data.room.version;
           const advanced =
@@ -864,17 +898,17 @@ export default function GameApp() {
              ultimatums wait for the next morning note so they are not shown twice. */
             const you = data.room.you;
             const seatId =
-              (you && you.seatId) ||
-              playerCountryId(getG()?.homeRole);
+              (you && you.seatId) || playerCountryId(getG()?.homeRole);
             const pendingKey = mergeMpInboundAsksFromSnapshot(
               data.room.snapshot,
-              seatId
+              seatId,
             );
             /* Peer answered a treaty / bloc invite — newspaper only, do not
              reopen the morning note mid-quarter. */
             flushMpDiploPressAlerts();
             const isUltimatumAsk =
-              typeof pendingKey === "string" && pendingKey.startsWith("inbound:");
+              typeof pendingKey === "string" &&
+              pendingKey.startsWith("inbound:");
             if (pendingKey && !isUltimatumAsk) {
               if (pendingKey !== lastPresentedPendingKey.current) {
                 lastPresentedPendingKey.current = pendingKey;
@@ -888,7 +922,7 @@ export default function GameApp() {
       } catch (err) {
         if (errStatus(err) === 404) {
           exitMpToSetup(
-            "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage)."
+            "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage).",
           );
         }
       }
@@ -901,7 +935,7 @@ export default function GameApp() {
         if (!ev || ev.version == null) return;
         if (ev.version === lastMpVersion.current) return;
         handleRoomBump(ev);
-      }
+      },
     );
 
     /* Slow poll as SSE fallback. */
@@ -942,7 +976,7 @@ export default function GameApp() {
       if (role) setTab(null);
       setSelectedRole(role);
     },
-    [phase, tutorialLock]
+    [phase, tutorialLock],
   );
 
   const openPartnerPanel = useCallback((panel: string, role: string) => {
@@ -951,12 +985,12 @@ export default function GameApp() {
 
   const onOpenTrade = useCallback(
     (role: string) => openPartnerPanel("trade", role),
-    [openPartnerPanel]
+    [openPartnerPanel],
   );
 
   const onOpenDiplomacy = useCallback(
     (role: string) => openPartnerPanel("diplomacy", role),
-    [openPartnerPanel]
+    [openPartnerPanel],
   );
 
   const onWorldFail = useCallback(() => setWorldOk(false), []);
@@ -967,121 +1001,121 @@ export default function GameApp() {
 
   return (
     <GameTickContext.Provider value={tick}>
-    <div
-      className={
-        (worldOk ? "world-map-active" : "") + (inSetup ? " setup-active" : "")
-      }
-    >
-      {worldOk ? (
-        <WorldMap
-          tick={tick}
-          mapMetric={mapMetric}
-          selectedRole={inSetup ? setupRole : selectedRole}
-          onSelect={onSelect}
-          onFail={onWorldFail}
-          homeIso={homeIso}
-          homeScale={homeScale}
-          homeRole={homeRole}
-          setupMode={inSetup}
-          setupLabel={inSetup ? setupLabel : null}
-        />
-      ) : (
-        phase === "play" && (
-          <div id="mapLayer" className="flat-fallback">
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4.5 text-center">
-              <p className="m-0 text-xs text-ink-faint">
-                The world map could not be loaded. Trade partners remain in
-                the Trade drawer; everything else is unaffected.
-              </p>
+      <div
+        className={
+          (worldOk ? "world-map-active" : "") + (inSetup ? " setup-active" : "")
+        }
+      >
+        {worldOk ? (
+          <WorldMap
+            tick={tick}
+            mapMetric={mapMetric}
+            selectedRole={inSetup ? setupRole : selectedRole}
+            onSelect={onSelect}
+            onFail={onWorldFail}
+            homeIso={homeIso}
+            homeScale={homeScale}
+            homeRole={homeRole}
+            setupMode={inSetup}
+            setupLabel={inSetup ? setupLabel : null}
+          />
+        ) : (
+          phase === "play" && (
+            <div id="mapLayer" className="flat-fallback">
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 p-4.5 text-center">
+                <p className="m-0 text-xs text-ink-faint">
+                  The world map could not be loaded. Trade partners remain in
+                  the Trade drawer; everything else is unaffected.
+                </p>
+              </div>
             </div>
-          </div>
-        )
-      )}
+          )
+        )}
 
-      {phase === "setup" && (
-        <CountryPicker
-          selectedRole={setupRole}
-          initialId={realmId}
-          onStart={beginGame}
-          onMultiplayer={() => setPhase("lobby")}
-          onResume={loadMpSession() ? handleResume : undefined}
-          onTutorialChange={(on) => {
-            setTutorialLock(!!on);
-            if (on) setSetupRole("home");
-          }}
-        />
-      )}
+        {phase === "setup" && (
+          <CountryPicker
+            selectedRole={setupRole}
+            initialId={realmId}
+            onStart={beginGame}
+            onMultiplayer={() => setPhase("lobby")}
+            onResume={loadMpSession() ? handleResume : undefined}
+            onTutorialChange={(on) => {
+              setTutorialLock(!!on);
+              if (on) setSetupRole("home");
+            }}
+          />
+        )}
 
-      {phase === "lobby" && (
-        <MultiplayerLobby
-          selectedRole={setupRole}
-          initialSession={lobbyBootstrap}
-          onConsumedInitial={() => setLobbyBootstrap(null)}
-          onBack={() => {
-            setLobbyBootstrap(null);
-            setTutorialLock(false);
-            setPhase("setup");
-          }}
-          onHostStart={handleHostStart}
-          onGuestReady={handleGuestReady}
-        />
-      )}
+        {phase === "lobby" && (
+          <MultiplayerLobby
+            selectedRole={setupRole}
+            initialSession={lobbyBootstrap}
+            onConsumedInitial={() => setLobbyBootstrap(null)}
+            onBack={() => {
+              setLobbyBootstrap(null);
+              setTutorialLock(false);
+              setPhase("setup");
+            }}
+            onHostStart={handleHostStart}
+            onGuestReady={handleGuestReady}
+          />
+        )}
 
-      {phase === "play" && (
-        <>
-          <div id="vignette" />
-          <div id="quarterFlash" hidden aria-live="polite">
-            <div className="quarter-flash-inner">
-              <span className="quarter-flash-kicker">New quarter</span>
-              <span className="quarter-flash-label" />
+        {phase === "play" && (
+          <>
+            <div id="vignette" />
+            <div id="quarterFlash" hidden aria-live="polite">
+              <div className="quarter-flash-inner">
+                <span className="quarter-flash-kicker">New quarter</span>
+                <span className="quarter-flash-label" />
+              </div>
             </div>
-          </div>
 
-          {mpRoom && (
-            <div className="mp-hud hud-frame hud-surface" aria-live="polite">
-              <span className="font-bold tracking-[.06em]">Room {mpRoom.code}</span>
-              <span>Q{mpRoom.q}</span>
-              <span className="text-ink-soft">
-                {waiting
-                  ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount} · edit to withdraw`
-                  : `${mpRoom.submittedCount}/${mpRoom.humanCount} delivered`}
-              </span>
-            </div>
-          )}
+            {mpRoom && (
+              <div className="mp-hud hud-frame hud-surface" aria-live="polite">
+                <span className="font-bold tracking-[.06em]">
+                  Room {mpRoom.code}
+                </span>
+                <span>Q{mpRoom.q}</span>
+                <span className="text-ink-soft">
+                  {waiting
+                    ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount} · edit to withdraw`
+                    : `${mpRoom.submittedCount}/${mpRoom.humanCount} delivered`}
+                </span>
+              </div>
+            )}
 
-          {worldOk && selectedRole && (
-            <RealmStats
-              role={selectedRole}
-              onClose={() => setSelectedRole(null)}
-              onOpenTrade={
-                selectedRole !== "home" ? onOpenTrade : undefined
-              }
-              onOpenDiplomacy={
-                selectedRole !== "home" ? onOpenDiplomacy : undefined
-              }
-            />
-          )}
+            {worldOk && selectedRole && (
+              <RealmStats
+                role={selectedRole}
+                onClose={() => setSelectedRole(null)}
+                onOpenTrade={selectedRole !== "home" ? onOpenTrade : undefined}
+                onOpenDiplomacy={
+                  selectedRole !== "home" ? onOpenDiplomacy : undefined
+                }
+              />
+            )}
 
-          {worldOk && (
-            <MapChrome
-              mapMetric={mapMetric}
-              selectedRole={selectedRole}
-              onMetricChange={setMapMetric}
-            />
-          )}
+            {worldOk && (
+              <MapChrome
+                mapMetric={mapMetric}
+                selectedRole={selectedRole}
+                onMetricChange={setMapMetric}
+              />
+            )}
 
-          <PressLayer />
+            <PressLayer />
 
-          <TopBar />
-          <DiploHud />
-          <DrawerShell />
-          <Dock onDeliver={handleDeliver} waiting={waiting} />
-          <DespatchModal />
-          {/* After scrim in the tree + z-index 60 so forecast / briefing do not cover it. */}
-          <CoachPanel />
-        </>
-      )}
-    </div>
+            <TopBar />
+            <DiploHud />
+            <DrawerShell />
+            <Dock onDeliver={handleDeliver} waiting={waiting} />
+            <DespatchModal />
+            {/* After scrim in the tree + z-index 60 so forecast / briefing do not cover it. */}
+            <CoachPanel />
+          </>
+        )}
+      </div>
     </GameTickContext.Provider>
   );
 }

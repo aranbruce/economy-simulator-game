@@ -264,7 +264,8 @@ const REL_POLITY = 6;
   return normalisePolityId(p && p.polity) || "democracy";
 }
 /** Live polity id: player law.polity when present, else the profile pin. */ function polityIdOf(
-  role?: any) {
+  role?: any,
+) {
   const id = resolveHomeRole(
     role != null
       ? role
@@ -1060,7 +1061,9 @@ type TaxId = (typeof TAXES_DEF)[number]["id"];
    per-element literal types `as const` produces. TaxId above is the only
    thing that needs the literal types. */
 const TAXES = TAXES_DEF as Tax[];
-const TAX_BY_ID: Record<string, Tax> = Object.fromEntries(TAXES.map((t) => [t.id, t]));
+const TAX_BY_ID: Record<string, Tax> = Object.fromEntries(
+  TAXES.map((t) => [t.id, t]),
+);
 /* --- the structure of the tax system itself ---
    Growth effects come from lighter labour wedges (part), lower capital costs
    (ucost) and land-use (kboost), not from a pot fudge. Inequality is derived
@@ -1868,7 +1871,9 @@ const REGIME_BY_ID: Record<string, Regime> = Object.fromEntries(
   },
 ] as const satisfies Policy[];
 type PolicyId = (typeof POLICIES)[number]["id"];
-const POLICY_BY_ID: Record<string, Policy> = Object.fromEntries(POLICIES.map((p) => [p.id, p]));
+const POLICY_BY_ID: Record<string, Policy> = Object.fromEntries(
+  POLICIES.map((p) => [p.id, p]),
+);
 /* --- what is legal, and on what terms --- */ const VICE = [
   {
     id: "cannabis",
@@ -2182,7 +2187,9 @@ const POLICY_BY_ID: Record<string, Policy> = Object.fromEntries(POLICIES.map((p)
   },
 ] as const satisfies Vice[];
 type ViceId = (typeof VICE)[number]["id"];
-const VICE_BY_ID: Record<string, Vice> = Object.fromEntries(VICE.map((v) => [v.id, v]));
+const VICE_BY_ID: Record<string, Vice> = Object.fromEntries(
+  VICE.map((v) => [v.id, v]),
+);
 /* --- the rest of the world ---
    `tradeShare` is the partner's weight in bilateral exports (sums to 0.96; the
    residual 0.04 is the rest of the world in the gravity block). */ const PARTNERS =
@@ -2235,7 +2242,9 @@ const MISSIONS = [
   },
 ] as const satisfies Mission[];
 type MissionId = (typeof MISSIONS)[number]["id"];
-const MISSION_BY_ID: Record<string, Mission> = Object.fromEntries(MISSIONS.map((m) => [m.id, m]));
+const MISSION_BY_ID: Record<string, Mission> = Object.fromEntries(
+  MISSIONS.map((m) => [m.id, m]),
+);
 const MISSION_CD = 3;
 const REL_IMPULSE_DECAY = 0.78;
 
@@ -2485,7 +2494,12 @@ function markDiploAlertsNoted(alerts: any) {
 }
 
 /** Apply concede/defy on the issuer seat bag, clear outbound, set cooldown + alert. */
-function finishOutboundUltimatum(issuerState: any, targetId: any, ult: any, concede: any) {
+function finishOutboundUltimatum(
+  issuerState: any,
+  targetId: any,
+  ult: any,
+  concede: any,
+) {
   const deps = diploDeps();
   const impacts = ultimatumOutcomeImpacts(
     issuerState,
@@ -2588,7 +2602,12 @@ function processUltimatums(g: any, det: any) {
  * Human target answers an inbound ultimatum. Effects apply on the issuer seat
  * (same as AI concede/defy); both seats get diplo alerts.
  */
-function applyMpInboundUltimatumChoice(g: any, seatId: any, fromId: any, concede: any) {
+function applyMpInboundUltimatumChoice(
+  g: any,
+  seatId: any,
+  fromId: any,
+  concede: any,
+) {
   if (!g || !g.world || !g.world[seatId]) {
     return { ok: false, error: "Unknown seat" };
   }
@@ -3369,7 +3388,8 @@ function sphereRiskHint(partnerId: any) {
 }
 /** Partners still on the board for this game. Excludes the seat you occupy and
  *  The Kingdom when you are The Kingdom (ISO 826 already maps to "home"). */ function activePartners(
-  homeRole?: any) {
+  homeRole?: any,
+) {
   const role = resolveHomeRole(
     homeRole != null
       ? homeRole
@@ -3431,7 +3451,10 @@ function dealsWith(pid: any, law?: any) {
   const L = law || (G && G.law);
   if (!L || !L.deals) return [];
   return Object.keys(L.deals).filter(
-    (id) => L.deals[id] && (DEAL_BY_ID as any)[id] && (DEAL_BY_ID as any)[id].partner === pid,
+    (id) =>
+      L.deals[id] &&
+      (DEAL_BY_ID as any)[id] &&
+      (DEAL_BY_ID as any)[id].partner === pid,
   );
 }
 /** Lowest lockTariff among ratified deals, or null if the lever is free. */ function lockedTariff(
@@ -3494,10 +3517,17 @@ function shareSameCustomsUnion(partnerId: any, homeRole: any, blocMember: any) {
   if (!pb || !hb || pb !== hb) return false;
   const bloc =
     blocById(pb) ||
-    (Object.values((G && G.customBlocs) || {}) as any[]).find((b) => b.id === pb);
+    (Object.values((G && G.customBlocs) || {}) as any[]).find(
+      (b) => b.id === pb,
+    );
   return bloc && isCustomsUnion(bloc);
 }
-function effectiveTariff(partnerId: any, law: any, homeRole?: any, blocMember?: any) {
+function effectiveTariff(
+  partnerId: any,
+  law: any,
+  homeRole?: any,
+  blocMember?: any,
+) {
   const L = law || (G && G.law);
   const sched = ensureTariffSchedule(L);
   const role = homeRole != null ? homeRole : (G && G.homeRole) || "home";
@@ -3570,7 +3600,8 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
     if (bloc && bloc.accessBonus) {
       const pts = (bloc.accessBonus - 1) * 100;
       for (const p of activePartners(role)) {
-        if (countryBlocId(p.id, bm) === bid) (out as any)[p.id] = ((out as any)[p.id] || 0) + pts;
+        if (countryBlocId(p.id, bm) === bid)
+          (out as any)[p.id] = ((out as any)[p.id] || 0) + pts;
       }
     }
   }
@@ -4141,7 +4172,12 @@ function leaveBloc(law: any, seatId?: any) {
 }
 
 /** Fan out leave news to the departing seat and remaining human members. */
-function notifyBlocDeparture(state: any, leftId: any, blocId: any, blocName: any) {
+function notifyBlocDeparture(
+  state: any,
+  leftId: any,
+  blocId: any,
+  blocName: any,
+) {
   if (!state || !leftId || !blocId) return;
   const q = state.q || 0;
   const label = blocName || blocId;
@@ -4375,7 +4411,13 @@ function processBlocAccessions(g: any) {
 }
 
 /** Fan out join news to the new member, human co-members, and the inviter. */
-function notifyBlocMembership(state: any, joinedId: any, blocId: any, blocName: any, invitedBy: any) {
+function notifyBlocMembership(
+  state: any,
+  joinedId: any,
+  blocId: any,
+  blocName: any,
+  invitedBy: any,
+) {
   if (!state || !joinedId || !blocId) return;
   const q = state.q || 0;
   const label = blocName || blocId;
@@ -4521,7 +4563,8 @@ function inviteToBloc(countryId: any, blocId: any) {
   return true;
 }
 /** Pick an active partner. Optional score(p) → higher wins; filter(p) to exclude. */ function pickEventPartner(
-  opts?: any) {
+  opts?: any,
+) {
   const o = opts || {};
   const pool = activePartners().filter((p) => !o.filter || o.filter(p));
   if (!pool.length) return null;
@@ -4843,7 +4886,13 @@ function syncNationsFromWorld(g: any, forceLive?: any) {
   r.capital = g.capital;
   return r;
 }
-function syncNationsIntoEcon(e: any, world: any, selfId: any, playerEcon: any, playerId: any) {
+function syncNationsIntoEcon(
+  e: any,
+  world: any,
+  selfId: any,
+  playerEcon: any,
+  playerId: any,
+) {
   if (!e) return;
   if (!e.nations) e.nations = {};
   for (const id of worldSeatIds()) {
@@ -5260,7 +5309,13 @@ function syncDiploPoliticsFromGame(pol: any, g: any) {
  * Deliver after mid-quarter resolve re-parks inbound and the next lockstep
  * auto-defies — the target sees "We defied" after they already conceded.
  */
-function isStaleMpUltimatumResubmit(pid: any, prevU: any, nextU: any, econ: any, q: any) {
+function isStaleMpUltimatumResubmit(
+  pid: any,
+  prevU: any,
+  nextU: any,
+  econ: any,
+  q: any,
+) {
   if (!nextU || nextU.status !== "pending") return false;
   if (prevU && prevU.status === "pending") return false;
   const cd = (econ && econ.ultimatumCd && econ.ultimatumCd[pid]) || 0;
@@ -5273,7 +5328,12 @@ function isStaleMpUltimatumResubmit(pid: any, prevU: any, nextU: any, econ: any,
  * Capital cost of newly posted envoys / newly issued ultimatums vs the seat's
  * last committed politics. Recalls are free.
  */
-function diploActivityCapitalCost(pol: any, nextEnvoys: any, nextUltimatums: any, opts: any) {
+function diploActivityCapitalCost(
+  pol: any,
+  nextEnvoys: any,
+  nextUltimatums: any,
+  opts: any,
+) {
   let cost = 0;
   const prevEnv = normalizeDiploPolitics(pol || {}).envoys || emptyEnvoys();
   const rawEnv = Array.isArray(nextEnvoys) ? nextEnvoys : prevEnv;
@@ -6048,7 +6108,12 @@ function mpDraftBlocGateError() {
 }
 
 /** Validate a multiplayer submission against seat politics + current law. */
-function validateMpSubmission(snap: any, seatId: any, draft: any, opts: any): any {
+function validateMpSubmission(
+  snap: any,
+  seatId: any,
+  draft: any,
+  opts: any,
+): any {
   if (!snap || !snap.world || !snap.world[seatId]) {
     return {
       ok: false,
@@ -6141,7 +6206,11 @@ function validateMpSubmission(snap: any, seatId: any, draft: any, opts: any): an
 /**
  * Apply newly submitted ultimatums (ledger + faction) that were not already pending.
  */
-function applyNewMpUltimatums(g: any, prevUltimatums: any, nextUltimatums: any) {
+function applyNewMpUltimatums(
+  g: any,
+  prevUltimatums: any,
+  nextUltimatums: any,
+) {
   const prev = prevUltimatums || {};
   const next = nextUltimatums || {};
   ensureDiploStocks(g.econ);
@@ -6177,7 +6246,12 @@ function applyNewMpUltimatums(g: any, prevUltimatums: any, nextUltimatums: any) 
  * Apply one human draft onto a room snapshot seat (capital, missions, CET).
  * Shared blocMember on `g` is mutated for leave/join like solo enact.
  */
-function enactHumanSeatOnSnapshot(g: any, seatId: any, draft: any, opts: any): any {
+function enactHumanSeatOnSnapshot(
+  g: any,
+  seatId: any,
+  draft: any,
+  opts: any,
+): any {
   const seat = g.world[seatId];
   if (!seat)
     return {
@@ -6617,7 +6691,11 @@ function hydrateGameSnapshot(snap: any, opts: any) {
    the peak lands at 46%, a little above the literature, and the marginal figure
    comes in at about two thirds of the ready reckoner. The short-run costing and
    the long-run peak are measuring different horizons, and a single-elasticity
-   model cannot honour both. */ const baseResponse = (rate: any, def: any, eti: any) => {
+   model cannot honour both. */ const baseResponse = (
+  rate: any,
+  def: any,
+  eti: any,
+) => {
   const tau = Math.min(0.985, rate / 100),
     tau0 = def / 100;
   return Math.pow((1 - tau) / (1 - tau0), eti);
@@ -6941,12 +7019,10 @@ const clone = (o: any) => JSON.parse(JSON.stringify(o));
         const p = id && partnerById(id);
         return p ? p.name : "a partner";
       });
-const fmt = function (v: any, d?: any) {
-  d = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 1;
+const fmt = function (v: any, d: any = 1) {
   return (v >= 0 ? "" : "-") + Math.abs(v).toFixed(d);
 };
-const sgn = function (v: any, d?: any) {
-  d = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 1;
+const sgn = function (v: any, d: any = 1) {
   return (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(v).toFixed(d);
 };
 const cap1 = (s: any) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -7979,49 +8055,49 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
      capital stock, productivity, the cost of capital, the replacement ratio,
      migration, housing investment, market access. Those reach output the way
      the thing they describe actually would. `imp` is kept only for the social
-     indicators and a few fiscal/trade bookkeeping fields — never pot/gro/inf. */ const E: Record<string, any> =
-    {
-      gini: 0,
-      srv: 0,
-      lib: 0,
-      cri: 0,
-      hlt: 0,
-      env: 0,
-      nairu: 0,
-      eva: 0,
-      blk: 0,
-      rev: 0,
-      spend: 0,
-      open: 0,
-      resilience: 0,
-      trade: 0,
-      part: 0,
-      labour: 0,
-      migrate: 0,
-      tfp: 0,
-      ucost: 0,
-      replace: 0,
-      mpcw: 0,
-      kboost: 0,
-      hbuild: 0,
-      access: 0,
-      tariffCut: 0,
-      dealOpen: 0,
-      dealTariffCut: 0,
-      rndEffort: 0,
-      fertility: 0,
-      fac: {
-        business: 0,
-        workers: 0,
-        pensioners: 0,
-        urban: 0,
-        rural: 0,
-        patriots: 0,
-      },
-    };
-  const add = function (imp: any, fac: any, k?: any, ch?: any) {
-    k = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : 1;
-    ch = arguments.length > 3 ? arguments[3] : void 0;
+     indicators and a few fiscal/trade bookkeeping fields — never pot/gro/inf. */ const E: Record<
+    string,
+    any
+  > = {
+    gini: 0,
+    srv: 0,
+    lib: 0,
+    cri: 0,
+    hlt: 0,
+    env: 0,
+    nairu: 0,
+    eva: 0,
+    blk: 0,
+    rev: 0,
+    spend: 0,
+    open: 0,
+    resilience: 0,
+    trade: 0,
+    part: 0,
+    labour: 0,
+    migrate: 0,
+    tfp: 0,
+    ucost: 0,
+    replace: 0,
+    mpcw: 0,
+    kboost: 0,
+    hbuild: 0,
+    access: 0,
+    tariffCut: 0,
+    dealOpen: 0,
+    dealTariffCut: 0,
+    rndEffort: 0,
+    fertility: 0,
+    fac: {
+      business: 0,
+      workers: 0,
+      pensioners: 0,
+      urban: 0,
+      rural: 0,
+      patriots: 0,
+    },
+  };
+  const add = function (imp: any, fac: any, k: any = 1, ch?: any) {
     if (imp)
       for (const key in imp) {
         if (!IMP_KEYS.has(key)) continue;
@@ -8460,7 +8536,11 @@ function refreshSeatYRel(econ: any, frontierEcon: any) {
   }
 }
 /* Births per working-age head per quarter, moved by fertility policy and a
-   thin welfare-generosity link. */ function effectiveBirthRate(econ: any, law: any, E: any) {
+   thin welfare-generosity link. */ function effectiveBirthRate(
+  econ: any,
+  law: any,
+  E: any,
+) {
   const base = econ && econ.birthRate != null ? econ.birthRate : BIRTH_RATE;
   const fert = (E && E.fertility) || 0;
   const wel =
@@ -9942,7 +10022,10 @@ function govDemandShares(law: any, econ: any) {
     if (partnerDeals.length) {
       let floor = 28;
       for (const id of partnerDeals) {
-        const need = ((DEAL_BY_ID as any)[id].need && (DEAL_BY_ID as any)[id].need.relation) || 0;
+        const need =
+          ((DEAL_BY_ID as any)[id].need &&
+            (DEAL_BY_ID as any)[id].need.relation) ||
+          0;
         if (need) floor = Math.max(floor, need - 12);
       }
       if (g.rel[p.id] < floor)
@@ -9951,7 +10034,11 @@ function govDemandShares(law: any, econ: any) {
       if ((e.dealStress[p.id] || 0) >= 4) {
         const softest = partnerDeals
           .slice()
-          .sort((a, b) => ((DEAL_BY_ID as any)[a].pc || 0) - ((DEAL_BY_ID as any)[b].pc || 0))[0];
+          .sort(
+            (a, b) =>
+              ((DEAL_BY_ID as any)[a].pc || 0) -
+              ((DEAL_BY_ID as any)[b].pc || 0),
+          )[0];
         if (softest) {
           delete law.deals[softest];
           if (g.draft && g.draft.deals) delete g.draft.deals[softest];
@@ -10119,7 +10206,8 @@ function govDemandShares(law: any, econ: any) {
       t.grp === "income" ? 0.55 : t.grp === "consumption" ? 0.4 : 0.25;
     for (const f in s) (s as any)[f] -= d * weight * 0.5;
     if (t.fac) {
-      for (const f in t.fac) if (f in s) (s as any)[f] += ((t.fac as any)[f] || 0) * d * 0.25;
+      for (const f in t.fac)
+        if (f in s) (s as any)[f] += ((t.fac as any)[f] || 0) * d * 0.25;
     }
   }
   const rateNow = (law: any) =>
@@ -10248,7 +10336,11 @@ function morningNoteStamp() {
    touching the live game. Everything in the impact panel is derived from this,
    so the numbers shown can never drift away from the model that produces them.
    `opts` can override monetary mode so a pinned-rate path can be scored against
-   the Bank without mutating live G. */ function simulate(law: any, quarters: any, opts?: any) {
+   the Bank without mutating live G. */ function simulate(
+  law: any,
+  quarters: any,
+  opts?: any,
+) {
   const o = opts || {};
   const rateManual = o.rateManual != null ? !!o.rateManual : !!G.rateManual;
   const manualRate = o.manualRate != null ? o.manualRate : G.manualRate;
@@ -10319,7 +10411,8 @@ function morningNoteStamp() {
 /** Forward simulation that applies staged bloc join/leave/create on top of a draft law. */ function simulateFromDraft(
   draft: any,
   quarters: any,
-  opts?: any) {
+  opts?: any,
+) {
   const snap = draftBlocSnapshotFrom(draft);
   const law = clone(draft);
   applyDraftBlocLaw(law, snap, draft);
@@ -10673,7 +10766,8 @@ function projectionWarnings(p: any) {
    ================================================================== */ const dp =
   (t: any) => (t.step && t.step < 1 ? 1 : 0);
 const fmtRate = (t: any, r: any) => r.toFixed(dp(t)) + "%";
-const rateCost = (t: any, d: any) => Math.max(1, Math.ceil((Math.abs(d) / t.max) * 25));
+const rateCost = (t: any, d: any) =>
+  Math.max(1, Math.ceil((Math.abs(d) / t.max) * 25));
 function billClauses() {
   pruneDraftBlocInvites();
   const L = G.law,
@@ -10827,7 +10921,13 @@ function billClauses() {
       if (dual && (k === "divRate" || k === "saveRate")) continue;
       if (!dual && k === "capitalRate") continue;
       out.push({
-        label: (CAP_LABEL as any)[k] + " " + a.toFixed(0) + "% to " + b.toFixed(0) + "%",
+        label:
+          (CAP_LABEL as any)[k] +
+          " " +
+          a.toFixed(0) +
+          "% to " +
+          b.toFixed(0) +
+          "%",
         pc: Math.max(1, Math.ceil(Math.abs(b - a) / 4)),
         undo: () => {
           D.income[k] = a;
@@ -10862,7 +10962,13 @@ function billClauses() {
     if (!D.ni.empOn && k === "empRate") continue; // scrapped: the rate is moot
     if (!D.ni.erOn && k === "erRate") continue;
     out.push({
-      label: (NI_LABEL as any)[k] + " " + a.toFixed(1) + "% to " + b.toFixed(1) + "%",
+      label:
+        (NI_LABEL as any)[k] +
+        " " +
+        a.toFixed(1) +
+        "% to " +
+        b.toFixed(1) +
+        "%",
       pc: Math.max(1, Math.ceil(Math.abs(b - a) / 1.5)),
       undo: () => {
         D.ni[k] = a;
@@ -11766,7 +11872,8 @@ function openingRel(homeRole: any) {
 }
 /** Currency strength index, 100 at opening. Home uses e.fx; partners use n.fx. */ function fxDisplayIndex(
   role: any,
-  g?: any) {
+  g?: any,
+) {
   const G = g || (typeof getG === "function" ? getG() : null);
   if (!G || !G.econ) return 100;
   const e = G.econ;
@@ -11964,13 +12071,22 @@ function stepNations(e: any, det: any, g: any) {
   REGION_OKUN = 0.3;
 /* Places do not start level. A region built on heavy industry carries higher
    unemployment and lower output per head before the Chancellor does anything,
-   which is the inheritance rather than the policy. */ function initRegions(e: any) {
+   which is the inheritance rather than the policy. */ function initRegions(
+  e: any,
+) {
   return REGIONS.map((R) => ({
     y: 100 * (0.88 + R.prosper * 0.12),
     u: clamp(e.unemployment * (0.72 + R.beta * 0.28), 1.5, 14),
   }));
 }
-function stepRegions(e: any, law: any, growth: any, tradeGrowth: any, publicGrowth: any, ucGap: any) {
+function stepRegions(
+  e: any,
+  law: any,
+  growth: any,
+  tradeGrowth: any,
+  publicGrowth: any,
+  ucGap: any,
+) {
   if (!e.regions) e.regions = initRegions(e);
   const trend = e.trendGrowth || 1.0;
   const hpG = e.housePriceGrowth || 0;
@@ -12232,7 +12348,9 @@ function updateMapLabel() {
     esc(r.name) +
     "</b>" +
     "<span>" +
-    MAP_METRICS.map((m) => m.name + " " + m.fmt((st as any)[m.id])).join(" &middot; ") +
+    MAP_METRICS.map((m) => m.name + " " + m.fmt((st as any)[m.id])).join(
+      " &middot; ",
+    ) +
     "</span>";
 }
 function updateMap() {
@@ -12284,9 +12402,7 @@ const TABS = [
     icon: "chart",
   },
 ];
-function spark(key: any, w?: any, h?: any) {
-  w = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : 44;
-  h = arguments.length > 2 && arguments[2] !== void 0 ? arguments[2] : 13;
+function spark(key: any, w: any = 44, h: any = 13) {
   const vals = G.log.map((r: any) => r[key]);
   if (vals.length < 2) return "";
   const mn = Math.min(...vals),
@@ -12310,7 +12426,15 @@ function spark(key: any, w?: any, h?: any) {
     '" fill="none" stroke="#eed69a" stroke-width="1.2"/></svg>'
   );
 }
-function dialHtml(k: any, v: any, unit: any, delta: any, warn: any, sk: any, invert: any) {
+function dialHtml(
+  k: any,
+  v: any,
+  unit: any,
+  delta: any,
+  warn: any,
+  sk: any,
+  invert: any,
+) {
   const cls =
     delta == null
       ? ""
@@ -12389,7 +12513,15 @@ function termReviewDue() {
   if (!G || G.over || !(G.q > 0)) return false;
   return G.q % termLenOf(G.homeRole) === 0;
 }
-function chip(k: any, v: any, unit: any, delta: any, state: any, invert?: any, kind?: any) {
+function chip(
+  k: any,
+  v: any,
+  unit: any,
+  delta: any,
+  state: any,
+  invert?: any,
+  kind?: any,
+) {
   const cls =
     delta == null
       ? ""
@@ -12732,7 +12864,9 @@ function clausesIn(tabId: any, cl: any) {
       /summit|State visit|Formal protest|Restrictive measures|envoy|mission/i,
     charts: /(?!)/,
   };
-  return cl.some((c: any) => (pats as any)[tabId] && (pats as any)[tabId].test(c.label));
+  return cl.some(
+    (c: any) => (pats as any)[tabId] && (pats as any)[tabId].test(c.label),
+  );
 }
 /* ---- sliders ---- */ function leverHtml(
   id: any,
@@ -12744,7 +12878,8 @@ function clausesIn(tabId: any, cl: any) {
   decimals: any,
   note: any,
   cls?: any,
-  disabled?: any) {
+  disabled?: any,
+) {
   return (
     '<div class="lever ' +
     (cls || "") +
@@ -13095,7 +13230,11 @@ function incomePanelHtml() {
   return h;
 }
 /* A throwaway copy of the law with one NI side switched back on, so the panel
-   can quote what abolition actually costs. */ function withNi(law: any, key: any, val: any) {
+   can quote what abolition actually costs. */ function withNi(
+  law: any,
+  key: any,
+  val: any,
+) {
   const c = clone(law);
   c.ni[key] = val;
   return c;
@@ -13209,7 +13348,9 @@ function wireIncomePanel(host: any) {
   const len = series[0] ? series[0].data.length : 0;
   if (len < 2)
     return '<div class="empty">Not enough quarters recorded yet.</div>';
-  const all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
+  const all = series
+    .flatMap((s: any) => s.data)
+    .filter((v: any) => isFinite(v));
   let mn = Math.min(...all),
     mx = Math.max(...all);
   if (opts.target != null) {
@@ -13348,7 +13489,9 @@ function lineChartSpec(series: any, opts?: any) {
     padB = 20;
   const len = series[0] ? series[0].data.length : 0;
   if (len < 2) return null;
-  const all = series.flatMap((s: any) => s.data).filter((v: any) => isFinite(v));
+  const all = series
+    .flatMap((s: any) => s.data)
+    .filter((v: any) => isFinite(v));
   let mn = Math.min(...all),
     mx = Math.max(...all);
   if (opts.target != null) {
@@ -13375,7 +13518,8 @@ function lineChartSpec(series: any, opts?: any) {
     });
   }
 
-  const targetLine = opts.target != null ? { y: +Y(opts.target).toFixed(1) } : null;
+  const targetLine =
+    opts.target != null ? { y: +Y(opts.target).toFixed(1) } : null;
 
   const lbl = G.log.map((r: any) => r.label);
   const xLabels = [];
@@ -13384,7 +13528,10 @@ function lineChartSpec(series: any, opts?: any) {
   }
 
   const chartSeries = series.map((s: any) => {
-    const points = s.data.map((v: any, i: any) => [+X(i).toFixed(1), +Y(v).toFixed(1)]);
+    const points = s.data.map((v: any, i: any) => [
+      +X(i).toFixed(1),
+      +Y(v).toFixed(1),
+    ]);
     const lv = s.data[len - 1];
     return {
       label: s.label,
@@ -13938,7 +14085,10 @@ function paintBudgetPanel(host: any) {
     (id: any, v: any) => {
       G.draft.spend[id] = v;
       /* Hold mode freezes a service standard — keep it aligned with the slider. */
-      if ((G.draft.mode || {})[id] === "service" && !(TRANSFER_DEPTS as any)[id]) {
+      if (
+        (G.draft.mode || {})[id] === "service" &&
+        !(TRANSFER_DEPTS as any)[id]
+      ) {
         if (!G.draft.hold) G.draft.hold = {};
         G.draft.hold[id] = serviceScore(id, G.draft, G.econ);
       }
@@ -14432,7 +14582,10 @@ function paintTradePanel(host: any) {
     G.blocMember,
   );
   const pae = G.econ.partnerAccessEff || {};
-  const accessPhased = (Object.values(pae) as number[]).reduce((s, v) => s + v, 0);
+  const accessPhased = (Object.values(pae) as number[]).reduce(
+    (s, v) => s + v,
+    0,
+  );
   const exposureTarget = tradeExposureTarget(
     G.draft,
     Eagg,
@@ -14824,11 +14977,15 @@ function paintChartsPanel(host: any) {
       "Approval by faction",
       "The overall number hides everything interesting.",
       lineChart(
-        (FACTIONS.map((f, i) => ({
-          label: f.name,
-          color: [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink][i],
-          data: G.log.map((r: any) => r.fac[f.id]),
-        })) as any[]).concat([
+        (
+          FACTIONS.map((f, i) => ({
+            label: f.name,
+            color: [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink][
+              i
+            ],
+            data: G.log.map((r: any) => r.fac[f.id]),
+          })) as any[]
+        ).concat([
           {
             label: "Overall",
             color: COL.soft,
@@ -15633,7 +15790,10 @@ function tariffSchedulePanelHtml() {
         '<div class="panel">' +
         leverHtml(
           "tariffBloc:" + bid,
-          (bloc ? bloc.name : bid) + " (" + (usedBlocs as any)[bid] + " countries)",
+          (bloc ? bloc.name : bid) +
+            " (" +
+            (usedBlocs as any)[bid] +
+            " countries)",
           val,
           0,
           25,
@@ -15645,7 +15805,9 @@ function tariffSchedulePanelHtml() {
     }
     const byRegion = partnersByRegion();
     for (const r in byRegion) {
-      const lone = (byRegion as any)[r].filter((p: any) => !countryBlocId(p.id));
+      const lone = (byRegion as any)[r].filter(
+        (p: any) => !countryBlocId(p.id),
+      );
       if (!lone.length) continue;
       h +=
         '<div class="eyebrow mt">' +
@@ -16173,7 +16335,12 @@ function blocMembershipPanelHtml() {
   }
   return h;
 }
-function tariffLeverValue(key: any, law: any, homeRole?: any, blocMember?: any) {
+function tariffLeverValue(
+  key: any,
+  law: any,
+  homeRole?: any,
+  blocMember?: any,
+) {
   ensureTariffSchedule(law);
   const sched = law.tariffSchedule;
   if (key === "tariffDefault") return sched.default;
@@ -16336,7 +16503,8 @@ function render(options?: any) {
   stamp: any,
   html: any,
   opts: any,
-  cfg?: any) {
+  cfg?: any,
+) {
   const preview = cfg && cfg.preview && G.sandbox;
   let base = null;
   if (preview) {
@@ -16537,7 +16705,8 @@ function snapshotTariffSchedules() {
     for (const id of Object.keys(G.world)) {
       if (id === playerId) continue;
       const seat = G.world[id];
-      if (seat && seat.law) (world as any)[id] = clone(ensureTariffSchedule(seat.law));
+      if (seat && seat.law)
+        (world as any)[id] = clone(ensureTariffSchedule(seat.law));
     }
   }
   return {
@@ -16622,8 +16791,8 @@ function rollMajorEvent() {
     (e) => e.major && e.cond && e.cond() && e.id !== G.lastEventId,
   );
   if (!pool.length) return null;
-  let total = pool.reduce((a, e) => a + (e.w || 1), 0),
-    r = G.sandbox ? 0 : Math.random() * total;
+  const total = pool.reduce((a, e) => a + (e.w || 1), 0);
+  let r = G.sandbox ? 0 : Math.random() * total;
   for (const e of pool) {
     r -= e.w || 1;
     if (r <= 0) {
@@ -16809,7 +16978,9 @@ const EVENTS = [
           delete G.blocMember[G.eventFocus];
           const custom = bid && G.customBlocs[bid];
           if (custom)
-            custom.members = custom.members.filter((m: any) => m !== G.eventFocus);
+            custom.members = custom.members.filter(
+              (m: any) => m !== G.eventFocus,
+            );
         },
       },
       {
@@ -19586,7 +19757,9 @@ function prepareEvent(ev: any) {
   }
   const text = typeof ev.text === "function" ? ev.text() : ev.text;
   const title = typeof ev.title === "function" ? ev.title() : ev.title;
-  const opts = (ev.opts || []).filter((o: any) => !o.available || o.available());
+  const opts = (ev.opts || []).filter(
+    (o: any) => !o.available || o.available(),
+  );
   if (!opts.length) return null;
   return Object.assign({}, ev, {
     title,
@@ -19631,8 +19804,8 @@ function rollEvent() {
         e.id !== "setPieceAlly",
     );
   if (!pool.length) return null;
-  let total = pool.reduce((a, e) => a + e.w, 0),
-    r = G.sandbox ? 0 : Math.random() * total;
+  const total = pool.reduce((a, e) => a + e.w, 0);
+  let r = G.sandbox ? 0 : Math.random() * total;
   for (const e of pool) {
     r -= e.w;
     if (r <= 0) {
@@ -20901,7 +21074,8 @@ function renderPress() {
   const host = $("pressLayer");
   if (!host) return;
   const clips = G && G.press ? G.press : [];
-  const focused = _pressExpanded && clips.find((c: any) => c.id === _pressExpanded);
+  const focused =
+    _pressExpanded && clips.find((c: any) => c.id === _pressExpanded);
   if (!focused) _pressExpanded = null;
   host.classList.toggle("is-focusing", !!focused);
   host.innerHTML = clips
@@ -21199,13 +21373,17 @@ function fullEffects(imp: any, fac: any, cost: any, ch?: any) {
   for (const k in imp || {}) {
     if (!imp[k]) continue;
     bits.push(
-      ((IMP_NAMES as any)[k] || k) + " " + sgn(imp[k], Math.abs(imp[k]) < 1 ? 2 : 1),
+      ((IMP_NAMES as any)[k] || k) +
+        " " +
+        sgn(imp[k], Math.abs(imp[k]) < 1 ? 2 : 1),
     );
   }
   for (const k in ch || {}) {
     if (!ch[k]) continue;
     bits.push(
-      ((IMP_NAMES as any)[k] || k) + " " + sgn(ch[k], Math.abs(ch[k]) < 1 ? 2 : 1),
+      ((IMP_NAMES as any)[k] || k) +
+        " " +
+        sgn(ch[k], Math.abs(ch[k]) < 1 ? 2 : 1),
     );
   }
   const f = (Object.entries(fac || {}) as [string, number][])
@@ -21231,20 +21409,27 @@ function fullEffectsData(imp: any, fac: any, cost: any, ch?: any) {
   const bits = [];
   if (cost)
     bits.push({
-      text: (cost > 0 ? "costs " : "saves ") + Math.abs(cost).toFixed(2) + "% GDP",
+      text:
+        (cost > 0 ? "costs " : "saves ") + Math.abs(cost).toFixed(2) + "% GDP",
       bold: true,
     });
   for (const k in imp || {}) {
     if (!imp[k]) continue;
     bits.push({
-      text: ((IMP_NAMES as any)[k] || k) + " " + sgn(imp[k], Math.abs(imp[k]) < 1 ? 2 : 1),
+      text:
+        ((IMP_NAMES as any)[k] || k) +
+        " " +
+        sgn(imp[k], Math.abs(imp[k]) < 1 ? 2 : 1),
       bold: false,
     });
   }
   for (const k in ch || {}) {
     if (!ch[k]) continue;
     bits.push({
-      text: ((IMP_NAMES as any)[k] || k) + " " + sgn(ch[k], Math.abs(ch[k]) < 1 ? 2 : 1),
+      text:
+        ((IMP_NAMES as any)[k] || k) +
+        " " +
+        sgn(ch[k], Math.abs(ch[k]) < 1 ? 2 : 1),
       bold: false,
     });
   }
@@ -21260,7 +21445,8 @@ function fullEffectsData(imp: any, fac: any, cost: any, ch?: any) {
   imp: any,
   fac: any,
   cost: any,
-  ch?: any) {
+  ch?: any,
+) {
   const bits = [];
   if (cost) bits.push("<b>" + (cost > 0 ? "costs GDP" : "saves GDP") + "</b>");
   const pushSigned = (label: any, v: any) => {
@@ -21291,7 +21477,8 @@ function fullEffectsData(imp: any, fac: any, cost: any, ch?: any) {
 /** Data form of qualEffects() for React consumers. */
 function qualEffectsData(imp: any, fac: any, cost: any, ch?: any) {
   const bits = [];
-  if (cost) bits.push({ text: cost > 0 ? "costs GDP" : "saves GDP", bold: true });
+  if (cost)
+    bits.push({ text: cost > 0 ? "costs GDP" : "saves GDP", bold: true });
   const pushSigned = (label: any, v: any) => {
     if (!v) return;
     bits.push({ text: label + (v > 0 ? " ↑" : " ↓"), bold: false });
@@ -21302,7 +21489,10 @@ function qualEffectsData(imp: any, fac: any, cost: any, ch?: any) {
     .filter((e) => e[1])
     .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]));
   const facText = f.length
-    ? f.slice(0, 3).map(([k, v]) => cap1(k) + (v > 0 ? " ↑" : " ↓")).join(", ")
+    ? f
+        .slice(0, 3)
+        .map(([k, v]) => cap1(k) + (v > 0 ? " ↑" : " ↓"))
+        .join(", ")
     : null;
   return { bits, facText };
 }
@@ -21604,256 +21794,10 @@ function impactPanelData(cl: any) {
 }
 function showBlocFoundModal() {
   if (playerJoiningBloc()) return;
-  whenDespatchShellReady(({ titleEl, stampEl, bodyEl, box }: any) => {
-    titleEl.textContent = "Found a trade bloc";
-    stampEl.textContent = "Foreign & Commonwealth";
-    let selected = "shallow_fta";
-    const renderModal = () => {
-      const tpl = (CUSTOM_BLOC_TEMPLATES as any)[selected];
-      bodyEl.innerHTML =
-        '<div style="margin-bottom:12px"><label style="display:block;font-size:12px;opacity:0.7;margin-bottom:4px">Bloc name</label>' +
-        '<input id="blocFoundName" type="text" value="' +
-        esc(tpl ? tpl.name : "") +
-        '" maxlength="34" style="width:100%;font:inherit;padding:8px 12px;border-radius:8px;border:1px solid var(--ink-faint);background:var(--glass-bg,rgba(255,255,255,0.06));color:inherit" aria-label="Name of your trade bloc"/></div>' +
-        '<div style="display:flex;flex-direction:column;gap:8px">' +
-        Object.keys(CUSTOM_BLOC_TEMPLATES)
-          .map((tid) => {
-            const t = (CUSTOM_BLOC_TEMPLATES as any)[tid];
-            const sel = tid === selected;
-            return (
-              '<button type="button" class="bloc-type-opt' +
-              (sel ? " selected" : "") +
-              '" data-bloc-type="' +
-              tid +
-              '" style="text-align:left;padding:10px 14px;border-radius:10px;border:2px solid ' +
-              (sel ? "var(--accent,var(--blue))" : "var(--ink-faint)") +
-              ";background:" +
-              (sel ? "rgba(10,132,255,0.1)" : "transparent") +
-              ';cursor:pointer;color:inherit">' +
-              '<div style="font-weight:600;font-size:14px">' +
-              esc(t.name) +
-              ' <span style="opacity:0.6;font-weight:400">' +
-              t.pc +
-              " capital</span></div>" +
-              '<div style="font-size:12px;opacity:0.7;margin-top:2px">' +
-              (t.type === "customs_union"
-                ? "Zero internal tariffs · common external tariff · stronger access bonus (+12%)"
-                : "Preferential rates · members keep independent tariffs · moderate access bonus (+5%)") +
-              "</div>" +
-              "</button>"
-            );
-          })
-          .join("") +
-        "</div>";
-      bodyEl.querySelectorAll("[data-bloc-type]").forEach((b: any) => {
-        b.onclick = () => {
-          const nameInput = bodyEl.querySelector("#blocFoundName");
-          const curName = nameInput ? nameInput.value.trim() : "";
-          const prevTpl = (CUSTOM_BLOC_TEMPLATES as any)[selected];
-          selected = b.dataset.blocType;
-          renderModal();
-          const newInput = bodyEl.querySelector("#blocFoundName");
-          if (
-            newInput &&
-            curName &&
-            curName !== (prevTpl ? prevTpl.name : "")
-          ) {
-            newInput.value = curName;
-          }
-        };
-      });
-    };
-    renderModal();
-    box.innerHTML = "";
-    const row = document.createElement("div");
-    row.className = "opts";
-    row.style.cssText =
-      "display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0;width:100%";
-    const confirmBtn = document.createElement("button");
-    confirmBtn.className = "opt opt-simple";
-    confirmBtn.type = "button";
-    confirmBtn.innerHTML = "<b>Found this bloc</b>";
-    confirmBtn.onclick = () => {
-      const nameInput = bodyEl.querySelector("#blocFoundName");
-      const name = (nameInput ? nameInput.value : "").trim().slice(0, 34);
-      const tpl = (CUSTOM_BLOC_TEMPLATES as any)[selected];
-      G.draft.blocAccession = null;
-      G.draft.blocCreate = {
-        name: name || (tpl ? tpl.name : "Trade bloc"),
-        template: selected,
-      };
-      hideDespatchShell();
-      render();
-    };
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "opt opt-simple";
-    cancelBtn.type = "button";
-    cancelBtn.innerHTML = "<b>Cancel</b>";
-    cancelBtn.onclick = () => {
-      hideDespatchShell();
-    };
-    row.appendChild(confirmBtn);
-    row.appendChild(cancelBtn);
-    box.appendChild(row);
-    setTimeout(() => {
-      const inp = bodyEl.querySelector("#blocFoundName");
-      if (inp) {
-        inp.focus();
-        inp.select();
-      }
-    }, 40);
-  });
+  setBlocModal({ kind: "found" });
 }
 function showBlocInviteModal(bid: any) {
-  whenDespatchShellReady(({ titleEl, stampEl, bodyEl, box }: any) => {
-    const bloc = blocById(bid) || G.customBlocs[bid];
-    const candidates = blocInviteCandidates(bid);
-    titleEl.textContent = "Invite a member";
-    stampEl.textContent = bloc ? bloc.name : "Trade bloc";
-    const regionOrder = [
-      "europe",
-      "americas",
-      "asia",
-      "africa",
-      "gulf",
-      "oceania",
-    ];
-    let selected = candidates.find((c) => !c.staged && c.blockers.length === 0);
-    if (!selected) selected = candidates[0] || null;
-    box.innerHTML = "";
-    const confirmBtn = document.createElement("button");
-    confirmBtn.className = "opt";
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "opt";
-    cancelBtn.innerHTML = "<b>Cancel</b>";
-    cancelBtn.onclick = () => {
-      hideDespatchShell();
-    };
-    const syncConfirm = () => {
-      const canStage = selected && !selected.staged;
-      confirmBtn.disabled = !canStage;
-      confirmBtn.innerHTML = selected
-        ? selected.staged
-          ? "<b>Already in the bill</b><em>See the bill panel above</em>"
-          : "<b>Propose " +
-            esc(selected.partner.name) +
-            "</b><em>12 capital · added to your bill</em>"
-        : "<b>No candidate selected</b>";
-    };
-    confirmBtn.onclick = () => {
-      if (!selected || selected.staged) return;
-      const cid = selected.partner.id;
-      toggleBlocInvite(cid);
-      hideDespatchShell();
-      render();
-      requestAnimationFrame(() => {
-        const el = document.getElementById("bloc-staged-" + cid);
-        if (el)
-          el.scrollIntoView({
-            behavior: "smooth",
-            block: "nearest",
-          });
-        flashBillPip();
-      });
-    };
-    const renderModal = () => {
-      const byRegion: Record<string, any> = {};
-      for (const c of candidates) {
-        const r = c.partner.region || "other";
-        if (!(byRegion as any)[r]) (byRegion as any)[r] = [];
-        (byRegion as any)[r].push(c);
-      }
-      let listHtml =
-        '<div class="hint" style="margin-bottom:10px">Choose a partner to invite. Every other bloc member must approve. The invitation stages in your bill — use <b>Deliver</b> to send it (12 capital).</div>';
-      listHtml += '<div class="bloc-invite-list">';
-      for (const r of regionOrder) {
-        const group = (byRegion as any)[r];
-        if (!group || !group.length) continue;
-        listHtml +=
-          '<div class="bloc-invite-region"><div class="eyebrow">' +
-          esc(COUNTRY_REGIONS[r] || r) +
-          "</div>";
-        for (const c of group) {
-          const p = c.partner;
-          const sel = selected && selected.partner.id === p.id;
-          const relClass = c.rel > 60 ? "good" : c.rel < 38 ? "bad" : "";
-          const status = c.staged
-            ? "In the bill"
-            : c.blockers.length
-              ? c.blockers[0]
-              : "Eligible";
-          const statusCol = c.staged
-            ? "var(--blue)"
-            : c.blockers.length
-              ? "var(--red)"
-              : "var(--green)";
-          listHtml +=
-            '<button type="button" class="bloc-invite-opt' +
-            (sel ? " selected" : "") +
-            '" data-invite-pick="' +
-            p.id +
-            '">' +
-            '<div class="bloc-invite-opt-head"><span class="bloc-invite-opt-name">' +
-            esc(p.name) +
-            "</span>" +
-            '<span class="bloc-invite-opt-rel"><span class="fb"><i class="' +
-            relClass +
-            '" style="width:' +
-            c.rel.toFixed(0) +
-            '%"></i></span>' +
-            '<span class="fv">' +
-            c.rel.toFixed(0) +
-            "</span></span></div>" +
-            '<div class="bloc-invite-opt-status" style="color:' +
-            statusCol +
-            '">' +
-            esc(status) +
-            "</div></button>";
-        }
-        listHtml += "</div>";
-      }
-      listHtml += "</div>";
-      if (selected) {
-        const cid = selected.partner.id;
-        const blockers = blocInviteBlockers(bid, cid);
-        listHtml += '<div class="bloc-invite-preview">';
-        listHtml +=
-          '<div class="eyebrow">Preview: ' +
-          esc(selected.partner.name) +
-          "</div>";
-        listHtml += accessionPipelineSteps(0);
-        listHtml += inviteMemberTable(bid, cid);
-        if (blockers.length)
-          listHtml +=
-            '<div class="eff" style="color:var(--red);display:block;margin-top:6px">' +
-            esc(blockers.join(" · ")) +
-            "</div>";
-        else
-          listHtml +=
-            '<div class="eff" style="color:var(--green);display:block;margin-top:6px">Ready to propose — every member approves.</div>';
-        listHtml += "</div>";
-      } else if (!candidates.length) {
-        listHtml +=
-          '<div class="hint" style="margin-top:10px">No eligible partners right now. Countries already in a bloc, with a pending invite, or mid-accession cannot be invited.</div>';
-      }
-      bodyEl.innerHTML = listHtml;
-      bodyEl.querySelectorAll("[data-invite-pick]").forEach((b: any) => {
-        b.onclick = () => {
-          const pick = candidates.find(
-            (c) => c.partner.id === b.dataset.invitePick,
-          );
-          if (pick) {
-            selected = pick;
-            renderModal();
-          }
-        };
-      });
-      syncConfirm();
-    };
-    renderModal();
-    box.appendChild(confirmBtn);
-    box.appendChild(cancelBtn);
-  });
+  setBlocModal({ kind: "invite", bid });
 }
 function projectionModal(onConfirm?: any) {
   syncServiceHolds(G.draft, G.econ);
@@ -21964,7 +21908,8 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
     }
     econ.missionCd[pid] = MISSION_CD;
     if (m.fac && fac) {
-      for (const f in m.fac) fac[f] = clamp((fac[f] || 0) + (m.fac as any)[f], 2, 96);
+      for (const f in m.fac)
+        fac[f] = clamp((fac[f] || 0) + (m.fac as any)[f], 2, 96);
     }
     if (m.id === "summit") {
       if (typeof G !== "undefined" && G) beginActiveVisit(G, pid, "summit");
@@ -22226,44 +22171,24 @@ function enact() {
 /* Module bridge for React */ let _onState: any = null;
 let _despatchOpen: any = null;
 let _onDespatchChange: any = null;
-let _onDespatchShell: any = null;
-let _despatchShellOpen = false;
+let _onBlocModal: any = null;
+let _blocModal: any = null;
 
 function setOnDespatchChange(fn: any) {
   _onDespatchChange = fn;
 }
-function setOnDespatchShell(fn: any) {
-  _onDespatchShell = fn;
+function setOnBlocModal(fn: any) {
+  _onBlocModal = fn;
 }
-function showDespatchShell() {
-  _despatchShellOpen = true;
-  if (_onDespatchShell) _onDespatchShell(true);
+function setBlocModal(v: any) {
+  _blocModal = v;
+  if (_onBlocModal) _onBlocModal(v);
 }
 function hideDespatchShell() {
-  _despatchShellOpen = false;
-  if (_onDespatchShell) _onDespatchShell(false);
+  setBlocModal(null);
 }
 function isDespatchShellOpen() {
-  return _despatchShellOpen;
-}
-/** React mounts #scrim asynchronously — wait before imperative modal paint. */
-function whenDespatchShellReady(fn: any, tries = 0) {
-  showDespatchShell();
-  const titleEl = $("dpTitle"),
-    stampEl = $("dpStamp"),
-    bodyEl = $("dpBody"),
-    box = $("dpOpts");
-  if (titleEl && stampEl && bodyEl && box) {
-    fn({
-      titleEl,
-      stampEl,
-      bodyEl,
-      box,
-    });
-    return;
-  }
-  if (tries >= 48) return;
-  requestAnimationFrame(() => whenDespatchShellReady(fn, tries + 1));
+  return !!_blocModal;
 }
 function getDespatch() {
   return _despatchOpen;
@@ -22332,10 +22257,8 @@ function beginCoachStep(stepIndex: any) {
   const isBrief = !step.task;
   /* If the player already advanced during the previous step (e.g. Deliver
      during the forecast brief), keep that baseline so trackStartQ still clears. */
-  const prevStartQ =
-    G.coach && G.coach.startQ != null ? G.coach.startQ : G.q;
-  const startQ =
-    step.trackStartQ && G.q > prevStartQ ? prevStartQ : G.q;
+  const prevStartQ = G.coach && G.coach.startQ != null ? G.coach.startQ : G.q;
+  const startQ = step.trackStartQ && G.q > prevStartQ ? prevStartQ : G.q;
   G.coach = {
     step: stepIndex,
     phase: isBrief ? "brief" : "await",
@@ -22876,7 +22799,7 @@ export {
   T,
   setOnState,
   setOnDespatchChange,
-  setOnDespatchShell,
+  setOnBlocModal,
   getDespatch,
   closeDespatch,
   hideDespatchShell,

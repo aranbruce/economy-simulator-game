@@ -112,31 +112,31 @@ piece of work, not blocked on anything else now that no panel is imperative.
 
 ## Architecture
 
-| Path | Contains |
-|---|---|
-| `app/` | Next.js layout, page (client dynamic GameApp), glass CSS |
-| `lib/sim/engine.ts` | Statute book, state, aggregate, step, project, bill, map, events, panel HTML |
-| `lib/sim/worldTrade.ts` | Bilateral trade clearing across seats |
-| `lib/sim/fxAreas.ts` | Currency-area Taylor rules and FX vs USD |
-| `lib/sim/partners.ts` | Partner id → ISO country sets for the world map |
-| `components/game/GameApp.tsx` | Shell: topbar, dock, drawer, despatch; wires the engine |
-| `components/map2d/WorldMap.tsx` | Flat world map, partner colours, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component |
-| `public/geo/countries-110m.json` | Natural Earth topojson |
+| Path                             | Contains                                                                                                                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                           | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                           |
+| `lib/sim/engine.ts`              | Statute book, state, aggregate, step, project, bill, map, events, panel HTML                                                                                                       |
+| `lib/sim/worldTrade.ts`          | Bilateral trade clearing across seats                                                                                                                                              |
+| `lib/sim/fxAreas.ts`             | Currency-area Taylor rules and FX vs USD                                                                                                                                           |
+| `lib/sim/partners.ts`            | Partner id → ISO country sets for the world map                                                                                                                                    |
+| `components/game/GameApp.tsx`    | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                            |
+| `components/map2d/WorldMap.tsx`  | Flat world map, partner colours, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component |
+| `public/geo/countries-110m.json` | Natural Earth topojson                                                                                                                                                             |
 
 Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
 
-| Section | Contains |
-|---|---|
-| 1. The statute book | All content data: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS` |
-| 2. State | `newGame()`, `baseLaw()`, the `G` global |
-| 3. Aggregation | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine |
-| 4. The engine | `step()` — one quarter of macro simulation |
-| 5. Projection | `project()`, `projectionWarnings()` — the pre-budget forecast |
-| 6. The bill | `billClauses()` — diffs `G.draft` against `G.law` and prices each change |
-| 7a. The map |  `REGIONS`, `countryField()`, `mapGeometry()`, `regionStats()`, `paintMap()` |
-| 7. Rendering | Tabs, sliders, cards, SVG charts |
-| 8. Despatches | `EVENTS`, term reviews (election/congress), crises, game over |
-| 9. Flow | `enact()`, `projectionModal()`, button wiring |
+| Section             | Contains                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------- |
+| 1. The statute book | All content data: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`               |
+| 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                |
+| 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine |
+| 4. The engine       | `step()` — one quarter of macro simulation                                                              |
+| 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                           |
+| 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                |
+| 7a. The map         | `REGIONS`, `countryField()`, `mapGeometry()`, `regionStats()`, `paintMap()`                             |
+| 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                        |
+| 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                           |
+| 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                           |
 
 ### Multi-country world
 
@@ -504,7 +504,7 @@ several quarters rather than land all at once.
   `uc = real rate + depreciation + corporate tax wedge`. This is where
   corporation tax and the policy rate actually bite on investment.
 - **G.** Government consumption and investment, taken straight from the budget
-  and set against *trend* output, since spending plans are made in advance.
+  and set against _trend_ output, since spending plans are made in advance.
   **Transfers are not G**: welfare is income, and reaches output only through
   the consumption function. Each spending line has an import content, so
   procurement-heavy defence multiplies less than labour-heavy health.
@@ -707,13 +707,13 @@ Every tax used to sit on a base proportional to output, which was the crudest
 thing left in the revenue model. Each now sits on the aggregate it actually sits
 on, tagged by `basis` and scaled by `taxBaseIndex()`:
 
-| basis | taxes | behaviour |
-|---|---|---|
-| consumption | VAT, all the duties | tracks C, not Y |
-| profits | corporation tax, windfall, digital | swings 2.6x as hard as output |
-| assets | CGT, inheritance, wealth, land, FTT | discounted at the real rate |
-| volume | fuel duty | physically shrinking base |
-| wages | income tax, NI | the wage bill |
+| basis       | taxes                               | behaviour                     |
+| ----------- | ----------------------------------- | ----------------------------- |
+| consumption | VAT, all the duties                 | tracks C, not Y               |
+| profits     | corporation tax, windfall, digital  | swings 2.6x as hard as output |
+| assets      | CGT, inheritance, wealth, land, FTT | discounted at the real rate   |
+| volume      | fuel duty                           | physically shrinking base     |
+| wages       | income tax, NI                      | the wage bill                 |
 
 Three consequences worth knowing:
 
@@ -804,18 +804,18 @@ through the wage-bargaining wedge.
 Every default is UK 2025-26 outturn, checked against ONS, OBR, HMRC and IFS
 figures rather than remembered:
 
-| | model | UK |
-|---|---|---|
-| Receipts | 40.4% of GDP | 40.4% |
-| Spending | 44.9% | 44.8% |
-| Deficit | 4.5% | 4.4% |
-| Debt | 94% | 94.3% |
-| Income tax | 10.8% | 10.8% |
-| National insurance | 6.5% | ~6.3% |
-| VAT | 5.9% | 5.9% |
-| Corporation tax | 3.3% | 3.2% |
-| Consumption | 61% | ~61% |
-| Government | 22% | ~22% |
+|                    | model        | UK    |
+| ------------------ | ------------ | ----- |
+| Receipts           | 40.4% of GDP | 40.4% |
+| Spending           | 44.9%        | 44.8% |
+| Deficit            | 4.5%         | 4.4%  |
+| Debt               | 94%          | 94.3% |
+| Income tax         | 10.8%        | 10.8% |
+| National insurance | 6.5%         | ~6.3% |
+| VAT                | 5.9%         | 5.9%  |
+| Corporation tax    | 3.3%         | 3.2%  |
+| Consumption        | 61%          | ~61%  |
+| Government         | 22%          | ~22%  |
 
 Opening macro state is UK mid-2026: Bank rate 3.75%, CPI 3.2%, unemployment
 4.9% against an equilibrium of 4.1%, ten-year gilt 5.05%.
@@ -869,8 +869,8 @@ derived from the model rather than described alongside it:
 
 - `simulate(law, quarters)` runs any law forward from today deterministically
   without touching live state. `project()` is now just `simulate(G.draft, n)`.
-- `lawWithOnlyClause(i)` returns the law you would have if only clause *i*
-  passed. It clones the draft and undoes every *other* clause, so it reuses the
+- `lawWithOnlyClause(i)` returns the law you would have if only clause _i_
+  passed. It clones the draft and undoes every _other_ clause, so it reuses the
   bill's own machinery instead of a parallel description that could drift.
 - `impactOf(law, baseline, quarters)` diffs the two projections across the
   headline indicators (including **Trend growth** and **Potential**), all six

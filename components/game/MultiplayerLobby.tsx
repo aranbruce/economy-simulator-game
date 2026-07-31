@@ -43,7 +43,11 @@ export default function MultiplayerLobby({
 }: MultiplayerLobbyProps) {
   const realm = realmByRole(selectedRole || realmById(DEFAULT_REALM_ID).role);
   const [mode, setMode] = useState(() =>
-    initialSession ? (initialSession.room?.hostTokenMatch ? "host" : "join") : "menu"
+    initialSession
+      ? initialSession.room?.hostTokenMatch
+        ? "host"
+        : "join"
+      : "menu",
   );
   const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -216,7 +220,12 @@ export default function MultiplayerLobby({
                     >
                       <span className="min-w-0 font-semibold">
                         {p.name}
-                        {p.isYou ? <em className="ml-1 font-medium text-accent-lt not-italic"> you</em> : null}
+                        {p.isYou ? (
+                          <em className="ml-1 font-medium text-accent-lt not-italic">
+                            {" "}
+                            you
+                          </em>
+                        ) : null}
                       </span>
                       <span className="min-w-0 truncate text-xs text-ink-soft max-[720px]:col-span-full">
                         {seat.name}
@@ -282,7 +291,12 @@ export default function MultiplayerLobby({
   const canJoin = joinCode.trim().length >= 4;
 
   return (
-    <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="mpLobbyTitle">
+    <div
+      className="setup-chrome"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mpLobbyTitle"
+    >
       <HudFrame className="setup-banner hud-surface">
         <div className="stamp">Cabinet</div>
         <h1 id="mpLobbyTitle">Multiplayer</h1>
@@ -304,7 +318,8 @@ export default function MultiplayerLobby({
                     {realm.name}
                   </strong>
                   <em className="text-xs leading-[1.4] text-ink-soft not-italic">
-                    Click another country on the map to change seat — it must be free when you enter.
+                    Click another country on the map to change seat — it must be
+                    free when you enter.
                   </em>
                 </div>
               </div>
@@ -341,10 +356,15 @@ export default function MultiplayerLobby({
                   Create a room
                 </strong>
                 <p className="m-0 text-xs leading-[1.4] text-ink-soft">
-                  Get a short code to share. Friends join when their seats are free; everyone else stays AI.
+                  Get a short code to share. Friends join when their seats are
+                  free; everyone else stays AI.
                 </p>
               </div>
-              <SetupGoButton className="w-full" disabled={busy} onClick={hostCreate}>
+              <SetupGoButton
+                className="w-full"
+                disabled={busy}
+                onClick={hostCreate}
+              >
                 {busyAction === "create" ? "Creating…" : "Create room"}
               </SetupGoButton>
             </section>
@@ -364,7 +384,8 @@ export default function MultiplayerLobby({
                   Enter a room code
                 </strong>
                 <p className="m-0 text-xs leading-[1.4] text-ink-soft">
-                  Use the six-character code from the host. Your seat must still be open.
+                  Use the six-character code from the host. Your seat must still
+                  be open.
                 </p>
               </div>
               <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[560px]:grid-cols-1">

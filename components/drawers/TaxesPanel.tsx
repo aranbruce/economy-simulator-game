@@ -62,12 +62,19 @@ function RegimeCards({ G }: { G: any }) {
               {r.name}
               <CardCat>{isLaw ? "in force" : `${r.pc} capital`}</CardCat>
             </h4>
-            <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(r.blurb)}</p>
+            <p className="m-0 text-xs leading-[1.42] text-ink-soft">
+              {T(r.blurb)}
+            </p>
             <CardFoot>
               {on ? (
-                <CardPrice>{isLaw ? "Current system" : "Staged in the bill"}</CardPrice>
+                <CardPrice>
+                  {isLaw ? "Current system" : "Staged in the bill"}
+                </CardPrice>
               ) : (
-                <Button className="ml-auto" onClick={() => setDraftRegime(r.id)}>
+                <Button
+                  className="ml-auto"
+                  onClick={() => setDraftRegime(r.id)}
+                >
                   Adopt
                 </Button>
               )}
@@ -83,9 +90,21 @@ function CompositionBar() {
   const { bars, legend } = compositionBarData();
   return (
     <>
-      <svg viewBox="0 0 100 22" width="100%" height="22" preserveAspectRatio="none">
+      <svg
+        viewBox="0 0 100 22"
+        width="100%"
+        height="22"
+        preserveAspectRatio="none"
+      >
         {bars.map((b) => (
-          <rect key={b.key} x={`${b.x}%`} y="0" width={`${b.width}%`} height="22" fill={b.color} />
+          <rect
+            key={b.key}
+            x={`${b.x}%`}
+            y="0"
+            width={`${b.width}%`}
+            height="22"
+            fill={b.color}
+          />
         ))}
       </svg>
       <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
@@ -126,11 +145,13 @@ function CtrlRow({
   onCommit: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-[7px] text-[13px] last:border-b-0">
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
       <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">{disp}</span>
-        <span className="w-[42px] text-right text-[11px] font-semibold text-ink-faint" />
+        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+          {disp}
+        </span>
+        <span className="w-10.5 text-right text-[11px] font-semibold text-ink-faint" />
       </div>
       <input
         type="range"
@@ -142,7 +163,9 @@ function CtrlRow({
         onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
         onChange={(e) => onCommit(parseFloat(e.currentTarget.value))}
       />
-      {note ? <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div> : null}
+      {note ? (
+        <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
+      ) : null}
     </div>
   );
 }
@@ -154,7 +177,10 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
 
   if (!avail) {
     return (
-      <div className="border-b border-edge px-3 py-2 last:border-b-0" style={{ opacity: 0.5 }}>
+      <div
+        className="border-b border-edge px-3 py-2 last:border-b-0"
+        style={{ opacity: 0.5 }}
+      >
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
@@ -162,21 +188,27 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
           </span>
         </div>
         <div className="mt-0.5 text-[11px] text-ink-faint">
-          Requires a change to the law on {VICE_BY_ID[t.req![0]].name.toLowerCase()}.
+          Requires a change to the law on{" "}
+          {VICE_BY_ID[t.req![0]].name.toLowerCase()}.
         </div>
       </div>
     );
   }
   if (killed) {
     return (
-      <div className="border-b border-edge px-3 py-2 last:border-b-0" style={{ opacity: 0.5 }}>
+      <div
+        className="border-b border-edge px-3 py-2 last:border-b-0"
+        style={{ opacity: 0.5 }}
+      >
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
             abolished
           </span>
         </div>
-        <div className="mt-0.5 text-[11px] text-ink-faint">Removed by the flat tax structure.</div>
+        <div className="mt-0.5 text-[11px] text-ink-faint">
+          Removed by the flat tax structure.
+        </div>
       </div>
     );
   }
@@ -192,18 +224,25 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
             Introduce
           </Button>
         </div>
-        <div className="mt-0.5 text-[11px] text-ink-faint">Introducing it costs {t.pc || 6} political capital.</div>
+        <div className="mt-0.5 text-[11px] text-ink-faint">
+          Introducing it costs {t.pc || 6} political capital.
+        </div>
       </div>
     );
   }
   const y = (rev.by as any)[t.id] || 0;
   const decimals = dp(t);
   return (
-    <div className="border-b border-edge px-3 py-2 last:border-b-0" data-lever={t.id}>
+    <div
+      className="border-b border-edge px-3 py-2 last:border-b-0"
+      data-lever={t.id}
+    >
       <div className="flex items-baseline gap-2 text-[13px]">
         <span className="font-[550]">{t.name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">{s.rate.toFixed(decimals)}%</span>
-        <span className="w-[42px] text-right text-[11px] font-semibold text-ink-faint" />
+        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+          {s.rate.toFixed(decimals)}%
+        </span>
+        <span className="w-10.5 text-right text-[11px] font-semibold text-ink-faint" />
       </div>
       <input
         type="range"
@@ -212,12 +251,18 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         step={t.step || 1}
         value={s.rate}
         aria-label={t.name}
-        onInput={(e) => setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))}
-        onChange={(e) => setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))}
+        onInput={(e) =>
+          setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))
+        }
+        onChange={(e) =>
+          setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))
+        }
       />
       <div className="mt-0.5 text-[11px] text-ink-faint">
         raises {y.toFixed(2)}% of GDP
-        {t.grp === "vice" ? ` · black market ${E.blackLevel.toFixed(0)}%` : ""}{" "}
+        {t.grp === "vice"
+          ? ` · black market ${E.blackLevel.toFixed(0)}%`
+          : ""}{" "}
         <Button
           danger
           customSize
@@ -231,7 +276,19 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   );
 }
 
-function TaxGroupPanel({ group, label, G, E, rev }: { group: string; label: string; G: any; E: any; rev: any }) {
+function TaxGroupPanel({
+  group,
+  label,
+  G,
+  E,
+  rev,
+}: {
+  group: string;
+  label: string;
+  G: any;
+  E: any;
+  rev: any;
+}) {
   const list = TAXES.filter((t: Tax) => t.grp === group);
   return (
     <>
@@ -259,21 +316,28 @@ function IncomeNiPanel({ G }: { G: any }) {
   return (
     <>
       <Eyebrow className="mt-5">
-        Income tax <b>{incomeOn ? `${y.income.toFixed(2)}% of GDP` : "abolished"}</b>
+        Income tax{" "}
+        <b>{incomeOn ? `${y.income.toFixed(2)}% of GDP` : "abolished"}</b>
         {incomeOn && y.capital != null ? (
           <span style={{ color: "var(--ink-faint)" }}>
             {" "}
             (labour {y.labour.toFixed(2)}, capital {y.capital.toFixed(2)})
           </span>
         ) : null}{" "}
-        <Button danger={incomeOn} tiny className="ml-2" onClick={() => setIncomeOn(!incomeOn)}>
+        <Button
+          danger={incomeOn}
+          tiny
+          className="ml-2"
+          onClick={() => setIncomeOn(!incomeOn)}
+        >
           {incomeOn ? "Abolish" : "Reintroduce"}
         </Button>
       </Eyebrow>
       <Hint>
         {incomeOn ? (
           <>
-            Labour rates apply only above their own threshold, and only to wages and salaries.
+            Labour rates apply only above their own threshold, and only to wages
+            and salaries.
             {flat
               ? " The flat tax structure has collapsed every band into the first, and capital income is taxed at that same rate."
               : ""}
@@ -283,16 +347,20 @@ function IncomeNiPanel({ G }: { G: any }) {
           </>
         ) : (
           <>
-            Scrapped. About {incomeYield(withIncomeOn(G.draft, true), E, G.econ).income.toFixed(2)}% of GDP
-            forgone. National insurance still starts at the personal allowance.
+            Scrapped. About{" "}
+            {incomeYield(withIncomeOn(G.draft, true), E, G.econ).income.toFixed(
+              2,
+            )}
+            % of GDP forgone. National insurance still starts at the personal
+            allowance.
           </>
         )}
       </Hint>
       {!incomeOn ? (
         <Panel>
           <Hint>
-            The schedule is preserved so you can reintroduce it later. Abolishing costs 32 capital;
-            bringing it back costs 28.
+            The schedule is preserved so you can reintroduce it later.
+            Abolishing costs 32 capital; bringing it back costs 28.
           </Hint>
         </Panel>
       ) : (
@@ -319,7 +387,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onInput={(v) => setIncomeAllowance(v)}
               onCommit={(v) => setIncomeAllowance(v)}
             />
-            <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-[7px] text-[13px] last:border-b-0">
+            <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
               <div className="flex w-full items-baseline gap-2">
                 <span className="font-[550]">Threshold policy</span>
                 <span className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
@@ -340,15 +408,16 @@ function IncomeNiPanel({ G }: { G: any }) {
                 </span>
               </div>
               <div className="mt-0.5 text-[11px] text-ink-faint">
-                Freezing thresholds raises real receipts every year without announcing anything.
-                Voters work it out eventually.
+                Freezing thresholds raises real receipts every year without
+                announcing anything. Voters work it out eventually.
               </div>
             </div>
           </div>
           <div className="overflow-hidden rounded-md border border-edge bg-g-1">
             {I.bands.map((b: any, i: number) => {
               const nm = BAND_NAMES[i] || `Band ${i + 1}`;
-              const top = i + 1 < I.bands.length ? money(I.bands[i + 1].from) : "upwards";
+              const top =
+                i + 1 < I.bands.length ? money(I.bands[i + 1].from) : "upwards";
               const dim = flat && i > 0;
               return (
                 <div
@@ -361,7 +430,12 @@ function IncomeNiPanel({ G }: { G: any }) {
                       {money(b.from)} to {top}
                     </span>
                     {I.bands.length > 1 && i === I.bands.length - 1 ? (
-                      <Button danger tiny className="ml-auto" onClick={() => delIncomeBand(i)}>
+                      <Button
+                        danger
+                        tiny
+                        className="ml-auto"
+                        onClick={() => delIncomeBand(i)}
+                      >
                         Remove
                       </Button>
                     ) : null}
@@ -458,8 +532,9 @@ function IncomeNiPanel({ G }: { G: any }) {
         National insurance <b>{(y.employee + y.employer).toFixed(2)}% of GDP</b>
       </Eyebrow>
       <Hint>
-        Two separate taxes wearing one name, and the difference is who really pays. Both start where
-        income tax starts, so the personal allowance sets the floor for all three.
+        Two separate taxes wearing one name, and the difference is who really
+        pays. Both start where income tax starts, so the personal allowance sets
+        the floor for all three.
       </Hint>
       <div className="overflow-hidden rounded-md border border-edge bg-g-1">
         <div
@@ -467,7 +542,9 @@ function IncomeNiPanel({ G }: { G: any }) {
         >
           <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
             <b>Employee</b>
-            <span>{N.empOn ? `${y.employee.toFixed(2)}% of GDP` : "abolished"}</span>
+            <span>
+              {N.empOn ? `${y.employee.toFixed(2)}% of GDP` : "abolished"}
+            </span>
             <Button
               danger={N.empOn}
               tiny
@@ -485,15 +562,24 @@ function IncomeNiPanel({ G }: { G: any }) {
               max={30}
               step={0.5}
               disp={`${N.empRate.toFixed(1)}%`}
-              note={<>on earnings above {floorTxt} · comes out of the pay packet</>}
+              note={
+                <>on earnings above {floorTxt} · comes out of the pay packet</>
+              }
               onInput={(v) => setNiRate("empRate", v)}
               onCommit={(v) => setNiRate("empRate", v)}
             />
           ) : (
-            <div className="text-[12.5px] leading-[1.4] text-ink-soft" style={{ margin: "2px 0 0" }}>
+            <div
+              className="text-[12.5px] leading-[1.4] text-ink-soft"
+              style={{ margin: "2px 0 0" }}
+            >
               Scrapped. About{" "}
-              {incomeYield(withNi(G.draft, "empOn", true), aggregate(G.draft), G.econ).employee.toFixed(2)}%
-              of GDP forgone, and every earner above the allowance keeps it.
+              {incomeYield(
+                withNi(G.draft, "empOn", true),
+                aggregate(G.draft),
+                G.econ,
+              ).employee.toFixed(2)}
+              % of GDP forgone, and every earner above the allowance keeps it.
             </div>
           )}
         </div>
@@ -502,7 +588,9 @@ function IncomeNiPanel({ G }: { G: any }) {
         >
           <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
             <b>Employer</b>
-            <span>{N.erOn ? `${y.employer.toFixed(2)}% of GDP` : "abolished"}</span>
+            <span>
+              {N.erOn ? `${y.employer.toFixed(2)}% of GDP` : "abolished"}
+            </span>
             <Button
               danger={N.erOn}
               tiny
@@ -525,10 +613,18 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("erRate", v)}
             />
           ) : (
-            <div className="text-[12.5px] leading-[1.4] text-ink-soft" style={{ margin: "2px 0 0" }}>
+            <div
+              className="text-[12.5px] leading-[1.4] text-ink-soft"
+              style={{ margin: "2px 0 0" }}
+            >
               Scrapped. About{" "}
-              {incomeYield(withNi(G.draft, "erOn", true), aggregate(G.draft), G.econ).employer.toFixed(2)}%
-              of GDP forgone, but hiring gets cheaper and structural unemployment falls.
+              {incomeYield(
+                withNi(G.draft, "erOn", true),
+                aggregate(G.draft),
+                G.econ,
+              ).employer.toFixed(2)}
+              % of GDP forgone, but hiring gets cheaper and structural
+              unemployment falls.
             </div>
           )}
         </div>
@@ -546,14 +642,21 @@ export function TaxesPanel() {
     <>
       <Eyebrow>The structure of the system</Eyebrow>
       <Hint>
-        Changing the architecture is the biggest thing you can do, and the most expensive. Rates
-        within a system are cheap by comparison.
+        Changing the architecture is the biggest thing you can do, and the most
+        expensive. Rates within a system are cheap by comparison.
       </Hint>
       <RegimeCards G={G} />
       <Eyebrow className="mt-5">Where the money comes from</Eyebrow>
       <CompositionBar />
       {GROUPS.map(([group, label]) => (
-        <TaxGroupPanel key={group} group={group} label={label} G={G} E={E} rev={rev} />
+        <TaxGroupPanel
+          key={group}
+          group={group}
+          label={label}
+          G={G}
+          E={E}
+          rev={rev}
+        />
       ))}
       <IncomeNiPanel G={G} />
     </>

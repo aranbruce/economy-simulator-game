@@ -75,7 +75,11 @@ interface CountryPickerProps {
     sandbox: boolean;
     tutorial: boolean;
   }) => void;
-  onMultiplayer?: (opts: { realm: any; name: string; sandbox: boolean }) => void;
+  onMultiplayer?: (opts: {
+    realm: any;
+    name: string;
+    sandbox: boolean;
+  }) => void;
   onResume?: () => void;
   initialId?: string | null;
   onTutorialChange?: (on: boolean) => void;
@@ -115,15 +119,20 @@ export default function CountryPicker({
   }
 
   return (
-    <div className="setup-chrome" role="dialog" aria-modal="true" aria-labelledby="setupTitle">
+    <div
+      className="setup-chrome"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="setupTitle"
+    >
       <HudFrame className="setup-banner hud-surface">
-          <div className="stamp">Commission</div>
-          <h1 id="setupTitle">Choose your country</h1>
-          <p>
-            {tutorial
-              ? "Tutorial locks you into the United Kingdom — click Get started when you’re ready."
-              : "Ten realms on a real map. Click any country in a bloc to take that seat — the books open to that realm’s inheritance."}
-          </p>
+        <div className="stamp">Commission</div>
+        <h1 id="setupTitle">Choose your country</h1>
+        <p>
+          {tutorial
+            ? "Tutorial locks you into the United Kingdom — click Get started when you’re ready."
+            : "Ten realms on a real map. Click any country in a bloc to take that seat — the books open to that realm’s inheritance."}
+        </p>
       </HudFrame>
 
       <HudFrame className="setup-dock hud-surface">
@@ -146,11 +155,7 @@ export default function CountryPicker({
                   type="button"
                   aria-pressed={!sandbox}
                   disabled={sandboxLocked}
-                  title={
-                    sandboxLocked
-                      ? "Tutorial runs in Sandbox"
-                      : undefined
-                  }
+                  title={sandboxLocked ? "Tutorial runs in Sandbox" : undefined}
                   className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                   onClick={() => {
                     if (!sandboxLocked) setSandbox(false);
@@ -179,7 +184,9 @@ export default function CountryPicker({
                   className="mt-0.75 flex-none accent-blue"
                 />
                 <span className="flex min-w-0 flex-col gap-0.5">
-                  <strong className="text-xs font-[650] text-ink">Tutorial</strong>
+                  <strong className="text-xs font-[650] text-ink">
+                    Tutorial
+                  </strong>
                   <em className="text-[11px] leading-[1.35] text-ink-soft not-italic">
                     Sandbox walkthrough as the United Kingdom.
                   </em>
@@ -195,7 +202,10 @@ export default function CountryPicker({
             <SetupStat label="GDP" value={fmtGdpBn(books.gdpBn)} />
             <SetupStat label="Debt" value={books.debt.toFixed(0) + "%"} />
             <SetupStat label="Deficit" value={books.deficit.toFixed(1) + "%"} />
-            <SetupStat label="Inflation" value={books.inflation.toFixed(1) + "%"} />
+            <SetupStat
+              label="Inflation"
+              value={books.inflation.toFixed(1) + "%"}
+            />
             <SetupStat label="Trend" value={books.trend.toFixed(1) + "%"} />
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
@@ -220,7 +230,7 @@ export default function CountryPicker({
                       realmId: realm.id,
                       sandbox,
                       tutorial: false,
-                    }
+                    },
               )
             }
           >
@@ -231,7 +241,9 @@ export default function CountryPicker({
               secondary
               onClick={() => onMultiplayer({ realm, name, sandbox })}
               disabled={tutorial}
-              title={tutorial ? "Leave the tutorial to open multiplayer" : undefined}
+              title={
+                tutorial ? "Leave the tutorial to open multiplayer" : undefined
+              }
             >
               Multiplayer lobby
             </SetupGoButton>

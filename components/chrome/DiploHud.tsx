@@ -40,7 +40,7 @@ export function DiploHud() {
       {chips.map((c: any, i: number) => (
         <span
           key={i}
-          className={`inline-flex items-center gap-[5px] rounded-pill border px-[9px] py-1 font-semibold whitespace-nowrap ${CHIP_KIND_STYLES[c.kind] ?? "border-transparent"}`}
+          className={`inline-flex items-center gap-1.25 rounded-pill border px-2.25 py-1 font-semibold whitespace-nowrap ${CHIP_KIND_STYLES[c.kind] ?? "border-transparent"}`}
           title={c.title}
         >
           {c.name}

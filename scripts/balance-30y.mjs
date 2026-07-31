@@ -34,7 +34,7 @@ function crisisFlags(row, end) {
 function firstCrisis(rows, end) {
   for (let i = 0; i < rows.length; i++) {
     const f = crisisFlags(rows[i], end).filter((x) =>
-      ["debt-crisis", "inflation-crisis"].includes(x)
+      ["debt-crisis", "inflation-crisis"].includes(x),
     );
     if (f.length) return { q: i + 1, year: ((i + 1) / 4).toFixed(1), flags: f };
   }
@@ -246,53 +246,55 @@ function runOne(style) {
 }
 
 function printReport(results) {
-  console.log(`\n=== ${YEARS}-year (${QUARTERS}q) economic balance report ===\n`);
   console.log(
-    "Crisis thresholds: gilt yield >10% with debt >118%  |  CPI >22%  |  services <30 flagged\n"
+    `\n=== ${YEARS}-year (${QUARTERS}q) economic balance report ===\n`,
+  );
+  console.log(
+    "Crisis thresholds: gilt yield >10% with debt >118%  |  CPI >22%  |  services <30 flagged\n",
   );
 
   for (const r of results) {
     const { style, rows, end, graded } = r;
     const last = rows[rows.length - 1];
-    console.log(`── ${style.name}  [${style.id}]  grade ${graded.letter} (score ${graded.score}/10)`);
+    console.log(
+      `── ${style.name}  [${style.id}]  grade ${graded.letter} (score ${graded.score}/10)`,
+    );
     if (graded.crisis) {
       console.log(
-        `   CRISIS at Q${graded.crisis.q} (~Y${graded.crisis.year}): ${graded.crisis.flags.join(", ")}`
+        `   CRISIS at Q${graded.crisis.q} (~Y${graded.crisis.year}): ${graded.crisis.flags.join(", ")}`,
       );
     }
     console.log(
-      "   Year | Growth | Infl | Unemp | Deficit | Debt | Yield | Svcs | Appr | Trend | NetX"
+      "   Year | Growth | Infl | Unemp | Deficit | Debt | Yield | Svcs | Appr | Trend | NetX",
     );
     for (const y of MARKERS) {
       const s = snapshot(rows, y);
       const def = -s.balance;
       console.log(
-        `   Y${String(y).padStart(2)}  | ${fmt(s.growth, 2).padStart(6)} | ${fmt(s.inflation).padStart(4)} | ${fmt(s.unemployment).padStart(5)} | ${fmt(def).padStart(7)} | ${fmt(s.debt, 0).padStart(4)} | ${fmt(s.yield).padStart(5)} | ${fmt(s.services, 0).padStart(4)} | ${fmt(s.approval, 0).padStart(4)} | ${fmt(s.trend, 2).padStart(5)} | ${fmt(s.netTrade, 2).padStart(5)}`
+        `   Y${String(y).padStart(2)}  | ${fmt(s.growth, 2).padStart(6)} | ${fmt(s.inflation).padStart(4)} | ${fmt(s.unemployment).padStart(5)} | ${fmt(def).padStart(7)} | ${fmt(s.debt, 0).padStart(4)} | ${fmt(s.yield).padStart(5)} | ${fmt(s.services, 0).padStart(4)} | ${fmt(s.approval, 0).padStart(4)} | ${fmt(s.trend, 2).padStart(5)} | ${fmt(s.netTrade, 2).padStart(5)}`,
       );
     }
     const g10 = annualGrowth(rows.slice(0, 40));
     const g30 = annualGrowth(rows.slice(-40));
     const flags = [...new Set(rows.flatMap((row) => crisisFlags(row, end)))];
     console.log(
-      `   avg growth Y1–10 ${fmt(g10, 2)}%  |  Y21–30 ${fmt(g30, 2)}%  |  end gap ${fmt(last.gap, 2)}%  |  flags: ${flags.length ? flags.join(", ") : "none"}`
+      `   avg growth Y1–10 ${fmt(g10, 2)}%  |  Y21–30 ${fmt(g30, 2)}%  |  end gap ${fmt(last.gap, 2)}%  |  flags: ${flags.length ? flags.join(", ") : "none"}`,
     );
     console.log(
-      `   end: debt ${fmt(last.debt, 0)}%  deficit ${fmt(-last.balance)}%  services ${fmt(last.services, 0)}  liberty ${fmt(end.econ.liberty, 0)}  gini ${fmt(end.econ.gini, 0)}  R ${fmt(end.econ.R, 1)}  KG ${fmt(end.econ.KG, 1)}\n`
+      `   end: debt ${fmt(last.debt, 0)}%  deficit ${fmt(-last.balance)}%  services ${fmt(last.services, 0)}  liberty ${fmt(end.econ.liberty, 0)}  gini ${fmt(end.econ.gini, 0)}  R ${fmt(end.econ.R, 1)}  KG ${fmt(end.econ.KG, 1)}\n`,
     );
   }
 
   console.log("── Summary ─────────────────────────────────────────────");
   console.log(
-    "Playstyle            Grade  End debt  End def  Growth30  Svcs  Crisis"
+    "Playstyle            Grade  End debt  End def  Growth30  Svcs  Crisis",
   );
   for (const r of results) {
     const last = r.rows[r.rows.length - 1];
     const g30 = annualGrowth(r.rows.slice(-40));
-    const crisis = r.graded.crisis
-      ? `Y${r.graded.crisis.year}`
-      : "—";
+    const crisis = r.graded.crisis ? `Y${r.graded.crisis.year}` : "—";
     console.log(
-      `${r.style.name.padEnd(22)} ${r.graded.letter.padEnd(5)} ${fmt(last.debt, 0).padStart(8)} ${fmt(-last.balance).padStart(8)} ${fmt(g30, 2).padStart(9)} ${fmt(last.services, 0).padStart(5)}  ${crisis}`
+      `${r.style.name.padEnd(22)} ${r.graded.letter.padEnd(5)} ${fmt(last.debt, 0).padStart(8)} ${fmt(-last.balance).padStart(8)} ${fmt(g30, 2).padStart(9)} ${fmt(last.services, 0).padStart(5)}  ${crisis}`,
     );
   }
 
@@ -308,53 +310,114 @@ function printReport(results) {
   if (base) {
     const last = base.rows[base.rows.length - 1];
     const g = annualGrowth(base.rows.slice(-40));
-    if (last.debt > 160) notes.push("Baseline debt drifts badly over 30y — status quo is not sustainable.");
-    else if (last.debt > 120) notes.push("Baseline debt creeps up over 30y (mild fiscal squeeze needed).");
-    else if (last.debt < 70 && -last.balance < 0) notes.push("Baseline over-consolidates — opening deficit may be too easy to grow out of.");
-    else notes.push(`Baseline stays manageable (debt ${fmt(last.debt, 0)}%, trend growth ~${fmt(g, 2)}%).`);
-    if (last.services < 40) notes.push(`Baumol/demography bite: services fall to ${fmt(last.services, 0)} on a fixed share.`);
+    if (last.debt > 160)
+      notes.push(
+        "Baseline debt drifts badly over 30y — status quo is not sustainable.",
+      );
+    else if (last.debt > 120)
+      notes.push(
+        "Baseline debt creeps up over 30y (mild fiscal squeeze needed).",
+      );
+    else if (last.debt < 70 && -last.balance < 0)
+      notes.push(
+        "Baseline over-consolidates — opening deficit may be too easy to grow out of.",
+      );
+    else
+      notes.push(
+        `Baseline stays manageable (debt ${fmt(last.debt, 0)}%, trend growth ~${fmt(g, 2)}%).`,
+      );
+    if (last.services < 40)
+      notes.push(
+        `Baumol/demography bite: services fall to ${fmt(last.services, 0)} on a fixed share.`,
+      );
   }
-  if (unfunded && unfunded.graded.crisis) notes.push("Unfunded tax cuts hit a debt crisis — good: free lunch is punished.");
+  if (unfunded && unfunded.graded.crisis)
+    notes.push(
+      "Unfunded tax cuts hit a debt crisis — good: free lunch is punished.",
+    );
   else if (unfunded && unfunded.rows[unfunded.rows.length - 1].debt > 160)
-    notes.push("Unfunded tax cuts wreck the books without a hard crisis flag — still clearly worse.");
-  else if (unfunded) notes.push("WARNING: unfunded tax cuts do not blow up — Laffer/growth may be too generous.");
-  if (closed && closed.graded.crisis) notes.push("Closed economy ends in crisis — protectionism is costly.");
-  else if (closed && closed.rows[closed.rows.length - 1].debt > base.rows[base.rows.length - 1].debt + 20)
-    notes.push("Closed economy underperforms baseline on debt/growth as expected.");
+    notes.push(
+      "Unfunded tax cuts wreck the books without a hard crisis flag — still clearly worse.",
+    );
+  else if (unfunded)
+    notes.push(
+      "WARNING: unfunded tax cuts do not blow up — Laffer/growth may be too generous.",
+    );
+  if (closed && closed.graded.crisis)
+    notes.push("Closed economy ends in crisis — protectionism is costly.");
+  else if (
+    closed &&
+    closed.rows[closed.rows.length - 1].debt >
+      base.rows[base.rows.length - 1].debt + 20
+  )
+    notes.push(
+      "Closed economy underperforms baseline on debt/growth as expected.",
+    );
   if (austerity) {
     const last = austerity.rows[austerity.rows.length - 1];
     if (last.debt < base.rows[base.rows.length - 1].debt && last.services < 40)
-      notes.push(`Austerity repairs debt (→${fmt(last.debt, 0)}%) but services collapse to ${fmt(last.services, 0)}.`);
+      notes.push(
+        `Austerity repairs debt (→${fmt(last.debt, 0)}%) but services collapse to ${fmt(last.services, 0)}.`,
+      );
     else if (last.debt >= base.rows[base.rows.length - 1].debt)
-      notes.push("WARNING: austerity fails to improve debt vs baseline — multipliers/hysteresis may be harsh.");
+      notes.push(
+        "WARNING: austerity fails to improve debt vs baseline — multipliers/hysteresis may be harsh.",
+      );
   }
   if (growth) {
     const gG = annualGrowth(growth.rows.slice(-40));
     const gB = annualGrowth(base.rows.slice(-40));
-    if (gG > gB + 0.15) notes.push(`Growth strategy lifts late-period trend (${fmt(gG, 2)}% vs baseline ${fmt(gB, 2)}%).`);
-    else notes.push("Growth strategy does not clearly beat baseline trend — investment levers may be weak.");
-    if (gG > 2.5) notes.push("NOTE: heavy growth stack sustains >2.5% trend — may be generous vs UK history.");
+    if (gG > gB + 0.15)
+      notes.push(
+        `Growth strategy lifts late-period trend (${fmt(gG, 2)}% vs baseline ${fmt(gB, 2)}%).`,
+      );
+    else
+      notes.push(
+        "Growth strategy does not clearly beat baseline trend — investment levers may be weak.",
+      );
+    if (gG > 2.5)
+      notes.push(
+        "NOTE: heavy growth stack sustains >2.5% trend — may be generous vs UK history.",
+      );
   }
   const soft = results.find((r) => r.style.id === "softGrowth");
   if (soft) {
     const gS = annualGrowth(soft.rows.slice(-40));
-    notes.push(`Soft supply-side (planning/skills/R&D) ends near ${fmt(soft.rows[soft.rows.length - 1].debt, 0)}% debt with ~${fmt(gS, 2)}% late growth.`);
+    notes.push(
+      `Soft supply-side (planning/skills/R&D) ends near ${fmt(soft.rows[soft.rows.length - 1].debt, 0)}% debt with ~${fmt(gS, 2)}% late growth.`,
+    );
   }
   const funded = results.find((r) => r.style.id === "fundedSocial");
   if (funded) {
     if (funded.graded.crisis || funded.rows[funded.rows.length - 1].debt > 200)
-      notes.push("WARNING: even a tax-funded social democracy struggles over 30y — progressive spend may be under-financed relative to cost.");
-    else notes.push("Funded social democracy remains solvent — left play is viable if taxed.");
+      notes.push(
+        "WARNING: even a tax-funded social democracy struggles over 30y — progressive spend may be under-financed relative to cost.",
+      );
+    else
+      notes.push(
+        "Funded social democracy remains solvent — left play is viable if taxed.",
+      );
   }
   const mild = results.find((r) => r.style.id === "mildConsol");
   if (mild && mild.rows[mild.rows.length - 1].debt < 80)
-    notes.push(`Mild consolidation is the workhorse path (end debt ${fmt(mild.rows[mild.rows.length - 1].debt, 0)}%).`);
+    notes.push(
+      `Mild consolidation is the workhorse path (end debt ${fmt(mild.rows[mild.rows.length - 1].debt, 0)}%).`,
+    );
   const grades = results.map((r) => r.graded.letter);
   const hasGood = grades.some((g) => g === "A" || g === "B");
   const hasBad = grades.some((g) => g === "D" || g === "F");
-  if (hasGood && hasBad) notes.push("Spread of outcomes is healthy: competent play grades well, reckless play fails.");
-  else if (!hasBad) notes.push("WARNING: no playstyle really fails — difficulty may be too soft over 30y.");
-  else if (!hasGood) notes.push("WARNING: nothing grades well — model may be too punishing / structurally broken.");
+  if (hasGood && hasBad)
+    notes.push(
+      "Spread of outcomes is healthy: competent play grades well, reckless play fails.",
+    );
+  else if (!hasBad)
+    notes.push(
+      "WARNING: no playstyle really fails — difficulty may be too soft over 30y.",
+    );
+  else if (!hasGood)
+    notes.push(
+      "WARNING: nothing grades well — model may be too punishing / structurally broken.",
+    );
 
   for (const n of notes) console.log(" • " + n);
   console.log("");

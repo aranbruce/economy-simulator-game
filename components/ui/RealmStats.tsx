@@ -128,16 +128,21 @@ interface StatProps {
 }
 
 function Stat({ label, value, note, tone }: StatProps) {
-  const toneCls = tone === "pos" ? "text-green-lt" : tone === "neg" ? "text-red-lt" : "";
+  const toneCls =
+    tone === "pos" ? "text-green-lt" : tone === "neg" ? "text-red-lt" : "";
   return (
     <div className="min-w-[30%]">
       <div className="text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
         {label}
       </div>
-      <div className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-white ${toneCls}`}>
+      <div
+        className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-white ${toneCls}`}
+      >
         {value}
       </div>
-      {note ? <div className="mt-px text-[11px] text-ink-soft">{note}</div> : null}
+      {note ? (
+        <div className="mt-px text-[11px] text-ink-soft">{note}</div>
+      ) : null}
     </div>
   );
 }
@@ -277,7 +282,10 @@ export default function RealmStats({
             </Button>
           )}
           {onOpenTrade && (
-            <Button className="min-w-0 flex-1" onClick={() => onOpenTrade(role)}>
+            <Button
+              className="min-w-0 flex-1"
+              onClick={() => onOpenTrade(role)}
+            >
               Open trade talks
             </Button>
           )}

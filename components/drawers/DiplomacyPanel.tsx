@@ -40,7 +40,14 @@ import { Button } from "../ui/Button.tsx";
 import type { Country } from "../../lib/sim/countries.ts";
 import type { Mission } from "../../lib/sim/types.ts";
 
-const REGION_ORDER = ["europe", "americas", "asia", "africa", "gulf", "oceania"];
+const REGION_ORDER = [
+  "europe",
+  "americas",
+  "asia",
+  "africa",
+  "gulf",
+  "oceania",
+];
 
 function relationTone(rel: number) {
   if (rel >= 60) return "warm";
@@ -75,21 +82,27 @@ function EnvoySummary({ G }: { G: any }) {
         {G.envoys.map((id: string | null, i: number) => {
           if (!id)
             return (
-              <span key={i} className={`${DIPLO_SLOT_BASE} font-medium text-ink-faint`}>
+              <span
+                key={i}
+                className={`${DIPLO_SLOT_BASE} font-medium text-ink-faint`}
+              >
                 Slot {i + 1} · vacant
               </span>
             );
           const p = partnerById(id);
           return (
-            <span key={i} className={`${DIPLO_SLOT_BASE} border-green/28 bg-green/8 text-green-lt`}>
+            <span
+              key={i}
+              className={`${DIPLO_SLOT_BASE} border-green/28 bg-green/8 text-green-lt`}
+            >
               {p ? p.name : id}
             </span>
           );
         })}
       </div>
       <div className="mt-1.5 text-[12.5px] leading-[1.4] text-ink-soft">
-        Assign costs {ENVOY_ASSIGN_PC} capital · missions go into the bill · ultimatums spend
-        capital immediately
+        Assign costs {ENVOY_ASSIGN_PC} capital · missions go into the bill ·
+        ultimatums spend capital immediately
       </div>
     </div>
   );
@@ -129,13 +142,20 @@ function RelationModifiers({ partnerId }: { partnerId: string }) {
           className={`${DIPLO_MOD_BASE} ${DIPLO_MOD_TONE[m.tone] ?? ""}`}
           title={m.label}
         >
-          {m.label} <b className="ml-0.5 font-bold">{m.pts > 0 ? "+" : ""}{m.pts.toFixed(1)}</b>
+          {m.label}{" "}
+          <b className="ml-0.5 font-bold">
+            {m.pts > 0 ? "+" : ""}
+            {m.pts.toFixed(1)}
+          </b>
         </span>
       ))}
       {extra ? (
         <span className={`${DIPLO_MOD_BASE} [&>b]:text-ink-faint`}>
           +{extra.count} more{" "}
-          <b className="ml-0.5 font-bold">{extra.pts >= 0 ? "+" : ""}{extra.pts.toFixed(1)}</b>
+          <b className="ml-0.5 font-bold">
+            {extra.pts >= 0 ? "+" : ""}
+            {extra.pts.toFixed(1)}
+          </b>
         </span>
       ) : null}
     </div>
@@ -148,7 +168,8 @@ function MissionButton({ m, p, G }: { m: Mission; p: Country; G: any }) {
   const on = stagedM === m.id;
   const visitLeft = visitQuartersLeft(G, p.id);
   const visitActive = visitLeft > 0;
-  const visitBlock = (m.id === "summit" || m.id === "sanctionsPosture") && visitActive && !on;
+  const visitBlock =
+    (m.id === "summit" || m.id === "sanctionsPosture") && visitActive && !on;
   const blocked = !on && (cd > 0 || visitBlock);
   let tip = `${m.name} · ${m.pc} capital · relations ${m.impulse > 0 ? "+" : ""}${m.impulse}`;
   if (cd > 0) tip += ` · cooldown ${cd}Q`;
@@ -171,7 +192,9 @@ function MissionButton({ m, p, G }: { m: Mission; p: Country; G: any }) {
         {verb}
         {missionShortLabel(m)}
       </span>
-      <span className={`flex-none text-[10px] font-bold ${on ? "text-accent-lt" : "text-ink-faint"}`}>
+      <span
+        className={`flex-none text-[10px] font-bold ${on ? "text-accent-lt" : "text-ink-faint"}`}
+      >
         {m.pc}
       </span>
     </button>
@@ -183,7 +206,11 @@ function EnvoyRow({ p, G }: { p: Country; G: any }) {
   const envoyOn = G.envoys.includes(p.id);
   if (envoyOn) {
     return (
-      <Button danger className="w-full text-center" onClick={() => recallEnvoyAction(p.id)}>
+      <Button
+        danger
+        className="w-full text-center"
+        onClick={() => recallEnvoyAction(p.id)}
+      >
         Recall envoy
       </Button>
     );
@@ -206,7 +233,10 @@ function EnvoyRow({ p, G }: { p: Country; G: any }) {
 }
 
 function UltimatumSection({ p, G }: { p: Country; G: any }) {
-  const ultPending = G.ultimatums && G.ultimatums[p.id] && G.ultimatums[p.id].status === "pending";
+  const ultPending =
+    G.ultimatums &&
+    G.ultimatums[p.id] &&
+    G.ultimatums[p.id].status === "pending";
   const ultCd = G.econ.ultimatumCd[p.id] || 0;
   const ultCheck = canIssueUltimatum(p.id, G);
 
@@ -215,7 +245,9 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
     const ultLeft = ultimatumQuartersLeft(G, p.id);
     const ultLabel = u.label || u.demand || "demand";
     const ultMeta = { policyKey: u.policyKey, label: u.label };
-    const ultOdds = Math.round(concedeP(p.id, u.demand, G, diploDeps(), false, ultMeta) * 100);
+    const ultOdds = Math.round(
+      concedeP(p.id, u.demand, G, diploDeps(), false, ultMeta) * 100,
+    );
     return (
       <div className="flex flex-col gap-1 rounded-sm border border-red/24 bg-red/10 px-2.75 py-2.5 text-[11.5px] leading-[1.35]">
         <strong className="font-[650] text-white">Ultimatum issued</strong>
@@ -233,7 +265,10 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
     return (
       <>
         <div className="flex items-center gap-2 rounded-sm bg-white/4 px-2.75 py-2.5 text-xs font-semibold text-ink-soft">
-          <span className="flex flex-none text-ink-faint opacity-80" aria-hidden="true">
+          <span
+            className="flex flex-none text-ink-faint opacity-80"
+            aria-hidden="true"
+          >
             {ICONS.clock}
           </span>
           <span>Cooldown {ultCd}Q</span>
@@ -260,9 +295,13 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
               title={`Spend ${ULTIMATUM_PC} capital immediately`}
               onClick={() => issueUltimatumAction(p.id, d.id)}
             >
-              <span className="min-w-0 flex-1 leading-[1.3] font-semibold">{d.label}</span>
+              <span className="min-w-0 flex-1 leading-[1.3] font-semibold">
+                {d.label}
+              </span>
               <span className="flex flex-none items-center gap-1.5">
-                <span className="text-[10.5px] font-bold text-amber tabular-nums">~{pct}%</span>
+                <span className="text-[10.5px] font-bold text-amber tabular-nums">
+                  ~{pct}%
+                </span>
                 {G.sandbox ? (
                   <span
                     className={`rounded-pill px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.03em] whitespace-nowrap uppercase ${DEMAND_TAG_TONE[interestTone(d.interest)]}`}
@@ -291,7 +330,10 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
   const bid = countryBlocId(p.id);
   const bloc = bid ? blocById(bid) || G.customBlocs[bid] : null;
   ensureDiploStocks(G.econ);
-  const ultPending = G.ultimatums && G.ultimatums[p.id] && G.ultimatums[p.id].status === "pending";
+  const ultPending =
+    G.ultimatums &&
+    G.ultimatums[p.id] &&
+    G.ultimatums[p.id].status === "pending";
   const visitLeft = visitQuartersLeft(G, p.id);
   const visitActive = visitLeft > 0;
   const relCol = relationColour(rel);
@@ -308,11 +350,15 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
     <div
       className={`flex flex-col gap-0 overflow-hidden rounded-md border bg-g-1 p-0 transition-[background,border-color,transform] duration-180 hover:-translate-y-px hover:bg-white/6 ${cardStateCls}`}
       id={`partner-diplo-${p.id}`}
+      data-partner-card={p.id}
     >
       {ultPending ? (
         <div className="flex items-center gap-2 border-b border-red/35 bg-linear-to-b from-[rgba(255,90,78,.92)] to-[rgba(220,55,45,.88)] px-3 py-2 text-[11px] font-[650] tracking-[.02em] text-white">
           <span className="diplo-ult-pulse" />
-          Ultimatum live · {G.ultimatums[p.id].label || G.ultimatums[p.id].demand || "demand"} ·{" "}
+          Ultimatum live ·{" "}
+          {G.ultimatums[p.id].label ||
+            G.ultimatums[p.id].demand ||
+            "demand"} ·{" "}
           {ultimatumQuartersLeft(G, p.id) <= 1
             ? "answer due next Deliver"
             : `${ultimatumQuartersLeft(G, p.id)}Q to respond`}
@@ -321,12 +367,15 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
       {visitActive ? (
         <div className="flex items-center gap-2 border-b border-accent-lt/35 bg-linear-to-b from-[rgba(232,201,136,.95)] to-[rgba(201,160,90,.88)] px-3 py-2 text-[11px] font-[650] tracking-[.02em] text-[#1a1408]">
           <span className="diplo-visit-pulse" />
-          State visit underway · {visitLeft} quarter{visitLeft === 1 ? "" : "s"} left
+          State visit underway · {visitLeft} quarter{visitLeft === 1 ? "" : "s"}{" "}
+          left
         </div>
       ) : null}
       <div className="flex items-start justify-between gap-2.5 px-3 pt-3 pb-2">
         <div className="min-w-0 flex-1">
-          <h4 className="m-0 text-[15px] leading-[1.2] font-[650] tracking-[-.02em]">{p.name}</h4>
+          <h4 className="m-0 text-[15px] leading-[1.2] font-[650] tracking-[-.02em]">
+            {p.name}
+          </h4>
           <span className="mt-0.75 block text-[9.5px] font-bold tracking-[.06em] text-ink-faint uppercase">
             {T(shareLabel(G.homeRole, p.id, p.tradeShare))}
           </span>
@@ -353,10 +402,13 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
               style={{ width: `${rel.toFixed(0)}%` }}
             />
           </span>
-          <span className="text-right text-[11.5px] font-[650] text-ink-soft">{rel.toFixed(0)}</span>
+          <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+            {rel.toFixed(0)}
+          </span>
         </div>
         <div className="text-[10.5px] text-ink-faint">
-          Equilibrium <b className="font-[650] text-ink-soft">{target.toFixed(0)}</b>
+          Equilibrium{" "}
+          <b className="font-[650] text-ink-soft">{target.toFixed(0)}</b>
         </div>
       </div>
       <RelationModifiers partnerId={p.id} />
@@ -394,7 +446,9 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         >
           Ultimatum
           <span className="text-[10px] font-medium tracking-normal text-ink-faint normal-case">
-            {ultPending ? "Response pending" : `${ULTIMATUM_PC} cap · immediate`}
+            {ultPending
+              ? "Response pending"
+              : `${ULTIMATUM_PC} cap · immediate`}
           </span>
         </div>
         <div className="grid gap-1.25">
@@ -427,7 +481,9 @@ export function DiplomacyPanel() {
         if (!list || !list.length) return null;
         return (
           <div key={r}>
-            <Eyebrow className="mt-5">{(COUNTRY_REGIONS as any)[r] || r}</Eyebrow>
+            <Eyebrow className="mt-5">
+              {(COUNTRY_REGIONS as any)[r] || r}
+            </Eyebrow>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 max-[720px]:grid-cols-1">
               {list.map((p: Country) => (
                 <PartnerDiploCard key={p.id} p={p} G={G} />

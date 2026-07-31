@@ -42,7 +42,7 @@ interface StepCurrencyAreasOpts {
 export function stepCurrencyAreas(
   bags: Record<string, any>,
   seatIds: string[],
-  opts?: StepCurrencyAreasOpts
+  opts?: StepCurrencyAreasOpts,
 ) {
   const o = opts || {};
   const areas = currencyAreas(seatIds);
@@ -57,7 +57,10 @@ export function stepCurrencyAreas(
       risk = 0;
     let leadRate = null;
     for (const id of members) {
-      const econ = id === o.playerId && o.playerEcon ? o.playerEcon : bags[id] && bags[id].econ;
+      const econ =
+        id === o.playerId && o.playerEcon
+          ? o.playerEcon
+          : bags[id] && bags[id].econ;
       if (!econ) continue;
       infl += econ.inflation != null ? econ.inflation : PI_TARGET;
       const pot = econ.potential || 100;
@@ -72,10 +75,15 @@ export function stepCurrencyAreas(
     gap /= n;
     risk /= n;
     const underlying = infl;
-    const target = R_NEUTRAL_REAL + underlying + TAYLOR_PI * (underlying - PI_TARGET) + TAYLOR_Y * gap;
+    const target =
+      R_NEUTRAL_REAL +
+      underlying +
+      TAYLOR_PI * (underlying - PI_TARGET) +
+      TAYLOR_Y * gap;
     let rate = leadRate != null ? leadRate : target;
     if (leadRate == null) {
-      /* Pure area Taylor when player is not in this currency. */ rate = Math.max(RATE_FLOOR, Math.min(20, target));
+      /* Pure area Taylor when player is not in this currency. */ rate =
+        Math.max(RATE_FLOOR, Math.min(20, target));
     }
     areaRate[ccy] = rate;
 
@@ -85,14 +93,18 @@ export function stepCurrencyAreas(
         return s + (p && p.fxUip != null ? p.fxUip : FX_UIP);
       }, 0) / members.length;
     const worldR = ccy === "USD" ? rate : WORLD_RATE_USD;
-    const fxTarget = ccy === "USD" ? 1 : 1 + uip * (rate - worldR) - FX_RISK * risk;
+    const fxTarget =
+      ccy === "USD" ? 1 : 1 + uip * (rate - worldR) - FX_RISK * risk;
     areaFx[ccy] = fxTarget;
   }
 
   for (const id of seatIds) {
     const p = PROFILES[id];
     const ccy = (p && p.currency) || "USD";
-    const econ = id === o.playerId && o.playerEcon ? o.playerEcon : bags[id] && bags[id].econ;
+    const econ =
+      id === o.playerId && o.playerEcon
+        ? o.playerEcon
+        : bags[id] && bags[id].econ;
     if (!econ) continue;
     if (id !== o.playerId && areaRate[ccy] != null) {
       const cur = econ.rate != null ? econ.rate : areaRate[ccy];
@@ -101,7 +113,9 @@ export function stepCurrencyAreas(
     const fxT = areaFx[ccy] != null ? areaFx[ccy] : 1;
     if (econ.fx == null) econ.fx = 1;
     if (econ.fx0 == null) econ.fx0 = econ.fx;
-    /* Player keeps their own UIP in step(); mirror area FX onto AI seats only. */ if (id !== o.playerId) {
+    /* Player keeps their own UIP in step(); mirror area FX onto AI seats only. */ if (
+      id !== o.playerId
+    ) {
       econ.fx += (fxT - econ.fx) * FX_ADJ;
     }
   }

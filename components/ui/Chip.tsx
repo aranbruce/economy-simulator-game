@@ -47,21 +47,26 @@ export function Chip({
     if (invert) deltaCls = delta < 0 ? "text-green-lt" : "text-red-lt";
     else deltaCls = delta > 0 ? "text-green-lt" : "text-red-lt";
   }
-  const bgCls = STATE_BG[state] || KIND_BG[kind] || "bg-g-1 border-l-transparent";
+  const bgCls =
+    STATE_BG[state] || KIND_BG[kind] || "bg-g-1 border-l-transparent";
   const valueCls = STATE_VALUE_COLOR[state] || KIND_VALUE_COLOR[kind] || "";
 
   return (
     <div
-      className={`flex min-w-[66px] flex-none flex-col justify-center rounded-sm border-l-2 py-1 pr-2.5 pl-[9px] text-right ${bgCls}`}
+      className={`flex min-w-16.5 flex-none flex-col justify-center rounded-sm border-l-2 py-1 pr-2.5 pl-2.25 text-right ${bgCls}`}
       title={title || undefined}
     >
       <div className="text-[8.5px] font-semibold tracking-[.08em] whitespace-nowrap text-ink-faint uppercase">
         {label}
       </div>
-      <div className={`text-[15px] leading-[1.2] font-[650] tracking-[-.03em] whitespace-nowrap ${valueCls}`}>
+      <div
+        className={`text-[15px] leading-[1.2] font-[650] tracking-[-.03em] whitespace-nowrap ${valueCls}`}
+      >
         {value}
         {unit ? (
-          <small className="ml-px text-[9.5px] font-medium text-ink-faint">{unit}</small>
+          <small className="ml-px text-[9.5px] font-medium text-ink-faint">
+            {unit}
+          </small>
         ) : null}
       </div>
       {delta == null ? (
@@ -72,7 +77,9 @@ export function Chip({
           &nbsp;
         </div>
       ) : (
-        <div className={`min-h-[1.1em] text-[9px] leading-[1.1] font-semibold ${deltaCls}`}>
+        <div
+          className={`min-h-[1.1em] text-[9px] leading-[1.1] font-semibold ${deltaCls}`}
+        >
           {sgn(delta, 2)}
         </div>
       )}

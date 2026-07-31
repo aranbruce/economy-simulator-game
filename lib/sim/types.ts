@@ -10,12 +10,7 @@ export type GameState = any;
 
 /** The six faction blocs whose approval drives political capital. */
 export type FactionId =
-  | "business"
-  | "workers"
-  | "pensioners"
-  | "urban"
-  | "rural"
-  | "patriots";
+  "business" | "workers" | "pensioners" | "urban" | "rural" | "patriots";
 
 /** A points-per-faction effect bag — present on taxes, policies, regimes,
  * vice states and diplomatic missions. Every key is optional; absent

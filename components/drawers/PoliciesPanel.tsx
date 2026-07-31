@@ -30,11 +30,11 @@ export function PoliciesPanel() {
   const [policyFilter, setPolicyFilter] = useState("all");
 
   const cats = POLICY_CAT_ORDER.filter((c) =>
-    POLICIES.some((p: Policy) => p.cat === c)
+    POLICIES.some((p: Policy) => p.cat === c),
   ).concat(
     [...new Set(POLICIES.map((p: Policy) => p.cat))].filter(
-      (c) => !POLICY_CAT_ORDER.includes(c)
-    )
+      (c) => !POLICY_CAT_ORDER.includes(c),
+    ),
   );
 
   const matchFilter = (p: Policy) => {
@@ -49,7 +49,7 @@ export function PoliciesPanel() {
   const killLine = (p: Policy) => {
     if (!p.kills || !p.kills.length) return null;
     const names = p.kills.map(
-      (id: string) => (POLICY_BY_ID[id] && POLICY_BY_ID[id].name) || id
+      (id: string) => (POLICY_BY_ID[id] && POLICY_BY_ID[id].name) || id,
     );
     return (
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-amber">
@@ -87,7 +87,9 @@ export function PoliciesPanel() {
         onChange={setPolicyFilter}
       />
       {cats.map((c) => {
-        const list = POLICIES.filter((p: Policy) => p.cat === c && matchFilter(p));
+        const list = POLICIES.filter(
+          (p: Policy) => p.cat === c && matchFilter(p),
+        );
         if (!list.length) return null;
         return (
           <div key={c}>
@@ -104,7 +106,9 @@ export function PoliciesPanel() {
                     <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
                       {p.name}
                     </h4>
-                    <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(p.blurb)}</p>
+                    <p className="m-0 text-xs leading-[1.42] text-ink-soft">
+                      {T(p.blurb)}
+                    </p>
                     <EffectsBlock data={effectsData} />
                     {killLine(p)}
                     <CardFoot>
@@ -115,7 +119,11 @@ export function PoliciesPanel() {
                             : `${p.pc} capital`
                           : "staged"}
                       </CardPrice>
-                      <Button className="ml-auto" danger={staged} onClick={() => togglePolicy(p)}>
+                      <Button
+                        className="ml-auto"
+                        danger={staged}
+                        onClick={() => togglePolicy(p)}
+                      >
                         {staged ? "Repeal" : "Enact"}
                       </Button>
                     </CardFoot>

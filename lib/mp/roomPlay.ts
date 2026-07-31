@@ -23,7 +23,11 @@ async function commitRoom(room: Room, baseVersion: number) {
   return ok ? null : CONFLICT;
 }
 
-export async function startRoom(codeStr: string, hostToken: string, snapshot: any) {
+export async function startRoom(
+  codeStr: string,
+  hostToken: string,
+  snapshot: any,
+) {
   const room = await loadRoom(codeStr);
   if (!room) return { error: "Room not found", status: 404 };
   if (room.hostToken !== hostToken) {
@@ -66,7 +70,7 @@ export async function submitBill(
   codeStr: string,
   playerToken: string,
   draft: any,
-  opts: SubmitOpts = {}
+  opts: SubmitOpts = {},
 ) {
   const room = await loadRoom(codeStr);
   if (!room) return { error: "Room not found", status: 404 };
@@ -85,7 +89,11 @@ export async function submitBill(
     ultimatums: opts.ultimatums,
   });
   if (!check.ok) {
-    return { error: check.error || "Invalid bill", status: 400, cost: check.cost };
+    return {
+      error: check.error || "Invalid bill",
+      status: 400,
+      cost: check.cost,
+    };
   }
 
   const baseVer = room.version;
@@ -156,7 +164,7 @@ interface DiploActionBody {
 export async function applyDiploAction(
   codeStr: string,
   playerToken: string,
-  body: DiploActionBody = {}
+  body: DiploActionBody = {},
 ) {
   const room = await loadRoom(codeStr);
   if (!room) return { error: "Room not found", status: 404 };
@@ -223,7 +231,7 @@ interface EventChoiceBody {
 export async function chooseEvent(
   codeStr: string,
   playerToken: string,
-  body: EventChoiceBody = {}
+  body: EventChoiceBody = {},
 ) {
   const room = await loadRoom(codeStr);
   if (!room) return { error: "Room not found", status: 404 };
@@ -234,8 +242,7 @@ export async function chooseEvent(
   if (!player) return { error: "Not in this room", status: 403 };
   if (!room.snapshot) return { error: "No snapshot", status: 409 };
 
-  const pol =
-    room.snapshot.politics && room.snapshot.politics[player.seatId];
+  const pol = room.snapshot.politics && room.snapshot.politics[player.seatId];
 
   /* Inbound human ultimatum — concede / defy, no issuer-side RNG. */
   if (body.inboundUltimatum) {
@@ -251,10 +258,13 @@ export async function chooseEvent(
       room.snapshot,
       player.seatId,
       fromId,
-      !!body.concede
+      !!body.concede,
     );
     if (!result.ok) {
-      return { error: result.error || "Ultimatum response failed", status: 400 };
+      return {
+        error: result.error || "Ultimatum response failed",
+        status: 400,
+      };
     }
     room.version = baseVer + 1;
     const conflict = await commitRoom(room, baseVer);
@@ -273,10 +283,13 @@ export async function chooseEvent(
     const result = applyMpInboundBlocInviteChoice(
       room.snapshot,
       player.seatId,
-      !!body.accept
+      !!body.accept,
     );
     if (!result.ok) {
-      return { error: result.error || "Bloc invite response failed", status: 400 };
+      return {
+        error: result.error || "Bloc invite response failed",
+        status: 400,
+      };
     }
     room.version = baseVer + 1;
     const conflict = await commitRoom(room, baseVer);
@@ -295,7 +308,7 @@ export async function chooseEvent(
     const result = applyMpInboundDealChoice(
       room.snapshot,
       player.seatId,
-      !!body.accept
+      !!body.accept,
     );
     if (!result.ok) {
       return { error: result.error || "Deal response failed", status: 400 };
@@ -335,7 +348,7 @@ export async function chooseEvent(
   const result = applyMpEventChoice(
     room.snapshot,
     player.seatId,
-    body.optionIndex
+    body.optionIndex,
   );
   if (!result.ok) {
     return { error: result.error || "Event failed", status: 400 };

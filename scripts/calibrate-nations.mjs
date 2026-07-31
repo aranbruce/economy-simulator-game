@@ -51,5 +51,7 @@ for (const seat of seats) {
   if (rest < 0.02 || rest > 0.08) issues++;
 }
 
-console.log(`\n${issues} seat(s) outside loose bands (def ±1.5pp, trend ±1.5pp, rest 2–8%).`);
+console.log(
+  `\n${issues} seat(s) outside loose bands (def ±1.5pp, trend ±1.5pp, rest 2–8%).`,
+);
 process.exit(issues > 0 ? 1 : 0);

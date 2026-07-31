@@ -32,89 +32,88 @@ export function TopBarStats() {
         : "Election";
   const gShow = last ? last.growth : e.trendGrowth;
   const chips = [
-        {
-          label: "Growth",
-          value: fmt(gShow, 1),
-          unit: "%",
-          delta: d("growth"),
-          state: last && last.growth < 0 ? "alert" : "",
-        },
-        {
-          label: "Trend",
-          value: (e.trendGrowth != null ? e.trendGrowth : 0).toFixed(1),
-          unit: "%",
-          kind: "trend",
-          title:
-            "Annualised potential growth from TFP, capital and labour — not outturn GDP.",
-        },
-        {
-          label: "Inflation",
-          value: e.inflation.toFixed(1),
-          unit: "%",
-          delta: d("inflation"),
-          state: e.inflation > 4 || e.inflation < 0 ? "alert" : "",
-          invert: true,
-        },
-        {
-          label: "Base rate",
-          value: e.rate.toFixed(2),
-          unit: "%",
-          delta: d("rate"),
-          state: e.atBound ? "alert" : "",
-          kind: "bank",
-          title: G.rateManual
-            ? "Pinned by you. Turn Bank mode back on in the Bill panel to return the rate to the Taylor rule."
-            : "Set by the Bank, not by you. It follows a Taylor rule: it rises when inflation is above target or output is above potential, and it is smoothed, so it moves in steps. Pin it yourself in the Bill panel.",
-        },
-        {
-          label: "Unemp.",
-          value: e.unemployment.toFixed(1),
-          unit: "%",
-          delta: d("unemployment"),
-          state: e.unemployment > 6 ? "alert" : "",
-          invert: true,
-        },
-        {
-          label: "Balance",
-          value: fmt(balShow, 1),
-          unit: "%",
-          delta: d("balance"),
-          state: balShow < -6 ? "alert" : balShow >= 0 ? "good" : "",
-        },
-        {
-          label: "Debt",
-          value: e.debt.toFixed(0),
-          unit: "%",
-          delta: d("debt"),
-          state: e.debt > 120 ? "alert" : "",
-          invert: true,
-        },
-        {
-          label: "Yield",
-          value: e.yield.toFixed(2),
-          unit: "%",
-          delta: d("yield"),
-          state: e.yield > 6.5 ? "alert" : "",
-          invert: true,
-        },
-        {
-          label: "Approval",
-          value: appr.toFixed(0),
-          unit: "%",
-          state: appr < 30 ? "alert" : appr > 55 ? "good" : "",
-        },
-        {
-          label: "Capital",
-          value: String(Math.round(G.capital)),
-          state: G.capital < 12 ? "alert" : "",
-        },
-        {
-          label: reviewLabel,
-          value: String(left),
-          unit: "Q",
-          state:
-            left <= 4 ? (therm <= polityOf().loseAt ? "alert" : "") : "",
-        },
+    {
+      label: "Growth",
+      value: fmt(gShow, 1),
+      unit: "%",
+      delta: d("growth"),
+      state: last && last.growth < 0 ? "alert" : "",
+    },
+    {
+      label: "Trend",
+      value: (e.trendGrowth != null ? e.trendGrowth : 0).toFixed(1),
+      unit: "%",
+      kind: "trend",
+      title:
+        "Annualised potential growth from TFP, capital and labour — not outturn GDP.",
+    },
+    {
+      label: "Inflation",
+      value: e.inflation.toFixed(1),
+      unit: "%",
+      delta: d("inflation"),
+      state: e.inflation > 4 || e.inflation < 0 ? "alert" : "",
+      invert: true,
+    },
+    {
+      label: "Base rate",
+      value: e.rate.toFixed(2),
+      unit: "%",
+      delta: d("rate"),
+      state: e.atBound ? "alert" : "",
+      kind: "bank",
+      title: G.rateManual
+        ? "Pinned by you. Turn Bank mode back on in the Bill panel to return the rate to the Taylor rule."
+        : "Set by the Bank, not by you. It follows a Taylor rule: it rises when inflation is above target or output is above potential, and it is smoothed, so it moves in steps. Pin it yourself in the Bill panel.",
+    },
+    {
+      label: "Unemp.",
+      value: e.unemployment.toFixed(1),
+      unit: "%",
+      delta: d("unemployment"),
+      state: e.unemployment > 6 ? "alert" : "",
+      invert: true,
+    },
+    {
+      label: "Balance",
+      value: fmt(balShow, 1),
+      unit: "%",
+      delta: d("balance"),
+      state: balShow < -6 ? "alert" : balShow >= 0 ? "good" : "",
+    },
+    {
+      label: "Debt",
+      value: e.debt.toFixed(0),
+      unit: "%",
+      delta: d("debt"),
+      state: e.debt > 120 ? "alert" : "",
+      invert: true,
+    },
+    {
+      label: "Yield",
+      value: e.yield.toFixed(2),
+      unit: "%",
+      delta: d("yield"),
+      state: e.yield > 6.5 ? "alert" : "",
+      invert: true,
+    },
+    {
+      label: "Approval",
+      value: appr.toFixed(0),
+      unit: "%",
+      state: appr < 30 ? "alert" : appr > 55 ? "good" : "",
+    },
+    {
+      label: "Capital",
+      value: String(Math.round(G.capital)),
+      state: G.capital < 12 ? "alert" : "",
+    },
+    {
+      label: reviewLabel,
+      value: String(left),
+      unit: "Q",
+      state: left <= 4 ? (therm <= polityOf().loseAt ? "alert" : "") : "",
+    },
   ];
 
   return (
@@ -135,14 +134,9 @@ export function TopBarTerm() {
     left <= 4
       ? ` · ${noun} score ~${therm.toFixed(0)}${therm <= polityOf().loseAt ? " (at risk)" : ""}`
       : "";
-  const termLabel = [
-    "First",
-    "Second",
-    "Third",
-    "Fourth",
-    "Fifth",
-    "Sixth",
-  ][Math.min(G.term - 1, 5)];
+  const termLabel = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"][
+    Math.min(G.term - 1, 5)
+  ];
 
   return (
     <small id="tbTerm">

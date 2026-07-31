@@ -32,19 +32,56 @@ export const CLOSE_BORDERS_DIPLO = -4;
 export const DEFENCE_ALIGN_PTS = 2;
 
 export const DIPLO_POLICY_KEYS = [
-  "closeBorders", "openVisas", "netZero", "nuclear", "conscript",
-  "fracking", "digitalId", "minWage", "fiscalRule", "rnd", "swf",
+  "closeBorders",
+  "openVisas",
+  "netZero",
+  "nuclear",
+  "conscript",
+  "fracking",
+  "digitalId",
+  "minWage",
+  "fiscalRule",
+  "rnd",
+  "swf",
 ];
 
 export const DIPLO_SPHERES = [
-  { patron: "united_states", clients: ["canada", "mexico", "brazil", "argentina"], label: "American sphere" },
-  { patron: "china", clients: ["indonesia", "vietnam", "korea", "japan"], label: "Sinosphere" },
-  { patron: "france", clients: ["germany", "italy", "spain", "netherlands", "poland"], label: "Continental sphere" },
-  { patron: "germany", clients: ["france", "italy", "spain", "netherlands", "poland"], label: "Continental sphere" },
+  {
+    patron: "united_states",
+    clients: ["canada", "mexico", "brazil", "argentina"],
+    label: "American sphere",
+  },
+  {
+    patron: "china",
+    clients: ["indonesia", "vietnam", "korea", "japan"],
+    label: "Sinosphere",
+  },
+  {
+    patron: "france",
+    clients: ["germany", "italy", "spain", "netherlands", "poland"],
+    label: "Continental sphere",
+  },
+  {
+    patron: "germany",
+    clients: ["france", "italy", "spain", "netherlands", "poland"],
+    label: "Continental sphere",
+  },
 ];
 
 export const DIPLO_CAMPS: Record<string, string[]> = {
-  western: ["united_states", "canada", "france", "germany", "australia", "japan", "korea", "netherlands", "italy", "spain", "poland"],
+  western: [
+    "united_states",
+    "canada",
+    "france",
+    "germany",
+    "australia",
+    "japan",
+    "korea",
+    "netherlands",
+    "italy",
+    "spain",
+    "poland",
+  ],
   gulf: ["saudi", "uae"],
   brics_ish: ["china", "russia", "india", "brazil", "south_africa"],
 };
@@ -61,7 +98,11 @@ export function ensureDiploStocks(e: any) {
   return e;
 }
 
-export function beginActiveVisit(g: GameState, partnerId: string, missionId?: string | null) {
+export function beginActiveVisit(
+  g: GameState,
+  partnerId: string,
+  missionId?: string | null,
+) {
   if (!g || !partnerId) return;
   if (!g.activeVisits) g.activeVisits = {};
   const q = g.q || 0;
@@ -70,7 +111,9 @@ export function beginActiveVisit(g: GameState, partnerId: string, missionId?: st
     missionId: mid,
     startedQ: q,
     endsQ: q + VISIT_DURATION,
-    ...(mid === "summit" ? { eventsTotal: VISIT_DURATION, eventsFired: 0 } : {}),
+    ...(mid === "summit"
+      ? { eventsTotal: VISIT_DURATION, eventsFired: 0 }
+      : {}),
   };
 }
 
@@ -84,7 +127,11 @@ export function isVisitActive(g: GameState, partnerId: string) {
   return visitQuartersLeft(g, partnerId) > 0;
 }
 
-export function seedRelBase(e: any, relMap: Record<string, number> | null | undefined, opts?: { polityOffset?: Record<string, number> }) {
+export function seedRelBase(
+  e: any,
+  relMap: Record<string, number> | null | undefined,
+  opts?: { polityOffset?: Record<string, number> },
+) {
   ensureDiploStocks(e);
   if (!relMap) return;
   const polityOffset = (opts && opts.polityOffset) || {};
@@ -103,9 +150,9 @@ export function addDiploLedger(g: GameState, partnerId: string, entry: any) {
   ensureDiploStocks(e);
   if (!e.diploLedger[partnerId]) e.diploLedger[partnerId] = [];
   const list = e.diploLedger[partnerId];
-  const id = entry.id || ("anon_" + Date.now());
+  const id = entry.id || "anon_" + Date.now();
   const existing = list.find((x: any) => x.id === id);
-  const sinceQ = entry.sinceQ != null ? entry.sinceQ : (g.q != null ? g.q : 0);
+  const sinceQ = entry.sinceQ != null ? entry.sinceQ : g.q != null ? g.q : 0;
   if (existing) {
     existing.pts = entry.pts;
     existing.label = entry.label || existing.label;
@@ -120,7 +167,11 @@ export function addDiploLedger(g: GameState, partnerId: string, entry: any) {
   }
 }
 
-export function setSanctionStance(g: GameState, partnerId: string, flags: { against?: boolean; with?: boolean }) {
+export function setSanctionStance(
+  g: GameState,
+  partnerId: string,
+  flags: { against?: boolean; with?: boolean },
+) {
   if (!g || !partnerId || !flags) return;
   const e = g.econ;
   if (!e) return;
@@ -129,7 +180,7 @@ export function setSanctionStance(g: GameState, partnerId: string, flags: { agai
   const next = {
     against: flags.against != null ? !!flags.against : !!cur.against,
     with: flags.with != null ? !!flags.with : !!cur.with,
-    sinceQ: g.q != null ? g.q : (cur.sinceQ || 0),
+    sinceQ: g.q != null ? g.q : cur.sinceQ || 0,
   };
   if (!next.against && !next.with) {
     delete e.sanctionStance[partnerId];
@@ -180,7 +231,7 @@ export function maybeClearSanctionStance(g: GameState) {
     const rel = g.rel && g.rel[pid] != null ? g.rel[pid] : 50;
     const age = (g.q != null ? g.q : 0) - (st.sinceQ || 0);
     const ledgerGone = !(e.diploLedger[pid] || []).some((x: any) =>
-      String(x.id || "").includes("sanction")
+      String(x.id || "").includes("sanction"),
     );
     if ((rel > 55 && age >= 4) || (ledgerGone && age >= 8)) {
       delete e.sanctionStance[pid];
@@ -216,26 +267,49 @@ export function baseLabel(relBase: number) {
  * Build relationModifiers + target. deps provides engine hooks so this module
  * stays free of circular imports on the full engine bag.
  */
-export function buildRelationModifiers(partnerId: string, g: GameState, law: any, deps: Deps) {
+export function buildRelationModifiers(
+  partnerId: string,
+  g: GameState,
+  law: any,
+  deps: Deps,
+) {
   const {
-    clamp, aggregate, effectiveTariff, BASE_TARIFF, REL_POLITY, polityAffinity,
-    polityIdOf, profilePolityId, DEAL_BY_ID, TAXES, partnerShare, playerCountryId,
-    activePartners, lawForRole, COUNTRY_REGIONS, partnerById,
+    clamp,
+    aggregate,
+    effectiveTariff,
+    BASE_TARIFF,
+    REL_POLITY,
+    polityAffinity,
+    polityIdOf,
+    profilePolityId,
+    DEAL_BY_ID,
+    TAXES,
+    partnerShare,
+    playerCountryId,
+    activePartners,
+    lawForRole,
+    COUNTRY_REGIONS,
+    partnerById,
   } = deps;
   const e = g.econ;
   ensureDiploStocks(e);
   const mods: { label: string; pts: number; kind: string }[] = [];
-  const base = e.relBase[partnerId] != null
-    ? e.relBase[partnerId]
-    : (g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50);
+  const base =
+    e.relBase[partnerId] != null
+      ? e.relBase[partnerId]
+      : g.rel && g.rel[partnerId] != null
+        ? g.rel[partnerId]
+        : 50;
   mods.push({ label: baseLabel(base), pts: base, kind: "base" });
 
   const E = aggregate(law, g.homeRole, g.blocMember);
   // Tariff deviation from BASE_TARIFF only — baseline posture is already in relBase.
   let tariffPosture = 0;
   if (law.tariff != null) {
-    if (law.tariff > BASE_TARIFF) tariffPosture = -(law.tariff - BASE_TARIFF) * 0.9;
-    else if (law.tariff < BASE_TARIFF) tariffPosture = (BASE_TARIFF - law.tariff) * 0.5;
+    if (law.tariff > BASE_TARIFF)
+      tariffPosture = -(law.tariff - BASE_TARIFF) * 0.9;
+    else if (law.tariff < BASE_TARIFF)
+      tariffPosture = (BASE_TARIFF - law.tariff) * 0.5;
   }
   if (Math.abs(tariffPosture) >= 0.5) {
     mods.push({ label: "Tariff posture", pts: tariffPosture, kind: "live" });
@@ -248,13 +322,18 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
 
   let dealBonus = 0;
   for (const id in law.deals || {}) {
-    if (law.deals[id] && DEAL_BY_ID[id] && DEAL_BY_ID[id].partner === partnerId) dealBonus += 9;
+    if (law.deals[id] && DEAL_BY_ID[id] && DEAL_BY_ID[id].partner === partnerId)
+      dealBonus += 9;
   }
   const stressed = (e.dealStress[partnerId] || 0) >= 1;
   if (dealBonus && !stressed) {
     mods.push({ label: "Ratified deals", pts: dealBonus, kind: "live" });
   } else if (stressed && dealBonus) {
-    mods.push({ label: "Treaty under strain", pts: DEAL_STRESS_PENALTY, kind: "live" });
+    mods.push({
+      label: "Treaty under strain",
+      pts: DEAL_STRESS_PENALTY,
+      kind: "live",
+    });
   }
 
   for (const tax of TAXES) {
@@ -270,16 +349,25 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
     }
   }
 
-  const aff = polityAffinity(polityIdOf(g.homeRole), profilePolityId(partnerId));
+  const aff = polityAffinity(
+    polityIdOf(g.homeRole),
+    profilePolityId(partnerId),
+  );
   const polityPts = REL_POLITY * aff;
   if (Math.abs(polityPts) >= 0.5) {
-    const label = aff >= 0.9 ? "Similar governments" : aff < 0 ? "Regime clash" : "Polity affinity";
+    const label =
+      aff >= 0.9
+        ? "Similar governments"
+        : aff < 0
+          ? "Regime clash"
+          : "Polity affinity";
     mods.push({ label, pts: polityPts, kind: "live" });
   }
 
   // Policy alignment vs partner seat law
-  const partnerLaw = (g.world && g.world[partnerId] && g.world[partnerId].law)
-    || (lawForRole ? lawForRole(partnerId) : null);
+  const partnerLaw =
+    (g.world && g.world[partnerId] && g.world[partnerId].law) ||
+    (lawForRole ? lawForRole(partnerId) : null);
   if (partnerLaw && partnerLaw.policies && law.policies) {
     let align = 0;
     for (const key of DIPLO_POLICY_KEYS) {
@@ -321,7 +409,11 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
     }
     trespass = Math.max(SPHERE_TRESPASS_CAP, trespass);
     if (trespass <= -0.5) {
-      mods.push({ label: "Encroaching on their sphere", pts: trespass, kind: "live" });
+      mods.push({
+        label: "Encroaching on their sphere",
+        pts: trespass,
+        kind: "live",
+      });
     }
   }
 
@@ -329,14 +421,30 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
     const p = partnerById ? partnerById(partnerId) : null;
     const region = p && p.region;
     if (region === "europe" || region === "gulf") {
-      mods.push({ label: "Closed borders", pts: CLOSE_BORDERS_DIPLO, kind: "live" });
+      mods.push({
+        label: "Closed borders",
+        pts: CLOSE_BORDERS_DIPLO,
+        kind: "live",
+      });
     }
   }
 
   if (law.spend && law.spend.defence >= 2.8) {
-    const allies = ["united_states", "canada", "australia", "japan", "korea", "france", "germany"];
+    const allies = [
+      "united_states",
+      "canada",
+      "australia",
+      "japan",
+      "korea",
+      "france",
+      "germany",
+    ];
     if (allies.includes(partnerId)) {
-      mods.push({ label: "Defence alignment", pts: DEFENCE_ALIGN_PTS, kind: "live" });
+      mods.push({
+        label: "Defence alignment",
+        pts: DEFENCE_ALIGN_PTS,
+        kind: "live",
+      });
     }
   }
 
@@ -357,10 +465,18 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
 
   const stance = e.sanctionStance[partnerId];
   if (stance && stance.against) {
-    mods.push({ label: "Sanctions against them", pts: SANCTION_AGAINST_RESIDUAL, kind: "live" });
+    mods.push({
+      label: "Sanctions against them",
+      pts: SANCTION_AGAINST_RESIDUAL,
+      kind: "live",
+    });
   }
   if (stance && stance.with) {
-    mods.push({ label: "Sanctions with them", pts: SANCTION_WITH_RESIDUAL, kind: "live" });
+    mods.push({
+      label: "Sanctions with them",
+      pts: SANCTION_WITH_RESIDUAL,
+      kind: "live",
+    });
   }
 
   for (const x of e.diploLedger[partnerId] || []) {
@@ -384,7 +500,11 @@ export function buildRelationModifiers(partnerId: string, g: GameState, law: any
   return { mods, target, base };
 }
 
-export function defaultUltimatumDemand(partnerId: string, g: GameState, deps: Deps) {
+export function defaultUltimatumDemand(
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+) {
   const { partnerShare } = deps;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0.05;
   const retal = (g.econ && g.econ.retaliation) || 0;
@@ -396,24 +516,38 @@ export function defaultUltimatumDemand(partnerId: string, g: GameState, deps: De
 export function hasFormalProtest(e: any, partnerId: string) {
   const list = e && e.diploLedger && e.diploLedger[partnerId];
   if (!list || !list.length) return false;
-  return list.some((x: any) => x && /Formal protest/.test(x.label || "") && (x.pts || 0) < 0);
+  return list.some(
+    (x: any) => x && /Formal protest/.test(x.label || "") && (x.pts || 0) < 0,
+  );
 }
 
 export function canIssueUltimatum(partnerId: string, g: GameState, deps: Deps) {
   const reasons: string[] = [];
   if (!g) return { ok: false, reasons: ["no game"] };
   ensureDiploStocks(g.econ);
-  if ((g.capital || 0) < ULTIMATUM_PC) reasons.push("need " + ULTIMATUM_PC + " capital");
-  if (g.ultimatums && g.ultimatums[partnerId] && g.ultimatums[partnerId].status === "pending") {
+  if ((g.capital || 0) < ULTIMATUM_PC)
+    reasons.push("need " + ULTIMATUM_PC + " capital");
+  if (
+    g.ultimatums &&
+    g.ultimatums[partnerId] &&
+    g.ultimatums[partnerId].status === "pending"
+  ) {
     reasons.push("ultimatum already pending");
   }
   const cooldown = g.econ.ultimatumCd[partnerId] || 0;
   const rel = g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50;
-  const share = deps.partnerShare ? deps.partnerShare(g.homeRole, partnerId) : 0;
+  const share = deps.partnerShare
+    ? deps.partnerShare(g.homeRole, partnerId)
+    : 0;
   const stance = g.econ.sanctionStance[partnerId];
   const ledgerNeg = ledgerSum(g.econ, partnerId) < -4;
   const protested = hasFormalProtest(g.econ, partnerId);
-  const leverage = rel <= 45 || share >= 0.1 || (stance && stance.against) || ledgerNeg || protested;
+  const leverage =
+    rel <= 45 ||
+    share >= 0.1 ||
+    (stance && stance.against) ||
+    ledgerNeg ||
+    protested;
   if (!leverage) reasons.push("Need cooler relations or more leverage");
   return { ok: reasons.length === 0 && cooldown <= 0, reasons, cooldown };
 }
@@ -456,8 +590,17 @@ export function diploMapMarkers(g: GameState) {
 }
 
 const POLICY_SALIENCE = [
-  "closeBorders", "openVisas", "conscript", "netZero", "nuclear",
-  "fracking", "digitalId", "minWage", "fiscalRule", "rnd", "swf",
+  "closeBorders",
+  "openVisas",
+  "conscript",
+  "netZero",
+  "nuclear",
+  "fracking",
+  "digitalId",
+  "minWage",
+  "fiscalRule",
+  "rnd",
+  "swf",
 ];
 
 const POLICY_ULT_LABELS: Record<string, { on: string; off: string }> = {
@@ -495,12 +638,21 @@ function partnerBlocMember(g: GameState, partnerId: string) {
   return g.blocMember || {};
 }
 
-export function partnerTariffOnPlayer(partnerId: string, g: GameState, deps: Deps) {
+export function partnerTariffOnPlayer(
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+) {
   const { effectiveTariff, playerCountryId } = deps;
   const player = playerCountryId(g.homeRole);
   const law = partnerLawBag(g, partnerId, deps);
   if (!law || !effectiveTariff) return null;
-  return effectiveTariff(player, law, partnerId, partnerBlocMember(g, partnerId));
+  return effectiveTariff(
+    player,
+    law,
+    partnerId,
+    partnerBlocMember(g, partnerId),
+  );
 }
 
 function playerTariffOnPartner(partnerId: string, g: GameState, deps: Deps) {
@@ -544,18 +696,32 @@ function topPolicyDivergence(partnerId: string, g: GameState, deps: Deps) {
 function leverageTerm(rel: number, gdpRatio: number | null | undefined) {
   const relPart = clamp01((52 - rel) / 52) * 0.42;
   const ratio = gdpRatio != null && gdpRatio > 0 ? gdpRatio : 1;
-  const gdpPart = clamp01(Math.log2(Math.max(0.25, ratio)) * 0.22 + 0.14) * 0.38;
+  const gdpPart =
+    clamp01(Math.log2(Math.max(0.25, ratio)) * 0.22 + 0.14) * 0.38;
   return relPart + gdpPart;
 }
 
-export function partnerSelfInterest(demandId: string, partnerId: string, g: GameState, deps: Deps, meta?: any) {
-  const { partnerShare, polityIdOf, profilePolityId, polityAffinity, aggregate } = deps;
+export function partnerSelfInterest(
+  demandId: string,
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+  meta?: any,
+) {
+  const {
+    partnerShare,
+    polityIdOf,
+    profilePolityId,
+    polityAffinity,
+    aggregate,
+  } = deps;
   const rel = g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
   const pl = partnerLawBag(g, partnerId, deps);
   const bilat = (g.econ && g.econ.bilateralX) || {};
   const exportsToPartner = bilat[partnerId] || 0;
-  const totalX = Object.values(bilat).reduce((s: number, v: any) => s + (v || 0), 0) || 1;
+  const totalX =
+    Object.values(bilat).reduce((s: number, v: any) => s + (v || 0), 0) || 1;
   const exportShare = exportsToPartner / (totalX as number);
 
   if (demandId === "tariffCut") {
@@ -573,16 +739,23 @@ export function partnerSelfInterest(demandId: string, partnerId: string, g: Game
   }
   if (demandId === "policyChange") {
     const pl = g.law || g.draft;
-    const div = meta && meta.policyKey
-      ? { key: meta.policyKey, playerVal: !!(pl && pl.policies && pl.policies[meta.policyKey]) }
-      : topPolicyDivergence(partnerId, g, deps);
+    const div =
+      meta && meta.policyKey
+        ? {
+            key: meta.policyKey,
+            playerVal: !!(pl && pl.policies && pl.policies[meta.policyKey]),
+          }
+        : topPolicyDivergence(partnerId, g, deps);
     if (!div) return 0;
     if (div.key === "conscript" && div.playerVal === false) return -0.5;
     if (div.key === "openVisas" && div.playerVal === true) return 0.35;
     if (div.key === "closeBorders" && div.playerVal === false) return 0.25;
     if (aggregate && pl) {
       try {
-        const hypo = { ...pl, policies: { ...pl.policies, [div.key]: div.playerVal } };
+        const hypo = {
+          ...pl,
+          policies: { ...pl.policies, [div.key]: div.playerVal },
+        };
         const e0 = aggregate(pl, partnerId, partnerBlocMember(g, partnerId));
         const e1 = aggregate(hypo, partnerId, partnerBlocMember(g, partnerId));
         const dTrade = (e1.trade || 0) - (e0.trade || 0);
@@ -597,7 +770,7 @@ export function partnerSelfInterest(demandId: string, partnerId: string, g: Game
   if (demandId === "regimeReform") {
     const aff = polityAffinity(
       polityIdOf(g.homeRole),
-      profilePolityId(partnerId)
+      profilePolityId(partnerId),
     );
     if (aff >= 0) return -0.2;
     const pin = profilePolityId(partnerId);
@@ -619,7 +792,13 @@ export function partnerSelfInterest(demandId: string, partnerId: string, g: Game
   return 0;
 }
 
-export function demandFit(demandId: string, partnerId: string, g: GameState, deps: Deps, meta?: any): number {
+export function demandFit(
+  demandId: string,
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+  meta?: any,
+): number {
   const { partnerShare, polityIdOf, profilePolityId, polityAffinity } = deps;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
 
@@ -636,7 +815,10 @@ export function demandFit(demandId: string, partnerId: string, g: GameState, dep
     return topPolicyDivergence(partnerId, g, deps) ? 0.55 : 0;
   }
   if (demandId === "regimeReform") {
-    const aff = polityAffinity(polityIdOf(g.homeRole), profilePolityId(partnerId));
+    const aff = polityAffinity(
+      polityIdOf(g.homeRole),
+      profilePolityId(partnerId),
+    );
     return aff < 0 ? 0.35 : 0;
   }
   if (demandId === "endRetaliation") {
@@ -647,7 +829,13 @@ export function demandFit(demandId: string, partnerId: string, g: GameState, dep
   return 0;
 }
 
-function demandAvailable(demandId: string, partnerId: string, g: GameState, deps: Deps, meta?: any): boolean {
+function demandAvailable(
+  demandId: string,
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+  meta?: any,
+): boolean {
   const { partnerShare } = deps;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
   if (demandId === "tariffCut") {
@@ -663,7 +851,9 @@ function demandAvailable(demandId: string, partnerId: string, g: GameState, deps
   }
   if (demandId === "regimeReform") {
     const { polityIdOf, profilePolityId, polityAffinity } = deps;
-    return polityAffinity(polityIdOf(g.homeRole), profilePolityId(partnerId)) < 0;
+    return (
+      polityAffinity(polityIdOf(g.homeRole), profilePolityId(partnerId)) < 0
+    );
   }
   if (demandId === "endRetaliation") {
     return (g.econ.retaliation || 0) > 1.5 && share >= 0.06;
@@ -678,7 +868,13 @@ export function interestTag(interest: number) {
   return "Mixed";
 }
 
-export function baseP(partnerId: string, demandId: string, g: GameState, deps: Deps, meta?: any) {
+export function baseP(
+  partnerId: string,
+  demandId: string,
+  g: GameState,
+  deps: Deps,
+  meta?: any,
+) {
   const { realmGdpBn, playerCountryId } = deps;
   const rel = g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50;
   const player = playerCountryId(g.homeRole);
@@ -687,21 +883,39 @@ export function baseP(partnerId: string, demandId: string, g: GameState, deps: D
   const ratio = gdpR > 0 ? gdpP / gdpR : 1;
   const fit = demandFit(demandId, partnerId, g, deps, meta);
   const interest = partnerSelfInterest(demandId, partnerId, g, deps, meta);
-  let p = 0.14 + leverageTerm(rel, ratio) + fit * 0.30 + interest * 0.26;
+  let p = 0.14 + leverageTerm(rel, ratio) + fit * 0.3 + interest * 0.26;
   if (demandId === "regimeReform") p -= 0.12;
   if (hasFormalProtest(g.econ, partnerId)) p += 0.04;
   return clamp01(p);
 }
 
-export function concedeP(partnerId: string, demandId: string, g: GameState, deps: Deps, det: boolean, meta?: any) {
+export function concedeP(
+  partnerId: string,
+  demandId: string,
+  g: GameState,
+  deps: Deps,
+  det: boolean,
+  meta?: any,
+) {
   const base = baseP(partnerId, demandId, g, deps, meta);
   if (det) return base;
   const jitter = (Math.random() - 0.5) * ULTIMATUM_JITTER;
   return Math.max(0.05, Math.min(0.95, base + jitter));
 }
 
-export function ultimatumDemandsFor(partnerId: string, g: GameState, deps: Deps) {
-  const ids = ["tariffCut", "marketAccess", "policyChange", "regimeReform", "endRetaliation", "political"];
+export function ultimatumDemandsFor(
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+) {
+  const ids = [
+    "tariffCut",
+    "marketAccess",
+    "policyChange",
+    "regimeReform",
+    "endRetaliation",
+    "political",
+  ];
   const out: any[] = [];
   for (const id of ids) {
     if (id === "political") continue;
@@ -738,7 +952,9 @@ export function ultimatumDemandsFor(partnerId: string, g: GameState, deps: Deps)
       label: "General diplomatic concession",
       baseP: baseP(partnerId, "political", g, deps, {}),
       interest: partnerSelfInterest("political", partnerId, g, deps, {}),
-      interestLabel: interestTag(partnerSelfInterest("political", partnerId, g, deps, {})),
+      interestLabel: interestTag(
+        partnerSelfInterest("political", partnerId, g, deps, {}),
+      ),
     });
   }
   return out;
@@ -751,31 +967,49 @@ function stepPolityToward(from: string, to: string) {
   return POLITY_LADDER[a < b ? a + 1 : a - 1];
 }
 
-export function applyUltimatumConcede(state: GameState, partnerId: string, ult: any, deps: Deps) {
+export function applyUltimatumConcede(
+  state: GameState,
+  partnerId: string,
+  ult: any,
+  deps: Deps,
+) {
   const { playerCountryId, aggregate } = deps;
   const demand = ult.demand;
   const player = playerCountryId(state.homeRole);
   if (demand === "marketAccess") {
     if (!state.econ.partnerAccessEff) state.econ.partnerAccessEff = {};
-    state.econ.partnerAccessEff[partnerId] = (state.econ.partnerAccessEff[partnerId] || 0) + 2.5;
+    state.econ.partnerAccessEff[partnerId] =
+      (state.econ.partnerAccessEff[partnerId] || 0) + 2.5;
   } else if (demand === "tariffCut") {
     const seat = state.world && state.world[partnerId];
     if (seat && seat.law) {
-      const sched = seat.law.tariffSchedule || { default: 4, country: {}, bloc: {} };
+      const sched = seat.law.tariffSchedule || {
+        default: 4,
+        country: {},
+        bloc: {},
+      };
       if (!sched.country) sched.country = {};
-      const cur = sched.country[player] != null ? sched.country[player] : sched.default;
+      const cur =
+        sched.country[player] != null ? sched.country[player] : sched.default;
       sched.country[player] = Math.max(0, cur - 2);
       seat.law.tariffSchedule = sched;
     } else {
       if (!state.econ.partnerAccessEff) state.econ.partnerAccessEff = {};
-      state.econ.partnerAccessEff[partnerId] = (state.econ.partnerAccessEff[partnerId] || 0) + 1.5;
+      state.econ.partnerAccessEff[partnerId] =
+        (state.econ.partnerAccessEff[partnerId] || 0) + 1.5;
     }
   } else if (demand === "endRetaliation") {
     state.econ.retaliation = Math.max(0, (state.econ.retaliation || 0) - 0.8);
   } else if (demand === "policyChange" && ult.policyKey) {
     const seat = state.world && state.world[partnerId];
     const playerLaw = state.law || state.draft;
-    if (seat && seat.law && seat.law.policies && playerLaw && playerLaw.policies) {
+    if (
+      seat &&
+      seat.law &&
+      seat.law.policies &&
+      playerLaw &&
+      playerLaw.policies
+    ) {
       seat.law.policies[ult.policyKey] = !!playerLaw.policies[ult.policyKey];
     }
   } else if (demand === "regimeReform") {
@@ -786,9 +1020,11 @@ export function applyUltimatumConcede(state: GameState, partnerId: string, ult: 
       const toward = polityIdOf(state.homeRole);
       seat.law.polity = stepPolityToward(from, toward);
     }
-    state.econ.relImpulse[partnerId] = (state.econ.relImpulse[partnerId] || 0) + 4;
+    state.econ.relImpulse[partnerId] =
+      (state.econ.relImpulse[partnerId] || 0) + 4;
   } else {
-    state.econ.relImpulse[partnerId] = (state.econ.relImpulse[partnerId] || 0) + 8;
+    state.econ.relImpulse[partnerId] =
+      (state.econ.relImpulse[partnerId] || 0) + 8;
   }
   addDiploLedger(state, partnerId, {
     id: "ultimatum_concede_" + (state.q || 0),
@@ -814,7 +1050,13 @@ function lcFirst(str: string) {
 }
 
 /** Apply concede/defy and return press-facing diplomatic + economic impact lines. */
-export function ultimatumOutcomeImpacts(state: GameState, partnerId: string, ult: any, conceded: boolean, deps: Deps) {
+export function ultimatumOutcomeImpacts(
+  state: GameState,
+  partnerId: string,
+  ult: any,
+  conceded: boolean,
+  deps: Deps,
+) {
   const e = state.econ;
   ensureDiploStocks(e);
   const retal0 = e.retaliation || 0;
@@ -828,7 +1070,8 @@ export function ultimatumOutcomeImpacts(state: GameState, partnerId: string, ult
 
   if (!conceded) {
     const economic = ["trade retaliation rises"];
-    if (state.mods && state.mods.length > mods0) economic.push("business uncertainty lingers four quarters");
+    if (state.mods && state.mods.length > mods0)
+      economic.push("business uncertainty lingers four quarters");
     return {
       diplomatic: "relations plunge and their trust in our ultimatum collapses",
       economic: economic.join(" · "),
@@ -843,12 +1086,18 @@ export function ultimatumOutcomeImpacts(state: GameState, partnerId: string, ult
   const retal1 = e.retaliation || 0;
   const access1 = (e.partnerAccessEff && e.partnerAccessEff[partnerId]) || 0;
   if (retal1 < retal0 - 0.05) economic.push("trade retaliation eases");
-  if (access1 > access0 + 0.05) economic.push("market access opens for our exporters");
-  if (demand === "tariffCut") economic.push("their tariffs on our goods fall 2 points");
-  else if (demand === "marketAccess") economic.push("deeper market access lifts export competitiveness");
-  else if (demand === "endRetaliation") economic.push("bilateral commerce recovers");
-  else if (demand === "policyChange") economic.push("they align policy with ours");
-  else if (demand === "regimeReform") economic.push("political opening may unlock deeper trade ties");
+  if (access1 > access0 + 0.05)
+    economic.push("market access opens for our exporters");
+  if (demand === "tariffCut")
+    economic.push("their tariffs on our goods fall 2 points");
+  else if (demand === "marketAccess")
+    economic.push("deeper market access lifts export competitiveness");
+  else if (demand === "endRetaliation")
+    economic.push("bilateral commerce recovers");
+  else if (demand === "policyChange")
+    economic.push("they align policy with ours");
+  else if (demand === "regimeReform")
+    economic.push("political opening may unlock deeper trade ties");
   else economic.push("export competitiveness improves over the coming year");
 
   return {
@@ -898,14 +1147,19 @@ export const MISSION_EVENTS = [
     w: 10,
     title: "A request regarding {R}",
     text: "{P} asks {C} to join a public statement condemning {R} over its latest provocation.",
-    cond: (pid: string, g: GameState, deps: Deps) => !!pickMissionRival(pid, g, deps),
+    cond: (pid: string, g: GameState, deps: Deps) =>
+      !!pickMissionRival(pid, g, deps),
     opts: [
       {
         b: "Join the condemnation",
         e: "Warm {P}; frosty {R}",
         setRel: { _partner: 8, _rival: -10 },
         fac: { patriots: 3, business: -2 },
-        ledger: { label: "Joined condemnation of rival", pts: 5, partner: "_partner" },
+        ledger: {
+          label: "Joined condemnation of rival",
+          pts: 5,
+          partner: "_partner",
+        },
         rivalLedger: { label: "Condemned us publicly", pts: -8 },
       },
       {
@@ -929,7 +1183,8 @@ export const MISSION_EVENTS = [
     w: 14,
     title: "The visit lands well",
     text: "Press in {P} runs warm coverage of the summit. Both capitals want to keep the momentum.",
-    cond: (pid: string, g: GameState) => (g.rel[pid] != null ? g.rel[pid] : 50) >= 48,
+    cond: (pid: string, g: GameState) =>
+      (g.rel[pid] != null ? g.rel[pid] : 50) >= 48,
     opts: [
       {
         b: "Announce follow-up talks",
@@ -959,7 +1214,8 @@ export const MISSION_EVENTS = [
     w: 11,
     title: "The business delegation",
     text: "CEOs travelling with the delegation want {C} to signal openness on market access with {P}.",
-    cond: (pid: string, g: GameState, deps: Deps) => !hasRatifiedDeal(pid, g, deps),
+    cond: (pid: string, g: GameState, deps: Deps) =>
+      !hasRatifiedDeal(pid, g, deps),
     opts: [
       {
         b: "Promise deeper access",
@@ -992,7 +1248,8 @@ export const MISSION_EVENTS = [
     w: 8,
     title: "Sanctions on {R}?",
     text: "{P} privately asks whether {C} will join symbolic sanctions against {R}.",
-    cond: (pid: string, g: GameState, deps: Deps) => !!pickMissionRival(pid, g, deps),
+    cond: (pid: string, g: GameState, deps: Deps) =>
+      !!pickMissionRival(pid, g, deps),
     opts: [
       {
         b: "Join symbolic measures",
@@ -1020,7 +1277,11 @@ export const MISSION_EVENTS = [
   },
 ];
 
-function pickMissionRival(partnerId: string, g: GameState, deps: Deps): { id: string; name: string } | null {
+function pickMissionRival(
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+): { id: string; name: string } | null {
   const { activePartners, sharedCamp } = deps;
   if (!activePartners) return null;
   const player = deps.playerCountryId(g.homeRole);
@@ -1040,7 +1301,14 @@ function pickMissionRival(partnerId: string, g: GameState, deps: Deps): { id: st
   return best && worst < 55 ? best : null;
 }
 
-export function rollMissionEvent(missionId: string, partnerId: string, g: GameState, deps: Deps, det: boolean, eventIndex?: number) {
+export function rollMissionEvent(
+  missionId: string,
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+  det: boolean,
+  eventIndex?: number,
+) {
   const pool = MISSION_EVENTS.filter((ev) => {
     if (!ev.missions.includes(missionId)) return false;
     if (ev.cond && !(ev.cond as any)(partnerId, g, deps)) return false;
@@ -1050,18 +1318,32 @@ export function rollMissionEvent(missionId: string, partnerId: string, g: GameSt
   let total = 0;
   for (const ev of pool) total += ev.w || 1;
   let roll = det
-    ? ((partnerId.charCodeAt(0) + (g.q || 0) * 7 + missionId.length + (eventIndex || 0) * 13) % total)
+    ? (partnerId.charCodeAt(0) +
+        (g.q || 0) * 7 +
+        missionId.length +
+        (eventIndex || 0) * 13) %
+      total
     : Math.floor(Math.random() * total);
   for (const ev of pool) {
     roll -= ev.w || 1;
     if (roll < 0) {
       const rival = pickMissionRival(partnerId, g, deps);
-      return { ...ev, partnerId, rivalId: rival ? rival.id : null, rivalName: rival ? rival.name : null };
+      return {
+        ...ev,
+        partnerId,
+        rivalId: rival ? rival.id : null,
+        rivalName: rival ? rival.name : null,
+      };
     }
   }
   const ev = pool[pool.length - 1];
   const rival = pickMissionRival(partnerId, g, deps);
-  return { ...ev, partnerId, rivalId: rival ? rival.id : null, rivalName: rival ? rival.name : null };
+  return {
+    ...ev,
+    partnerId,
+    rivalId: rival ? rival.id : null,
+    rivalName: rival ? rival.name : null,
+  };
 }
 
 export function formatMissionEventText(ev: any, g: GameState, deps: Deps) {

@@ -24,7 +24,7 @@ export function SegControl<T extends string>({
 }: SegControlProps<T>) {
   return (
     <span
-      className={`flex w-full rounded-sm p-0.5 gap-0.5 ${className || "bg-g-1"}`.trim()}
+      className={`flex w-full gap-0.5 rounded-sm p-0.5 ${className || "bg-g-1"}`.trim()}
     >
       {options.map(([val, label]) => (
         <button

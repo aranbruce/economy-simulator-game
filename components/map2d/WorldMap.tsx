@@ -1,8 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { feature } from "topojson-client";
-import { getG, PARTNERS, activePartners, diploMapMarkers } from "../../lib/sim/engine.ts";
+import {
+  getG,
+  PARTNERS,
+  activePartners,
+  diploMapMarkers,
+} from "../../lib/sim/engine.ts";
 import {
   HOME_ISO,
   PARTNER_ISO,
@@ -68,8 +79,13 @@ function hexToRgb(hex: string): [number, number, number] {
   }
   const h = hex.replace("#", "");
   const n = parseInt(
-    h.length === 3 ? h.split("").map((c) => c + c).join("") : h,
-    16
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h,
+    16,
   );
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
@@ -81,7 +97,11 @@ function liftColour(hex: string, k: number) {
   })`;
 }
 
-function roleColour(role: string, mapMetric: string | null, selected: string | null) {
+function roleColour(
+  role: string,
+  mapMetric: string | null,
+  selected: string | null,
+) {
   const base = boardMetricColour(role, mapMetric || "countries");
   return selected === role ? liftColour(base, 1.12) : base;
 }
@@ -165,7 +185,9 @@ function splitAntimeridianRing(ring: Ring): Ring[] {
       return out;
     })
     .filter((c) =>
-      c.every(([lng, lat]: Point) => Number.isFinite(lng) && Number.isFinite(lat))
+      c.every(
+        ([lng, lat]: Point) => Number.isFinite(lng) && Number.isFinite(lat),
+      ),
     );
 }
 
@@ -183,7 +205,9 @@ function geomToPolys(geom: any): Polys {
     const outerParts = splitAntimeridianRing(rings[0]);
     /* Holes that don't cross stay with every outer part that contains them —
        for dateline countries holes are rare; keep holes only on the first part. */
-    const holes: Ring[] = rings.slice(1).flatMap((h: Ring) => splitAntimeridianRing(h));
+    const holes: Ring[] = rings
+      .slice(1)
+      .flatMap((h: Ring) => splitAntimeridianRing(h));
     outerParts.forEach((outer, i) => {
       const poly: Rings = [outer.map(([lng, lat]) => project(lng, lat))];
       if (i === 0) {
@@ -286,7 +310,7 @@ function roundRect(
   y: number,
   w: number,
   h: number,
-  r: number
+  r: number,
 ) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -297,7 +321,11 @@ function roundRect(
   ctx.closePath();
 }
 
-function roleForFeature(iso: string, homeRole?: string | null, homeIso?: string | null) {
+function roleForFeature(
+  iso: string,
+  homeRole?: string | null,
+  homeIso?: string | null,
+) {
   return partnerForIso(iso, homeIso || HOME_ISO, homeRole || null);
 }
 
@@ -306,7 +334,7 @@ function polysForRole(
   countries: CountryFeature[],
   hRole: string | null,
   hIso: string | null,
-  setupMode: boolean
+  setupMode: boolean,
 ): Polys | null {
   const realm = realmByRole(role);
   const anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
@@ -327,7 +355,11 @@ function diploEmojiFont(size: number) {
   return `${size}px -apple-system, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
 }
 
-function measureDiploEmoji(ctx: CanvasRenderingContext2D, emoji: string, size: number) {
+function measureDiploEmoji(
+  ctx: CanvasRenderingContext2D,
+  emoji: string,
+  size: number,
+) {
   ctx.save();
   ctx.font = diploEmojiFont(size);
   const w = ctx.measureText(emoji).width;
@@ -341,7 +373,7 @@ function drawDiploEmoji(
   cx: number,
   cy: number,
   size: number,
-  alpha = 1
+  alpha = 1,
 ) {
   ctx.save();
   ctx.font = diploEmojiFont(size);
@@ -363,7 +395,14 @@ interface WorldMapProps {
   mapMetric?: string | null;
   selectedRole?: string | null;
   onSelect?: (role: string | null) => void;
-  onHover?: (hit: { iso: string; pickRole: string | null; role: string | null; label: string | null } | null) => void;
+  onHover?: (
+    hit: {
+      iso: string;
+      pickRole: string | null;
+      role: string | null;
+      label: string | null;
+    } | null,
+  ) => void;
   onFail?: () => void;
   homeIso?: string | null;
   /** Accepted but currently unused by this component. */
@@ -399,7 +438,9 @@ export default function WorldMap({
   } | null>(null);
   /** Active pointer positions for one-finger pan / two-finger pinch. */
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
-  const pinchRef = useRef<{ dist: number; midX: number; midY: number } | null>(null);
+  const pinchRef = useRef<{ dist: number; midX: number; midY: number } | null>(
+    null,
+  );
   const [ready, setReady] = useState(false);
   const hoverRoleRef = useRef<string | null>(null);
   const hoverIsoRef = useRef<string | null>(null);
@@ -434,7 +475,7 @@ export default function WorldMap({
       W * 0.08,
       W * 0.5,
       H * 0.5,
-      W * 0.7
+      W * 0.7,
     );
     glow.addColorStop(0, "rgba(15,28,51,.55)");
     glow.addColorStop(1, "rgba(4,6,12,0)");
@@ -503,9 +544,7 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        ctx.strokeStyle = hot
-          ? "rgba(255,255,255,.5)"
-          : "rgba(8,14,28,.55)";
+        ctx.strokeStyle = hot ? "rgba(255,255,255,.5)" : "rgba(8,14,28,.55)";
         ctx.lineWidth = hot ? 1.15 : 0.7;
         ctx.stroke();
       } else {
@@ -537,7 +576,7 @@ export default function WorldMap({
             (hsx + psx) / 2,
             (hsy + psy) / 2 - H * 0.03 * scale,
             psx,
-            psy
+            psy,
           );
           ctx.strokeStyle =
             rel > 62
@@ -562,7 +601,13 @@ export default function WorldMap({
         byPartner[m.partnerId].push(m);
       }
       for (const partnerId of Object.keys(byPartner)) {
-        const polys = polysForRole(partnerId, countries, hRole, hIso, setupMode);
+        const polys = polysForRole(
+          partnerId,
+          countries,
+          hRole,
+          hIso,
+          setupMode,
+        );
         if (!polys) continue;
         const [nx, ny] = polysCentroid(polys);
         const [x, y] = toScreen(nx, ny);
@@ -570,10 +615,10 @@ export default function WorldMap({
           .map((m) => m.kind)
           .sort(
             (a: string, b: string) =>
-              DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b)
+              DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
           );
         const widths = kinds.map((kind) =>
-          measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE)
+          measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE),
         );
         const rowW =
           widths.reduce((sum, w) => sum + w, 0) +
@@ -589,7 +634,7 @@ export default function WorldMap({
             sx,
             sy,
             DIPLO_MARKER_SIZE,
-            kind === "summit_staged" ? 0.82 : 1
+            kind === "summit_staged" ? 0.82 : 1,
           );
         });
       }
@@ -610,7 +655,7 @@ export default function WorldMap({
             lx + 8,
             legendY,
             DIPLO_LEGEND_SIZE,
-            kind === "summit_staged" ? 0.82 : 1
+            kind === "summit_staged" ? 0.82 : 1,
           );
           const label = DIPLO_LEGEND_LABELS[kind];
           ctx.fillText(label, lx + 18, legendY);
@@ -665,7 +710,7 @@ export default function WorldMap({
         ? "Click a country · pinch or scroll to zoom · drag to pan"
         : "Pinch or scroll to zoom · drag to pan",
       14,
-      H - 14
+      H - 14,
     );
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
@@ -757,7 +802,7 @@ export default function WorldMap({
       };
       paint();
     },
-    [paint, plateLayout]
+    [paint, plateLayout],
   );
 
   useEffect(() => {
@@ -799,7 +844,7 @@ export default function WorldMap({
         ny: (sy - oy - ty) / (plateH * scale),
       };
     },
-    [plateLayout]
+    [plateLayout],
   );
 
   const pickAt = useCallback(
@@ -809,7 +854,7 @@ export default function WorldMap({
       if (!pt || !countries.length) return null;
       /* Prefer smaller countries (islands) when rings nest / overlap. */
       const ordered = [...countries].sort(
-        (a, b) => a.polys.length - b.polys.length
+        (a, b) => a.polys.length - b.polys.length,
       );
       for (const c of ordered) {
         if (pointInPolys(pt.nx, pt.ny, c.polys)) {
@@ -817,7 +862,7 @@ export default function WorldMap({
           const playRole = roleForFeature(
             c.iso,
             homeRole || getG()?.homeRole || "home",
-            homeIso || getG()?.homeIso || HOME_ISO
+            homeIso || getG()?.homeIso || HOME_ISO,
           );
           return {
             iso: c.iso,
@@ -829,7 +874,7 @@ export default function WorldMap({
       }
       return null;
     },
-    [screenToNorm, homeRole, homeIso]
+    [screenToNorm, homeRole, homeIso],
   );
 
   const onPointerDown = (e: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -919,16 +964,9 @@ export default function WorldMap({
     }
 
     const hit = pickAt(e.clientX, e.clientY);
-    const nextRole = hit
-      ? setupMode
-        ? hit.pickRole
-        : hit.role
-      : null;
+    const nextRole = hit ? (setupMode ? hit.pickRole : hit.role) : null;
     const nextIso = hit && setupMode ? hit.iso : null;
-    if (
-      nextRole !== hoverRoleRef.current ||
-      nextIso !== hoverIsoRef.current
-    ) {
+    if (nextRole !== hoverRoleRef.current || nextIso !== hoverIsoRef.current) {
       hoverRoleRef.current = nextRole;
       hoverIsoRef.current = nextIso;
       if (canvasRef.current) {
@@ -959,7 +997,8 @@ export default function WorldMap({
 
   const onPointerUp = (e: ReactPointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current;
-    const wasPinching = pinchRef.current != null || pointersRef.current.size > 1;
+    const wasPinching =
+      pinchRef.current != null || pointersRef.current.size > 1;
     endPointer(e);
     if (canvasRef.current) {
       const hit = pickAt(e.clientX, e.clientY);
@@ -970,8 +1009,7 @@ export default function WorldMap({
       if (pointersRef.current.size === 0) dragRef.current = null;
       return;
     }
-    dragRef.current =
-      pointersRef.current.size === 1 ? dragRef.current : null;
+    dragRef.current = pointersRef.current.size === 1 ? dragRef.current : null;
     if (drag && !drag.moved && pointersRef.current.size === 0) {
       const hit = pickAt(e.clientX, e.clientY);
       if (setupMode) {
@@ -984,7 +1022,9 @@ export default function WorldMap({
     }
   };
 
-  const onPointerLeave = (e: ReactPointerEvent<HTMLCanvasElement> | undefined) => {
+  const onPointerLeave = (
+    e: ReactPointerEvent<HTMLCanvasElement> | undefined,
+  ) => {
     /* Only clear hover when the primary pointer leaves; keep multi-touch. */
     if (e && pointersRef.current.has(e.pointerId)) {
       endPointer(e);

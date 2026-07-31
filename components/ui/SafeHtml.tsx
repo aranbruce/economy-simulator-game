@@ -40,7 +40,7 @@ function domNodeToReact(node: ChildNode, key: number): ReactNode {
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
   const children = Array.from(el.childNodes).map((child, i) =>
-    domNodeToReact(child, i)
+    domNodeToReact(child, i),
   );
   if (!ALLOWED_TAGS.has(tag)) return children;
   const props: Record<string, any> = { key };

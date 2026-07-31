@@ -83,9 +83,7 @@ export function Dock({
           else if (t.id === "diplomacy" && hasDiploAttention(G)) {
             pip = (
               <span
-                className={
-                  pendingUltimatumIds(G).length ? "pip ult" : "pip"
-                }
+                className={pendingUltimatumIds(G).length ? "pip ult" : "pip"}
               />
             );
           }

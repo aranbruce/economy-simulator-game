@@ -24,9 +24,12 @@ const config = [
       // typo from an intentional legacy class, so it's pure noise here.
       "tailwindcss/no-custom-classname": "off",
       // This project has no numeric --leading-* theme scale, so the rule's
-      // suggested fix (leading-[1.4] -> leading-1.4) silently compiles to
-      // nothing instead of the intended line-height. Confirmed broken via
-      // compiled CSS output; not safe to autofix here.
+      // suggested fix for line-height (leading-[1.4] -> leading-[1.4]) and
+      // for scale (scale-[0.98] -> scale-[0.98]) silently compiles to nothing
+      // instead of the intended value. Confirmed broken via compiled CSS
+      // output for both utility families; not safe to autofix here. Spacing-
+      // scale utilities (gap/p/m/w/h/...) and named-token matches (like
+      // tracking-widest) are unaffected and were fixed by hand instead.
       "tailwindcss/no-unnecessary-arbitrary-value": "off",
     },
   },

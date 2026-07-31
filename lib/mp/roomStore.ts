@@ -19,12 +19,7 @@ import {
   roomsMap,
 } from "./roomPersist.ts";
 
-export {
-  roomsMap,
-  _resetRoomsForTests,
-  hasDurableMpStore,
-  mpStoreMode,
-};
+export { roomsMap, _resetRoomsForTests, hasDurableMpStore, mpStoreMode };
 
 function seatIdForRole(role: string) {
   return !role || role === "home" ? "kingdom" : role;
@@ -41,8 +36,7 @@ function code() {
 
 function token() {
   return (
-    Math.random().toString(36).slice(2) +
-    Math.random().toString(36).slice(2)
+    Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)
   );
 }
 
@@ -138,7 +132,7 @@ export async function getRoom(codeStr: string, viewerToken?: string | null) {
 
 export async function joinRoom(
   codeStr: string,
-  { name, role }: { name?: string; role?: string } = {}
+  { name, role }: { name?: string; role?: string } = {},
 ) {
   const room = await loadRoom(codeStr);
   if (!room) return { error: "Room not found", status: 404 };

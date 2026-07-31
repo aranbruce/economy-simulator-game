@@ -61,7 +61,10 @@ export function SocietyPanel() {
   return (
     <>
       <Eyebrow>Where you stand</Eyebrow>
-      <div className="overflow-hidden rounded-md border border-edge bg-g-1" style={{ padding: "11px 13px" }}>
+      <div
+        className="overflow-hidden rounded-md border border-edge bg-g-1"
+        style={{ padding: "11px 13px" }}
+      >
         {FACTIONS.map((f) => {
           const v = G.fac[f.id];
           const cls = v > 55 ? "good" : v < 38 ? "bad" : "";
@@ -88,9 +91,7 @@ export function SocietyPanel() {
             </div>
           );
         })}
-        <div
-          className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]"
-        >
+        <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]">
           <span style={{ fontWeight: 600 }}>Approval</span>
           <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
@@ -98,14 +99,20 @@ export function SocietyPanel() {
               style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
             />
           </span>
-          <span className="text-right text-[11.5px] text-ink-soft" style={{ fontWeight: 600 }}>
+          <span
+            className="text-right text-[11.5px] text-ink-soft"
+            style={{ fontWeight: 600 }}
+          >
             {approvalOf(G.fac).toFixed(0)}
           </span>
         </div>
       </div>
 
       <Eyebrow className="mt-5">Social indicators</Eyebrow>
-      <div className="overflow-hidden rounded-md border border-edge bg-g-1" style={{ padding: "11px 13px" }}>
+      <div
+        className="overflow-hidden rounded-md border border-edge bg-g-1"
+        style={{ padding: "11px 13px" }}
+      >
         {bars.map(([k, n, v]) => (
           <div
             key={k}
@@ -137,8 +144,9 @@ export function SocietyPanel() {
 
       <Eyebrow className="mt-5">Political system</Eyebrow>
       <Hint>
-        Stage any system. A neighbour costs the listed capital; leaping democracy
-        ↔ authoritarian costs much more. Factions move when you deliver.
+        Stage any system. A neighbour costs the listed capital; leaping
+        democracy ↔ authoritarian costs much more. Factions move when you
+        deliver.
       </Hint>
       <CardGrid>
         {POLITY_LADDER.map((id: string) => {
@@ -159,7 +167,9 @@ export function SocietyPanel() {
                 {m.label}
                 <CardCat>{cat}</CardCat>
               </h4>
-              <p className="m-0 text-xs leading-[1.42] text-ink-soft">{m.blurb}</p>
+              <p className="m-0 text-xs leading-[1.42] text-ink-soft">
+                {m.blurb}
+              </p>
               <CardFoot>
                 {on ? (
                   <CardPrice>
@@ -208,7 +218,7 @@ export function SocietyPanel() {
                       key={s.id}
                       type="button"
                       aria-pressed={s.id === cur}
-                      className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? " bg-accent! text-[#1a1408]!" : ""}`}
+                      className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
                       onClick={() => setVice(v.id, s.id)}
                     >
                       {s.label}
@@ -216,7 +226,9 @@ export function SocietyPanel() {
                   );
                 })}
               </div>
-              <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(st.blurb)}</p>
+              <p className="m-0 text-xs leading-[1.42] text-ink-soft">
+                {T(st.blurb)}
+              </p>
               <EffectsBlock data={effectsData} />
               {v.tax ? (
                 <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-faint">

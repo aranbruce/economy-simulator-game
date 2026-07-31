@@ -66,7 +66,7 @@ export function DrawerShell() {
           &#10005;
         </button>
       </div>
-      <div className="dw-body" id="drawerBody">
+      <div className="dw-body" id="drawerBody" key={tab}>
         <DrawerContent tab={tab} />
       </div>
     </div>

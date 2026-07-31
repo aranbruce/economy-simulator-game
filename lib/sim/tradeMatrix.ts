@@ -32,7 +32,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.01,
     poland: 0.025,
     egypt: 0.01,
-    kenya: 0.005
+    kenya: 0.005,
   },
   germany: {
     france: 0.09444444444444444,
@@ -60,7 +60,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   france: {
     germany: 0.13493975903614458,
@@ -88,7 +88,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   italy: {
     germany: 0.1272727272727273,
@@ -116,7 +116,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   spain: {
     germany: 0.1272727272727273,
@@ -144,7 +144,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   netherlands: {
     germany: 0.13023255813953488,
@@ -172,7 +172,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   poland: {
     germany: 0.13493975903614458,
@@ -200,7 +200,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.007916230366492147,
     saudi: 0.0471455497382199,
     uae: 0.023220942408376966,
-    turkey: 0.023455497382198955
+    turkey: 0.023455497382198955,
   },
   united_states: {
     canada: 0.28000000000000014,
@@ -228,7 +228,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.01261855670103093,
     saudi: 0.05166597938144331,
     uae: 0.025447422680412373,
-    turkey: 0.014020618556701033
+    turkey: 0.014020618556701033,
   },
   canada: {
     united_states: 0.28000000000000014,
@@ -256,7 +256,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.01261855670103093,
     saudi: 0.05166597938144331,
     uae: 0.025447422680412373,
-    turkey: 0.014020618556701033
+    turkey: 0.014020618556701033,
   },
   china: {
     germany: 0.03725940594059406,
@@ -284,7 +284,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.042772277227722776,
     saudi: 0.050946534653465346,
     uae: 0.025093069306930695,
-    turkey: 0.028514851485148512
+    turkey: 0.028514851485148512,
   },
   russia: {
     germany: 0.07242279792746113,
@@ -312,7 +312,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.0134300518134715,
     saudi: 0.07998341968911916,
     uae: 0.03939481865284974,
-    turkey: 0.05968911917098445
+    turkey: 0.05968911917098445,
   },
   india: {
     germany: 0.03325360824742268,
@@ -340,7 +340,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.03562886597938143,
     saudi: 0.08620206185567009,
     uae: 0.04245773195876287,
-    turkey: 0.029690721649484525
+    turkey: 0.029690721649484525,
   },
   brazil: {
     mexico: 0.12000000000000005,
@@ -368,7 +368,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.010741935483870972,
     saudi: 0.04798064516129034,
     uae: 0.02363225806451614,
-    turkey: 0.01591397849462366
+    turkey: 0.01591397849462366,
   },
   mexico: {
     brazil: 0.1414285714285715,
@@ -396,7 +396,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.010741935483870972,
     saudi: 0.04798064516129034,
     uae: 0.02363225806451614,
-    turkey: 0.01591397849462366
+    turkey: 0.01591397849462366,
   },
   argentina: {
     brazil: 0.13200000000000006,
@@ -424,7 +424,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.010741935483870972,
     saudi: 0.04798064516129034,
     uae: 0.02363225806451614,
-    turkey: 0.01591397849462366
+    turkey: 0.01591397849462366,
   },
   japan: {
     australia: 0.07411764705882354,
@@ -452,7 +452,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.03581632653061225,
     saudi: 0.04799387755102041,
     uae: 0.02363877551020408,
-    turkey: 0.015918367346938776
+    turkey: 0.015918367346938776,
   },
   korea: {
     japan: 0.09599999999999997,
@@ -480,7 +480,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.03581632653061225,
     saudi: 0.04799387755102041,
     uae: 0.02363877551020408,
-    turkey: 0.015918367346938776
+    turkey: 0.015918367346938776,
   },
   australia: {
     japan: 0.08,
@@ -508,7 +508,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.03581632653061225,
     saudi: 0.04799387755102041,
     uae: 0.02363877551020408,
-    turkey: 0.015918367346938776
+    turkey: 0.015918367346938776,
   },
   indonesia: {
     vietnam: 0.28,
@@ -536,7 +536,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     korea: 0.032639999999999995,
     saudi: 0.036448,
     uae: 0.017952,
-    turkey: 0.0136
+    turkey: 0.0136,
   },
   vietnam: {
     indonesia: 0.28,
@@ -564,7 +564,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     korea: 0.032639999999999995,
     saudi: 0.036448,
     uae: 0.017952,
-    turkey: 0.0136
+    turkey: 0.0136,
   },
   turkey: {
     germany: 0.07526400000000003,
@@ -592,7 +592,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     indonesia: 0.015840000000000003,
     vietnam: 0.012960000000000001,
     saudi: 0.08361600000000002,
-    uae: 0.041184000000000005
+    uae: 0.041184000000000005,
   },
   saudi: {
     uae: 0.22000000000000003,
@@ -620,7 +620,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     korea: 0.0176,
     indonesia: 0.0176,
     vietnam: 0.014400000000000003,
-    turkey: 0.032
+    turkey: 0.032,
   },
   uae: {
     saudi: 0.22000000000000003,
@@ -648,7 +648,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     korea: 0.0176,
     indonesia: 0.0176,
     vietnam: 0.014400000000000003,
-    turkey: 0.032
+    turkey: 0.032,
   },
   nigeria: {
     south_africa: 0.07500000000000001,
@@ -676,7 +676,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.015178378378378383,
     saudi: 0.06779675675675677,
     uae: 0.03339243243243245,
-    turkey: 0.0252972972972973
+    turkey: 0.0252972972972973,
   },
   south_africa: {
     nigeria: 0.09600000000000003,
@@ -704,7 +704,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.015178378378378383,
     saudi: 0.06779675675675677,
     uae: 0.03339243243243245,
-    turkey: 0.0252972972972973
+    turkey: 0.0252972972972973,
   },
   egypt: {
     nigeria: 0.09000000000000002,
@@ -732,7 +732,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.015178378378378383,
     saudi: 0.06779675675675677,
     uae: 0.03339243243243245,
-    turkey: 0.0252972972972973
+    turkey: 0.0252972972972973,
   },
   kenya: {
     nigeria: 0.08470588235294119,
@@ -760,7 +760,7 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.015178378378378383,
     saudi: 0.06779675675675677,
     uae: 0.03339243243243245,
-    turkey: 0.0252972972972973
+    turkey: 0.0252972972972973,
   },
   kingdom: {
     germany: 0.09851308900523556,
@@ -788,12 +788,16 @@ export const TRADE_MATRIX: Record<string, Record<string, number>> = {
     vietnam: 0.011308900523560208,
     saudi: 0.030307853403141353,
     uae: 0.01492774869109947,
-    turkey: 0.015078534031413607
-  }
+    turkey: 0.015078534031413607,
+  },
 };
 
 /** Resolve bilateral export weight for (home seat → partner). */
-export function shareFor(homeRole: string | null | undefined, partnerId: string, fallback?: number | null) {
+export function shareFor(
+  homeRole: string | null | undefined,
+  partnerId: string,
+  fallback?: number | null,
+) {
   const role = homeRole || "home";
   const row = TRADE_MATRIX[role] || TRADE_MATRIX.home;
   if (row && row[partnerId] != null) return row[partnerId];
@@ -802,7 +806,11 @@ export function shareFor(homeRole: string | null | undefined, partnerId: string,
 }
 
 /** Percent label for UI, e.g. "18% of {C}'s trade". */
-export function shareLabel(homeRole: string | null | undefined, partnerId: string, fallback?: number | null) {
+export function shareLabel(
+  homeRole: string | null | undefined,
+  partnerId: string,
+  fallback?: number | null,
+) {
   const s = shareFor(homeRole, partnerId, fallback);
   return Math.round(s * 100) + "% of {C}'s trade";
 }

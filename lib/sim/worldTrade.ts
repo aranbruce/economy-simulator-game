@@ -44,13 +44,26 @@ export function clearBilateralTrade(seats: Record<string, any>) {
       named += w;
       const sj = seats[j];
       const yj = Math.max(0.4, (sj.y || 100) / 100);
-      const tariff = si.tariff && si.tariff[j] != null ? si.tariff[j] : si.avgTariff != null ? si.avgTariff : 3;
+      const tariff =
+        si.tariff && si.tariff[j] != null
+          ? si.tariff[j]
+          : si.avgTariff != null
+            ? si.avgTariff
+            : 3;
       const access = si.access && si.access[j] != null ? si.access[j] : 0;
       const relFac = si.relFac && si.relFac[j] != null ? si.relFac[j] : 1;
       const fxRatio = (si.fx || 1) / Math.max(0.5, sj.fx || 1);
-      const comp = (1 / fxRatio) * (1 + 3 / 100) / (1 + Math.max(0, tariff) / 100);
+      const comp =
+        ((1 / fxRatio) * (1 + 3 / 100)) / (1 + Math.max(0, tariff) / 100);
       const shareX = (si.shareX != null ? si.shareX : 30) / 100;
-      const Xi = w * shareX * 100 * Math.pow(yj, GRAVITY_Y) * Math.pow(Math.max(0.4, comp), ELAST_X) * (1 + access / 200) * relFac;
+      const Xi =
+        w *
+        shareX *
+        100 *
+        Math.pow(yj, GRAVITY_Y) *
+        Math.pow(Math.max(0.4, comp), ELAST_X) *
+        (1 + access / 200) *
+        relFac;
       desired[i][j] = Xi;
     }
     const restW = Math.max(0, 1 - named);
@@ -76,7 +89,10 @@ export function clearBilateralTrade(seats: Record<string, any>) {
       const xij = desired[i][j] || 0;
       const xji = desired[j] && desired[j][i] != null ? desired[j][i] : 0;
       /* Exporter i→j vs importer j's demand share of bilateral. */
-      const mjShare = Mstar[j] > 1e-9 ? Math.min(2, (Mstar[j] / 100) / Math.max(0.2, shareMOf(seats[j]))) : 1;
+      const mjShare =
+        Mstar[j] > 1e-9
+          ? Math.min(2, Mstar[j] / 100 / Math.max(0.2, shareMOf(seats[j])))
+          : 1;
       const scaled = xij * (0.55 + 0.45 * Math.min(1.5, mjShare));
       flows[i][j] = 0.5 * scaled + 0.25 * xij + 0.25 * xji * 0.4;
     }
@@ -106,7 +122,7 @@ export function seatsFromWorld(
   playerId: string,
   playerEcon: any,
   tariffFn?: (a: string, b: string) => number,
-  accessFn?: (a: string, b: string) => number
+  accessFn?: (a: string, b: string) => number,
 ) {
   const seats: Record<string, any> = {};
   for (const id of worldSeatIds()) {

@@ -39,7 +39,7 @@ export const BASE_INCOME_DIST: IncomeSlice[] = [
   { w: 0.05, inc: 80000 },
   /* Pareto top 5%: without this a new top band raises nothing. */
   { w: 0.035, inc: 110000 },
-  { w: 0.010, inc: 190000 },
+  { w: 0.01, inc: 190000 },
   { w: 0.004, inc: 350000 },
   { w: 0.001, inc: 1200000 },
 ];
@@ -118,17 +118,20 @@ function reshapeWithPower(p: number): IncomeSlice[] {
 const GINI_STRETCH_DAMP = 0.45;
 
 export function buildIncomeDist(targetGini?: number | null): IncomeSlice[] {
-  const t = targetGini != null && isFinite(targetGini) ? targetGini : BASE_DIST_GINI;
+  const t =
+    targetGini != null && isFinite(targetGini) ? targetGini : BASE_DIST_GINI;
   if (Math.abs(t - BASE_DIST_GINI) < 0.05) return copyDist(BASE_INCOME_DIST);
 
   const aim = clamp(
     BASE_PRETAX_GINI + GINI_STRETCH_DAMP * (t - BASE_DIST_GINI),
     18,
-    55
+    55,
   );
-  if (Math.abs(aim - BASE_PRETAX_GINI) < 0.05) return copyDist(BASE_INCOME_DIST);
+  if (Math.abs(aim - BASE_PRETAX_GINI) < 0.05)
+    return copyDist(BASE_INCOME_DIST);
 
-  let lo = 0.45, hi = 2.2;
+  let lo = 0.45,
+    hi = 2.2;
   let best = copyDist(BASE_INCOME_DIST);
   let bestErr = Infinity;
   for (let k = 0; k < 28; k++) {

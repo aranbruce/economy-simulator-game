@@ -15,7 +15,11 @@ export function EffectsBlock({ data }: { data: EffectsData }) {
         {data.bits.map((b, i) => (
           <Fragment key={i}>
             {i > 0 ? " · " : ""}
-            {b.bold ? <b className="font-[650] text-white">{b.text}</b> : b.text}
+            {b.bold ? (
+              <b className="font-[650] text-white">{b.text}</b>
+            ) : (
+              b.text
+            )}
           </Fragment>
         ))}
       </div>

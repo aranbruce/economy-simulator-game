@@ -25,7 +25,7 @@ export function saveMpSession(session: MpSession | null | undefined) {
         role: session.role,
         name: session.name,
         homeIso: session.homeIso,
-      })
+      }),
     );
   } catch {
     /* private mode / quota */

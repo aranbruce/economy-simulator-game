@@ -58,13 +58,18 @@ export function Lever({
   }
 
   return (
-    <div className="border-b border-edge px-3 py-2 last:border-b-0" data-lever={id}>
+    <div
+      className="border-b border-edge px-3 py-2 last:border-b-0"
+      data-lever={id}
+    >
       <div className="flex items-baseline gap-2 text-[13px]">
         <span className="font-[550]">{name}</span>
         <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
           {Number.isFinite(display) ? `${display.toFixed(decimals)}%` : "—"}
         </span>
-        <span className={`w-[42px] text-right text-[11px] font-semibold ${chgColor || "text-ink-faint"}`}>
+        <span
+          className={`w-10.5 text-right text-[11px] font-semibold ${chgColor || "text-ink-faint"}`}
+        >
           {delta}
         </span>
       </div>
@@ -87,7 +92,9 @@ export function Lever({
           onCommit?.(id, v);
         }}
       />
-      {note ? <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div> : null}
+      {note ? (
+        <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
+      ) : null}
     </div>
   );
 }

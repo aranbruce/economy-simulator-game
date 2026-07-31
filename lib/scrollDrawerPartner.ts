@@ -12,7 +12,10 @@ export function partnerCardEl(partnerId: string, host?: Element | null) {
   return root.querySelector('[data-partner-card="' + partnerId + '"]');
 }
 
-export function scrollDrawerPartnerCard(partnerId: string, host?: Element | null) {
+export function scrollDrawerPartnerCard(
+  partnerId: string,
+  host?: Element | null,
+) {
   const root = host || drawerBodyEl();
   if (!root || !partnerId) return false;
   const el = partnerCardEl(partnerId, root);
@@ -35,7 +38,10 @@ interface QueueScrollOpts {
 }
 
 /** Retry until the card exists and layout has settled (drawer animation, React paint). */
-export function queueDrawerPartnerScroll(partnerId: string, opts?: QueueScrollOpts) {
+export function queueDrawerPartnerScroll(
+  partnerId: string,
+  opts?: QueueScrollOpts,
+) {
   const maxTries = (opts && opts.maxTries) || 30;
   const delay = (opts && opts.delay) || 50;
   let tries = 0;
@@ -46,6 +52,6 @@ export function queueDrawerPartnerScroll(partnerId: string, opts?: QueueScrollOp
   };
   window.setTimeout(
     () => window.requestAnimationFrame(() => window.requestAnimationFrame(run)),
-    120
+    120,
   );
 }

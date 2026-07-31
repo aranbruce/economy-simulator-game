@@ -5,7 +5,8 @@ import { COUNTRIES } from "./countries.ts";
 export const DEFAULT_REALM_ID = "home";
 export const DEFAULT_HOME_ISO = "826";
 
-const HOME_BLURB = "An island treasury. Thin growth, hot prices, debt at a generational high.";
+const HOME_BLURB =
+  "An island treasury. Thin growth, hot prices, debt at a generational high.";
 
 export const PLAYABLE_REALMS = [
   {
@@ -30,10 +31,16 @@ export function realmById(id: string) {
 
 export function realmByRole(role?: string | null) {
   if (!role || role === "home") return PLAYABLE_REALMS[0];
-  return PLAYABLE_REALMS.find((r) => r.role === role) || realmById(role) || PLAYABLE_REALMS[0];
+  return (
+    PLAYABLE_REALMS.find((r) => r.role === role) ||
+    realmById(role) ||
+    PLAYABLE_REALMS[0]
+  );
 }
 
-export function homeIsoForRealm(realm?: { iso?: string; role?: string } | null) {
+export function homeIsoForRealm(
+  realm?: { iso?: string; role?: string } | null,
+) {
   if (realm?.iso) return String(realm.iso).padStart(3, "0");
   if (realm?.role === "home") return DEFAULT_HOME_ISO;
   const c = COUNTRIES.find((x) => x.id === realm?.role);

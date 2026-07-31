@@ -1,55 +1,49 @@
 "use client";
 
-import { memo, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  blocByIdOrCustom,
   closeDespatch,
   getDespatch,
+  setOnBlocModal,
   setOnDespatchChange,
-  setOnDespatchShell,
   T,
 } from "../../lib/sim/engine.ts";
 import { SafeHtml } from "../ui/SafeHtml.tsx";
+import { BlocFoundModalBody, BlocInviteModalBody } from "./BlocModals.tsx";
 
-/** Empty shell for engine-driven modals (bloc founding / member invite). */
-const ImperativeDespatchFrame = memo(function ImperativeDespatchFrame() {
-  return (
-    <>
-      <header>
-        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase" id="dpStamp" />
-        <h3 id="dpTitle" />
-      </header>
-      <div className="body" id="dpBody" />
-      <div className="grid gap-1.75 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4" id="dpOpts" />
-    </>
-  );
-});
+type BlocModalState = { kind: "found" } | { kind: "invite"; bid: string } | null;
 
 export function DespatchModal() {
   const [open, setOpen] = useState<any>(null);
-  const [shellOpen, setShellOpen] = useState(false);
+  const [blocModal, setBlocModal] = useState<BlocModalState>(null);
 
   useEffect(() => {
-    setOnDespatchChange((v: any) => {
-      setOpen(v);
-      if (v) setShellOpen(true);
-      else setShellOpen(false);
-    });
-    setOnDespatchShell(setShellOpen);
+    setOnDespatchChange(setOpen);
+    setOnBlocModal(setBlocModal);
     return () => {
       setOnDespatchChange(null);
-      setOnDespatchShell(null);
+      setOnBlocModal(null);
     };
   }, []);
 
   useEffect(() => {
     const pending = getDespatch();
-    if (pending) {
-      setOpen(pending);
-      setShellOpen(true);
-    }
+    if (pending) setOpen(pending);
   }, []);
 
-  if (!open && !shellOpen) return null;
+  if (!open && !blocModal) return null;
+
+  const title = open
+    ? open.title
+    : blocModal!.kind === "found"
+      ? "Found a trade bloc"
+      : "Invite a member";
+  const stamp = open
+    ? open.stamp
+    : blocModal!.kind === "found"
+      ? "Foreign & Commonwealth"
+      : (blocByIdOrCustom(blocModal!.bid)?.name ?? "Trade bloc");
 
   return (
     <div className="scrim" id="scrim">
@@ -59,18 +53,24 @@ export function DespatchModal() {
         aria-modal="true"
         aria-labelledby="dpTitle"
       >
+        <header>
+          <div
+            className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase"
+            id="dpStamp"
+          >
+            {stamp}
+          </div>
+          <h3 id="dpTitle">{title}</h3>
+        </header>
         {open ? (
           <>
-            <header>
-              <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase" id="dpStamp">
-                {open.stamp}
-              </div>
-              <h3 id="dpTitle">{open.title}</h3>
-            </header>
             <div className="body" id="dpBody">
               <SafeHtml html={open.body} />
             </div>
-            <div className="grid gap-1.75 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4" id="dpOpts">
+            <div
+              className="grid gap-1.75 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4"
+              id="dpOpts"
+            >
               {open.opts.map((o: any, i: number) => (
                 <button
                   key={i}
@@ -83,7 +83,9 @@ export function DespatchModal() {
                 >
                   <b className="block font-[650] tracking-[-.02em]">{T(o.b)}</b>
                   {o.e ? (
-                    <em className="mt-0.75 block text-xs text-ink-soft not-italic">{T(o.e)}</em>
+                    <em className="mt-0.75 block text-xs text-ink-soft not-italic">
+                      {T(o.e)}
+                    </em>
                   ) : null}
                   {o.hint ? <SafeHtml html={o.hint} /> : null}
                   {o.extra ? <SafeHtml html={o.extra} /> : null}
@@ -91,8 +93,10 @@ export function DespatchModal() {
               ))}
             </div>
           </>
+        ) : blocModal!.kind === "found" ? (
+          <BlocFoundModalBody />
         ) : (
-          <ImperativeDespatchFrame />
+          <BlocInviteModalBody bid={blocModal!.bid} />
         )}
       </div>
     </div>
