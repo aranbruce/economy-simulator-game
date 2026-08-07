@@ -13,7 +13,6 @@ import {
   COUNTRIES,
   COUNTRY_REGIONS,
   DEFAULT_BLOC_MEMBER,
-  LEGACY_ROLE_MAP,
   resolveHomeRole,
 } from "./countries.ts";
 import {
@@ -247,10 +246,7 @@ type DeptId = (typeof DEPTS)[number]["id"];
 const POLITY_IDS = Object.keys(POLITY);
 const POLITY_LADDER = ["democracy", "hybrid", "authoritarian"];
 const REL_POLITY = 6;
-/** Collapse legacy "monarchy" pins into authoritarian. */ function normalisePolityId(
-  key: any,
-) {
-  if (key === "monarchy") return "authoritarian";
+function normalisePolityId(key: any) {
   return key && POLITY[key] ? key : null;
 }
 /** Opening / partner pin from NATION_PROFILE only. */ function profilePolityId(
@@ -3659,11 +3655,6 @@ function initBlocState(homeRole: any) {
 }
 function blocByIdOrCustom(blocId: any) {
   return blocById(blocId) || (G.customBlocs && G.customBlocs[blocId]) || null;
-}
-function canJoinBloc(blocId: any) {
-  const player = playerCountryId();
-  if (countryBlocId(player)) return false;
-  return blocJoinBlockers(blocId, "accede").length === 0;
 }
 function blocAccessionSpec(blocId: any) {
   const bloc = blocByIdOrCustom(blocId);
@@ -8409,7 +8400,6 @@ const HYSTERESIS = 0.22; // how far potential follows a sustained output gap
 /* Shared advanced-economy TFP residual. Per-seat differences come from
    catch-up (relative income yRel), knowledge, openness and trade — not a
    per-realm tfpTrend table. */ const TFP_FRONTIER = 0.72;
-const TFP_TREND = TFP_FRONTIER; // legacy alias
 const CATCHUP_K = 2.15; // points of annual TFP per log(1/yRel)
 const FERTILITY_CH = 2.2; // birth-rate response to policy fertility channel
 const WELFARE_FERT = 0.012; // birth-rate elasticity to welfare pts above 13.3
@@ -11289,13 +11279,6 @@ function billClauses() {
 }
 const billCost = () =>
   billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
-const isFiscalOnly = (cl: any) =>
-  cl.every(
-    (c: any) =>
-      !/Ratify|Withdraw|Enact|Repeal|Cannabis|Psychedelics|Gambling|Alcohol|Tobacco|Adult|summit|protest|Restrictive|State visit|Formal protest|envoy/i.test(
-        c.label,
-      ),
-  );
 /* ==================================================================
    7. RENDERING
    ================================================================== */
@@ -11366,11 +11349,15 @@ function fbm(x: any, y: any, z: any, oct: any) {
 }
 /* ==================================================================
    7a. THE MAP
-   A procedurally generated fictional country, drawn to a 2D canvas.
-   No libraries and no map data: the coastline is radial noise sampled
-   on the angle (seamless by construction) and the interior is carved
-   into regions by nearest seed. Geometry is pure arithmetic over typed
-   arrays so it can be tested without a canvas; only painting needs one.
+   The procedurally generated fictional-country canvas that used to live here
+   (radial-noise coastline, nine regions by nearest seed, flood-filled ocean)
+   has been fully replaced by the real Natural-Earth/topojson map component
+   (components/map2d/WorldMap.tsx + lib/sim/boardMetrics.ts); a canvas-load
+   failure now falls back to a plain message in WorldMap.tsx itself, not to
+   any function here. REGIONS survives only as the regional metadata
+   (`mix`, `prosper`, `beta`, `trade`, `publicShare`, `housing`) that feeds
+   `initRegions()` / `stepRegions()`, which still run every quarter to keep
+   `econ.regions` (approval/unemployment/prosperity by region) up to date.
    ================================================================== */ const REGIONS =
   [
     {
@@ -11527,297 +11514,6 @@ function fbm(x: any, y: any, z: any, oct: any) {
       housing: 0.3,
     },
   ];
-const CAPITAL_XY = {
-  x: 0.04,
-  y: 0.08,
-};
-/* Where each trading partner lies relative to the country, for the edge arrows. */ const PARTNER_BEARING =
-  {
-    germany: {
-      a: 82,
-      label: "E",
-    },
-    france: {
-      a: 78,
-      label: "E",
-    },
-    italy: {
-      a: 95,
-      label: "SE",
-    },
-    spain: {
-      a: 108,
-      label: "SE",
-    },
-    netherlands: {
-      a: 85,
-      label: "E",
-    },
-    poland: {
-      a: 75,
-      label: "E",
-    },
-    united_states: {
-      a: 250,
-      label: "W",
-    },
-    canada: {
-      a: 260,
-      label: "W",
-    },
-    china: {
-      a: 118,
-      label: "SE",
-    },
-    russia: {
-      a: 55,
-      label: "NE",
-    },
-    india: {
-      a: 128,
-      label: "SE",
-    },
-    brazil: {
-      a: 230,
-      label: "SW",
-    },
-    mexico: {
-      a: 245,
-      label: "W",
-    },
-    argentina: {
-      a: 220,
-      label: "SW",
-    },
-    japan: {
-      a: 105,
-      label: "E",
-    },
-    korea: {
-      a: 100,
-      label: "E",
-    },
-    australia: {
-      a: 168,
-      label: "S",
-    },
-    indonesia: {
-      a: 145,
-      label: "SE",
-    },
-    vietnam: {
-      a: 125,
-      label: "SE",
-    },
-    turkey: {
-      a: 100,
-      label: "SE",
-    },
-    saudi: {
-      a: 140,
-      label: "SSE",
-    },
-    uae: {
-      a: 135,
-      label: "SSE",
-    },
-    nigeria: {
-      a: 160,
-      label: "S",
-    },
-    south_africa: {
-      a: 155,
-      label: "S",
-    },
-    egypt: {
-      a: 148,
-      label: "SSE",
-    },
-    kenya: {
-      a: 152,
-      label: "S",
-    },
-    kingdom: {
-      a: 200,
-      label: "NW",
-    },
-  };
-function fbm2(x: any, y: any, oct: any) {
-  let s = 0,
-    a = 0.5,
-    f = 1;
-  for (let i = 0; i < oct; i++) {
-    s += a * vnoise(x * f, y * f, 0.37);
-    f *= 2.03;
-    a *= 0.5;
-  }
-  return s;
-}
-/* The country is built from overlapping lobes rather than one radial blob,
-   which is what gives it peninsulas, bays and an asymmetric silhouette instead
-   of a circle. Offshore islands are separate lobes; the lake is a negative one. */ const LOBES =
-  [
-    [0.0, -0.06, 0.42],
-    [-0.14, -0.46, 0.3],
-    [0.3, -0.4, 0.22],
-    [-0.46, -0.1, 0.26],
-    [0.44, 0.02, 0.23],
-    [-0.34, 0.32, 0.21],
-    [0.36, 0.34, 0.22],
-    [0.04, 0.56, 0.19],
-    [-0.1, 0.2, 0.3], // waist, keeps north and south joined
-  ];
-const ISLES = [
-  [-0.74, -0.44, 0.085],
-  [0.72, 0.5, 0.07],
-  [-0.66, 0.52, 0.055],
-];
-const LAKE = [-0.2, -0.16, 0.115];
-function lobeField(list: any, dx: any, dy: any) {
-  let f = 0;
-  for (const L of list) {
-    const ex = (dx - L[0]) / L[2],
-      ey = (dy - L[1]) / L[2];
-    const d2 = ex * ex + ey * ey;
-    if (d2 < 6) f += Math.exp(-d2 * 1.05);
-  }
-  return f;
-}
-/* >0 is land. The noise is added in world space rather than radially, so the
-   coast wanders the way a real one does instead of rippling around a circle. */ function countryField(
-  dx: any,
-  dy: any,
-) {
-  const warp = (fbm2(dx * 1.9 + 5.1, dy * 1.9 + 2.7, 4) - 0.5) * 0.52;
-  const fine = (fbm2(dx * 6.2 + 17.3, dy * 6.2 + 9.1, 3) - 0.5) * 0.2;
-  const land = lobeField(LOBES, dx, dy) + warp + fine - 0.62;
-  const isle = lobeField(ISLES, dx, dy) + warp * 0.5 + fine - 0.58;
-  let v = Math.max(land, isle);
-  // inland water
-  const lx = (dx - LAKE[0]) / LAKE[2],
-    ly = (dy - LAKE[1]) / LAKE[2];
-  const lake = Math.exp(-(lx * lx + ly * ly) * 1.3) + fine * 0.8 - 0.72;
-  if (lake > 0) v = Math.min(v, -0.02);
-  return v;
-}
-/* Region index per pixel: 255 means sea. Also returns a border mask and the
-   pixel count per region, which is what the geometry tests assert on. */ function mapGeometry(
-  W: any,
-  H: any,
-) {
-  const idx = new Uint8Array(W * H),
-    edge = new Uint8Array(W * H),
-    shelf = new Uint8Array(W * H);
-  const counts = new Array(REGIONS.length).fill(0);
-  let land = 0;
-  for (let py = 0; py < H; py++) {
-    const dy = ((py + 0.5) / H) * 2 - 1;
-    for (let px = 0; px < W; px++) {
-      const dx = ((px + 0.5) / W) * 2 - 1;
-      const i = py * W + px;
-      if (countryField(dx, dy) <= 0) {
-        idx[i] = 255;
-        continue;
-      }
-      let best = 0,
-        bd = Infinity;
-      for (let r = 0; r < REGIONS.length; r++) {
-        const R = REGIONS[r];
-        const d = (dx - R.x) * (dx - R.x) + (dy - R.y) * (dy - R.y);
-        if (d < bd) {
-          bd = d;
-          best = r;
-        }
-      }
-      idx[i] = best;
-      counts[best]++;
-      land++;
-    }
-  }
-  // internal borders
-  for (let py = 1; py < H - 1; py++)
-    for (let px = 1; px < W - 1; px++) {
-      const i = py * W + px,
-        v = idx[i];
-      if (v === 255) continue;
-      if (
-        idx[i - 1] !== v ||
-        idx[i + 1] !== v ||
-        idx[i - W] !== v ||
-        idx[i + W] !== v
-      )
-        edge[i] = 1;
-    }
-  /* Ocean is whatever the frame edge can reach. Any water it cannot reach is
-     inland, and is drawn as a lake rather than as sea. */ const ocean =
-      new Uint8Array(W * H),
-    stack: any[] = [];
-  const push = (i: any) => {
-    if (idx[i] === 255 && !ocean[i]) {
-      ocean[i] = 1;
-      stack.push(i);
-    }
-  };
-  for (let x = 0; x < W; x++) {
-    push(x);
-    push((H - 1) * W + x);
-  }
-  for (let y = 0; y < H; y++) {
-    push(y * W);
-    push(y * W + W - 1);
-  }
-  while (stack.length) {
-    const i = stack.pop(),
-      x = i % W,
-      y = (i / W) | 0;
-    if (x > 0) push(i - 1);
-    if (x < W - 1) push(i + 1);
-    if (y > 0) push(i - W);
-    if (y < H - 1) push(i + W);
-  }
-  let lake = 0;
-  for (let i = 0; i < W * H; i++) if (idx[i] === 255 && !ocean[i]) lake++;
-  /* Continental shelf: how many dilation steps of sea from the nearest coast,
-     which is what lets the water shade from shallow to deep. */ const RINGS =
-    Math.max(3, Math.round(Math.min(W, H) * 0.045));
-  let front = [];
-  for (let i = 0; i < W * H; i++) if (idx[i] !== 255) front.push(i);
-  const seen = new Uint8Array(W * H);
-  front.forEach((i) => {
-    seen[i] = 1;
-  });
-  for (let ring = 1; ring <= RINGS && front.length; ring++) {
-    const next = [];
-    for (const i of front) {
-      const x = i % W,
-        y = (i / W) | 0;
-      const nb = [];
-      if (x > 0) nb.push(i - 1);
-      if (x < W - 1) nb.push(i + 1);
-      if (y > 0) nb.push(i - W);
-      if (y < H - 1) nb.push(i + W);
-      for (const j of nb)
-        if (!seen[j] && idx[j] === 255) {
-          seen[j] = 1;
-          shelf[j] = RINGS - ring + 1;
-          next.push(j);
-        }
-    }
-    front = next;
-  }
-  return {
-    idx,
-    edge,
-    shelf,
-    ocean,
-    counts,
-    land,
-    lake,
-    rings: RINGS,
-    W,
-    H,
-  };
-}
 /* ---------- The rest of the world keeps its own books ----------
    Partners are not just relationship counters: each runs an economy with its own
    trend growth, deficit and debt, correlated to the world cycle and to shocks.
@@ -12109,262 +11805,6 @@ function stepRegions(
     );
   });
 }
-/* ---------- what each region is feeling ---------- */ function regionStats(
-  r: any,
-) {
-  const e = G.econ;
-  const i = REGIONS.indexOf(r);
-  const st = (e.regions && e.regions[i]) || {
-    y: 100,
-    u: e.unemployment,
-  };
-  let appr = 0;
-  for (const f in r.mix) appr += (G.fac[f] || 50) * r.mix[f];
-  /* A region that has fallen behind is a region whose people are less impressed,
-     so local conditions feed back into local politics. */ appr +=
-    (st.y / 100 - e.gdp / 100) * 55 - (st.u - e.unemployment) * 2.4;
-  const urbanShare = r.mix.urban || 0;
-  const prosper =
-    r.prosper *
-    (st.y / 100) *
-    (1 - (e.gini - (e.gini0 != null ? e.gini0 : 35)) * 0.006);
-  const services = clamp(
-    e.services + (urbanShare - 0.3) * 10 - (r.prosper < 0.85 ? 6 : 0),
-    0,
-    100,
-  );
-  return {
-    approval: clamp(appr, 0, 100),
-    unemployment: st.u,
-    prosperity: prosper * 100,
-    services,
-  };
-}
-const MAP_METRICS = [
-  {
-    id: "approval",
-    name: "Approval",
-    fmt: (v: any) => v.toFixed(0) + "%",
-    lo: 20,
-    hi: 70,
-    good: "high",
-  },
-  {
-    id: "unemployment",
-    name: "Unemployment",
-    fmt: (v: any) => v.toFixed(1) + "%",
-    lo: 2,
-    hi: 12,
-    good: "low",
-  },
-  {
-    id: "prosperity",
-    name: "Prosperity",
-    fmt: (v: any) => v.toFixed(0),
-    lo: 70,
-    hi: 140,
-    good: "high",
-  },
-  {
-    id: "services",
-    name: "Services",
-    fmt: (v: any) => v.toFixed(0),
-    lo: 25,
-    hi: 75,
-    good: "high",
-  },
-];
-let mapMetric = "approval",
-  mapHover = -1;
-/* Green → yellow → orange → red via shared metricRamp. No blue.
-   `good` flips which end is which. */ function ramp(t: any) {
-  return metricRamp(t);
-}
-function regionColour(r: any, metric: any) {
-  const m = MAP_METRICS.find((x) => x.id === metric) || MAP_METRICS[0];
-  const v = (regionStats(r) as any)[m.id];
-  let t = (v - m.lo) / (m.hi - m.lo);
-  if (m.good === "high") t = 1 - t; // good things stay cool
-  return ramp(t);
-}
-const Map2D: Record<string, any> = {
-  cv: null,
-  ctx: null,
-  geo: null,
-  host: null,
-  dpr: 1,
-  raf: 0,
-};
-function paintMap() {
-  const M = Map2D;
-  if (!M.ctx || !M.geo) return;
-  const { idx, edge, shelf, ocean, rings, W, H } = M.geo;
-  const img = M.ctx.createImageData(W, H);
-  const d = img.data;
-  const pal = REGIONS.map((r) => regionColour(r, mapMetric));
-  for (let i = 0; i < W * H; i++) {
-    const p = i * 4,
-      v = idx[i];
-    if (v === 255) {
-      if (!ocean[i]) {
-        d[p] = 26;
-        d[p + 1] = 58;
-        d[p + 2] = 92;
-      } else {
-        const t = shelf[i] / rings; // shallow near the coast
-        d[p] = 7 + t * 22;
-        d[p + 1] = 15 + t * 44;
-        d[p + 2] = 30 + t * 58;
-      }
-      d[p + 3] = 255;
-      continue;
-    }
-    const c = pal[v];
-    let k = 1;
-    if (v === mapHover) k = 1.3;
-    if (edge[i]) k *= 0.66; // internal region borders
-    d[p] = Math.min(255, c[0] * k);
-    d[p + 1] = Math.min(255, c[1] * k);
-    d[p + 2] = Math.min(255, c[2] * k);
-    d[p + 3] = 255;
-  }
-  // coastline: darken any land pixel touching water
-  for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) {
-      const i = y * W + x;
-      if (idx[i] === 255) continue;
-      if (
-        idx[i - 1] === 255 ||
-        idx[i + 1] === 255 ||
-        idx[i - W] === 255 ||
-        idx[i + W] === 255
-      ) {
-        const p = i * 4;
-        d[p] *= 0.55;
-        d[p + 1] *= 0.55;
-        d[p + 2] *= 0.58;
-      }
-    }
-  M.ctx.putImageData(img, 0, 0);
-  const toPx = (x: any, y: any) => [((x + 1) / 2) * W, ((y + 1) / 2) * H];
-  M.ctx.save();
-  const [cx, cy] = toPx(CAPITAL_XY.x, CAPITAL_XY.y);
-  M.ctx.beginPath();
-  M.ctx.arc(cx, cy, W * 0.011, 0, Math.PI * 2);
-  M.ctx.fillStyle = "#fff";
-  M.ctx.fill();
-  M.ctx.lineWidth = W * 0.005;
-  M.ctx.strokeStyle = "rgba(0,0,0,.5)";
-  M.ctx.stroke();
-  M.ctx.font =
-    "600 " + ((W * 0.02) | 0) + "px -apple-system, system-ui, sans-serif";
-  M.ctx.textAlign = "center";
-  M.ctx.textBaseline = "middle";
-  for (const p of activePartners()) {
-    const b = (PARTNER_BEARING as any)[p.id];
-    if (!b) continue;
-    const rad = ((b.a - 90) * Math.PI) / 180;
-    const rr = Math.min(W, H) * 0.462;
-    const ax = W / 2 + Math.cos(rad) * rr,
-      ay = H / 2 + Math.sin(rad) * rr;
-    const rel = G.rel[p.id] || 50;
-    M.ctx.fillStyle = rel > 62 ? "#3DDC84" : rel > 45 ? "#E8C988" : "#FF5A4E";
-    M.ctx.beginPath();
-    M.ctx.arc(ax, ay, W * 0.012, 0, Math.PI * 2);
-    M.ctx.fill();
-    M.ctx.fillStyle = "rgba(255,255,255,.85)";
-    M.ctx.fillText(b.label, ax, ay - W * 0.03);
-  }
-  M.ctx.restore();
-}
-function mapPick(clientX: any, clientY: any) {
-  const M = Map2D;
-  if (!M.cv || !M.geo) return -1;
-  const r = M.cv.getBoundingClientRect();
-  if (!r.width || !r.height) return -1;
-  const px = Math.floor(((clientX - r.left) / r.width) * M.geo.W);
-  const py = Math.floor(((clientY - r.top) / r.height) * M.geo.H);
-  if (px < 0 || py < 0 || px >= M.geo.W || py >= M.geo.H) return -1;
-  const v = M.geo.idx[py * M.geo.W + px];
-  return v === 255 ? -1 : v;
-}
-function initMap(host: any) {
-  try {
-    const W = 620,
-      H = 620;
-    const cv = document.createElement("canvas");
-    cv.width = W;
-    cv.height = H;
-    cv.className = "mapcanvas";
-    const ctx = cv.getContext("2d");
-    if (!ctx) return false;
-    host.appendChild(cv);
-    Object.assign(Map2D, {
-      cv,
-      ctx,
-      host,
-      geo: mapGeometry(W, H),
-    });
-    cv.addEventListener("pointermove", (ev) => {
-      const r = mapPick(ev.clientX, ev.clientY);
-      if (r !== mapHover) {
-        mapHover = r;
-        paintMap();
-        updateMapLabel();
-      }
-    });
-    cv.addEventListener("pointerleave", () => {
-      mapHover = -1;
-      paintMap();
-      updateMapLabel();
-    });
-    cv.addEventListener("click", (ev) => {
-      const r = mapPick(ev.clientX, ev.clientY);
-      if (r >= 0) {
-        mapHover = r;
-        paintMap();
-        updateMapLabel();
-      }
-    });
-    paintMap();
-    return true;
-  } catch (err) {
-    return false;
-  }
-}
-function updateMapLabel() {
-  const box = $("mapLabel");
-  if (!box) return;
-  if (mapHover < 0) {
-    const m = MAP_METRICS.find((x) => x.id === mapMetric)!;
-    box.innerHTML =
-      "<b>" + esc(G.country) + "</b><span>" + m.name + " by region</span>";
-    return;
-  }
-  const r = REGIONS[mapHover],
-    st = regionStats(r);
-  box.innerHTML =
-    "<b>" +
-    esc(r.name) +
-    "</b>" +
-    "<span>" +
-    MAP_METRICS.map((m) => m.name + " " + m.fmt((st as any)[m.id])).join(
-      " &middot; ",
-    ) +
-    "</span>";
-}
-function updateMap() {
-  if (Map2D.ctx) {
-    paintMap();
-    updateMapLabel();
-  }
-}
-function mapFallbackHtml() {
-  return (
-    '<div class="globe-fallback"><p>The map could not be drawn here. ' +
-    "Everything else in the game is unaffected.</p></div>"
-  );
-}
 const TABS = [
   {
     id: "budget",
@@ -12402,68 +11842,6 @@ const TABS = [
     icon: "chart",
   },
 ];
-function spark(key: any, w: any = 44, h: any = 13) {
-  const vals = G.log.map((r: any) => r[key]);
-  if (vals.length < 2) return "";
-  const mn = Math.min(...vals),
-    mx = Math.max(...vals),
-    rg = mx - mn || 1;
-  const pts = vals
-    .map(
-      (v: any, i: any) =>
-        ((i / (vals.length - 1)) * w).toFixed(1) +
-        "," +
-        (h - ((v - mn) / rg) * h).toFixed(1),
-    )
-    .join(" ");
-  return (
-    '<svg width="' +
-    w +
-    '" height="' +
-    h +
-    '" aria-hidden="true"><polyline points="' +
-    pts +
-    '" fill="none" stroke="#eed69a" stroke-width="1.2"/></svg>'
-  );
-}
-function dialHtml(
-  k: any,
-  v: any,
-  unit: any,
-  delta: any,
-  warn: any,
-  sk: any,
-  invert: any,
-) {
-  const cls =
-    delta == null
-      ? ""
-      : invert
-        ? delta < 0
-          ? "up"
-          : "dn"
-        : delta > 0
-          ? "up"
-          : "dn";
-  const dt = delta == null ? "&nbsp;" : sgn(delta, 1);
-  return (
-    '<div class="dial' +
-    (warn ? " warn" : "") +
-    '"><div class="k">' +
-    k +
-    '</div><div class="v">' +
-    v +
-    "<small>" +
-    unit +
-    '</small></div><div class="d ' +
-    cls +
-    '">' +
-    dt +
-    "</div>" +
-    (sk ? spark(sk) : "") +
-    "</div>"
-  );
-}
 const ICONS = {
   coin: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 4.6v6.8M6.2 6.2h3.1a1.4 1.4 0 010 2.8H6.6h3.2"/></svg>',
   percent:
@@ -16486,11 +15864,6 @@ function render(options?: any) {
     renderPanel();
   } catch (e) {
     console.error("renderPanel", e);
-  }
-  try {
-    updateMap();
-  } catch (e) {
-    console.error("updateMap", e);
   }
   if (scrollPartner && (tab === "trade" || tab === "diplomacy")) {
     queueDrawerPartnerScroll(scrollPartner);
@@ -22330,17 +21703,6 @@ function getCoachPanel() {
     continueLabel: ready ? "Next" : step.id === "done" ? "Finish" : "Continue",
   };
 }
-/** @deprecated use getCoachPanel */
-function getCoachBanner() {
-  const p = getCoachPanel();
-  if (!p || p.phase !== "await" || !p.task) return null;
-  return {
-    step: p.step,
-    total: p.total,
-    label: p.task,
-    title: p.title,
-  };
-}
 function bump() {
   maybeAutoUnsubmitMp();
   tickCoach();
@@ -22379,17 +21741,6 @@ function getTab() {
 }
 function getG() {
   return G;
-}
-function setMapMetric(id: any) {
-  mapMetric = id;
-  updateMap();
-  updateMapLabel();
-}
-function getMapMetric() {
-  return mapMetric;
-}
-function setMapHover(i: any) {
-  mapHover = i;
 }
 
 export {
@@ -22434,9 +21785,7 @@ export {
   DIPLO_SPHERES,
   DIPLO_CAMPS,
   REGIONS,
-  MAP_METRICS,
   NATION_PROFILE,
-  PARTNER_BEARING,
   EVENTS,
   TABS,
   COL,
@@ -22521,7 +21870,6 @@ export {
   snapshotMpDiploUi,
   restoreMpDiploUi,
   applyLocalMpDiploAction,
-  canJoinBloc,
   blocJoinBlockers,
   blocMemberApprovals,
   blocInviteMemberApprovals,
@@ -22689,16 +22037,6 @@ export {
   termReview,
   qualEffects,
   qualEffectsData,
-  regionStats,
-  regionColour,
-  mapGeometry,
-  countryField,
-  paintMap,
-  mapPick,
-  initMap,
-  Map2D,
-  updateMap,
-  updateMapLabel,
   composePress,
   pushPress,
   renderPress,
@@ -22741,9 +22079,7 @@ export {
   refreshWorldYRel,
   liveYRel,
   qLabel,
-  dialHtml,
   chip,
-  spark,
   leverHtml,
   wireLevers,
   ctrlRow,
@@ -22761,7 +22097,6 @@ export {
   ledgerTable,
   ledgerRows,
   clausesIn,
-  isFiscalOnly,
   esc,
   fmt,
   sgn,
@@ -22777,7 +22112,6 @@ export {
   skipCoach,
   tickCoach,
   getCoachPanel,
-  getCoachBanner,
   coachClearDraft,
   coachSubtasks,
   RATE_FLOOR,
@@ -22813,8 +22147,5 @@ export {
   getTab,
   setOnTabChange,
   getG,
-  setMapMetric,
-  getMapMetric,
-  setMapHover,
   recapitaliseBank,
 };

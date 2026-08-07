@@ -899,31 +899,11 @@ export const COUNTRIES: Country[] = [
   },
 ];
 
-/**
- * Old playable-role ids → country id. Kept so resolveHomeRole still accepts
- * pre-sovereign-seat strings (e.g. saves, bookmarks). New code should pass
- * country ids or "home" only.
- */
-export const LEGACY_ROLE_MAP: Record<string, string> = {
-  home: "home",
-  kingdom: "kingdom",
-  continental: "france",
-  federated: "united_states",
-  eastern: "china",
-  northern: "russia",
-  southern: "india",
-  equatorial: "nigeria",
-  andes: "brazil",
-  commonwealth: "australia",
-  gulf: "saudi",
-};
-
 export function countryById(id: string) {
   return COUNTRIES.find((c) => c.id === id) || null;
 }
 
 export function resolveHomeRole(role?: string | null) {
   if (!role || role === "home") return "home";
-  if (COUNTRIES.some((c) => c.id === role)) return role;
-  return LEGACY_ROLE_MAP[role] || role;
+  return role;
 }
