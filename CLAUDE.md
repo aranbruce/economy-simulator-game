@@ -280,9 +280,10 @@ The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index
 every tab paints through its React component (`components/drawers/*.tsx` via
 `DrawerContent.tsx`), and every stat chip through `TopBarStats.tsx`. They're
 kept only because `render()` (still the live re-render trigger, called
-throughout `GameApp.tsx`) calls them unconditionally; the two flags that used
-to gate them, `UI_REACT_CHROME`/`UI_REACT_PANELS`, are vestigial for the same
-reason. Clicking a partner on the world map sets `tab = "trade"`.
+throughout `GameApp.tsx`) calls them unconditionally; the `UI_REACT_CHROME`/
+`UI_REACT_PANELS` flags that used to gate them were deleted outright once the
+stubs became unconditional. Clicking a partner on the world map sets
+`tab = "trade"`.
 
 ## The map
 

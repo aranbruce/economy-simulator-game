@@ -6973,8 +6973,7 @@ function incomeProfile(law: any, econ: any) {
   }
   return clamp((absDiff / (2 * mean * wSum * wSum)) * 100, 14, 68);
 }
-const MTR_BASE = 0.295,
-  PROG_BASE = 0.3;
+const PROG_BASE = 0.3;
 /* Real (CPI) value of the personal allowance against this seat's opening
    schedule. Below 1 the Chancellor is raising taxes without announcing it.
    Uprate tracks the same inflation factor as cpiIndex, so Freeze is what
@@ -7027,18 +7026,6 @@ const money = (v: any) =>
 export let G: any = null;
 /** Currently-open drawer tab id, or null. See `G` above. */
 export let tab: string | null = null;
-let policyFilter = "all";
-const POLICY_CAT_ORDER = [
-  "Work",
-  "Housing",
-  "Welfare",
-  "Education",
-  "Economy",
-  "Energy & climate",
-  "Justice",
-  "Borders",
-  "State",
-];
 function baseLaw() {
   const law = {
     regime: "progressive",
@@ -11282,19 +11269,7 @@ const billCost = () =>
 /* ==================================================================
    7. RENDERING
    ================================================================== */
-const UI_REACT_CHROME = true;
-const UI_REACT_PANELS = new Set([
-  "bill",
-  "budget",
-  "taxes",
-  "policies",
-  "society",
-  "trade",
-  "diplomacy",
-  "charts",
-]);
 const UI_REACT_PRESS = true;
-const UI_REACT_MAP_CHROME = true;
 
 const _els = Object.create(null);
 function registerEl(id: any, el: any) {
@@ -11310,43 +11285,6 @@ const esc = (s: any) =>
     .replace(/"/g, "&quot;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-/* --- seamless 3D value noise --- */ function hash3(i: any, j: any, k: any) {
-  let n = (i | 0) * 374761393 + (j | 0) * 668265263 + (k | 0) * 1442695040;
-  n = (n ^ (n >> 13)) * 1274126177;
-  return ((n ^ (n >> 16)) >>> 0) / 4294967295;
-}
-function vnoise(x: any, y: any, z: any) {
-  const xi = Math.floor(x),
-    yi = Math.floor(y),
-    zi = Math.floor(z);
-  const xf = x - xi,
-    yf = y - yi,
-    zf = z - zi;
-  const u = xf * xf * (3 - 2 * xf),
-    v = yf * yf * (3 - 2 * yf),
-    w = zf * zf * (3 - 2 * zf);
-  const c = (a: any, b: any, cc: any) => hash3(xi + a, yi + b, zi + cc);
-  const x00 = c(0, 0, 0) + (c(1, 0, 0) - c(0, 0, 0)) * u,
-    x10 = c(0, 1, 0) + (c(1, 1, 0) - c(0, 1, 0)) * u;
-  const x01 = c(0, 0, 1) + (c(1, 0, 1) - c(0, 0, 1)) * u,
-    x11 = c(0, 1, 1) + (c(1, 1, 1) - c(0, 1, 1)) * u;
-  return (
-    x00 +
-    (x10 - x00) * v +
-    (x01 + (x11 - x01) * v - (x00 + (x10 - x00) * v)) * w
-  );
-}
-function fbm(x: any, y: any, z: any, oct: any) {
-  let s = 0,
-    a = 0.5,
-    f = 1;
-  for (let i = 0; i < oct; i++) {
-    s += a * vnoise(x * f, y * f, z * f);
-    f *= 2.05;
-    a *= 0.5;
-  }
-  return s;
-}
 /* ==================================================================
    7a. THE MAP
    The procedurally generated fictional-country canvas that used to live here
@@ -12294,7 +12232,6 @@ const chartBox = (title: any, cap: any, body: any) =>
   "</div>" +
   body +
   "</div>";
-const col = (k: any) => G.log.map((r: any) => r[k]);
 /** Data form of compositionBar() for React consumers. */
 function compositionBarData() {
   const E = aggregate(G.draft),
@@ -12464,25 +12401,6 @@ function renderPanel() {
 
 
 
-
-function relationTone(rel: any) {
-  if (rel >= 60) return "warm";
-  if (rel <= 38) return "cold";
-  return "neutral";
-}
-
-function missionShortLabel(m: any) {
-  if (m.id === "summit") return "Summit";
-  if (m.id === "demarche") return "Protest";
-  if (m.id === "sanctionsPosture") return "Sanctions";
-  return m.name.split(" / ")[0];
-}
-
-function interestTone(interest: any) {
-  if (interest >= 0.25) return "for";
-  if (interest <= -0.25) return "against";
-  return "mixed";
-}
 
 function pendingUltimatumIds(g: any) {
   const state = g || G;
