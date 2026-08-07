@@ -125,18 +125,18 @@ piece of work, not blocked on anything else now that no panel is imperative.
 
 Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
 
-| Section             | Contains                                                                                                |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| 1. The statute book | All content data: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`               |
-| 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                |
-| 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine |
-| 4. The engine       | `step()` — one quarter of macro simulation                                                              |
-| 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                           |
-| 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                |
+| Section             | Contains                                                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. The statute book | All content data: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`                                                                        |
+| 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                                                                         |
+| 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine                                                          |
+| 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                       |
+| 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                    |
+| 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                         |
 | 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus the rendering functions noted above (`TABS`, `renderChrome()`, `paintBillPanel()`, `lineChart()`, …) |
-| 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                        |
-| 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                           |
-| 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                           |
+| 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                 |
+| 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                    |
+| 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                    |
 
 ### Multi-country world
 
