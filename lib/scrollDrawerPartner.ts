@@ -27,8 +27,6 @@ export function scrollDrawerPartnerCard(
     56;
   const top = Math.max(0, y);
   root.scrollTo({ top, behavior: "smooth" });
-  el.classList.add("partner-focus");
-  window.setTimeout(() => el.classList.remove("partner-focus"), 1800);
   return true;
 }
 

@@ -79,7 +79,6 @@ export default function GameApp() {
   const [phase, setPhase] = useState("setup"); // setup | lobby | play
   const [realmId, setRealmId] = useState(DEFAULT_REALM_ID);
   const [homeIso, setHomeIso] = useState<string | null>(null);
-  const [homeScale, setHomeScale] = useState<number | null>(null);
   const [homeRole, setHomeRole] = useState("home");
   const [tutorialLock, setTutorialLock] = useState(false);
   const [setupRole, setSetupRole] = useState(
@@ -536,7 +535,6 @@ export default function GameApp() {
     (opts: any) => {
       setRealmId(opts.realmId || DEFAULT_REALM_ID);
       setHomeIso(opts.homeIso);
-      setHomeScale(opts.homeScale);
       setHomeRole(opts.homeRole || "home");
       setSelectedRole(null);
       bootstrapPlay(opts);
@@ -994,9 +992,6 @@ export default function GameApp() {
   );
 
   const onWorldFail = useCallback(() => setWorldOk(false), []);
-
-  const setupRealm = realmByRole(setupRole);
-  const setupLabel = setupRealm.name;
   const inSetup = phase === "setup" || phase === "lobby";
 
   return (
@@ -1014,10 +1009,8 @@ export default function GameApp() {
             onSelect={onSelect}
             onFail={onWorldFail}
             homeIso={homeIso}
-            homeScale={homeScale}
             homeRole={homeRole}
             setupMode={inSetup}
-            setupLabel={inSetup ? setupLabel : null}
           />
         ) : (
           phase === "play" && (

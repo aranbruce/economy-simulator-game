@@ -405,12 +405,8 @@ interface WorldMapProps {
   ) => void;
   onFail?: () => void;
   homeIso?: string | null;
-  /** Accepted but currently unused by this component. */
-  homeScale?: number | null;
   homeRole?: string;
   setupMode?: boolean;
-  /** Accepted but currently unused by this component. */
-  setupLabel?: string | null;
 }
 
 export default function WorldMap({
