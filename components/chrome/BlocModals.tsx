@@ -13,7 +13,14 @@ import { confirmBlocFound, confirmBlocInvite } from "../../lib/ui/actions.ts";
 import { AccessionPipeline, ApprovalTable } from "../drawers/TradePanel.tsx";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 
-const REGION_ORDER = ["europe", "americas", "asia", "africa", "gulf", "oceania"];
+const REGION_ORDER = [
+  "europe",
+  "americas",
+  "asia",
+  "africa",
+  "gulf",
+  "oceania",
+];
 
 const OPTS_WRAP =
   "grid grid-cols-2 gap-2 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4";
@@ -74,7 +81,9 @@ export function BlocFoundModalBody() {
               >
                 <div className="text-sm font-semibold">
                   {t.name}{" "}
-                  <span className="font-normal text-ink-soft">{t.pc} capital</span>
+                  <span className="font-normal text-ink-soft">
+                    {t.pc} capital
+                  </span>
                 </div>
                 <div className="mt-0.5 text-xs text-ink-soft">
                   {t.type === "customs_union"
@@ -87,10 +96,18 @@ export function BlocFoundModalBody() {
         </div>
       </div>
       <div className={OPTS_WRAP} id="dpOpts">
-        <button type="button" className={OPT_SIMPLE} onClick={() => confirmBlocFound(name, selected)}>
+        <button
+          type="button"
+          className={OPT_SIMPLE}
+          onClick={() => confirmBlocFound(name, selected)}
+        >
           <b className="font-[650] tracking-[-.02em]">Found this bloc</b>
         </button>
-        <button type="button" className={OPT_SIMPLE} onClick={() => hideDespatchShell()}>
+        <button
+          type="button"
+          className={OPT_SIMPLE}
+          onClick={() => hideDespatchShell()}
+        >
           <b className="font-[650] tracking-[-.02em]">Cancel</b>
         </button>
       </div>
@@ -107,7 +124,8 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
       null;
     return initial ? initial.partner.id : null;
   });
-  const selected = candidates.find((c: any) => c.partner.id === selectedId) || null;
+  const selected =
+    candidates.find((c: any) => c.partner.id === selectedId) || null;
 
   const byRegion: Record<string, any[]> = {};
   for (const c of candidates) {
@@ -120,7 +138,10 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
     ? { b: "No candidate selected", e: null as string | null }
     : selected.staged
       ? { b: "Already in the bill", e: "See the bill panel above" }
-      : { b: `Propose ${selected.partner.name}`, e: "12 capital · added to your bill" };
+      : {
+          b: `Propose ${selected.partner.name}`,
+          e: "12 capital · added to your bill",
+        };
 
   return (
     <>
@@ -168,7 +189,9 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                         </span>
                       </span>
                     </div>
-                    <div className={`mt-0.75 text-[11.5px] leading-[1.35] ${statusCls}`}>
+                    <div
+                      className={`mt-0.75 text-[11.5px] leading-[1.35] ${statusCls}`}
+                    >
                       {status}
                     </div>
                   </button>
@@ -181,7 +204,9 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
           <div className="mt-3 border-t border-edge pt-3">
             <Eyebrow>Preview: {selected.partner.name}</Eyebrow>
             <AccessionPipeline cur={0} />
-            <ApprovalTable approvals={blocInviteMemberApprovals(bid, selected.partner.id)} />
+            <ApprovalTable
+              approvals={blocInviteMemberApprovals(bid, selected.partner.id)}
+            />
             {blocInviteBlockers(bid, selected.partner.id).length ? (
               <div className="mt-1.5 block text-[11px] text-red">
                 {blocInviteBlockers(bid, selected.partner.id).join(" · ")}
@@ -206,14 +231,20 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
           onClick={() => selected && confirmBlocInvite(selected.partner.id)}
           className={OPT_LEFT}
         >
-          <b className="block font-[650] tracking-[-.02em]">{confirmContent.b}</b>
+          <b className="block font-[650] tracking-[-.02em]">
+            {confirmContent.b}
+          </b>
           {confirmContent.e ? (
             <em className="mt-0.75 block text-xs text-ink-soft not-italic">
               {confirmContent.e}
             </em>
           ) : null}
         </button>
-        <button type="button" className={OPT_SIMPLE} onClick={() => hideDespatchShell()}>
+        <button
+          type="button"
+          className={OPT_SIMPLE}
+          onClick={() => hideDespatchShell()}
+        >
           <b className="font-[650] tracking-[-.02em]">Cancel</b>
         </button>
       </div>

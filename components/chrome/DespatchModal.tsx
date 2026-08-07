@@ -12,7 +12,8 @@ import {
 import { SafeHtml } from "../ui/SafeHtml.tsx";
 import { BlocFoundModalBody, BlocInviteModalBody } from "./BlocModals.tsx";
 
-type BlocModalState = { kind: "found" } | { kind: "invite"; bid: string } | null;
+type BlocModalState =
+  { kind: "found" } | { kind: "invite"; bid: string } | null;
 
 export function DespatchModal() {
   const [open, setOpen] = useState<any>(null);
