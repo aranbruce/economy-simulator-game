@@ -30,7 +30,7 @@ pnpm test            # tsx test/sim.js && tsx test/calibration.js && ...
 
 The codebase is strict-typed `.ts`/`.tsx` throughout — every file under
 `app/`, `components/` and `lib/` is `.ts`/`.tsx`, including
-`lib/sim/engine.ts` (22.7k lines, converted last per the plan) and the three
+`lib/sim/engine.ts` (19.1k lines, converted last per the plan) and the three
 panels once deferred as out-of-scope (`TaxesPanel`, `TradePanel`,
 `DiplomacyPanel` — see below). `test/*.js` stay `.js` but run through the
 `tsx` runner rather than Next's compiler. `strict: true` is on
@@ -42,7 +42,7 @@ native rewrite — do not bump past 6.x until Next.js declares support.
 Standalone scripts (`test/`, `scripts/`) run via `tsx` since they execute
 outside Next's compiler.
 
-`engine.ts`'s ~22.7k lines were typed in a single flat-file pass rather than
+`engine.ts`'s ~19.1k lines were typed in a single flat-file pass rather than
 split along the section banners below — getting it to compile clean under
 `strict: true` was the goal, not a rearchitecture. Typing is deliberately
 loose at the legacy-JS boundary: most function parameters and many locals are
@@ -50,8 +50,13 @@ loose at the legacy-JS boundary: most function parameters and many locals are
 pragmatic-bulk-pass approach used for the rest of the migration. The
 documented section banners still describe the file's internal organisation;
 splitting it into separate files along those seams (per the original plan) is
-still outstanding and should account for the fact that the actual rendering
-functions (`paintBillPanel`, `renderChrome`, `lineChart`, `TABS`, etc.) live
+still outstanding and should account for the fact that surviving rendering
+functions (`lineChart`, `TABS`, `chip`, etc. — the panel-painting functions
+`paintBillPanel`/`paintTaxesPanel`/`paintTradePanel`/`paintDiplomacyPanel`/
+`paintPoliciesPanel`/`paintSocietyPanel`/`paintChartsPanel`/`paintBudgetPanel`
+and their exclusive HTML-string helpers were deleted once every drawer was
+confirmed to render through React — `renderChrome()`/`renderPanel()` remain
+only as no-op stubs, see "Layout" below) live
 inside the "7a. The map" banner range, not the "7. Rendering" one — a literal
 split-at-banners pass would otherwise produce a mislabeled "map.ts" file that
 is mostly UI rendering code.
@@ -85,12 +90,17 @@ in `engine.ts` (`compositionBarData()`, `nationTableData()`,
 and a set of mutate-then-`bump()` action wrappers in `lib/ui/actions.ts`
 (`setDraftRegime`, `toggleDraftDeal`, `toggleBlocAccession`, `toggleMission`,
 `assignEnvoyAction`, `issueUltimatumAction`, and friends). The
-`paintTaxesPanel`/`paintTradePanel`/`paintDiplomacyPanel` functions and their
-now-unreferenced HTML-string helpers (`partnerDiploCardHtml`,
-`relationModifiersHtml`, `blocMembershipPanelHtml`, etc.) are still defined
-and exported in `engine.ts` — dead code, kept for now rather than deleted, the
-same way `paintPoliciesPanel`/`paintSocietyPanel`/`paintChartsPanel` were left
-in place after their own earlier conversions.
+`paintTaxesPanel`/`paintTradePanel`/`paintDiplomacyPanel` functions, the
+similarly-superseded `paintPoliciesPanel`/`paintSocietyPanel`/`paintChartsPanel`/
+`paintBillPanel`/`paintBudgetPanel`, and every HTML-string helper exclusively
+reachable from them (`partnerDiploCardHtml`, `relationModifiersHtml`,
+`blocMembershipPanelHtml`, `wireLevers`, `incomePanelHtml`, and ~25 others —
+2,778 lines in total) were confirmed unreachable via a per-function reference
+audit (checked against every `.tsx` import and every remaining call site in
+`engine.ts` itself) and deleted outright, rather than left in place as
+documented dead code. `renderChrome()`/`renderPanel()` — the dispatcher
+functions that used to call them — are kept as empty stubs since `render()`
+still calls them unconditionally on every quarter advance; see "Layout" below.
 
 **One deliberate carve-out survives inside these panels' React versions:**
 "Found a trade bloc" and "Invite a member" still open via
@@ -103,12 +113,16 @@ already-imperative infrastructure that a single drawer's conversion doesn't
 own. Do not attempt to fold these two flows into TaxesPanel/TradePanel's own
 JSX; call the two functions directly, as their `onClick` handlers already do.
 
-Legacy CSS classes shared between the now-React panels and other authored
-copy (`chip`, `panel`, `hint`, `eyebrow`, `lever`, `seg`, `btn`, `cards`,
-`cat`, `top`, `val`, `yield`, the `diplo-*` family, and more) remain defined
-in `globals.css` — a broad Tailwind-utility migration (replacing those
-classes in component markup) is still outstanding and tracked as its own
-piece of work, not blocked on anything else now that no panel is imperative.
+A broad Tailwind-utility migration is underway, moving component styling off
+the hand-written semantic classes in `globals.css` (`chip`, `panel`, `hint`,
+`eyebrow`, `lever`, `seg`, `btn`, `card`, and more) and onto small shared
+components in `components/ui/` (`Chip.tsx`, `Typography.tsx`, `Lever.tsx`,
+`SegControl.tsx`, `Button.tsx`, `Card.tsx`, …) built from Tailwind utilities.
+Once a class's last consumer is converted, delete the CSS rule rather than
+leaving it — check for other consumers first (including the `diplo-*` family
+and any HTML-string content still authored in `engine.ts`) since some classes
+are shared across several components. Not blocked on anything else now that
+no panel is imperative; still in progress.
 
 ## Architecture
 
@@ -133,7 +147,7 @@ Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
 | 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                       |
 | 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                    |
 | 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                         |
-| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus the rendering functions noted above (`TABS`, `renderChrome()`, `paintBillPanel()`, `lineChart()`, …) |
+| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus surviving rendering helpers (`TABS`, `lineChart()`, `chip()`, …) — see the note above on the panel-painting functions this section used to also hold |
 | 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                 |
 | 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                    |
 | 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                    |
@@ -250,18 +264,25 @@ nothing else in the engine.
 
 ## Layout
 
-The world map is permanent scenery, not a tab.
-`#worldMapLayer` / `#mapLayer` sits at z-index 0. Everything else floats over it:
+The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index
+0. Everything else is React, floating over it:
 
-- `#topbar` — country, term, and the stat chips (`chip()` in `renderChrome`)
-- `#dock` — the bottom toolbar: one button per drawer, then the bill summary
-  and the Deliver action, which shows the forecast and asks you to proceed.
-- `#drawer` — a parchment sheet over the map. `tab` holds the open drawer id,
-  or `null` for the undisturbed map. On wide screens it docks to the right.
+- Topbar — country, term, and the stat chips (`components/chrome/TopBarStats.tsx`,
+  built on the `chip()` data function in `engine.ts`)
+- Dock — the bottom toolbar: one button per drawer, then the bill summary and
+  the Deliver action, which shows the forecast and asks you to proceed.
+- Drawer — a parchment sheet over the map, rendered by
+  `components/chrome/DrawerContent.tsx` off the `tab` state in `engine.ts`
+  (`getTab()`/`setTab()`), or nothing for the undisturbed map. On wide screens
+  it docks to the right.
 
-`renderChrome()` paints the top bar and dock; `renderPanel()` fills
-`#drawerBody` and returns immediately when `tab` is null. Clicking a partner on
-the world map sets `tab = "trade"`.
+`engine.ts`'s own `renderChrome()`/`renderPanel()` are now empty no-op stubs —
+every tab paints through its React component (`components/drawers/*.tsx` via
+`DrawerContent.tsx`), and every stat chip through `TopBarStats.tsx`. They're
+kept only because `render()` (still the live re-render trigger, called
+throughout `GameApp.tsx`) calls them unconditionally; the two flags that used
+to gate them, `UI_REACT_CHROME`/`UI_REACT_PANELS`, are vestigial for the same
+reason. Clicking a partner on the world map sets `tab = "trade"`.
 
 ## The map
 
