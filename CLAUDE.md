@@ -10,8 +10,8 @@ congress).
 The permanent backdrop is a **fictional packed world map**: only your country
 and the mapped trade-partner realms (real coastlines / silhouettes, invented
 positions on a shared ocean). No other countries are drawn. If the map fails
-to load, the game falls back to the procedural country canvas. The map never
-owns game logic.
+to load, it falls back to a plain "could not load" message rather than a
+second map implementation. The map never owns game logic.
 
 The live app is Next.js App Router: UI in `components/`, pure sim in
 `lib/sim/`.
@@ -133,7 +133,7 @@ Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
 | 4. The engine       | `step()` — one quarter of macro simulation                                                              |
 | 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                           |
 | 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                |
-| 7a. The map         | `REGIONS`, `countryField()`, `mapGeometry()`, `regionStats()`, `paintMap()`                             |
+| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus the rendering functions noted above (`TABS`, `renderChrome()`, `paintBillPanel()`, `lineChart()`, …) |
 | 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                        |
 | 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                           |
 | 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                           |
@@ -250,7 +250,7 @@ nothing else in the engine.
 
 ## Layout
 
-The world map (or procedural country fallback) is permanent scenery, not a tab.
+The world map is permanent scenery, not a tab.
 `#worldMapLayer` / `#mapLayer` sits at z-index 0. Everything else floats over it:
 
 - `#topbar` — country, term, and the stat chips (`chip()` in `renderChrome`)
@@ -265,37 +265,23 @@ the world map sets `tab = "trade"`.
 
 ## The map
 
-A 2D canvas, no libraries at all. The coastline is radial noise sampled on
-`(cos, sin)` of the bearing, so it closes up seamlessly, and the interior is
-carved into nine regions by nearest seed.
+**The world map is a 2D canvas** (`components/map2d/WorldMap.tsx`) over
+Natural Earth topojson (`public/geo/countries-110m.json`), coloured by
+`lib/sim/boardMetrics.ts`. Trade partners appear as compass markers around the
+edge, coloured by relations; clicking one sets `tab = "trade"`. Game logic
+must not live in the map module. A canvas failure falls back to a plain
+"could not load" message rendered by `WorldMap.tsx` itself — there is no
+second map implementation to fall back to.
 
-- `mapGeometry(W, H)` returns typed arrays and touches no canvas, so the whole
-  geometry is testable headlessly. `test/map.js` asserts every region has
-  territory, no land touches the frame, the landmass is connected, and each
-  region's seed sits inside its own region.
-- Regions carry a `mix` of factions and a `prosper` multiplier. `regionStats()`
-  turns national numbers into regional ones, which is what makes the choropleth
-  say something rather than just decorate. Weights must sum to 1 and each `mix`
-  must sum to 1; both are asserted.
-- The outline comes from overlapping `LOBES` rather than one radial blob, which
-  is what produces peninsulas and bays instead of a circle. `ISLES` are offshore
-  and `LAKE` is a negative lobe. The tests assert the mainland is one piece,
-  that offshore islands exist, and that inland water exists, because a shape
-  with none of those reads as synthetic.
-- `mapGeometry()` also flood-fills ocean from the frame, so water it cannot
-  reach is drawn as a lake, and dilates outward from the coast to give a
-  continental shelf. That shading does more for "looks like a map" than the
-  outline does.
-- `paintMap()` recolours from a cached geometry rather than recomputing it, and
-  the ramp runs cool-to-warm with `good` deciding which end is which, so every
-  metric reads the same way.
-- Trade partners appear as compass markers around the edge, coloured by
-  relations.
-- A canvas failure falls back to a message. No game logic lives in the map.
-
-**The world map is a 2D canvas** (`WorldMap.jsx`) over Natural Earth GeoJSON.
-Game logic must not live in the map module; load failure falls back to the
-procedural country canvas.
+An earlier hand-rolled procedural country generator (radial-noise coastline,
+nine regions carved by nearest seed, flood-filled ocean, `LOBES`/`ISLES`/
+`LAKE`) lived in `engine.ts` and predates the Natural Earth map; it has been
+removed now that nothing referenced it. `REGIONS` survives as regional
+metadata (`mix`, `prosper`, `beta`, `trade`, `publicShare`, `housing`) that
+still feeds `initRegions()` / `stepRegions()`, which run every quarter to keep
+`econ.regions` (approval/unemployment/prosperity by region) up to date — that
+machinery was left in place since `REGIONS` is still load-bearing for it, even
+though nothing currently reads `econ.regions` back out.
 
 ## Events
 
