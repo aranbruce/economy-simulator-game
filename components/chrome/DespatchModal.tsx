@@ -50,25 +50,36 @@ export function DespatchModal() {
       : (blocByIdOrCustom(blocModal!.bid)?.name ?? "Trade bloc");
 
   return (
-    <div className="scrim" id="scrim">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-[rgba(2,4,10,.72)] p-4 backdrop-blur-[10px] max-[720px]:px-2.5 max-[720px]:pt-[max(12px,env(safe-area-inset-top))] max-[720px]:pb-[max(12px,env(safe-area-inset-bottom))]"
+      id="scrim"
+    >
       <div
-        className="despatch hud-frame"
+        className="despatch hud-frame relative max-h-[88vh] w-full max-w-[600px] animate-[dp_0.36s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-lg border border-edge bg-panel shadow-[var(--spec),var(--shadow-glass-lg)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dpTitle"
       >
-        <header>
+        <header className="border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-5 pt-4 pb-3 max-[720px]:px-3.5 max-[720px]:pt-3.5 max-[720px]:pb-2.5">
           <div
             className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase"
             id="dpStamp"
           >
             {stamp}
           </div>
-          <h3 id="dpTitle">{title}</h3>
+          <h3
+            id="dpTitle"
+            className="mt-1.5 mb-0 font-display text-[26px] leading-[1.12] font-normal tracking-[-.025em] max-[720px]:text-[22px]"
+          >
+            {title}
+          </h3>
         </header>
         {open ? (
           <>
-            <div className="body" id="dpBody">
+            <div
+              className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+              id="dpBody"
+            >
               {open.kind === "briefing" ? (
                 <BriefingBody data={open.data} />
               ) : open.kind === "verdict" ? (

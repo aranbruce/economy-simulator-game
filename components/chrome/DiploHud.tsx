@@ -19,13 +19,16 @@ export function DiploHud() {
     if (getTab() !== "diplomacy") setTab("diplomacy");
   };
 
+  const belowMp = !!(G.mp && G.mp.humanCount);
+
   return (
     <div
       id="diploHud"
-      className={
-        "diplo-hud hud-frame hud-surface" +
-        (G.mp && G.mp.humanCount ? " below-mp" : "")
-      }
+      className={`diplo-hud hud-frame hud-surface fixed left-1/2 z-15 flex max-w-[min(96vw,720px)] -translate-x-1/2 cursor-pointer flex-wrap items-center justify-center gap-1.5 px-3 py-1.5 text-[11.5px] leading-[1.35] tabular-nums transition-[filter,transform] duration-160 hover:brightness-[1.08] active:scale-[0.98] max-[720px]:max-w-[calc(100vw-12px)] ${
+        belowMp
+          ? "below-mp top-[calc(10px+env(safe-area-inset-top,0px)+88px+38px)] max-[720px]:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px+38px)]"
+          : "top-[calc(10px+env(safe-area-inset-top,0px)+88px)] max-[720px]:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
+      }`}
       role="button"
       tabIndex={0}
       aria-label="Active diplomacy"

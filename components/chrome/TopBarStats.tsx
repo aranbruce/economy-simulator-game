@@ -117,7 +117,10 @@ export function TopBarStats() {
   ];
 
   return (
-    <div className="tb-stats" id="tbStats">
+    <div
+      className="ml-auto flex scrollbar-none items-stretch gap-0.75 overflow-x-auto max-[720px]:ml-0 max-[720px]:w-full max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-stretch max-[720px]:gap-1 max-[720px]:overflow-x-visible"
+      id="tbStats"
+    >
       {chips.map((c) => (
         <Chip key={c.label} {...c} />
       ))}
@@ -139,7 +142,10 @@ export function TopBarTerm() {
   ];
 
   return (
-    <small id="tbTerm">
+    <small
+      id="tbTerm"
+      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-ink-faint uppercase max-[720px]:text-[9px] max-[540px]:max-w-[38vw] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap"
+    >
       {termLabel} term · {qLabel(G, G.q)} · {noun} in {left}Q{electHint}
     </small>
   );

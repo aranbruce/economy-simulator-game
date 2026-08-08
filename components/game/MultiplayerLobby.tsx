@@ -164,17 +164,25 @@ export default function MultiplayerLobby({
     const room = session.room;
     const ready = room.humanCount >= 2;
     return (
-      <div className="setup-chrome" role="dialog" aria-modal="true">
-        <HudFrame className="setup-banner hud-surface">
-          <div className="stamp">Cabinet</div>
-          <h1>Private room</h1>
-          <p>
+      <div
+        className="pointer-events-none fixed inset-0 z-40 flex flex-col justify-between px-3.5 pt-[max(14px,env(safe-area-inset-top))] pb-[max(14px,env(safe-area-inset-bottom))]"
+        role="dialog"
+        aria-modal="true"
+      >
+        <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[dp_0.4s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+          <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+            Cabinet
+          </div>
+          <h1 className="my-1.5 font-display text-[clamp(24px,3.6vw,30px)] leading-[1.1] font-normal tracking-tight">
+            Private room
+          </h1>
+          <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
             {mode === "host"
               ? "Share the code below. Friends pick a free country on the map, then join with that code."
               : "You’re in. The host starts when everyone is ready — quarters only advance when every human has Delivered."}
           </p>
         </HudFrame>
-        <HudFrame className="setup-dock hud-surface">
+        <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[dp_0.45s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
           <div className="flex w-full flex-col gap-3.5">
             <div className="flex flex-col gap-1.5">
               <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
@@ -292,20 +300,27 @@ export default function MultiplayerLobby({
 
   return (
     <div
-      className="setup-chrome"
+      className="pointer-events-none fixed inset-0 z-40 flex flex-col justify-between px-3.5 pt-[max(14px,env(safe-area-inset-top))] pb-[max(14px,env(safe-area-inset-bottom))]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="mpLobbyTitle"
     >
-      <HudFrame className="setup-banner hud-surface">
-        <div className="stamp">Cabinet</div>
-        <h1 id="mpLobbyTitle">Multiplayer</h1>
-        <p>
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[dp_0.4s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+          Cabinet
+        </div>
+        <h1
+          id="mpLobbyTitle"
+          className="my-1.5 font-display text-[clamp(24px,3.6vw,30px)] leading-[1.1] font-normal tracking-tight"
+        >
+          Multiplayer
+        </h1>
+        <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
           Private rooms over the same map. Pick your country first, then host a
           lobby or join with a friend’s code.
         </p>
       </HudFrame>
-      <HudFrame className="setup-dock hud-surface w-[min(820px,100%)]">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[dp_0.45s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex w-full flex-col gap-3.5">
           <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-[720px]:grid-cols-1">
             <div className="flex min-w-0 flex-1 flex-col gap-0">

@@ -53,7 +53,10 @@ export function BlocFoundModalBody() {
 
   return (
     <>
-      <div className="body" id="dpBody">
+      <div
+        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        id="dpBody"
+      >
         <div className="mb-3">
           <label className="mb-1 block text-xs text-ink-soft">Bloc name</label>
           <input
@@ -145,7 +148,10 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
 
   return (
     <>
-      <div className="body" id="dpBody">
+      <div
+        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        id="dpBody"
+      >
         <Hint>
           Choose a partner to invite. Every other bloc member must approve. The
           invitation stages in your bill — use <b>Deliver</b> to send it (12

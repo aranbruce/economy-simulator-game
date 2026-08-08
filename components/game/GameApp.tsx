@@ -1056,7 +1056,10 @@ export default function GameApp() {
 
         {phase === "play" && (
           <>
-            <div id="vignette" />
+            <div
+              id="vignette"
+              className="pointer-events-none fixed inset-0 z-1 bg-[radial-gradient(ellipse_at_50%_46%,transparent_46%,rgba(2,4,10,.55)_80%,rgba(2,4,10,.85)_100%)]"
+            />
             <div id="quarterFlash" hidden aria-live="polite">
               <div className="quarter-flash-inner">
                 <span className="quarter-flash-kicker">New quarter</span>
@@ -1065,7 +1068,10 @@ export default function GameApp() {
             </div>
 
             {mpRoom && (
-              <div className="mp-hud hud-frame hud-surface" aria-live="polite">
+              <div
+                className="mp-hud hud-frame hud-surface pointer-events-none fixed top-[calc(10px+env(safe-area-inset-top,0px)+88px)] left-1/2 z-15 flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-xs tabular-nums max-[720px]:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
+                aria-live="polite"
+              >
                 <span className="font-bold tracking-[.06em]">
                   Room {mpRoom.code}
                 </span>

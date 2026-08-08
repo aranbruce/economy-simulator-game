@@ -120,22 +120,29 @@ export default function CountryPicker({
 
   return (
     <div
-      className="setup-chrome"
+      className="pointer-events-none fixed inset-0 z-40 flex flex-col justify-between px-3.5 pt-[max(14px,env(safe-area-inset-top))] pb-[max(14px,env(safe-area-inset-bottom))]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="setupTitle"
     >
-      <HudFrame className="setup-banner hud-surface">
-        <div className="stamp">Commission</div>
-        <h1 id="setupTitle">Choose your country</h1>
-        <p>
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[dp_0.4s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+          Commission
+        </div>
+        <h1
+          id="setupTitle"
+          className="my-1.5 font-display text-[clamp(24px,3.6vw,30px)] leading-[1.1] font-normal tracking-tight"
+        >
+          Choose your country
+        </h1>
+        <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
           {tutorial
             ? "Tutorial locks you into the United Kingdom — click Get started when you’re ready."
             : "Ten realms on a real map. Click any country in a bloc to take that seat — the books open to that realm’s inheritance."}
         </p>
       </HudFrame>
 
-      <HudFrame className="setup-dock hud-surface">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[dp_0.45s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">

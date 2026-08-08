@@ -894,7 +894,11 @@ function PartnerTradeCard({
   }
 
   return (
-    <Card id={`partner-trade-${p.id}`} data-partner-card={p.id}>
+    <Card
+      className="scroll-mt-12"
+      id={`partner-trade-${p.id}`}
+      data-partner-card={p.id}
+    >
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {p.name}
         <CardCat>{T(shareLabel(G.homeRole, p.id, p.tradeShare))}</CardCat>

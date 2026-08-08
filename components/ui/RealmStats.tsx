@@ -184,18 +184,22 @@ export default function RealmStats({
 
   return (
     <aside
-      className="realm-card hud-frame"
+      className="realm-card hud-frame pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[drawerUp_0.28s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-lg border border-edge bg-panel px-4 pt-3.5 pb-4 shadow-[var(--spec),var(--shadow-glass-lg)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:top-auto max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:max-h-[min(48dvh,calc(100dvh-200px))] max-[720px]:w-auto max-[720px]:px-3.5 max-[720px]:py-3 max-[540px]:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-[540px]:max-h-[min(42dvh,calc(100dvh-190px))]"
       role="dialog"
       aria-label={snap.name}
     >
       <div className="mb-2.5 flex items-start gap-2.5">
         <div className="min-w-0 flex-1">
-          <div className="stamp">{snap.us ? "Home" : "Partner realm"}</div>
-          <h2>{snap.name}</h2>
+          <div className="text-[10px] font-bold tracking-widest text-accent-lt uppercase">
+            {snap.us ? "Home" : "Partner realm"}
+          </div>
+          <h2 className="mt-1 mb-0 font-display text-[22px] font-normal tracking-[-.02em] max-[720px]:text-lg">
+            {snap.name}
+          </h2>
         </div>
         <button
           type="button"
-          className="close"
+          className="size-7 cursor-pointer rounded-sm border border-edge bg-g-3 text-xs leading-none text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white"
           aria-label="Close"
           onClick={onClose}
         >

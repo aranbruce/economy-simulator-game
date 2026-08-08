@@ -11,10 +11,18 @@ import { useGame } from "../../lib/ui/useGame.ts";
 function ClipBody({ c }: { c: any }) {
   return (
     <>
-      <div className="clip-mast">{c.masthead}</div>
-      <div className="clip-kick">{c.kicker}</div>
-      <h4 className="clip-hed">{c.headline}</h4>
-      <p className="clip-lede">{c.lede}</p>
+      <div className="clip-mast mb-0.5 text-[9.5px] font-bold tracking-[.14em] text-[#6b5c3e] uppercase">
+        {c.masthead}
+      </div>
+      <div className="clip-kick mb-1.75 border-b border-[rgba(40,32,18,.18)] pb-1.25 text-[10px] text-[#8a7a5a]">
+        {c.kicker}
+      </div>
+      <h4 className="clip-hed mb-1.5 font-display text-base leading-[1.2] font-normal tracking-[-.01em] text-[#14120e]">
+        {c.headline}
+      </h4>
+      <p className="clip-lede m-0 text-[11.5px] leading-[1.4] text-[#3a3428]">
+        {c.lede}
+      </p>
     </>
   );
 }
@@ -28,7 +36,7 @@ export function PressLayer() {
   return (
     <div
       id="pressLayer"
-      className={focused ? "is-focusing" : ""}
+      className={`pointer-events-none fixed bottom-25 left-3.5 flex max-w-[min(280px,46vw)] flex-col items-start gap-3 max-[720px]:bottom-[calc(128px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(8px,env(safe-area-inset-left))] max-[720px]:max-w-[min(200px,42vw)] max-[720px]:gap-2 max-[540px]:bottom-[calc(116px+env(safe-area-inset-bottom,0px))] max-[540px]:max-w-[min(160px,38vw)] ${focused ? "is-focusing z-48" : "z-8"}`}
       aria-live="polite"
     >
       {clips.map((c: any, i: number) => {

@@ -47,26 +47,39 @@ export function DrawerShell() {
   return (
     <div
       id="drawer"
-      className={"hud-frame" + (wide ? " wide" : "")}
+      className={`hud-frame fixed right-2.5 bottom-[88px] left-2.5 z-[15] flex max-h-[min(64vh,640px)] [animation:drawerUp_0.34s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden rounded-lg border border-edge bg-panel shadow-[var(--spec),var(--shadow-glass-lg)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:top-[var(--drawer-top,160px)] max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[var(--drawer-bottom,128px)] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:h-auto max-[720px]:max-h-none max-[540px]:bottom-[var(--drawer-bottom,118px)] min-[920px]:top-[82px] min-[920px]:right-2.5 min-[920px]:bottom-[88px] min-[920px]:left-auto min-[920px]:max-h-none min-[920px]:w-[min(560px,46vw)] ${wide ? "min-[920px]:w-[min(900px,64vw)]" : ""}`}
       role="dialog"
       aria-label="Policy panel"
       title={overspent ? capitalShortfallHint(cost, G.capital) : undefined}
     >
-      <div className="dw-head">
-        <h2 id="dwTitle">{name}</h2>
-        <span className={"sub" + (overspent ? " alert" : "")} id="dwSub">
+      <div className="flex flex-none items-center gap-2.5 border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-4 pt-3 pb-2.5 max-[720px]:flex-wrap max-[720px]:gap-2 max-[720px]:px-3 max-[720px]:pt-2.5 max-[720px]:pb-2.25">
+        <h2
+          id="dwTitle"
+          className="m-0 font-display text-[22px] font-normal tracking-[-.02em] max-[720px]:min-w-0 max-[720px]:flex-[1_1_auto] max-[720px]:text-lg"
+        >
+          {name}
+        </h2>
+        <span
+          className={`text-[11px] font-semibold tracking-[.04em] uppercase max-[720px]:order-3 max-[720px]:flex-[1_1_100%] max-[720px]:text-[10px] ${overspent ? "text-red" : "text-ink-soft"}`}
+          id="dwSub"
+        >
           {sub}
         </span>
         <button
           id="dwClose"
           type="button"
           aria-label="Close panel"
+          className="ml-auto size-7 flex-none cursor-pointer rounded-sm border border-edge bg-g-3 text-xs leading-none text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white max-[720px]:size-9"
           onClick={() => setTab(null)}
         >
           &#10005;
         </button>
       </div>
-      <div className="dw-body" id="drawerBody" key={tab}>
+      <div
+        className="dw-body overflow-y-auto overscroll-contain px-3.5 pt-3 pb-4 [-webkit-overflow-scrolling:touch] max-[720px]:px-3 max-[720px]:pt-2.5 max-[720px]:pb-3.5"
+        id="drawerBody"
+        key={tab}
+      >
         <DrawerContent tab={tab} />
       </div>
     </div>

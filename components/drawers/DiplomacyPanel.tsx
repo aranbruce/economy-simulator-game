@@ -347,7 +347,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         : "border-edge";
   return (
     <div
-      className={`flex flex-col gap-0 overflow-hidden rounded-md border bg-g-1 p-0 transition-[background,border-color,transform] duration-180 hover:-translate-y-px hover:bg-white/6 ${cardStateCls}`}
+      className={`flex scroll-mt-12 flex-col gap-0 overflow-hidden rounded-md border bg-g-1 p-0 transition-[background,border-color,transform] duration-180 hover:-translate-y-px hover:bg-white/6 ${cardStateCls}`}
       id={`partner-diplo-${p.id}`}
       data-partner-card={p.id}
     >
