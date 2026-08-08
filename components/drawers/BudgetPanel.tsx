@@ -158,7 +158,7 @@ export function BudgetPanel() {
                 }}
                 onCommit={(id, v) => setDraftSpend(id, v)}
               />
-              <div style={{ marginTop: 6, padding: "0 12px 8px" }}>
+              <div className="mt-1.5 px-3 pb-2">
                 <SegControl
                   mini
                   value={mode}

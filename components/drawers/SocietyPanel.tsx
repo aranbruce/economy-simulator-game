@@ -61,10 +61,7 @@ export function SocietyPanel() {
   return (
     <>
       <Eyebrow>Where you stand</Eyebrow>
-      <div
-        className="overflow-hidden rounded-md border border-edge bg-g-1"
-        style={{ padding: "11px 13px" }}
-      >
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1 px-3.25 py-2.75">
         {FACTIONS.map((f) => {
           const v = G.fac[f.id];
           const cls = v > 55 ? "good" : v < 38 ? "bad" : "";
@@ -75,7 +72,7 @@ export function SocietyPanel() {
             >
               <span>
                 {f.name}{" "}
-                <span style={{ color: "var(--ink-faint)", fontSize: 10 }}>
+                <span className="text-[10px] text-ink-faint">
                   {Math.round(f.w * 100)}%
                 </span>
               </span>
@@ -92,54 +89,48 @@ export function SocietyPanel() {
           );
         })}
         <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]">
-          <span style={{ fontWeight: 600 }}>Approval</span>
+          <span className="font-semibold">Approval</span>
           <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
               className="block h-full rounded-none bg-red transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
               style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
             />
           </span>
-          <span
-            className="text-right text-[11.5px] text-ink-soft"
-            style={{ fontWeight: 600 }}
-          >
+          <span className="text-right text-[11.5px] font-semibold text-ink-soft">
             {approvalOf(G.fac).toFixed(0)}
           </span>
         </div>
       </div>
 
       <Eyebrow className="mt-5">Social indicators</Eyebrow>
-      <div
-        className="overflow-hidden rounded-md border border-edge bg-g-1"
-        style={{ padding: "11px 13px" }}
-      >
-        {bars.map(([k, n, v]) => (
-          <div
-            key={k}
-            className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
-          >
-            <span>{n}</span>
-            <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
-              <i
-                className="block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
-                style={{
-                  width: `${clamp(v, 0, 100).toFixed(0)}%`,
-                  background:
-                    k === "crime" || k === "black" || k === "gini"
-                      ? v > 50
-                        ? "var(--red)"
-                        : "var(--ink-soft)"
-                      : v > 55
-                        ? "var(--green)"
-                        : "var(--ink-soft)",
-                }}
-              />
-            </span>
-            <span className="text-right text-[11.5px] font-[650] text-ink-soft">
-              {v.toFixed(0)}
-            </span>
-          </div>
-        ))}
+      <div className="overflow-hidden rounded-md border border-edge bg-g-1 px-3.25 py-2.75">
+        {bars.map(([k, n, v]) => {
+          const bad = k === "crime" || k === "black" || k === "gini";
+          const tone = bad
+            ? v > 50
+              ? "bg-red"
+              : "bg-ink-soft"
+            : v > 55
+              ? "bg-green"
+              : "bg-ink-soft";
+          return (
+            <div
+              key={k}
+              className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
+            >
+              <span>{n}</span>
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${tone}`}
+                  style={{ width: `${clamp(v, 0, 100).toFixed(0)}%` }}
+                />
+              </span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <Eyebrow className="mt-5">Political system</Eyebrow>

@@ -10,7 +10,10 @@ import {
   T,
 } from "../../lib/sim/engine.ts";
 import { SafeHtml } from "../ui/SafeHtml.tsx";
+import { ImpactChips, ImpactFactions } from "../ui/ImpactChips.tsx";
 import { BlocFoundModalBody, BlocInviteModalBody } from "./BlocModals.tsx";
+import { BriefingBody } from "./BriefingBody.tsx";
+import { VerdictBody } from "./VerdictBody.tsx";
 
 type BlocModalState =
   { kind: "found" } | { kind: "invite"; bid: string } | null;
@@ -66,7 +69,13 @@ export function DespatchModal() {
         {open ? (
           <>
             <div className="body" id="dpBody">
-              <SafeHtml html={open.body} />
+              {open.kind === "briefing" ? (
+                <BriefingBody data={open.data} />
+              ) : open.kind === "verdict" ? (
+                <VerdictBody data={open.data} />
+              ) : (
+                <SafeHtml html={open.body} />
+              )}
             </div>
             <div
               className="grid gap-1.75 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4"
@@ -89,7 +98,8 @@ export function DespatchModal() {
                     </em>
                   ) : null}
                   {o.hint ? <SafeHtml html={o.hint} /> : null}
-                  {o.extra ? <SafeHtml html={o.extra} /> : null}
+                  {o.chips ? <ImpactChips chips={o.chips} /> : null}
+                  {o.factions ? <ImpactFactions factions={o.factions} /> : null}
                 </button>
               ))}
             </div>

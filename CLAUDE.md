@@ -30,49 +30,83 @@ pnpm test            # tsx test/sim.js && tsx test/calibration.js && ...
 
 The codebase is strict-typed `.ts`/`.tsx` throughout — every file under
 `app/`, `components/` and `lib/` is `.ts`/`.tsx`, including
-`lib/sim/engine.ts` (19.1k lines, converted last per the plan) and the three
-panels once deferred as out-of-scope (`TaxesPanel`, `TradePanel`,
-`DiplomacyPanel` — see below). `test/*.js` stay `.js` but run through the
-`tsx` runner rather than Next's compiler. `strict: true` is on
-project-wide, and `pnpm typecheck` covers the whole tree. `checkJs: false`
-remains set (harmless now that no `.js`/`.jsx` app code exists to skip).
-Next.js's own compiler requires the classic (non-native) TypeScript compiler
-API, so `typescript` is pinned to the last 6.x release rather than the 7.x
-native rewrite — do not bump past 6.x until Next.js declares support.
-Standalone scripts (`test/`, `scripts/`) run via `tsx` since they execute
-outside Next's compiler.
+`lib/sim/engine.ts` (16.6k lines) and the three panels once deferred as
+out-of-scope (`TaxesPanel`, `TradePanel`, `DiplomacyPanel` — see below).
+`test/*.js` stay `.js` but run through the `tsx` runner rather than Next's
+compiler. `strict: true` is on project-wide, and `pnpm typecheck` covers the
+whole tree. `checkJs: false` remains set (harmless now that no `.js`/`.jsx`
+app code exists to skip). Next.js's own compiler requires the classic
+(non-native) TypeScript compiler API, so `typescript` is pinned to the last
+6.x release rather than the 7.x native rewrite — do not bump past 6.x until
+Next.js declares support. Standalone scripts (`test/`, `scripts/`) run via
+`tsx` since they execute outside Next's compiler.
 
-`engine.ts`'s ~19.1k lines were typed in a single flat-file pass rather than
-split along the section banners below — getting it to compile clean under
-`strict: true` was the goal, not a rearchitecture. Typing is deliberately
-loose at the legacy-JS boundary: most function parameters and many locals are
-`any` or `Record<string, any>` rather than precisely modelled, matching the
-pragmatic-bulk-pass approach used for the rest of the migration. The
-documented section banners still describe the file's internal organisation;
-splitting it into separate files along those seams (per the original plan) is
-still outstanding and should account for the fact that surviving rendering
-functions (`lineChart`, `TABS`, `chip`, etc. — the panel-painting functions
-`paintBillPanel`/`paintTaxesPanel`/`paintTradePanel`/`paintDiplomacyPanel`/
-`paintPoliciesPanel`/`paintSocietyPanel`/`paintChartsPanel`/`paintBudgetPanel`
-and their exclusive HTML-string helpers were deleted once every drawer was
-confirmed to render through React — `renderChrome()`/`renderPanel()` remain
-only as no-op stubs, see "Layout" below) live
-inside the "7a. The map" banner range, not the "7. Rendering" one — a literal
-split-at-banners pass would otherwise produce a mislabeled "map.ts" file that
-is mostly UI rendering code.
+`engine.ts` was typed in a single flat-file pass rather than split along the
+section banners below — getting it to compile clean under `strict: true` was
+the goal, not a rearchitecture. Typing is deliberately loose at the legacy-JS
+boundary: most function parameters and many locals are `any` or
+`Record<string, any>` rather than precisely modelled, matching the
+pragmatic-bulk-pass approach used for the rest of the migration.
+
+**`lib/sim/statuteBook.ts`** (2k lines) is the one slice of "1. THE STATUTE
+BOOK" that has been split out: `FACTIONS`, `DEPTS`, `TAXES`/`TAX_BY_ID`,
+`REGIMES`/`REGIME_BY_ID`, `POLICIES`/`POLICY_BY_ID`, `VICE`/`VICE_BY_ID`,
+`PARTNERS`, `MISSIONS`/`MISSION_BY_ID`, their derived `*Id` union types, and
+the macro constants interleaved among them — verified line-by-line to have
+zero reference to the live game state `G` before being moved, so the move is
+a pure relocation with no behavioural change (confirmed byte-identical on
+`pnpm test`, `pnpm balance` and `pnpm world-modes`). `engine.ts` imports these
+back and re-exports them from its own barrel, so none of the ~30 external
+consumers needed to change. The polity-transition helpers physically
+interleaved with that data in the original section (`normalisePolityId`,
+`polityOf`, `coupMetric`, `reviewStamp`, `careerHint`, and friends) reference
+`G` directly and stay behind in `engine.ts`.
+
+**The other eight sections are not split the same way, and a mechanical
+per-banner split is not safe for them.** A structural audit found `aggregate()`,
+`step()`, `billClauses()` and `despatch()` are each called from three or more
+other sections, and the module-level `let G` global (declared in "2. STATE")
+is read or written from nearly every function in the file. Splitting those
+sections into separate files would need `G` refactored from a shared mutable
+global into an explicitly-threaded context object first — a large,
+high-risk rearchitecture of the calibration-critical core that has not been
+attempted. The documented section banners still describe the file's internal
+organisation; note that surviving rendering functions (`TABS`, `lineChartSpec`,
+etc. — the panel-painting functions `paintBillPanel`/`paintTaxesPanel`/
+`paintTradePanel`/`paintDiplomacyPanel`/`paintPoliciesPanel`/`paintSocietyPanel`/
+`paintChartsPanel`/`paintBudgetPanel` and their exclusive HTML-string helpers,
+including the dead `chip()`/`leverHtml()`/`ctrlRow()`/`lineChart()` builders
+they left behind, were deleted once every drawer was confirmed to render
+through React — `renderChrome()`/`renderPanel()` remain only as no-op stubs,
+see "Layout" below) live inside the "7a. The map" banner range, not the
+"7. Rendering" one — a literal split-at-banners pass on the remaining eight
+sections would otherwise also produce a mislabeled "map.ts" file that is
+mostly UI rendering code, on top of the `G`-coupling problem above.
 
 Alongside this, `dangerouslySetInnerHTML` usage fed by HTML-string functions
 in `engine.ts` was replaced with real JSX fed by typed data-returning siblings
 (`ledgerRows()`, `lineChartSpec()`, `impactStripData()`/`impactPanelData()`/
-`rateImpactData()` with shared `impactChipsData()`/`impactFactionsData()`,
-`fullEffectsData()`/`qualEffectsData()`, `diploHudChips()`). Authored
-despatch/coach copy (small hand-built HTML with `<p>`/`<b>`/`<em>`/`<span>`
-etc.) renders through `components/ui/SafeHtml.tsx`, which parses with
-`DOMParser` (inert) and walks the tree through an explicit tag allowlist —
-safe, and general enough to cover arbitrary event bodies without hand-curating
-each one. Component styling is moving from the hand-written CSS classes in
-`globals.css` to Tailwind utilities — the glass/blur design language itself is
-unchanged, only how it's expressed in markup.
+`rateImpactData()` with shared `impactChipsData()`/`impactFactionsData()`
+(rendered via the shared `ImpactChips`/`ImpactFactions` components in
+`components/ui/ImpactChips.tsx`), `fullEffectsData()`/`qualEffectsData()`,
+`diploHudChips()`, `briefingData()` (via `components/chrome/BriefingBody.tsx`)
+and the `gameOver()`/`termReview()` verdict payload (via
+`components/chrome/VerdictBody.tsx`)). `despatch()`'s third argument accepts
+either a plain HTML string or `{ kind: "briefing" | "verdict", data }`;
+`DespatchModal.tsx` renders the matching typed component when `kind` is set
+and falls back to `SafeHtml` only for freeform authored copy. That remaining
+authored despatch/coach/event copy (small hand-built HTML with
+`<p>`/`<b>`/`<em>`/`<span>` etc., covering the several hundred `EVENTS`
+entries and the projection-forecast despatch) renders through
+`components/ui/SafeHtml.tsx`, which parses with `DOMParser` (inert) and walks
+the tree through an explicit tag allowlist — safe, and general enough to
+cover arbitrary event bodies without hand-curating each one. Component
+styling has moved from the hand-written CSS classes in `globals.css` to
+Tailwind utilities — the glass/blur design language itself is unchanged, only
+how it's expressed in markup; the remaining hand-written CSS in `globals.css`
+is now limited to things Tailwind genuinely can't express (the backdrop-filter
+glass recipe, the specular top-edge pseudo-element, newspaper-clipping press
+styling, SVG chart styling) rather than reusable semantic utility classes.
 
 **`TaxesPanel.tsx`, `TradePanel.tsx` and `DiplomacyPanel.tsx` were the last
 three drawers converted, and needed a different treatment from the rest.**
@@ -113,23 +147,28 @@ already-imperative infrastructure that a single drawer's conversion doesn't
 own. Do not attempt to fold these two flows into TaxesPanel/TradePanel's own
 JSX; call the two functions directly, as their `onClick` handlers already do.
 
-A broad Tailwind-utility migration is underway, moving component styling off
-the hand-written semantic classes in `globals.css` (`chip`, `panel`, `hint`,
-`eyebrow`, `lever`, `seg`, `btn`, `card`, and more) and onto small shared
-components in `components/ui/` (`Chip.tsx`, `Typography.tsx`, `Lever.tsx`,
-`SegControl.tsx`, `Button.tsx`, `Card.tsx`, …) built from Tailwind utilities.
-Once a class's last consumer is converted, delete the CSS rule rather than
-leaving it — check for other consumers first (including the `diplo-*` family
-and any HTML-string content still authored in `engine.ts`) since some classes
-are shared across several components. Not blocked on anything else now that
-no panel is imperative; still in progress.
+The broad Tailwind-utility migration is done: component styling has moved off
+the hand-written semantic classes that used to live in `globals.css` (`chip`,
+`panel`, `hint`, `eyebrow`, `lever`, `seg`, `btn`, `card`, and more — all
+deleted once their last consumer converted) and onto small shared components
+in `components/ui/` (`Chip.tsx`, `Typography.tsx`, `Lever.tsx`,
+`SegControl.tsx`, `Button.tsx`, `Card.tsx`, `ImpactChips.tsx`, …) built from
+Tailwind utilities. What's left in `globals.css` is what Tailwind genuinely
+can't express as a utility: the backdrop-filter glass recipe, the specular
+top-edge pseudo-element, the newspaper-clipping press skin, and SVG chart
+styling. When touching a component, prefer a genuine dynamic value (a
+computed bar-width `%`, a live colour) as an inline `style={{}}` prop over a
+one-off Tailwind arbitrary-value class, matching the pattern already used
+throughout `components/drawers/*.tsx` — but a *static* value should always be
+a Tailwind class, never a hardcoded inline style.
 
 ## Architecture
 
 | Path                             | Contains                                                                                                                                                                           |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/`                           | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                           |
-| `lib/sim/engine.ts`              | Statute book, state, aggregate, step, project, bill, map, events, panel HTML                                                                                                       |
+| `lib/sim/engine.ts`              | State, aggregate, step, project, bill, map, events, panel data                                                                                                                     |
+| `lib/sim/statuteBook.ts`         | Pure content data split out of engine.ts: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                  |
 | `lib/sim/worldTrade.ts`          | Bilateral trade clearing across seats                                                                                                                                              |
 | `lib/sim/fxAreas.ts`             | Currency-area Taylor rules and FX vs USD                                                                                                                                           |
 | `lib/sim/partners.ts`            | Partner id → ISO country sets for the world map                                                                                                                                    |
@@ -137,17 +176,19 @@ no panel is imperative; still in progress.
 | `components/map2d/WorldMap.tsx`  | Flat world map, partner colours, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component |
 | `public/geo/countries-110m.json` | Natural Earth topojson                                                                                                                                                             |
 
-Engine sections (inside `lib/sim/engine.ts`) still follow the numbered banners:
+Engine sections still follow the numbered banners. Section 1's pure content
+data now lives in `lib/sim/statuteBook.ts` (see "TypeScript migration"
+above); sections 2–9 remain in `lib/sim/engine.ts`:
 
 | Section             | Contains                                                                                                                                                         |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. The statute book | All content data: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`                                                                        |
+| 1. The statute book | All content data (`lib/sim/statuteBook.ts`): `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS`. The polity-transition helpers physically interleaved with this data in the original section (`normalisePolityId`, `polityOf`, `coupMetric`, …) reference `G` and stay in `engine.ts` |
 | 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                                                                         |
 | 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine                                                          |
 | 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                       |
 | 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                    |
 | 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                         |
-| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus surviving rendering helpers (`TABS`, `lineChart()`, `chip()`, …) — see the note above on the panel-painting functions this section used to also hold |
+| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus surviving rendering helpers (`TABS`, `lineChartSpec()`, …) — see the note above on the panel-painting functions this section used to also hold |
 | 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                 |
 | 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                    |
 | 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                    |
@@ -268,7 +309,7 @@ The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index
 0. Everything else is React, floating over it:
 
 - Topbar — country, term, and the stat chips (`components/chrome/TopBarStats.tsx`,
-  built on the `chip()` data function in `engine.ts`)
+  built on `components/ui/Chip.tsx`)
 - Dock — the bottom toolbar: one button per drawer, then the bill summary and
   the Deliver action, which shows the forecast and asks you to proceed.
 - Drawer — a parchment sheet over the map, rendered by
@@ -469,14 +510,17 @@ Type is `-apple-system` first, so it renders in real SF Pro on Apple hardware
 and falls back to Inter elsewhere. There is no monospace: `--mono` aliases the
 sans stack and figures align via `font-variant-numeric: tabular-nums`.
 
-Only five variables are referenced from JS template strings (`--red`,
-`--ink-soft`, `--ink-faint`, `--mono`, `--sans`), so the stylesheet can be
-rewritten freely provided those keep working. Chart colours live in `COL` in the
-JS and the world map’s partner accents in `relationColour()`; both follow the
-same system palette and must be changed together with the CSS.
+Only two variables are still referenced from a JS template string (`--ink-soft`,
+`--mono`, both in `projectionModal()`'s forecast despatch body — the one
+remaining despatch not yet converted off `SafeHtml`, alongside the freeform
+`EVENTS` copy), so the stylesheet can be rewritten freely provided those keep
+working. Chart colours live in `COL` in the JS and the world map's partner
+accents in `relationColour()`; both follow the same system palette and must be
+changed together with the CSS.
 
-Charts are hand-rolled SVG in `lineChart()`. No chart library, deliberately, so
-the file stays dependency-free.
+Charts are hand-rolled SVG, built from `lineChartSpec()`'s point/series data
+and rendered as real JSX in `components/drawers/ChartsPanel.tsx`. No chart
+library, deliberately, so the file stays dependency-free.
 
 ## Rules and sandbox
 
@@ -889,10 +933,10 @@ derived from the model rather than described alongside it:
   previewing all 36 event options.** If you add mutable top-level state to `G`,
   add it to `MUTABLE` or previews will silently leak.
 
-`impactStripHtml()` puts a running total at the top of the bill drawer, so the
+`impactStripData()` puts a running total at the top of the bill drawer, so the
 consequence of staged changes is visible alongside the clause list. Cards also
 print their complete effect list in sandbox rather than the top-two-and-worst
-summary, via `fullEffects()`.
+summary, via `fullEffectsData()`.
 
 The per-clause panel costs one 4-quarter simulation per clause plus two. That is
 cheap, but it only runs when the bill drawer is open and sandbox is on.

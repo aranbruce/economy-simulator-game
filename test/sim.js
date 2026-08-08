@@ -112,7 +112,7 @@ import {
   briefingImpactLines,
   mergeBriefingImpact,
   briefingImpactParts,
-  briefingHtml,
+  briefingData,
   writeBriefing,
   spending,
   POLITY,
@@ -1538,24 +1538,12 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "briefing impact does not mutate econ",
   );
 
-  const html = briefingHtml(G.brief, { impact: liveParts });
+  const brief = briefingData(G.brief, { impact: liveParts });
   assert(
-    /briefing-impact--econ/.test(html) &&
-      /briefing-impact--approval/.test(html),
-    "briefingHtml renders both impact boxes",
+    brief.impact && brief.impact.economic && brief.impact.approval,
+    "briefingData carries both impact boxes through",
   );
-  assert(
-    /Next year/.test(html) && /Approval/.test(html),
-    "briefingHtml labels next year and approval sections",
-  );
-  assert(
-    /Four-quarter total/.test(html),
-    "briefingHtml explains year-ahead horizon",
-  );
-  assert(
-    /This quarter/.test(html),
-    "briefingHtml still renders outturn section",
-  );
+  assert(brief.lines.length > 0, "briefingData still carries the outturn lines");
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */

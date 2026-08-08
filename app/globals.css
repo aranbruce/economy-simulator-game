@@ -799,15 +799,6 @@ button {
     gap: 4px;
     justify-content: stretch;
   }
-  .chip {
-    flex: 1 1 72px;
-    min-width: 72px;
-    padding: 5px 8px;
-  }
-  .chip .v {
-    font-size: 14px;
-  }
-
   #dock {
     bottom: max(6px, env(safe-area-inset-bottom));
     left: max(6px, env(safe-area-inset-left));
@@ -1005,22 +996,6 @@ button {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .chip {
-    flex: 1 1 64px;
-    min-width: 64px;
-    padding: 4px 6px;
-  }
-  .chip .k {
-    font-size: 7.5px;
-    letter-spacing: 0.06em;
-  }
-  .chip .v {
-    font-size: 13px;
-  }
-  .chip .d {
-    font-size: 8px;
-  }
-
   .dock-tabs {
     justify-content: center;
     gap: 2px;
@@ -1188,109 +1163,6 @@ button {
   color: var(--ink-faint);
   font-size: 12.5px;
 }
-.src {
-  font-size: 10.5px;
-  color: var(--ink-faint);
-  margin-top: 7px;
-  font-weight: 500;
-}
-.briefing {
-  display: grid;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.briefing-label {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--ink-faint);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin: 0 0 8px;
-}
-.briefing-impact-grid {
-  display: grid;
-  gap: 10px;
-  grid-template-columns: 1fr;
-}
-@media (min-width: 520px) {
-  .briefing-impact-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-.briefing-impact {
-  background: rgba(10, 132, 255, 0.09);
-  border: 1px solid rgba(10, 132, 255, 0.22);
-  border-radius: var(--r-md);
-  padding: 12px 14px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
-}
-.briefing-impact--wide {
-  grid-column: 1/-1;
-}
-.briefing-impact--econ .briefing-label {
-  color: var(--accent-lt);
-}
-.briefing-impact-hint {
-  font-size: 11px;
-  line-height: 1.35;
-  color: var(--ink-faint);
-  margin: -4px 0 8px;
-}
-.briefing-impact--approval {
-  background: rgba(255, 159, 10, 0.08);
-  border-color: rgba(255, 159, 10, 0.24);
-}
-.briefing-impact--approval .briefing-label {
-  color: var(--amber);
-}
-.briefing-impact--approval .briefing-politics {
-  margin-top: 8px;
-  padding: 0;
-  font-style: italic;
-  color: var(--ink-soft);
-}
-.briefing-impact-line {
-  margin: 0;
-  font-size: 15px;
-  line-height: 1.45;
-  letter-spacing: -0.015em;
-  color: #fff;
-}
-.briefing-outturn {
-  border-left: 3px solid var(--edge);
-  border-radius: 2px;
-  padding: 2px 0 2px 13px;
-}
-.briefing-outturn p {
-  margin: 0 0 7px;
-  font-size: 14.5px;
-  line-height: 1.42;
-  letter-spacing: -0.015em;
-  color: var(--ink-soft);
-}
-.briefing-outturn p:last-child {
-  margin-bottom: 0;
-}
-.briefing-outturn--solo {
-  border-left-color: var(--accent);
-}
-.briefing-outturn--solo p {
-  color: var(--ink);
-}
-.briefing .src {
-  margin-top: 2px;
-}
-.despatch .briefing {
-  margin-bottom: 4px;
-}
-.despatch .briefing-impact-line {
-  font-size: 15.5px;
-}
-.despatch .briefing-outturn p {
-  font-size: 15px;
-  color: var(--ink);
-}
-
 /* sliders */
 input[type="range"] {
   -webkit-appearance: none;
@@ -1573,41 +1445,6 @@ table.ledger .pos {
   border-radius: 1px;
   background: var(--amber);
 }
-.verdict {
-  text-align: center;
-}
-.verdict .grade {
-  font-family: var(--display);
-  font-size: 68px;
-  font-weight: 400;
-  line-height: 1;
-  color: var(--accent-lt);
-  letter-spacing: -0.03em;
-}
-.verdict .lede {
-  font-size: 16px;
-  margin: 8px 0 15px;
-  text-align: left;
-  color: var(--ink-soft);
-  line-height: 1.45;
-}
-.verdict table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12.5px;
-  text-align: left;
-}
-.verdict td {
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  color: var(--ink-soft);
-}
-.verdict td:last-child {
-  text-align: right;
-  color: #fff;
-  font-weight: 650;
-}
-
 /* Floating newspaper clippings */
 #pressLayer {
   position: fixed;

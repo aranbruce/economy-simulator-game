@@ -71,36 +71,24 @@ const REGION_ORDER = [
 function CurrencyPanel({ G }: { G: any }) {
   const fxIdx = fxDisplayIndex("home");
   const fxCode = currencyForSeat(G.homeRole);
-  const fxColor =
-    fxIdx > 100.5 ? "var(--green-lt)" : fxIdx < 99.5 ? "var(--red-lt)" : "#fff";
+  const fxTone =
+    fxIdx > 100.5
+      ? "text-green-lt"
+      : fxIdx < 99.5
+        ? "text-red-lt"
+        : "text-white";
   return (
     <>
       <Eyebrow>Currency</Eyebrow>
-      <div
-        className="overflow-hidden rounded-md border border-edge bg-g-1"
-        style={{ padding: "12px 14px", marginBottom: 12 }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
+      <div className="mb-3 overflow-hidden rounded-md border border-edge bg-g-1 px-3.5 py-3">
+        <div className="flex flex-wrap items-baseline gap-3">
           <div
-            style={{
-              fontSize: 28,
-              fontWeight: 650,
-              letterSpacing: "-.03em",
-              lineHeight: 1,
-              color: fxColor,
-            }}
+            className={`text-[28px] leading-none font-[650] tracking-[-.03em] ${fxTone}`}
           >
             {fxIdx.toFixed(1)}
           </div>
-          <div style={{ flex: 1, minWidth: 160 }}>
-            <div style={{ fontWeight: 650, fontSize: 14 }}>
+          <div className="min-w-40 flex-1">
+            <div className="text-sm font-[650]">
               Currency strength ({fxCode})
             </div>
             <Hint>
@@ -133,7 +121,7 @@ export function AccessionPipeline({
             ? "border-blue bg-blue text-white"
             : "";
         return (
-          <span key={label} style={{ display: "contents" }}>
+          <span key={label} className="contents">
             <div
               className={`flex min-w-12 flex-col items-center gap-0.75 ${done || active ? "opacity-100" : "opacity-42"}`}
             >
@@ -168,10 +156,7 @@ export function ApprovalTable({
   if (!approvals.length) return null;
   return (
     <>
-      <div
-        className="mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']"
-        style={{ marginTop: 6 }}
-      >
+      <div className="mt-1.5 mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
         {title}
       </div>
       {approvals.map((a) => (
@@ -179,7 +164,7 @@ export function ApprovalTable({
           key={a.id}
           className="my-0.75 grid grid-cols-[90px_1fr_36px] items-center gap-2 text-[12.5px]"
         >
-          <span style={{ fontSize: 11 }}>{a.name}</span>
+          <span className="text-[11px]">{a.name}</span>
           <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
               className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${a.ok ? "bg-green" : "bg-red"}`}
@@ -187,8 +172,7 @@ export function ApprovalTable({
             />
           </span>
           <span
-            className="text-right text-[11.5px] font-[650] text-ink-soft"
-            style={{ color: a.ok ? "var(--green)" : "var(--red)" }}
+            className={`text-right text-[11.5px] font-[650] ${a.ok ? "text-green" : "text-red"}`}
           >
             {a.rel.toFixed(0)}
           </span>
@@ -352,7 +336,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
           {G.draft.blocLeave ? "Cancel leave" : "Leave"}
         </Button>
       </div>
-      <div style={{ marginTop: 12 }}>
+      <div className="mt-3">
         <Button
           customSize
           className="w-full px-4 py-2.5 text-[15px] font-semibold"
@@ -382,10 +366,7 @@ function BlocAccessionTracker({ G, bid }: { G: any; bid: string }) {
   if (!cids.size) return null;
   return (
     <>
-      <div
-        className="mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']"
-        style={{ marginTop: 10 }}
-      >
+      <div className="mt-2.5 mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
         Accession pipeline
       </div>
       {Array.from(cids).map((cid) => {
@@ -784,14 +765,8 @@ function PartnerDealRow({
   partnerId: string;
 }) {
   return (
-    <div
-      style={{
-        borderTop: "1px solid var(--doc-3)",
-        paddingTop: 8,
-        marginTop: 4,
-      }}
-    >
-      <div style={{ fontSize: 13, fontWeight: 600 }}>
+    <div className="mt-1 border-t border-edge pt-2">
+      <div className="text-[13px] font-semibold">
         {d.name}
         {isBlocExternal ? <CardCat>bloc treaty</CardCat> : null}
       </div>
@@ -929,7 +904,7 @@ function PartnerTradeCard({
       ) : null}
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">{p.blurb}</p>
       <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-[11.5px]">
-        <span style={{ fontSize: 11 }}>Relations</span>
+        <span className="text-[11px]">Relations</span>
         <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
           <i
             className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${rel > 60 ? "bg-green" : rel < 38 ? "bg-red" : "bg-ink-soft"}`}
