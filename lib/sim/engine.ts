@@ -10044,14 +10044,6 @@ const COL = {
   plum: "#B894F0",
   soft: "rgba(255,255,255,.45)",
 };
-const chartBox = (title: any, cap: any, body: any) =>
-  '<div class="chartbox"><h3>' +
-  title +
-  '</h3><div class="cap">' +
-  cap +
-  "</div>" +
-  body +
-  "</div>";
 /** Data form of compositionBar() for React consumers. */
 function compositionBarData() {
   const E = aggregate(G.draft),
@@ -16011,24 +16003,6 @@ function closeDespatch() {
 function setOnState(fn: any) {
   _onState = fn;
 }
-function coachClearDraft() {
-  if (!G || !G.law) return;
-  G.draft = clone(G.law);
-  G.draft.blocAccession = null;
-  G.draft.blocLeave = false;
-  G.draft.blocCreate = null;
-  G.draft.blocInvite = {};
-  G.draft.blocExternalDeal = null;
-  G.draft.missions = {};
-  applyDraftBlocLaw(
-    G.draft,
-    {
-      blocMember: G.blocMember,
-      customBlocs: G.customBlocs,
-    },
-    G.draft,
-  );
-}
 function finishCoach() {
   if (!G) return;
   G.coachDone = true;
@@ -16519,7 +16493,6 @@ export {
   thresholdSliderMax,
   lineChartSpec,
   compositionBarData,
-  chartBox,
   nationTableHtml,
   nationTableData,
   ledgerRows,
@@ -16539,7 +16512,6 @@ export {
   skipCoach,
   tickCoach,
   getCoachPanel,
-  coachClearDraft,
   coachSubtasks,
   RATE_FLOOR,
   MANUAL_RATE_MIN,
