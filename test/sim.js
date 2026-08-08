@@ -39,7 +39,6 @@ import {
   setTab,
   getTab,
   billClauses,
-  coachClearDraft,
   PRIVATE_WEALTH0,
   R0,
   researchEffort,
@@ -49,7 +48,6 @@ import {
   DEPTS,
   NATION_PROFILE,
   PARTNERS,
-  TRADE_REST_SHARE,
   SETTLE_QUARTERS,
   activePartners,
   gdp0ForSeat,
@@ -76,7 +74,6 @@ import {
   preTaxGini,
   IMPACT_ROWS,
   MISSIONS,
-  hasDeal,
   joinBloc,
   leaveBloc,
   countryBlocId,
@@ -84,7 +81,6 @@ import {
   lockedTariff,
   effectiveTariff,
   importTariffLevel,
-  tariffLocked,
   createCustomBloc,
   canCreateCustomBloc,
   withdrawBlocAccession,
@@ -98,15 +94,12 @@ import {
   blocJoinBlockers,
   blocMemberApprovals,
   blocInviteBlockers,
-  blocInviteMemberApprovals,
   finalizeBlocJoin,
   partnerAccessTargets,
-  stepCountry,
   dealBlockers,
   beginEpisode,
   endEpisode,
   scheduleNextMajorQ,
-  raiseTradeWarTariffs,
   rollEvent,
   rollMajorEvent,
   tariffScheduleAverage,
@@ -149,12 +142,10 @@ import {
   processUltimatums,
   canIssueUltimatum,
   addDiploLedger,
-  setSanctionStance,
   applySphereTrespassOnDeal,
   ENVOY_ASSIGN_PC,
   ENVOY_TARGET,
   ULTIMATUM_PC,
-  ULTIMATUM_JITTER,
   LEDGER_DECAY,
   TABS,
   ultimatumDemandsFor,
@@ -162,8 +153,6 @@ import {
   concedeP,
   partnerSelfInterest,
   interestTag,
-  partnerTariffOnPlayer,
-  ultimatumOutcomeImpacts,
   rollMissionEvent,
   applyMissionEventOption,
   MISSION_EVENTS,
@@ -3765,7 +3754,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   for (let i = 0; i < 4; i++) step(G, G.law, G.law, true);
   const baseX = [];
   for (let i = 0; i < 6; i++) {
-    const r = step(G, G.law, G.law, true);
+    step(G, G.law, G.law, true);
     baseX.push(G.econ.acct.X);
   }
   newGame();

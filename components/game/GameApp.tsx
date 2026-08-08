@@ -863,7 +863,7 @@ export default function GameApp() {
      changes on every poll/version bump (that tore down EventSource). */
     if (!mpRoom || mpRoom.status !== "playing") return undefined;
 
-    const handleRoomBump = async (hint?: any) => {
+    const handleRoomBump = async (_hint?: any) => {
       try {
         const data = await getMpRoom(mpSession.code, mpSession.token);
         setMpRoom((prev: any) => {

@@ -38,6 +38,18 @@ const config = [
       // engine.ts is typed loosely at the legacy-JS boundary by design
       // (CLAUDE.md: "TypeScript migration") — keep as signal, not a hard fail.
       "@typescript-eslint/no-explicit-any": "warn",
+      // Leading-underscore is this codebase's convention for a binding kept
+      // for signature consistency (a callback matching a shared shape) or a
+      // deliberately-discarded destructure slot, rather than an oversight.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        {
+          args: "after-used",
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
       // These target React Compiler adoption. The app's whole state model is
       // direct mutation of a global `G` object (CLAUDE.md: "central data
       // structure") plus refs mutated outside render, so they fire on the

@@ -1,5 +1,6 @@
 import type {
   Faction,
+  FactionId,
   Dept,
   Tax,
   Regime,
@@ -29,8 +30,6 @@ import {
   worldSeatIds,
 } from "./worldTrade.ts";
 import { stepCurrencyAreas } from "./fxAreas.ts";
-import { metricRamp } from "./metricRamp.ts";
-import { relationColour } from "./partners.ts";
 import {
   BASE_INCOME_DIST,
   BASE_DIST_GINI,
@@ -66,15 +65,12 @@ import {
   buildRelationModifiers,
   canIssueUltimatum as canIssueUltimatumCore,
   emptyEnvoys,
-  baseLabel,
   ultimatumDemandsFor,
   baseP,
   concedeP,
   partnerSelfInterest,
   interestTag,
   partnerTariffOnPlayer,
-  applyUltimatumConcede,
-  applyUltimatumDefy,
   ultimatumOutcomeImpacts,
   rollMissionEvent,
   formatMissionEventText,
@@ -132,7 +128,6 @@ import {
       w: 0.1,
     },
   ] as const satisfies Faction[];
-type FactionKey = (typeof FACTIONS)[number]["id"];
 const DEPTS = [
   {
     id: "health",
@@ -287,7 +282,7 @@ function termLenOf(role: any) {
 }
 /** All live polity ids (ladder order). `from` is ignored — any system can
  *  stage any other; capital scales with distance via polityChangePc. */ function polityReachable(
-  from: any,
+  _from: any,
 ) {
   return POLITY_LADDER.slice();
 }
@@ -1057,9 +1052,10 @@ type TaxId = (typeof TAXES_DEF)[number]["id"];
    per-element literal types `as const` produces. TaxId above is the only
    thing that needs the literal types. */
 const TAXES = TAXES_DEF as Tax[];
-const TAX_BY_ID: Record<string, Tax> = Object.fromEntries(
-  TAXES.map((t) => [t.id, t]),
-);
+const TAX_BY_ID = Object.fromEntries(TAXES.map((t) => [t.id, t])) as Record<
+  TaxId,
+  Tax
+>;
 /* --- the structure of the tax system itself ---
    Growth effects come from lighter labour wedges (part), lower capital costs
    (ucost) and land-use (kboost), not from a pot fudge. Inequality is derived
@@ -1165,9 +1161,9 @@ const TAX_BY_ID: Record<string, Tax> = Object.fromEntries(
   },
 ] as const satisfies Regime[];
 type RegimeId = (typeof REGIMES)[number]["id"];
-const REGIME_BY_ID: Record<string, Regime> = Object.fromEntries(
+const REGIME_BY_ID = Object.fromEntries(
   REGIMES.map((r) => [r.id, r]),
-);
+) as Record<RegimeId, Regime>;
 /* --- policies. cost is % of GDP per year; pc is political capital ---
    `imp` is the social layer (services, liberty, crime, health, environment,
    evasion, black market). Macro effects belong in `ch`: labour supply, capital,
@@ -1867,9 +1863,9 @@ const REGIME_BY_ID: Record<string, Regime> = Object.fromEntries(
   },
 ] as const satisfies Policy[];
 type PolicyId = (typeof POLICIES)[number]["id"];
-const POLICY_BY_ID: Record<string, Policy> = Object.fromEntries(
+const POLICY_BY_ID = Object.fromEntries(
   POLICIES.map((p) => [p.id, p]),
-);
+) as Record<PolicyId, Policy>;
 /* --- what is legal, and on what terms --- */ const VICE = [
   {
     id: "cannabis",
@@ -2183,9 +2179,9 @@ const POLICY_BY_ID: Record<string, Policy> = Object.fromEntries(
   },
 ] as const satisfies Vice[];
 type ViceId = (typeof VICE)[number]["id"];
-const VICE_BY_ID: Record<string, Vice> = Object.fromEntries(
+const VICE_BY_ID = Object.fromEntries(
   VICE.map((v) => [v.id, v]),
-);
+) as unknown as Record<ViceId, Vice>;
 /* --- the rest of the world ---
    `tradeShare` is the partner's weight in bilateral exports (sums to 0.96; the
    residual 0.04 is the rest of the world in the gravity block). */ const PARTNERS =
@@ -2238,9 +2234,9 @@ const MISSIONS = [
   },
 ] as const satisfies Mission[];
 type MissionId = (typeof MISSIONS)[number]["id"];
-const MISSION_BY_ID: Record<string, Mission> = Object.fromEntries(
+const MISSION_BY_ID = Object.fromEntries(
   MISSIONS.map((m) => [m.id, m]),
-);
+) as Record<MissionId, Mission>;
 const MISSION_CD = 3;
 const REL_IMPULSE_DECAY = 0.78;
 
@@ -2250,7 +2246,7 @@ function pruneInvalidDraftMissions(g: any) {
   if (!state || !state.draft || !state.draft.missions) return;
   for (const pid of Object.keys(state.draft.missions)) {
     const mid = state.draft.missions[pid];
-    if (!MISSION_BY_ID[mid]) {
+    if (!(MISSION_BY_ID as any)[mid]) {
       delete state.draft.missions[pid];
       continue;
     }
@@ -3351,7 +3347,7 @@ function applySphereTrespassOnDeal(dealId: any, ratified: any) {
   const d = (DEAL_BY_ID as any)[dealId];
   if (!d || !d.partner) return;
   const player = playerCountryId();
-  for (const { patron, label } of spherePatronsForPartner(d.partner)) {
+  for (const { patron } of spherePatronsForPartner(d.partner)) {
     if (patron === player) continue;
     if (ratified) {
       const client = partnerById(d.partner);
@@ -3690,7 +3686,7 @@ function inviteAcceptMin(blocId: any) {
   const spec = defaultAccessionForBloc(blocId);
   return spec.memberRelationMin || 45;
 }
-function blocInviteMemberApprovals(blocId: any, candidateId: any) {
+function blocInviteMemberApprovals(blocId: any, _candidateId: any) {
   const spec = defaultAccessionForBloc(blocId);
   const min = spec.memberRelationMin || 45;
   const player = playerCountryId();
@@ -3788,15 +3784,19 @@ function needBlockers(need: any, law: any, ctx?: any) {
   const partner = ctx && ctx.partner;
   (n.policyOff || []).forEach((p: any) => {
     if (D.policies[p])
-      out.push("incompatible with " + POLICY_BY_ID[p].name.toLowerCase());
+      out.push(
+        "incompatible with " + (POLICY_BY_ID as any)[p].name.toLowerCase(),
+      );
   });
   (n.policyOn || []).forEach((p: any) => {
     if (!D.policies[p])
-      out.push("requires " + POLICY_BY_ID[p].name.toLowerCase());
+      out.push("requires " + (POLICY_BY_ID as any)[p].name.toLowerCase());
   });
   (n.taxOff || []).forEach((t: any) => {
     if (D.taxes[t] && D.taxes[t].on)
-      out.push("requires abolishing the " + TAX_BY_ID[t].name.toLowerCase());
+      out.push(
+        "requires abolishing the " + (TAX_BY_ID as any)[t].name.toLowerCase(),
+      );
   });
   if (n.tariffMax != null) {
     const t =
@@ -3905,15 +3905,15 @@ function clearBilateralDeals(law: any) {
 /** Trade-integration for the joiner and members now emerges from tariffs/access
  *  via world trade clearing — no exogenous growth pulse. */ function applyBlocJoinNationEffects(
   state: any,
-  countryId: any,
-  blocId: any,
+  _countryId: any,
+  _blocId: any,
 ) {
   if (!state) return;
   if (state.world) {
     try {
       refreshWorldTrade(state);
       syncNationsFromWorld(state);
-    } catch (err) {}
+    } catch {}
   }
 }
 /** When a partner joins the player's bloc, nudge phased access toward that market. */ function applyBlocJoinPlayerTrade(
@@ -6713,7 +6713,7 @@ function effectiveBands(law: any) {
   );
   for (let i = 1; i < b.length; i++)
     if (b[i].from < b[i - 1].from) b[i].from = b[i - 1].from;
-  return REGIME_BY_ID[law.regime].flatIncome
+  return (REGIME_BY_ID as any)[law.regime].flatIncome
     ? [
         {
           from: b[0].from,
@@ -6724,12 +6724,12 @@ function effectiveBands(law: any) {
 }
 function personalAllowance(y: any, law: any) {
   const A0 = law.income.allowance;
-  if (REGIME_BY_ID[law.regime].flatIncome) return A0;
+  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return A0;
   return Math.max(0, A0 - TAPER_RATE * Math.max(0, y - TAPER_START));
 }
 function bandsForIncome(y: any, law: any) {
   const bands = effectiveBands(law);
-  if (REGIME_BY_ID[law.regime].flatIncome) return bands;
+  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return bands;
   const A = personalAllowance(y, law);
   return bands.map((b: any, i: any) =>
     i === 0
@@ -6771,7 +6771,7 @@ function incomeTaxOn(y: any, bands: any) {
   y: any,
   law: any,
 ) {
-  if (REGIME_BY_ID[law.regime].flatIncome) return 0;
+  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return 0;
   const A0 = law.income.allowance;
   if (A0 <= 0) return 0;
   const end = TAPER_START + A0 / TAPER_RATE;
@@ -6794,7 +6794,7 @@ function incomeTaxOn(y: any, bands: any) {
 function capitalTaxOn(yDiv: any, ySave: any, law: any) {
   const I = law.income;
   if (I.on === false) return 0;
-  const R = REGIME_BY_ID[law.regime];
+  const R = (REGIME_BY_ID as any)[law.regime];
   if (R.flatIncome) {
     const r = (I.bands[0] && I.bands[0].rate) || 20;
     return ((yDiv + ySave) * r) / 100;
@@ -6811,7 +6811,7 @@ function incomeYield(law: any, E: any, econ: any) {
   const ni = law.ni,
     wage = (econ && econ.wageIndex) || 1;
   const dist = activeIncomeDist(econ);
-  const mult = (REGIME_BY_ID[law.regime].mult || {}).income || 1;
+  const mult = ((REGIME_BY_ID as any)[law.regime].mult || {}).income || 1;
   const incomeOn = law.income.on !== false;
   let tax = 0,
     emp = 0,
@@ -6996,7 +6996,8 @@ const SYNTH_GRP = {
   niEmployer: "income",
 };
 const taxGroup = (id: any) =>
-  (SYNTH_GRP as any)[id] || (TAX_BY_ID[id] ? TAX_BY_ID[id].grp : "other");
+  (SYNTH_GRP as any)[id] ||
+  ((TAX_BY_ID as any)[id] ? (TAX_BY_ID as any)[id].grp : "other");
 const clone = (o: any) => JSON.parse(JSON.stringify(o));
 /* Copy carries a {C} token so the country can be named by the player. Applied
    where authored text reaches the screen: modal despatches, the morning
@@ -8091,7 +8092,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
       for (const f in fac) if (f in E.fac) (E.fac as any)[f] += fac[f] * k;
     }
   };
-  const R = REGIME_BY_ID[law.regime];
+  const R = (REGIME_BY_ID as any)[law.regime];
   add(R.imp, R.fac, 1, R.ch);
   for (const t of TAXES) {
     const s = law.taxes[t.id];
@@ -8114,7 +8115,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   );
   for (const id in law.policies) {
     if (!law.policies[id]) continue;
-    const p = POLICY_BY_ID[id];
+    const p = (POLICY_BY_ID as any)[id];
     if (!p) continue;
     add(p.imp, p.fac, 1, p.ch);
     E.spend += p.cost || 0;
@@ -8175,15 +8176,8 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
       return 1;
   }
 }
-/* Aggregate MPC implied by how post-tax income is distributed. */ function distMPC(
-  law: any,
-  econ: any,
-) {
-  const p = incomeProfile(law, econ);
-  return p.distMPC;
-}
 function revenue(law: any, E: any, econ?: any) {
-  const R = REGIME_BY_ID[law.regime],
+  const R = (REGIME_BY_ID as any)[law.regime],
     mult = R.mult || {};
   const by: Record<string, any> = {};
   let total = 0;
@@ -8281,13 +8275,13 @@ function welfareCost(law: any, econ: any) {
 ) {
   return ((econ && econ.realWage) || 1) / ((econ && econ.pubProd) || 1);
 }
-function deptNeed(id: any, econ: any) {
+function deptNeed(id: DeptId, econ: any) {
   const pop = ((econ && econ.L) || 100) / 100;
   const dep = (econ && econ.dependency) || DEP_0;
   const ageing = id === "health" ? 1 + AGEING_HEALTH * (dep - DEP_0) : 1;
   return pop * ageing;
 }
-function serviceScore(id: any, law: any, econ: any) {
+function serviceScore(id: DeptId, law: any, econ: any) {
   const d = DEPTS.find((x) => x.id === id)!;
   if (!d || (TRANSFER_DEPTS as any)[id]) return null;
   const gdp = (econ && econ.gdp) || 100;
@@ -8300,7 +8294,7 @@ function serviceScore(id: any, law: any, econ: any) {
 }
 /* The budget that would hold a given score: cost follows the standard, rather
    than the standard following whatever the budget happens to buy. */ function spendForScore(
-  id: any,
+  id: DeptId,
   score: any,
   econ: any,
 ) {
@@ -8412,7 +8406,7 @@ function humanCapital(law: any, econ: any) {
     1.45,
   );
 }
-function humanCapitalTarget(law: any, E: any, econ: any) {
+function humanCapitalTarget(law: any, E: any, _econ: any) {
   const edu = (law && law.spend && law.spend.education) || 4.1;
   const skillsBoost = E && E.hbuild ? E.hbuild * 0.08 : 0;
   const mig = E && E.migrate ? E.migrate * 0.015 : 0;
@@ -8592,7 +8586,6 @@ function potentialLevel(law: any, E: any, econ: any) {
 ) {
   const e = econ || (typeof G !== "undefined" && G ? G.econ : null);
   if (!e || !e.K) return 1.2;
-  const now = potentialLevel(law, E, e);
   const gL = labourGrowthRate(e, E);
   const gA =
     baselineTfpGrowth(e) +
@@ -9318,8 +9311,7 @@ function govDemandShares(law: any, econ: any) {
   det: any,
 ): any {
   const e = g.econ;
-  const E = aggregate(law, g.homeRole, g.blocMember),
-    Ep = aggregate(prevLaw, g.homeRole, g.blocMember);
+  const E = aggregate(law, g.homeRole, g.blocMember);
   const prof = incomeProfile(law, e);
   /* Wage-setting reference: each seat's own opening statute, captured on the
      seat's first step (during settle, before any legislation). u* and the
@@ -10628,7 +10620,7 @@ function rateImpactHtml() {
   let im;
   try {
     im = impactOfRatePin(4);
-  } catch (err) {
+  } catch {
     return "";
   }
   const chips = impactChips(im);
@@ -10651,7 +10643,7 @@ function rateImpactData() {
   let im;
   try {
     im = impactOfRatePin(4);
-  } catch (err) {
+  } catch {
     return null;
   }
   const chips = impactChipsData(im);
@@ -10752,8 +10744,9 @@ function billClauses() {
     out = [];
   if (D.regime !== L.regime)
     out.push({
-      label: "Restructure the tax system: " + REGIME_BY_ID[D.regime].name,
-      pc: REGIME_BY_ID[D.regime].pc,
+      label:
+        "Restructure the tax system: " + (REGIME_BY_ID as any)[D.regime].name,
+      pc: (REGIME_BY_ID as any)[D.regime].pc,
       undo: () => {
         D.regime = L.regime;
       },
@@ -10894,7 +10887,7 @@ function billClauses() {
       const a = L.income[k],
         b = D.income[k];
       if (a == null || b == null || Math.abs(a - b) < 1e-9) continue;
-      const dual = !!REGIME_BY_ID[D.regime].dualCapital;
+      const dual = !!(REGIME_BY_ID as any)[D.regime].dualCapital;
       if (dual && (k === "divRate" || k === "saveRate")) continue;
       if (!dual && k === "capitalRate") continue;
       out.push({
@@ -11216,7 +11209,7 @@ function billClauses() {
   const missions = G.draft.missions || {};
   for (const pid in missions) {
     const mid = missions[pid];
-    const m = MISSION_BY_ID[mid];
+    const m = (MISSION_BY_ID as any)[mid];
     const p = partnerById(pid);
     if (!m || !p) continue;
     out.push({
@@ -12279,22 +12272,6 @@ function compositionBarData() {
   }));
   return { bars, legend };
 }
-/* ---- tab panels ---- */ function globeFallbackHtml() {
-  let img = "";
-  try {
-    img =
-      '<img alt="Map of the world of {C}" src="' +
-      (globalThis as any).worldCanvas().toDataURL("image/png") +
-      '">';
-  } catch (err) {
-    img = "";
-  }
-  return (
-    '<div class="globe-fallback">' +
-    img +
-    "<p>3D globe unavailable here, so this is the flat map. Everything else in the game is unaffected.</p></div>"
-  );
-}
 /* Share of GDP, indexed to inflation, or pegged to a service standard. */ /* Us against the rest of the world, on the numbers a Chancellor is judged on. */ function nationTableHtml() {
   const e = G.econ,
     n = e.nations || {};
@@ -12387,20 +12364,10 @@ function nationTableData() {
   return rows;
 }
 
-
 function renderPanel() {
   /* Every tab now renders through React; kept as a stable no-op for
      render()'s call site. */
 }
-
-
-
-
-
-
-
-
-
 
 function pendingUltimatumIds(g: any) {
   const state = g || G;
@@ -12526,9 +12493,6 @@ function relationModifiersData(partnerId: any) {
       : null;
   return { shown, extra };
 }
-
-
-
 
 function memberAccessionTrack(bid: any, cid: any) {
   const inv = G.blocInvites && G.blocInvites[cid];
@@ -12735,7 +12699,7 @@ function render(options?: any) {
   if (preview) {
     try {
       base = simulate(G.law, 4);
-    } catch (err) {
+    } catch {
       base = null;
     }
   }
@@ -16924,7 +16888,7 @@ function partnerName(id: any) {
   const p = PARTNERS.find((x) => x.id === id);
   return p ? p.name : id;
 }
-function factionName(id: any) {
+function factionName(id: FactionId) {
   const f = FACTIONS.find((x) => x.id === id);
   return f ? f.name : id;
 }
@@ -17006,7 +16970,9 @@ function composePress(input: any) {
       Object.keys(option.fac).forEach((id) => {
         const d = option.fac[id];
         if (!d) return;
-        extras.push(factionName(id) + (d > 0 ? " pleased" : " angered"));
+        extras.push(
+          factionName(id as FactionId) + (d > 0 ? " pleased" : " angered"),
+        );
       });
     }
     if (extras.length)
@@ -17350,7 +17316,7 @@ function renderPress() {
       setTimeout(() => {
         try {
           btn.focus();
-        } catch (err) {}
+        } catch {}
       }, 40);
     }
   }
@@ -17368,7 +17334,7 @@ function renderPress() {
     };
   });
 }
-function checkCrises(res: any) {
+function checkCrises(_res: any) {
   const e = G.econ;
   if (e.yield > 10 && e.debt > 118)
     return gameOver(
@@ -17869,7 +17835,7 @@ function previewOption(opt: any, base: any) {
   try {
     applyEventOption(opt);
     im = impactOf(clone(G.law), base, 4);
-  } catch (err) {
+  } catch {
     im = null;
   }
   MUTABLE.forEach((k) => {
@@ -17904,7 +17870,7 @@ function previewOption(opt: any, base: any) {
   let im;
   try {
     im = impactOf(clone(G.draft), simulate(G.law, 4), 4);
-  } catch (err) {
+  } catch {
     return "";
   }
   return (
@@ -17980,7 +17946,7 @@ function impactStripData() {
   let im;
   try {
     im = impactOf(clone(G.draft), simulate(G.law, 4), 4);
-  } catch (err) {
+  } catch {
     return null;
   }
   return {
@@ -18120,7 +18086,7 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
   const missions = (draft && draft.missions) || (law && law.missions) || {};
   const gBag = { econ, q: typeof G !== "undefined" && G ? G.q : 0 };
   for (const pid in missions) {
-    const m = MISSION_BY_ID[missions[pid]];
+    const m = (MISSION_BY_ID as any)[missions[pid]];
     if (!m) continue;
     /* Tone whiplash: no sanctions while a state visit with this partner is live. */
     if (
@@ -18239,7 +18205,7 @@ function enact() {
   if (cl.length) {
     try {
       billImpact = impactOf(clone(G.law), simulate(G.prevLaw, 4), 4);
-    } catch (err) {
+    } catch {
       billImpact = null;
     }
   }
@@ -18341,7 +18307,7 @@ function enact() {
           let base = null;
           try {
             base = simulate(G.law, 4);
-          } catch (err) {
+          } catch {
             base = null;
           }
           applyEventOption(o);
@@ -18349,7 +18315,7 @@ function enact() {
           if (base) {
             try {
               impact = impactOf(clone(G.law), base, 4);
-            } catch (err) {
+            } catch {
               impact = null;
             }
           }
@@ -18598,6 +18564,7 @@ function getG() {
 export {
   FACTIONS,
   DEPTS,
+  type DeptId,
   OTHER_SPEND,
   OTHER_REV,
   TERM_LEN,
@@ -18607,12 +18574,16 @@ export {
   REL_POLITY,
   TAXES,
   TAX_BY_ID,
+  type TaxId,
   REGIMES,
   REGIME_BY_ID,
+  type RegimeId,
   POLICIES,
   POLICY_BY_ID,
+  type PolicyId,
   VICE,
   VICE_BY_ID,
+  type ViceId,
   PARTNERS,
   DEAL_BY_ID,
   BAND_NAMES,
@@ -18620,6 +18591,7 @@ export {
   DEF_NI,
   MISSIONS,
   MISSION_BY_ID,
+  type MissionId,
   MISSION_CD,
   REL_TRADE,
   RETAL_COLD,

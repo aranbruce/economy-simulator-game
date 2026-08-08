@@ -276,7 +276,6 @@ export function buildRelationModifiers(
   const {
     clamp,
     aggregate,
-    effectiveTariff,
     BASE_TARIFF,
     REL_POLITY,
     polityAffinity,
@@ -284,11 +283,8 @@ export function buildRelationModifiers(
     profilePolityId,
     DEAL_BY_ID,
     TAXES,
-    partnerShare,
     playerCountryId,
-    activePartners,
     lawForRole,
-    COUNTRY_REGIONS,
     partnerById,
   } = deps;
   const e = g.econ;
@@ -761,7 +757,7 @@ export function partnerSelfInterest(
         const dTrade = (e1.trade || 0) - (e0.trade || 0);
         const dPot = (e1.pot || 0) - (e0.pot || 0);
         return clamp01(0.2 + dTrade * 2 + dPot * 0.5) * 2 - 1;
-      } catch (e) {
+      } catch {
         return 0;
       }
     }
@@ -797,7 +793,7 @@ export function demandFit(
   partnerId: string,
   g: GameState,
   deps: Deps,
-  meta?: any,
+  _meta?: any,
 ): number {
   const { partnerShare, polityIdOf, profilePolityId, polityAffinity } = deps;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
@@ -834,7 +830,7 @@ function demandAvailable(
   partnerId: string,
   g: GameState,
   deps: Deps,
-  meta?: any,
+  _meta?: any,
 ): boolean {
   const { partnerShare } = deps;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
@@ -973,7 +969,7 @@ export function applyUltimatumConcede(
   ult: any,
   deps: Deps,
 ) {
-  const { playerCountryId, aggregate } = deps;
+  const { playerCountryId } = deps;
   const demand = ult.demand;
   const player = playerCountryId(state.homeRole);
   if (demand === "marketAccess") {
@@ -1042,11 +1038,6 @@ export function applyUltimatumDefy(state: GameState, partnerId: string) {
   state.econ.retaliation = (state.econ.retaliation || 0) + 0.5;
   state.mods = state.mods || [];
   state.mods.push({ uncertainty: 0.15, q: 4 });
-}
-
-function lcFirst(str: string) {
-  if (!str) return "";
-  return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
 /** Apply concede/defy and return press-facing diplomatic + economic impact lines. */

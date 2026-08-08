@@ -14,7 +14,6 @@ import {
   applyMpEventChoice,
   EVENTS,
   diploOutcomeAlertsForBrief,
-  markDiploAlertsNoted,
   mergeMpInboundAsksFromSnapshot,
   flushMpDiploPressAlerts,
   composePress,
@@ -269,7 +268,7 @@ async function main() {
   const snapGate = exportGameSnapshot(getG());
   const h2 = await createRoom({ hostName: "Alice", role: "home" });
   await joinRoom(h2.room.code, { name: "Bob", role: "germany" });
-  const st2 = await startRoom(h2.room.code, h2.token, snapGate);
+  await startRoom(h2.room.code, h2.token, snapGate);
   const rawGate = await loadRoom(h2.room.code);
   rawGate.snapshot.politics.kingdom.capital = 0;
   await saveRoom(rawGate);

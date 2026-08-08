@@ -8,11 +8,9 @@ import { realmByRole } from "../sim/realms.ts";
 import type { Room, MpPlayer } from "./types.ts";
 import {
   loadRoom,
-  saveRoom,
   saveRoomCas,
   saveRoomIfAbsent,
   deleteRoom,
-  roomExists,
   mpStoreMode,
   hasDurableMpStore,
   _resetRoomsForTests,

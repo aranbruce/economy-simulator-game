@@ -11,7 +11,7 @@ import {
     innerHTML:
       '<div class="card" data-partner-card="france" id="partner-diplo-france">France</div>',
     getBoundingClientRect: () => ({ top: 100, height: 400 }),
-    querySelector(sel) {
+    querySelector(_sel) {
       return this.innerHTML.includes('data-partner-card="france"')
         ? {
             getBoundingClientRect: () => ({ top: 900 }),

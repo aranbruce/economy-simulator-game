@@ -8,6 +8,8 @@ import {
   serviceScore,
   spendForScore,
   TAX_BY_ID,
+  type DeptId,
+  type TaxId,
   countryBlocId,
   withdrawBlocAccession,
   syncTariffHeadline,
@@ -32,7 +34,7 @@ export function setDraftSpend(deptId: string, value: number) {
   G.draft.spend[deptId] = value;
   if ((G.draft.mode || {})[deptId] === "service" && !TRANSFER_DEPTS[deptId]) {
     if (!G.draft.hold) G.draft.hold = {};
-    G.draft.hold[deptId] = serviceScore(deptId, G.draft, G.econ);
+    G.draft.hold[deptId] = serviceScore(deptId as DeptId, G.draft, G.econ);
   }
   syncServiceHolds(G.draft, G.econ);
   bump();
@@ -45,8 +47,12 @@ export function setDraftSpendMode(deptId: string, mode: string) {
   if (mode === "share") delete G.draft.mode[deptId];
   else G.draft.mode[deptId] = mode;
   if (mode === "service" && !TRANSFER_DEPTS[deptId]) {
-    G.draft.hold[deptId] = serviceScore(deptId, G.draft, G.econ);
-    G.draft.spend[deptId] = spendForScore(deptId, G.draft.hold[deptId], G.econ);
+    G.draft.hold[deptId] = serviceScore(deptId as DeptId, G.draft, G.econ);
+    G.draft.spend[deptId] = spendForScore(
+      deptId as DeptId,
+      G.draft.hold[deptId],
+      G.econ,
+    );
   } else {
     delete G.draft.hold[deptId];
   }
@@ -68,7 +74,7 @@ export function setDraftRegime(regimeId: string) {
 
 export function introduceTax(taxId: string) {
   const G = getG();
-  const t = TAX_BY_ID[taxId];
+  const t = TAX_BY_ID[taxId as TaxId];
   const s = G.draft.taxes[t.id];
   s.on = true;
   if (!(s.rate > 0)) {

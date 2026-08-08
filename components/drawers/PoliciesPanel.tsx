@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   POLICIES,
   POLICY_BY_ID,
+  type PolicyId,
   T,
   bump,
   fullEffectsData,
@@ -49,7 +50,9 @@ export function PoliciesPanel() {
   const killLine = (p: Policy) => {
     if (!p.kills || !p.kills.length) return null;
     const names = p.kills.map(
-      (id: string) => (POLICY_BY_ID[id] && POLICY_BY_ID[id].name) || id,
+      (id) =>
+        (POLICY_BY_ID[id as PolicyId] && POLICY_BY_ID[id as PolicyId].name) ||
+        id,
     );
     return (
       <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-amber">

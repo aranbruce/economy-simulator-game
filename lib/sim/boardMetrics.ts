@@ -3,7 +3,6 @@
  */
 import {
   getG,
-  PARTNERS,
   NATION_PROFILE,
   balanceOf,
   countryBlocId,

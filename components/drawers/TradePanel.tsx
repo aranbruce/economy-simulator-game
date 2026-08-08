@@ -3,7 +3,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import {
   T,
-  esc,
   aggregate,
   activePartners,
   countryBlocId,
@@ -259,7 +258,6 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
 
 function BlocMemberView({ G, bid }: { G: any; bid: string }) {
   const bloc = blocById(bid) || G.customBlocs[bid];
-  const player = playerCountryId();
   const members = blocMembers(bid)
     .map((id: string) => {
       const p = activePartners().find((x: Country) => x.id === id);

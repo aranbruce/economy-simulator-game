@@ -16,14 +16,12 @@ import {
 } from "../../lib/sim/engine.ts";
 import {
   HOME_ISO,
-  PARTNER_ISO,
   partnerForIso,
   realmRoleForIso,
 } from "../../lib/sim/partners.ts";
 import {
   boardMetricColour,
   boardMetricMapLabel,
-  boardMetricValueLabel,
   REALM_FILL,
 } from "../../lib/sim/boardMetrics.ts";
 import { realmByRole } from "../../lib/sim/realms.ts";

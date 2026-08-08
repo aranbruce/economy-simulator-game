@@ -15,7 +15,6 @@ import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
-import type { Dept } from "../../lib/sim/types.ts";
 
 const TRANSFER_DEPTS: Record<string, boolean> = { welfare: true };
 
@@ -100,7 +99,7 @@ export function BudgetPanel() {
         year on its own.
       </Hint>
       <Panel id="deptLevers">
-        {DEPTS.map((d: Dept) => {
+        {DEPTS.map((d) => {
           const held = G.draft.hold && G.draft.hold[d.id];
           const mode = (G.draft.mode || {})[d.id] || "share";
           if (TRANSFER_DEPTS[d.id]) {

@@ -24,7 +24,7 @@ import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
-import type { Vice, ViceState } from "../../lib/sim/types.ts";
+import type { ViceState } from "../../lib/sim/types.ts";
 
 const FBAR_TONE: Record<string, string> = { good: "bg-green", bad: "bg-red" };
 
@@ -197,7 +197,7 @@ export function SocietyPanel() {
         Taxes tab.
       </Hint>
       <CardGrid>
-        {VICE.map((v: Vice) => {
+        {VICE.map((v) => {
           const cur = G.draft.vice[v.id];
           const inLaw = G.law.vice[v.id];
           const st = v.states.find((s: ViceState) => s.id === cur)!;

@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 import {
   REGIMES,
   REGIME_BY_ID,
+  type RegimeId,
   TAXES,
-  TAX_BY_ID,
   VICE_BY_ID,
+  type ViceId,
   BAND_NAMES,
   T,
   aggregate,
@@ -173,7 +174,9 @@ function CtrlRow({
 function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   const s = G.draft.taxes[t.id];
   const avail = taxAvailable(t, G.draft);
-  const killed = (REGIME_BY_ID[G.draft.regime].kills || []).includes(t.id);
+  const killed = (
+    REGIME_BY_ID[G.draft.regime as RegimeId].kills || []
+  ).includes(t.id);
 
   if (!avail) {
     return (
@@ -189,7 +192,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         </div>
         <div className="mt-0.5 text-[11px] text-ink-faint">
           Requires a change to the law on{" "}
-          {VICE_BY_ID[t.req![0]].name.toLowerCase()}.
+          {VICE_BY_ID[t.req![0] as ViceId].name.toLowerCase()}.
         </div>
       </div>
     );
@@ -307,10 +310,10 @@ function IncomeNiPanel({ G }: { G: any }) {
   const N = G.draft.ni;
   const E = aggregate(G.draft);
   const y = incomeYield(G.draft, E, G.econ);
-  const flat = !!REGIME_BY_ID[G.draft.regime].flatIncome;
+  const flat = !!REGIME_BY_ID[G.draft.regime as RegimeId].flatIncome;
   const dr = dragRatio(G.draft, G.econ);
   const incomeOn = I.on !== false;
-  const dualCap = !!REGIME_BY_ID[G.draft.regime].dualCapital;
+  const dualCap = !!REGIME_BY_ID[G.draft.regime as RegimeId].dualCapital;
   const floorTxt = money(effectiveBands(G.draft)[0].from);
 
   return (
