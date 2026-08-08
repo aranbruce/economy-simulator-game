@@ -25,6 +25,7 @@ import {
   welfareCost,
   recapitaliseBank,
   MUTABLE,
+  SIMULATE_OMITS,
   composePress,
   pushPress,
   diploOutcomeAlertsForBrief,
@@ -1273,6 +1274,20 @@ assert(
 assert(
   !MUTABLE.includes("press"),
   "press is display state and stays out of MUTABLE",
+);
+
+/* Every MUTABLE field must be accounted for by simulate(): either the
+   projection actually carries it forward, or it's on the explicit
+   SIMULATE_OMITS allowlist with a documented reason. Catches the "someone
+   added a new field to MUTABLE and forgot simulate()" drift CLAUDE.md warns
+   about. */
+const simEnd = simulate(G.law, 1).end;
+const unaccounted = MUTABLE.filter(
+  (k) => !(k in simEnd) && !SIMULATE_OMITS.includes(k),
+);
+assert(
+  unaccounted.length === 0,
+  `every MUTABLE field lands in simulate() or SIMULATE_OMITS (missing: ${unaccounted.join(", ")})`,
 );
 
 const emptyClips = composePress({

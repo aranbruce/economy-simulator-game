@@ -4624,7 +4624,7 @@ function hydrateGameSnapshot(snap: any, opts: any) {
     prevSeatPol && prevSeatPol.diploAlerts
       ? prevSeatPol.diploAlerts
       : (G && G.diploAlerts) || [];
-  G = clone(snap);
+  setG(clone(snap));
   G.homeRole = homeRole;
   G.homeIso = o.homeIso || G.homeIso || "826";
   G.homeScale = o.homeScale != null ? o.homeScale : G.homeScale;
@@ -5891,7 +5891,7 @@ function newGame(opts?: any) {
     typeof o.homeScale === "number" && o.homeScale > 0 ? o.homeScale : null;
   const pins = pinsForRole(homeRole);
   const snap = openingSnapshot(homeRole);
-  G = {
+  setG({
     q: 0,
     term: 1,
     over: false,
@@ -5934,7 +5934,7 @@ function newGame(opts?: any) {
     missionEvents: [],
     activeVisits: {},
     diploAlerts: [],
-  };
+  });
   syncEnvoysBaseline(G);
   G.econ.regions = initRegions(G.econ);
   ensureDiploStocks(G.econ);
@@ -15507,6 +15507,34 @@ function impactFactionsData(im: any) {
     "activeVisits",
     "diploAlerts",
   ];
+/* simulate()'s local `sim` object intentionally does not carry every MUTABLE
+   field: `law`/`draft`/`sandbox`/`rateManual`/`manualRate`/`blocMember`/
+   `customBlocs`/`world` are deliberately NOT plain clones of G (that's the
+   whole point of running a hypothetical law forward), so they can't be driven
+   generically off this list. The remaining fields below are omitted because
+   `step()` — the only function simulate()'s loop actually calls — never reads
+   them (confirmed by grepping step()'s body for each one); they're pure UI/
+   display/player-flow state with no effect on a projection's numbers. Kept as
+   an explicit allowlist, checked by a test below, so a future field added to
+   MUTABLE can't silently go unaccounted-for in simulate() the way CLAUDE.md
+   warns about — it will either need to be threaded into `sim` or added here
+   with the same justification. */
+const SIMULATE_OMITS = [
+  "over",
+  "lowRun",
+  "brief",
+  "homeIso",
+  "homeScale",
+  "eventFocus",
+  "eventSponsors",
+  "coachDone",
+  "coach",
+  "setPiece8",
+  "setPiece16",
+  "polityShift",
+  "blocAccession",
+  "worldTrade",
+];
 function cloneWorldForSim(g: any) {
   if (!g || !g.world) return null;
   const playerId = playerCountryId(g.homeRole);
@@ -16154,6 +16182,10 @@ function getTab() {
 function getG() {
   return G;
 }
+function setG(next: any) {
+  G = next;
+  return G;
+}
 
 export {
   FACTIONS,
@@ -16360,6 +16392,7 @@ export {
   REL_0,
   FAC_0,
   MUTABLE,
+  SIMULATE_OMITS,
   IMPACT_ROWS,
   IMP_NAMES,
   clamp,
@@ -16537,5 +16570,6 @@ export {
   getTab,
   setOnTabChange,
   getG,
+  setG,
   recapitaliseBank,
 };
