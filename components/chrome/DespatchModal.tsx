@@ -69,7 +69,7 @@ export function DespatchModal() {
           </div>
           <h3
             id="dpTitle"
-            className="mt-1.5 mb-0 font-display text-[26px] leading-[1.12] font-normal tracking-[-.025em] max-[720px]:text-[22px]"
+            className="mt-1.5 mb-0 font-display text-[26px] leading-[1.12] font-normal tracking-tight max-[720px]:text-[22px]"
           >
             {title}
           </h3>

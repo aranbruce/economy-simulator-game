@@ -83,7 +83,7 @@ export function Dock({
     <nav
       id="dock"
       aria-label="Government"
-      className="hud-surface fixed right-2.5 bottom-2.5 left-2.5 z-20 flex items-center gap-2 p-1.5 max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[max(6px,env(safe-area-inset-bottom))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5"
+      className="hud-surface fixed inset-x-2.5 bottom-2.5 z-20 flex items-center gap-2 p-1.5 max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[max(6px,env(safe-area-inset-bottom))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5"
     >
       <div
         className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-x-auto max-[720px]:order-1 max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-center max-[720px]:gap-1 max-[720px]:overflow-x-visible max-[720px]:pb-0 max-[540px]:justify-center max-[540px]:gap-0.5"
@@ -103,7 +103,7 @@ export function Dock({
             <button
               key={t.id}
               type="button"
-              className="relative flex min-w-[58px] flex-none flex-col items-center gap-0.5 rounded-md border-0 bg-transparent px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] text-ink-soft uppercase transition-[background,color,transform,box-shadow] duration-180 ease-[cubic-bezier(.2,.9,.3,1)] hover:-translate-y-px hover:bg-g-1 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94] aria-expanded:bg-[linear-gradient(180deg,rgba(232,201,136,.95),rgba(212,175,105,.88))] aria-expanded:text-[#1a1408] aria-expanded:shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.35)] max-[720px]:min-h-11 max-[720px]:min-w-11 max-[720px]:justify-center max-[720px]:px-2.5 max-[720px]:py-1.5 max-[720px]:text-[9px] max-[540px]:relative max-[540px]:min-w-[42px] max-[540px]:px-2.25 max-[540px]:py-2"
+              className="relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-md border-0 bg-transparent px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] text-ink-soft uppercase transition-[background,color,transform,box-shadow] duration-180 ease-[cubic-bezier(.2,.9,.3,1)] hover:-translate-y-px hover:bg-g-1 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94] aria-expanded:bg-[linear-gradient(180deg,rgba(232,201,136,.95),rgba(212,175,105,.88))] aria-expanded:text-[#1a1408] aria-expanded:shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.35)] max-[720px]:min-h-11 max-[720px]:min-w-11 max-[720px]:justify-center max-[720px]:px-2.5 max-[720px]:py-1.5 max-[720px]:text-[9px] max-[540px]:relative max-[540px]:min-w-10.5 max-[540px]:px-2.25 max-[540px]:py-2"
               data-tab={t.id}
               aria-label={t.name}
               aria-expanded={t.id === tab}
@@ -134,7 +134,7 @@ export function Dock({
         </button>
         <button
           type="button"
-          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-[13px] font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-[720px]:min-h-11 max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:px-3 max-[720px]:py-2.5 max-[720px]:text-xs max-[540px]:w-full max-[540px]:min-w-0 max-[540px]:px-2.5 max-[540px]:py-2.5 max-[540px]:text-[11.5px] max-[380px]:tracking-normal"
+          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-[13px] font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-[720px]:min-h-11 max-[720px]:w-full max-[720px]:min-w-0 max-[720px]:px-3 max-[720px]:py-2.5 max-[720px]:text-xs max-[540px]:w-full max-[540px]:min-w-0 max-[540px]:p-2.5 max-[540px]:text-[11.5px] max-[380px]:tracking-normal"
           id="deliverBtn"
           disabled={resolvedDisabled ?? undefined}
           title={resolvedTitle || undefined}

@@ -27,7 +27,7 @@ export function BriefingBody({ data }: { data: BriefingData }) {
         <div className="grid grid-cols-1 gap-2.5 min-[520px]:grid-cols-2">
           {impact.quiet ? (
             <div className="col-span-full rounded-md border border-accent/22 bg-accent/9 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
-              <div className="mb-2 text-[10px] font-bold tracking-[.1em] text-accent-lt uppercase">
+              <div className="mb-2 text-[10px] font-bold tracking-widest text-accent-lt uppercase">
                 Year-ahead view
               </div>
               <p className="m-0 text-[15px] leading-[1.45] tracking-[-.015em] text-white">
@@ -38,10 +38,10 @@ export function BriefingBody({ data }: { data: BriefingData }) {
             <>
               {impact.economic && (
                 <div className="rounded-md border border-accent/22 bg-accent/9 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
-                  <div className="mb-2 text-[10px] font-bold tracking-[.1em] text-accent-lt uppercase">
+                  <div className="mb-2 text-[10px] font-bold tracking-widest text-accent-lt uppercase">
                     Next year
                   </div>
-                  <div className="mt-[-4px] mb-2 text-[11px] leading-[1.35] text-ink-faint">
+                  <div className="-mt-1 mb-2 text-[11px] leading-[1.35] text-ink-faint">
                     Four-quarter total, not this quarter alone
                   </div>
                   <p className="m-0 text-[15px] leading-[1.45] tracking-[-.015em] text-white">
@@ -51,10 +51,10 @@ export function BriefingBody({ data }: { data: BriefingData }) {
               )}
               {(impact.approval || impact.politics) && (
                 <div className="rounded-md border border-amber/24 bg-amber/8 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]">
-                  <div className="mb-2 text-[10px] font-bold tracking-[.1em] text-amber uppercase">
+                  <div className="mb-2 text-[10px] font-bold tracking-widest text-amber uppercase">
                     Approval
                   </div>
-                  <div className="mt-[-4px] mb-2 text-[11px] leading-[1.35] text-ink-faint">
+                  <div className="-mt-1 mb-2 text-[11px] leading-[1.35] text-ink-faint">
                     Four-quarter total, not this quarter alone
                   </div>
                   {impact.approval && (
@@ -75,10 +75,10 @@ export function BriefingBody({ data }: { data: BriefingData }) {
       )}
       {lines.length > 0 && (
         <div
-          className={`rounded-[2px] border-l-3 py-0.5 pl-3.5 ${hasImpact ? "border-edge" : "border-accent"}`}
+          className={`rounded-xs border-l-3 py-0.5 pl-3.5 ${hasImpact ? "border-edge" : "border-accent"}`}
         >
           {hasImpact && (
-            <div className="mb-2 text-[10px] font-bold tracking-[.1em] text-ink-faint uppercase">
+            <div className="mb-2 text-[10px] font-bold tracking-widest text-ink-faint uppercase">
               This quarter
             </div>
           )}
@@ -97,9 +97,7 @@ export function BriefingBody({ data }: { data: BriefingData }) {
           {footer}
         </div>
       )}
-      {hint && (
-        <p className="mt-2.5 text-[13px] text-ink-faint">{hint}</p>
-      )}
+      {hint && <p className="mt-2.5 text-[13px] text-ink-faint">{hint}</p>}
     </div>
   );
 }
