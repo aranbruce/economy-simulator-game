@@ -55,7 +55,7 @@ export function DespatchModal() {
       id="scrim"
     >
       <div
-        className="despatch hud-frame relative max-h-[88vh] w-full max-w-[600px] animate-[dp_0.36s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-lg border border-edge bg-panel shadow-[var(--spec),var(--shadow-glass-lg)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+        className="despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
         role="dialog"
         aria-modal="true"
         aria-labelledby="dpTitle"

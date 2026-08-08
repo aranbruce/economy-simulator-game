@@ -18,7 +18,7 @@ export function TopBar() {
   return (
     <header
       id="topbar"
-      className="hud-frame fixed top-2.5 right-2.5 left-2.5 z-20 flex items-center gap-2.5 rounded-lg border border-edge bg-panel py-1.5 pr-2 pl-2.5 shadow-[var(--spec),var(--shadow-glass)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:top-[max(6px,env(safe-area-inset-top))] max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5 max-[720px]:p-2"
+      className="hud-frame hud-surface fixed top-2.5 right-2.5 left-2.5 z-20 flex items-center gap-2.5 py-1.5 pr-2 pl-2.5 max-[720px]:top-[max(6px,env(safe-area-inset-top))] max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5 max-[720px]:p-2"
     >
       <div className="flex flex-none items-center gap-2.25 max-[720px]:min-w-0 max-[720px]:flex-[1_1_auto]">
         <span className="grid size-8 flex-none place-items-center rounded-sm border border-frame bg-accent-dim text-[15px] text-accent-lt shadow-spec max-[720px]:size-7 max-[720px]:text-[13px] max-[380px]:hidden">

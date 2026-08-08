@@ -126,36 +126,51 @@ button {
   display: none !important;
 }
 
-/* Shared HUD surface + corner frames */
-.hud-surface {
-  background: var(--panel);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--edge);
-  box-shadow: var(--spec), var(--shadow);
-  border-radius: var(--r-lg);
-  position: relative;
-}
-.hud-frame::before,
-.hud-frame::after {
-  content: "";
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  pointer-events: none;
-  z-index: 1;
-  border-color: var(--frame);
-  border-style: solid;
-}
-.hud-frame::before {
-  top: 5px;
-  left: 5px;
-  border-width: 1.5px 0 0 1.5px;
-}
-.hud-frame::after {
-  bottom: 5px;
-  right: 5px;
-  border-width: 0 1.5px 1.5px 0;
+/* Shared HUD surface + corner frames, in the Tailwind `components` layer so
+   a utility class applied alongside one of these (e.g. `fixed` overriding
+   the `position: relative` below) always wins on the cascade — unlayered
+   CSS beats layered CSS regardless of source order or specificity, so
+   these must be layered to compose safely with utilities. `-lg` is the
+   same glass recipe with the bigger drop shadow used by modal-style panels
+   (drawer, despatch, realm-card, setup screens); the plain form is for
+   persistent chrome (topbar, dock, coach panel). */
+@layer components {
+  .hud-surface,
+  .hud-surface-lg {
+    background: var(--panel);
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    border: 1px solid var(--edge);
+    border-radius: var(--r-lg);
+    position: relative;
+  }
+  .hud-surface {
+    box-shadow: var(--spec), var(--shadow);
+  }
+  .hud-surface-lg {
+    box-shadow: var(--spec), var(--shadow-lg);
+  }
+  .hud-frame::before,
+  .hud-frame::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+    z-index: 1;
+    border-color: var(--frame);
+    border-style: solid;
+  }
+  .hud-frame::before {
+    top: 5px;
+    left: 5px;
+    border-width: 1.5px 0 0 1.5px;
+  }
+  .hud-frame::after {
+    bottom: 5px;
+    right: 5px;
+    border-width: 0 1.5px 1.5px 0;
+  }
 }
 
 /* ================= map layer ================= */
@@ -316,16 +331,6 @@ button {
 }
 
 /* ================= drawer ================= */
-@keyframes drawerUp {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.99);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
 .dw-body::-webkit-scrollbar {
   width: 6px;
 }
@@ -575,10 +580,14 @@ table.ledger .pos {
   bottom: 6px;
   right: 6px;
 }
-@keyframes dp {
+/* Shared entrance for every glass panel/modal (drawer, despatch, realm-card,
+   setup screens) — was two near-identical keyframes (drawerUp/dp), merged
+   since the difference (2px of translateY, 0.01 of scale) was imperceptible.
+   Duration is unified to 0.34s across all consumers too. */
+@keyframes panelIn {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.98);
+    transform: translateY(17px) scale(0.985);
   }
   to {
     opacity: 1;

@@ -83,7 +83,7 @@ export function Dock({
     <nav
       id="dock"
       aria-label="Government"
-      className="fixed right-2.5 bottom-2.5 left-2.5 z-20 flex items-center gap-2 rounded-lg border border-edge bg-panel p-1.5 shadow-[var(--spec),var(--shadow-glass)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[max(6px,env(safe-area-inset-bottom))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5"
+      className="hud-surface fixed right-2.5 bottom-2.5 left-2.5 z-20 flex items-center gap-2 p-1.5 max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[max(6px,env(safe-area-inset-bottom))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:flex-wrap max-[720px]:gap-1.5"
     >
       <div
         className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-x-auto max-[720px]:order-1 max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-center max-[720px]:gap-1 max-[720px]:overflow-x-visible max-[720px]:pb-0 max-[540px]:justify-center max-[540px]:gap-0.5"

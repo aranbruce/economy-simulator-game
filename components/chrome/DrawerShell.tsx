@@ -47,7 +47,7 @@ export function DrawerShell() {
   return (
     <div
       id="drawer"
-      className={`hud-frame fixed right-2.5 bottom-[88px] left-2.5 z-[15] flex max-h-[min(64vh,640px)] [animation:drawerUp_0.34s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden rounded-lg border border-edge bg-panel shadow-[var(--spec),var(--shadow-glass-lg)] backdrop-blur-[18px] backdrop-saturate-[1.4] max-[720px]:top-[var(--drawer-top,160px)] max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[var(--drawer-bottom,128px)] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:h-auto max-[720px]:max-h-none max-[540px]:bottom-[var(--drawer-bottom,118px)] min-[920px]:top-[82px] min-[920px]:right-2.5 min-[920px]:bottom-[88px] min-[920px]:left-auto min-[920px]:max-h-none min-[920px]:w-[min(560px,46vw)] ${wide ? "min-[920px]:w-[min(900px,64vw)]" : ""}`}
+      className={`hud-frame hud-surface-lg fixed right-2.5 bottom-22 left-2.5 z-15 flex max-h-[min(64vh,640px)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden max-[720px]:top-(--drawer-top,160px) max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-(--drawer-bottom,128px) max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:h-auto max-[720px]:max-h-none max-[540px]:bottom-(--drawer-bottom,118px) min-[920px]:top-20.5 min-[920px]:right-2.5 min-[920px]:bottom-22 min-[920px]:left-auto min-[920px]:max-h-none min-[920px]:w-[min(560px,46vw)] ${wide ? "min-[920px]:w-[min(900px,64vw)]" : ""}`}
       role="dialog"
       aria-label="Policy panel"
       title={overspent ? capitalShortfallHint(cost, G.capital) : undefined}
