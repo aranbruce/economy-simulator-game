@@ -226,7 +226,7 @@ above); sections 2–9 remain in `lib/sim/engine.ts`:
 | 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                       |
 | 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                    |
 | 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                         |
-| 7a. The map         | `REGIONS` (regional metadata feeding `stepRegions()`), plus surviving rendering helpers (`TABS`, `lineChartSpec()`, …) — see the note above on the panel-painting functions this section used to also hold |
+| 7a. The map         | Rendering helpers (`TABS`, `lineChartSpec()`, …) — see the note above on the panel-painting functions this section used to also hold. The procedural-map data that gave the section its name (`REGIONS`, `initRegions()`, `stepRegions()`) has since been removed as unreferenced |
 | 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                 |
 | 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                    |
 | 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                    |
@@ -377,12 +377,12 @@ second map implementation to fall back to.
 An earlier hand-rolled procedural country generator (radial-noise coastline,
 nine regions carved by nearest seed, flood-filled ocean, `LOBES`/`ISLES`/
 `LAKE`) lived in `engine.ts` and predates the Natural Earth map; it has been
-removed now that nothing referenced it. `REGIONS` survives as regional
-metadata (`mix`, `prosper`, `beta`, `trade`, `publicShare`, `housing`) that
-still feeds `initRegions()` / `stepRegions()`, which run every quarter to keep
-`econ.regions` (approval/unemployment/prosperity by region) up to date — that
-machinery was left in place since `REGIONS` is still load-bearing for it, even
-though nothing currently reads `econ.regions` back out.
+removed now that nothing referenced it. `REGIONS`, `initRegions()` and
+`stepRegions()` — the regional metadata (`mix`, `prosper`, `beta`, `trade`,
+`publicShare`, `housing`) and the per-quarter approval/unemployment/prosperity
+breakdown it fed — went with it once `econ.regions` had no remaining reader
+either. A future "regional breakdown" feature (see Backlog) would need to
+rebuild this from scratch.
 
 ## Events
 

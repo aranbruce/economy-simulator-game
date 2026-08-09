@@ -5866,9 +5866,6 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   e.labourGrowth = impliedLabourGrowth(e, aggregate(g.law));
   e.trendGrowth = potentialGrowth(g.law, aggregate(g.law), e);
   plugOpeningDeficit(e, g.law, pin.deficit0);
-  e.regions = initRegions(e);
-  e.prevX = e.X;
-  e.prevG = govDemandShares(g.law, e).g;
   syncLogRowToEcon(g.log[g.log.length - 1], e, g, g.law);
   return {
     econ: e,
@@ -5990,7 +5987,6 @@ function newGame(opts?: any) {
     diploAlerts: [],
   });
   syncEnvoysBaseline(G);
-  G.econ.regions = initRegions(G.econ);
   ensureDiploStocks(G.econ);
   seedGameRelBase(G);
   G.prevLaw = clone(G.law);
@@ -7972,20 +7968,6 @@ function govDemandShares(law: any, econ: any) {
     (FUEL_EROSION +
       CARBON_EROSION * (law.taxes.carbon.on ? law.taxes.carbon.rate : 0)) /
       400;
-  /* Regional divergence, driven by what each place is exposed to. */ const tradeG =
-    ((acct.X - (e.prevX || acct.X)) / Math.max(1, acct.X)) * 400;
-  const publicG =
-    (govDemandShares(law, e).g - (e.prevG || govDemandShares(law, e).g)) * 4;
-  stepRegions(
-    e,
-    law,
-    growth,
-    clamp(tradeG, -12, 12),
-    clamp(publicG, -6, 6),
-    (e.ucSmooth || UC_BASE) - UC_BASE,
-  );
-  e.prevX = acct.X;
-  e.prevG = govDemandShares(law, e).g;
   e.pubProd *= 1 + PUB_PROD_GROWTH / 400;
   e.realWage *= 1 + Math.max(-0.5, pg) / 400; // wages track trend productivity
   const unitCost = e.realWage / e.pubProd;
@@ -9426,166 +9408,12 @@ const esc = (s: any) =>
    has been fully replaced by the real Natural-Earth/topojson map component
    (components/map2d/WorldMap.tsx + lib/sim/boardMetrics.ts); a canvas-load
    failure now falls back to a plain message in WorldMap.tsx itself, not to
-   any function here. REGIONS survives only as the regional metadata
-   (`mix`, `prosper`, `beta`, `trade`, `publicShare`, `housing`) that feeds
-   `initRegions()` / `stepRegions()`, which still run every quarter to keep
-   `econ.regions` (approval/unemployment/prosperity by region) up to date.
-   ================================================================== */ const REGIONS =
-  [
-    {
-      id: "capital",
-      name: "Capital District",
-      x: 0.04,
-      y: 0.08,
-      w: 0.2,
-      mix: {
-        urban: 0.55,
-        business: 0.25,
-        workers: 0.2,
-      },
-      prosper: 1.34,
-      beta: 0.85,
-      trade: 0.7,
-      publicShare: 0.22,
-      housing: 1.6,
-    },
-    {
-      id: "uplands",
-      name: "Northern Uplands",
-      x: -0.04,
-      y: -0.58,
-      w: 0.07,
-      mix: {
-        rural: 0.55,
-        pensioners: 0.25,
-        patriots: 0.2,
-      },
-      prosper: 0.78,
-      beta: 0.65,
-      trade: 0.5,
-      publicShare: 0.34,
-      housing: 0.4,
-    },
-    {
-      id: "westcoast",
-      name: "West Coast",
-      x: -0.52,
-      y: -0.02,
-      w: 0.11,
-      mix: {
-        workers: 0.4,
-        urban: 0.3,
-        pensioners: 0.3,
-      },
-      prosper: 0.9,
-      beta: 1.15,
-      trade: 1.2,
-      publicShare: 0.32,
-      housing: 0.7,
-    },
-    {
-      id: "eastplain",
-      name: "Eastern Plain",
-      x: 0.52,
-      y: -0.1,
-      w: 0.09,
-      mix: {
-        rural: 0.6,
-        business: 0.2,
-        patriots: 0.2,
-      },
-      prosper: 0.86,
-      beta: 0.7,
-      trade: 0.9,
-      publicShare: 0.28,
-      housing: 0.5,
-    },
-    {
-      id: "downs",
-      name: "Southern Downs",
-      x: 0.1,
-      y: 0.52,
-      w: 0.14,
-      mix: {
-        pensioners: 0.45,
-        rural: 0.3,
-        business: 0.25,
-      },
-      prosper: 1.05,
-      beta: 0.8,
-      trade: 0.6,
-      publicShare: 0.3,
-      housing: 1.1,
-    },
-    {
-      id: "belt",
-      name: "Industrial Belt",
-      x: -0.28,
-      y: 0.26,
-      w: 0.14,
-      mix: {
-        workers: 0.62,
-        urban: 0.23,
-        patriots: 0.15,
-      },
-      prosper: 0.82,
-      beta: 1.55,
-      trade: 1.6,
-      publicShare: 0.3,
-      housing: 0.5,
-    },
-    {
-      id: "port",
-      name: "Port Region",
-      x: 0.42,
-      y: 0.36,
-      w: 0.12,
-      mix: {
-        workers: 0.4,
-        business: 0.35,
-        urban: 0.25,
-      },
-      prosper: 0.95,
-      beta: 1.3,
-      trade: 2.1,
-      publicShare: 0.26,
-      housing: 0.6,
-    },
-    {
-      id: "lakes",
-      name: "The Lakelands",
-      x: -0.4,
-      y: -0.36,
-      w: 0.07,
-      mix: {
-        rural: 0.5,
-        pensioners: 0.35,
-        urban: 0.15,
-      },
-      prosper: 0.88,
-      beta: 0.6,
-      trade: 0.5,
-      publicShare: 0.36,
-      housing: 0.4,
-    },
-    {
-      id: "marches",
-      name: "Border Marches",
-      x: 0.36,
-      y: -0.46,
-      w: 0.06,
-      mix: {
-        patriots: 0.45,
-        rural: 0.4,
-        workers: 0.15,
-      },
-      prosper: 0.74,
-      beta: 0.75,
-      trade: 0.8,
-      publicShare: 0.4,
-      housing: 0.3,
-    },
-  ];
+   any function here. REGIONS, initRegions() and stepRegions() (the per-region
+   approval/unemployment/prosperity breakdown the procedural map's choropleth
+   used to read) were removed with it, once nothing consumed econ.regions
+   either. A future "regional breakdown" feature (CLAUDE.md's Backlog) would
+   need to rebuild this from scratch rather than resurrect it.
+   ================================================================== */
 /* ---------- The rest of the world keeps its own books ----------
    Partners are not just relationship counters: each runs an economy with its own
    trend growth, deficit and debt, correlated to the world cycle and to shocks.
@@ -9823,59 +9651,6 @@ function stepNations(e: any, det: any, g: any) {
       1 + fxUip * (proxyRate - worldRate) - FX_RISK * s2.riskPremium;
     s2.fx += (fxTarget - s2.fx) * FX_ADJ * 0.5;
   }
-}
-/* ---------- Regions diverge ----------
-   Each place has its own output and unemployment, and its own exposure. `beta`
-   is how hard the national cycle lands there, `trade` how exposed it is to
-   exports, `publicShare` how much of it depends on the state, `housing` how
-   much the cost of capital matters. So the Industrial Belt takes a downturn
-   harder than the Capital District, a port region feels a tariff war first, and
-   a region living on public employment feels a squeeze on departmental budgets
-   before anyone else does.
-
-   Regional unemployment is sticky: it converges toward the national rate slowly,
-   which is why a shock that has passed nationally can still be visible in a
-   place years later. */ const REGION_STICKY = 0.045,
-  REGION_OKUN = 0.3;
-/* Places do not start level. A region built on heavy industry carries higher
-   unemployment and lower output per head before the Chancellor does anything,
-   which is the inheritance rather than the policy. */ function initRegions(
-  e: any,
-) {
-  return REGIONS.map((R) => ({
-    y: 100 * (0.88 + R.prosper * 0.12),
-    u: clamp(e.unemployment * (0.72 + R.beta * 0.28), 1.5, 14),
-  }));
-}
-function stepRegions(
-  e: any,
-  law: any,
-  growth: any,
-  tradeGrowth: any,
-  publicGrowth: any,
-  ucGap: any,
-) {
-  if (!e.regions) e.regions = initRegions(e);
-  const trend = e.trendGrowth || 1.0;
-  const hpG = e.housePriceGrowth || 0;
-  e.regions.forEach((r: any, i: any) => {
-    const R = REGIONS[i];
-    const local =
-      trend +
-      (growth - trend) * R.beta +
-      tradeGrowth * (R.trade - 1) * 0.55 +
-      publicGrowth * R.publicShare * 1.5 -
-      ucGap * R.housing * 0.3 +
-      hpG * R.housing * 0.22;
-    r.y *= 1 + local / 400;
-    r.u = clamp(
-      r.u -
-        (REGION_OKUN * (local - trend)) / 2 +
-        (e.unemployment - r.u) * REGION_STICKY,
-      0.8,
-      30,
-    );
-  });
 }
 const TABS = [
   {
@@ -16288,7 +16063,6 @@ export {
   DIPLO_POLICY_KEYS,
   DIPLO_SPHERES,
   DIPLO_CAMPS,
-  REGIONS,
   NATION_PROFILE,
   EVENTS,
   TABS,
