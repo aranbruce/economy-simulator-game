@@ -89,9 +89,18 @@ import {
 /* The pure-data content arrays (FACTIONS, DEPTS, TAXES, REGIMES, POLICIES,
    VICE, PARTNERS, MISSIONS) and their macro-constant neighbours now live in
    ./statuteBook.ts, split out for having zero dependency on the live game
-   state `G`. The polity-transition helpers just below (normalisePolityId,
-   polityOf, coupMetric, ...) reference `G` directly and stay here — see
-   CLAUDE.md for why the rest of this file isn't split the same way. */
+   state `G`. The diplomacy/ultimatum/bloc-accession/multiplayer-sync
+   subsystem and the polity-transition helpers just below (normalisePolityId,
+   polityOf, coupMetric, ...) were extracted to lib/sim/diplomacyMp.ts and
+   reverted: the extraction worked (verified via typecheck/test/balance/
+   world-modes/build/browser smoke test) but introduced the codebase's first
+   circular module import for an organisational win only, which on reflection
+   wasn't worth it — grand-strategy sims with a similar shape (Paradox's
+   EU4/CK3/Stellaris) keep this kind of tightly-coupled simulation core as one
+   unit for the same reason. What stayed from that attempt: every function
+   here now reads state through `getG()`/`setG()` rather than the bare `G`
+   binding, finishing a `g || G` fallback pattern that used to be applied
+   inconsistently — see "TypeScript migration" above. */
 import {
   FACTIONS,
   DEPTS,
@@ -171,17 +180,18 @@ function normalisePolityId(key: any) {
 /** Live polity id: player law.polity when present, else the profile pin. */ function polityIdOf(
   role?: any,
 ) {
+  const g = getG();
   const id = resolveHomeRole(
     role != null
       ? role
-      : (typeof G !== "undefined" && G && G.homeRole) || "home",
+      : (typeof g !== "undefined" && g && g.homeRole) || "home",
   );
-  if (typeof G !== "undefined" && G && G.law && G.law.polity) {
-    const live = normalisePolityId(G.law.polity);
+  if (typeof g !== "undefined" && g && g.law && g.law.polity) {
+    const live = normalisePolityId(g.law.polity);
     if (live) {
-      const home = resolveHomeRole(G.homeRole || "home");
-      if (id === home || role == null || role === G.homeRole) {
-        if (G.law.polity !== live) G.law.polity = live;
+      const home = resolveHomeRole(g.homeRole || "home");
+      if (id === home || role == null || role === g.homeRole) {
+        if (g.law.polity !== live) g.law.polity = live;
         return live;
       }
     }
@@ -297,8 +307,9 @@ function careerHint(meta: any, sandbox: any) {
   return "Career mode: lose an election, a party coup, or the bond market and it is over. Sandbox is one click away in the top bar.";
 }
 function polityShiftAge() {
-  if (!G || !G.polityShift || G.polityShift.q == null) return null;
-  return G.q - G.polityShift.q;
+  const g = getG();
+  if (!g || !g.polityShift || g.polityShift.q == null) return null;
+  return g.q - g.polityShift.q;
 }
 function polityShiftIsLiberalising(shift: any) {
   if (!shift) return false;
@@ -353,7 +364,7 @@ function polityShiftIsTightening(shift: any) {
 
 /** Drop unknown missions and sanctions staged against a live state visit. */
 function pruneInvalidDraftMissions(g: any) {
-  const state = g || (typeof G !== "undefined" ? G : null);
+  const state = g || (typeof getG() !== "undefined" ? getG() : null);
   if (!state || !state.draft || !state.draft.missions) return;
   for (const pid of Object.keys(state.draft.missions)) {
     const mid = state.draft.missions[pid];
@@ -403,50 +414,52 @@ function diploDeps() {
 }
 
 function relationModifiers(partnerId: any, g: any, law: any) {
-  const state = g || G;
+  const state = g || getG();
   const L = law || (state && state.law);
   return buildRelationModifiers(partnerId, state, L, diploDeps()).mods;
 }
 
 function relationTarget(partnerId: any, g?: any, law?: any) {
-  const state = g || G;
+  const state = g || getG();
   const L = law || (state && state.law);
   return buildRelationModifiers(partnerId, state, L, diploDeps()).target;
 }
 
 const canIssueUltimatum = (partnerId: any, g?: any) =>
-  canIssueUltimatumCore(partnerId, g || G, diploDeps());
+  canIssueUltimatumCore(partnerId, g || getG(), diploDeps());
 
 function assignEnvoy(partnerId: any) {
-  if (!G || !partnerId) return false;
-  if (!G.envoys) G.envoys = emptyEnvoys();
+  const g = getG();
+  if (!g || !partnerId) return false;
+  if (!g.envoys) g.envoys = emptyEnvoys();
   /* Idempotent: already posted is success (rapid clicks / UI ahead of BE). */
-  if (G.envoys.includes(partnerId)) return true;
-  if ((G.capital || 0) < ENVOY_ASSIGN_PC) return false;
-  const slot = G.envoys.indexOf(null);
+  if (g.envoys.includes(partnerId)) return true;
+  if ((g.capital || 0) < ENVOY_ASSIGN_PC) return false;
+  const slot = g.envoys.indexOf(null);
   if (slot < 0) return false;
-  G.capital = clamp(G.capital - ENVOY_ASSIGN_PC, 0, 100);
-  G.envoys[slot] = partnerId;
-  if (!G.envoySpend) G.envoySpend = {};
-  G.envoySpend[partnerId] = ENVOY_ASSIGN_PC;
+  g.capital = clamp(g.capital - ENVOY_ASSIGN_PC, 0, 100);
+  g.envoys[slot] = partnerId;
+  if (!g.envoySpend) g.envoySpend = {};
+  g.envoySpend[partnerId] = ENVOY_ASSIGN_PC;
   return true;
 }
 
 function recallEnvoy(partnerId: any) {
-  if (!G || !partnerId) return true;
-  if (!G.envoys) return true;
-  const i = G.envoys.indexOf(partnerId);
+  const g = getG();
+  if (!g || !partnerId) return true;
+  if (!g.envoys) return true;
+  const i = g.envoys.indexOf(partnerId);
   /* Idempotent: already vacant is the desired state. */
   if (i < 0) return true;
   if (ENVOY_RECALL_PC > 0) {
-    if ((G.capital || 0) < ENVOY_RECALL_PC) return false;
-    G.capital = clamp(G.capital - ENVOY_RECALL_PC, 0, 100);
+    if ((g.capital || 0) < ENVOY_RECALL_PC) return false;
+    g.capital = clamp(g.capital - ENVOY_RECALL_PC, 0, 100);
   }
-  G.envoys[i] = null;
+  g.envoys[i] = null;
   /* Same-quarter assign can be undone — refund the capital that was spent. */
-  if (G.envoySpend && G.envoySpend[partnerId]) {
-    G.capital = clamp((G.capital || 0) + G.envoySpend[partnerId], 0, 100);
-    delete G.envoySpend[partnerId];
+  if (g.envoySpend && g.envoySpend[partnerId]) {
+    g.capital = clamp((g.capital || 0) + g.envoySpend[partnerId], 0, 100);
+    delete g.envoySpend[partnerId];
   }
   return true;
 }
@@ -634,14 +647,15 @@ function finishOutboundUltimatum(
 }
 
 function issueUltimatum(partnerId: any, demandId: any) {
-  if (!G || !partnerId) return false;
-  ensureDiploStocks(G.econ);
-  const existing = G.ultimatums && G.ultimatums[partnerId];
+  const g = getG();
+  if (!g || !partnerId) return false;
+  ensureDiploStocks(g.econ);
+  const existing = g.ultimatums && g.ultimatums[partnerId];
   /* Idempotent: a live ultimatum is already the desired state. */
   if (existing && existing.status === "pending") return true;
-  const check = canIssueUltimatumCore(partnerId, G, diploDeps());
+  const check = canIssueUltimatumCore(partnerId, g, diploDeps());
   if (!check.ok) return false;
-  const demands = ultimatumDemandsFor(partnerId, G, diploDeps());
+  const demands = ultimatumDemandsFor(partnerId, g, diploDeps());
   const pick = demandId
     ? demands.find((d) => d.id === demandId) || {
         id: demandId,
@@ -649,40 +663,40 @@ function issueUltimatum(partnerId: any, demandId: any) {
       }
     : demands[0];
   if (!pick) return false;
-  G.capital = clamp(G.capital - ULTIMATUM_PC, 0, 100);
-  if (!G.ultimatums) G.ultimatums = {};
-  const awaitHuman = isHumanMpSeat(G, partnerId);
-  G.ultimatums[partnerId] = {
+  g.capital = clamp(g.capital - ULTIMATUM_PC, 0, 100);
+  if (!g.ultimatums) g.ultimatums = {};
+  const awaitHuman = isHumanMpSeat(g, partnerId);
+  g.ultimatums[partnerId] = {
     demand: pick.id,
     label: pick.label,
     policyKey: pick.policyKey,
-    sentQ: G.q,
-    expiresQ: G.q + ULTIMATUM_WAIT,
+    sentQ: g.q,
+    expiresQ: g.q + ULTIMATUM_WAIT,
     status: "pending",
     ...(awaitHuman ? { awaitHuman: true } : {}),
   };
   if (awaitHuman) {
     parkInboundUltimatum(
-      G,
-      playerCountryId(G.homeRole),
+      g,
+      playerCountryId(g.homeRole),
       partnerId,
-      G.ultimatums[partnerId],
+      g.ultimatums[partnerId],
     );
   }
-  addDiploLedger(G, partnerId, {
-    id: "ultimatum_issued_" + G.q,
+  addDiploLedger(g, partnerId, {
+    id: "ultimatum_issued_" + g.q,
     label: "Issued an ultimatum",
     pts: -8,
   });
-  if (G.fac) {
-    G.fac.patriots = clamp((G.fac.patriots || 50) + 3, 2, 96);
-    G.fac.business = clamp((G.fac.business || 50) - 2, 2, 96);
+  if (g.fac) {
+    g.fac.patriots = clamp((g.fac.patriots || 50) + 3, 2, 96);
+    g.fac.business = clamp((g.fac.business || 50) - 2, 2, 96);
   }
   return true;
 }
 
 function processUltimatums(g: any, det: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state || !state.ultimatums) return;
   ensureDiploStocks(state.econ);
   const deps = diploDeps();
@@ -724,7 +738,7 @@ function applyMpInboundUltimatumChoice(
   if (!inbound || inbound.status !== "pending") {
     return { ok: false, error: "No pending inbound ultimatum" };
   }
-  const prev = G;
+  const prev = getG();
   const savedMount = {
     homeRole: g.homeRole,
     econ: g.econ,
@@ -746,26 +760,26 @@ function applyMpInboundUltimatumChoice(
     manualRate: g.manualRate,
   };
   try {
-    G = g;
+    setG(g);
     g.q = g.q != null ? g.q : 0;
     const issuerPol = mountMpSeatOnSnapshot(g, fromId);
-    const ult = (G.ultimatums && G.ultimatums[seatId]) || {
+    const ult = (getG().ultimatums && getG().ultimatums[seatId]) || {
       demand: inbound.demand,
       label: inbound.label,
       policyKey: inbound.policyKey,
     };
-    const impacts = finishOutboundUltimatum(G, seatId, ult, !!concede);
+    const impacts = finishOutboundUltimatum(getG(), seatId, ult, !!concede);
     syncMpPoliticsFromG(issuerPol);
 
     mountMpSeatOnSnapshot(g, seatId);
-    pushDiploAlert(G, {
+    pushDiploAlert(getG(), {
       kind: concede ? "ult_inbound_concede" : "ult_inbound_defy",
       partnerId: fromId,
       demand: inbound.demand,
       label: inbound.label || inbound.demand || "their demand",
       impacts,
-      q: G.q,
-      expiresQ: (G.q || 0) + 3,
+      q: getG().q,
+      expiresQ: (getG().q || 0) + 3,
     });
     clearInboundUltimatum(g, fromId, seatId);
     syncMpPoliticsFromG(g.politics[seatId]);
@@ -789,7 +803,7 @@ function applyMpInboundUltimatumChoice(
     g.sandbox = savedMount.sandbox;
     g.rateManual = savedMount.rateManual;
     g.manualRate = savedMount.manualRate;
-    G = prev;
+    setG(prev);
   }
 }
 
@@ -862,7 +876,7 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
   const blocId = inbound.blocId;
   const bloc = blocById(blocId) || (g.customBlocs && g.customBlocs[blocId]);
   const blocName = bloc ? bloc.name : blocId;
-  const prev = G;
+  const prev = getG();
   const savedMount = {
     homeRole: g.homeRole,
     econ: g.econ,
@@ -885,7 +899,7 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
     blocAccession: g.blocAccession,
   };
   try {
-    G = g;
+    setG(g);
     g.q = g.q != null ? g.q : 0;
 
     const tPol = mountMpSeatOnSnapshot(g, seatId);
@@ -902,39 +916,39 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
         sinceQ: g.q || 0,
         invitedBy: fromId,
       };
-      G.blocAccession = null;
-      if (G.fac) {
-        G.fac.business = clamp((G.fac.business || 50) + 5, 2, 96);
-        G.fac.patriots = clamp((G.fac.patriots || 50) - 6, 2, 96);
+      getG().blocAccession = null;
+      if (getG().fac) {
+        getG().fac.business = clamp((getG().fac.business || 50) + 5, 2, 96);
+        getG().fac.patriots = clamp((getG().fac.patriots || 50) - 6, 2, 96);
       }
-      pushDiploAlert(G, {
+      pushDiploAlert(getG(), {
         kind: "bloc_inbound_accept",
         partnerId: fromId,
         blocId,
         label: blocName,
-        q: G.q,
-        expiresQ: (G.q || 0) + 3,
+        q: getG().q,
+        expiresQ: (getG().q || 0) + 3,
       });
     } else {
-      if (G.fac) {
-        G.fac.patriots = clamp((G.fac.patriots || 50) + 3, 2, 96);
-        G.fac.business = clamp((G.fac.business || 50) - 2, 2, 96);
+      if (getG().fac) {
+        getG().fac.patriots = clamp((getG().fac.patriots || 50) + 3, 2, 96);
+        getG().fac.business = clamp((getG().fac.business || 50) - 2, 2, 96);
       }
-      G.capital = clamp((G.capital || 0) - 2, 0, 100);
-      if (fromId && G.rel) {
-        G.rel[fromId] = clamp(
-          (G.rel[fromId] != null ? G.rel[fromId] : 50) - 2,
+      getG().capital = clamp((getG().capital || 0) - 2, 0, 100);
+      if (fromId && getG().rel) {
+        getG().rel[fromId] = clamp(
+          (getG().rel[fromId] != null ? getG().rel[fromId] : 50) - 2,
           5,
           95,
         );
       }
-      pushDiploAlert(G, {
+      pushDiploAlert(getG(), {
         kind: "bloc_inbound_decline",
         partnerId: fromId,
         blocId,
         label: blocName,
-        q: G.q,
-        expiresQ: (G.q || 0) + 3,
+        q: getG().q,
+        expiresQ: (getG().q || 0) + 3,
       });
     }
     tPol.blocAccession = null;
@@ -943,28 +957,28 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
     syncMpPoliticsFromG(tPol);
 
     const iPol = mountMpSeatOnSnapshot(g, fromId);
-    pushDiploAlert(G, {
+    pushDiploAlert(getG(), {
       kind: accept ? "bloc_invite_accept" : "bloc_invite_decline",
       partnerId: seatId,
       blocId,
       label: blocName,
-      q: G.q,
-      expiresQ: (G.q || 0) + 3,
+      q: getG().q,
+      expiresQ: (getG().q || 0) + 3,
     });
-    if (!accept && G.rel) {
-      G.rel[seatId] = clamp(
-        (G.rel[seatId] != null ? G.rel[seatId] : 50) - 2,
+    if (!accept && getG().rel) {
+      getG().rel[seatId] = clamp(
+        (getG().rel[seatId] != null ? getG().rel[seatId] : 50) - 2,
         5,
         95,
       );
     }
     const p = partnerById(seatId);
     const name = p ? p.name : seatId;
-    if (G.brief) {
+    if (getG().brief) {
       const note = accept
         ? name + " accepts the invitation to " + blocName + "."
         : name + " declines the invitation to " + blocName + ".";
-      G.brief = [note].concat(G.brief).slice(0, 3);
+      getG().brief = [note].concat(getG().brief).slice(0, 3);
     }
     syncMpPoliticsFromG(iPol);
     return { ok: true, accept: !!accept };
@@ -988,7 +1002,7 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
     g.rateManual = savedMount.rateManual;
     g.manualRate = savedMount.manualRate;
     g.blocAccession = savedMount.blocAccession;
-    G = prev;
+    setG(prev);
   }
 }
 
@@ -1093,7 +1107,7 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
   const dealId = inbound.dealId;
   const d = (DEAL_BY_ID as any)[dealId];
   const dealName = d ? d.name : inbound.label || dealId;
-  const prev = G;
+  const prev = getG();
   const savedMount = {
     homeRole: g.homeRole,
     econ: g.econ,
@@ -1115,7 +1129,7 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
     manualRate: g.manualRate,
   };
   try {
-    G = g;
+    setG(g);
     g.q = g.q != null ? g.q : 0;
 
     if (accept) {
@@ -1126,36 +1140,36 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
 
     const tPol = mountMpSeatOnSnapshot(g, seatId);
     if (accept) {
-      if (G.fac) {
-        G.fac.business = clamp((G.fac.business || 50) + 2, 2, 96);
+      if (getG().fac) {
+        getG().fac.business = clamp((getG().fac.business || 50) + 2, 2, 96);
       }
-      pushDiploAlert(G, {
+      pushDiploAlert(getG(), {
         kind: "deal_inbound_accept",
         partnerId: fromId,
         dealId,
         label: dealName,
-        q: G.q,
-        expiresQ: (G.q || 0) + 3,
+        q: getG().q,
+        expiresQ: (getG().q || 0) + 3,
       });
     } else {
-      if (G.fac) {
-        G.fac.patriots = clamp((G.fac.patriots || 50) + 2, 2, 96);
-        G.fac.business = clamp((G.fac.business || 50) - 2, 2, 96);
+      if (getG().fac) {
+        getG().fac.patriots = clamp((getG().fac.patriots || 50) + 2, 2, 96);
+        getG().fac.business = clamp((getG().fac.business || 50) - 2, 2, 96);
       }
-      if (fromId && G.rel) {
-        G.rel[fromId] = clamp(
-          (G.rel[fromId] != null ? G.rel[fromId] : 50) - 3,
+      if (fromId && getG().rel) {
+        getG().rel[fromId] = clamp(
+          (getG().rel[fromId] != null ? getG().rel[fromId] : 50) - 3,
           5,
           95,
         );
       }
-      pushDiploAlert(G, {
+      pushDiploAlert(getG(), {
         kind: "deal_inbound_decline",
         partnerId: fromId,
         dealId,
         label: dealName,
-        q: G.q,
-        expiresQ: (G.q || 0) + 3,
+        q: getG().q,
+        expiresQ: (getG().q || 0) + 3,
       });
     }
     clearInboundDealProposal(g, seatId);
@@ -1166,28 +1180,28 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
       /* Sphere trespass ledger runs against the issuer's mounted seat. */
       applySphereTrespassOnDeal(dealId, true);
     }
-    pushDiploAlert(G, {
+    pushDiploAlert(getG(), {
       kind: accept ? "deal_propose_accept" : "deal_propose_decline",
       partnerId: seatId,
       dealId,
       label: dealName,
-      q: G.q,
-      expiresQ: (G.q || 0) + 3,
+      q: getG().q,
+      expiresQ: (getG().q || 0) + 3,
     });
-    if (!accept && G.rel) {
-      G.rel[seatId] = clamp(
-        (G.rel[seatId] != null ? G.rel[seatId] : 50) - 3,
+    if (!accept && getG().rel) {
+      getG().rel[seatId] = clamp(
+        (getG().rel[seatId] != null ? getG().rel[seatId] : 50) - 3,
         5,
         95,
       );
     }
     const p = partnerById(seatId);
     const name = p ? p.name : seatId;
-    if (G.brief) {
+    if (getG().brief) {
       const note = accept
         ? name + " accepts the treaty — " + dealName + "."
         : name + " declines the treaty — " + dealName + ".";
-      G.brief = [note].concat(G.brief).slice(0, 3);
+      getG().brief = [note].concat(getG().brief).slice(0, 3);
     }
     syncMpPoliticsFromG(iPol);
     return { ok: true, accept: !!accept };
@@ -1210,7 +1224,7 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
     g.sandbox = savedMount.sandbox;
     g.rateManual = savedMount.rateManual;
     g.manualRate = savedMount.manualRate;
-    G = prev;
+    setG(prev);
   }
 }
 
@@ -1232,35 +1246,36 @@ function timeoutInboundDealProposals(g: any) {
 }
 
 function applyMissionEventOption(opt: any, ctx: any) {
-  if (!G || !opt) return;
+  const g = getG();
+  if (!g || !opt) return;
   const partnerId = ctx && ctx.partnerId;
   const rivalId = ctx && ctx.rivalId;
-  ensureDiploStocks(G.econ);
+  ensureDiploStocks(g.econ);
   if (opt.setRel) {
     for (const k in opt.setRel) {
       const pid = k === "_partner" ? partnerId : k === "_rival" ? rivalId : k;
       if (!pid) continue;
-      G.rel[pid] = clamp(
-        (G.rel[pid] != null ? G.rel[pid] : 50) + opt.setRel[k],
+      g.rel[pid] = clamp(
+        (g.rel[pid] != null ? g.rel[pid] : 50) + opt.setRel[k],
         5,
         95,
       );
     }
   }
-  if (opt.fac && G.fac) {
+  if (opt.fac && g.fac) {
     for (const f in opt.fac)
-      G.fac[f] = clamp((G.fac[f] || 50) + opt.fac[f], 2, 96);
+      g.fac[f] = clamp((g.fac[f] || 50) + opt.fac[f], 2, 96);
   }
   if (opt.relImpulse && partnerId) {
-    G.econ.relImpulse[partnerId] =
-      (G.econ.relImpulse[partnerId] || 0) + opt.relImpulse;
+    g.econ.relImpulse[partnerId] =
+      (g.econ.relImpulse[partnerId] || 0) + opt.relImpulse;
   }
-  if (opt.capital) G.capital = clamp(G.capital + opt.capital, 0, 100);
+  if (opt.capital) g.capital = clamp(g.capital + opt.capital, 0, 100);
   if (opt.ledger && partnerId) {
-    addDiploLedger(G, partnerId, {
+    addDiploLedger(g, partnerId, {
       id:
         "mission_evt_" +
-        G.q +
+        g.q +
         "_" +
         String(opt.ledger.label || "evt").slice(0, 12),
       label: opt.ledger.label,
@@ -1268,21 +1283,21 @@ function applyMissionEventOption(opt: any, ctx: any) {
     });
   }
   if (opt.rivalLedger && rivalId) {
-    addDiploLedger(G, rivalId, {
-      id: "mission_rival_" + G.q,
+    addDiploLedger(g, rivalId, {
+      id: "mission_rival_" + g.q,
       label: opt.rivalLedger.label,
       pts: opt.rivalLedger.pts,
     });
   }
   if (opt.access && partnerId) {
-    G.econ.partnerAccessEff[partnerId] =
-      (G.econ.partnerAccessEff[partnerId] || 0) + opt.access;
+    g.econ.partnerAccessEff[partnerId] =
+      (g.econ.partnerAccessEff[partnerId] || 0) + opt.access;
   }
-  if (opt.tariffCut && lockedTariff(G.law) == null) {
-    G.law.tariff = Math.max(0, (G.law.tariff || 0) - opt.tariffCut);
+  if (opt.tariffCut && lockedTariff(g.law) == null) {
+    g.law.tariff = Math.max(0, (g.law.tariff || 0) - opt.tariffCut);
   }
   if (opt.sanctionRival && rivalId)
-    setSanctionStance(G, rivalId, { against: true });
+    setSanctionStance(g, rivalId, { against: true });
 }
 
 function missionOptionHint(opt: any, ctx: any) {
@@ -1376,15 +1391,15 @@ function queueSummitVisitEvents(g: any) {
 }
 
 function presentNextMissionEvent(onDone: any) {
-  if (!G.missionEvents || !G.missionEvents.length) {
+  if (!getG().missionEvents || !getG().missionEvents.length) {
     onDone();
     return;
   }
-  const item = G.missionEvents.shift();
+  const item = getG().missionEvents.shift();
   const ev = rollMissionEvent(
     item.missionId,
     item.partnerId,
-    G,
+    getG(),
     diploDeps(),
     false,
     item.eventIndex,
@@ -1400,7 +1415,7 @@ function presentNextMissionEvent(onDone: any) {
   title = T(title);
   const body =
     "<p>" +
-    formatMissionEventText(ev, G, diploDeps()) +
+    formatMissionEventText(ev, getG(), diploDeps()) +
     "</p>" +
     '<p class="hint">Each choice shifts relations and factions. Expected impacts are listed under every option.</p>';
   const ctx = {
@@ -1454,7 +1469,8 @@ function processActiveVisits(g: any, briefExtra: any) {
 }
 
 function applySphereTrespassOnDeal(dealId: any, ratified: any) {
-  if (!G || !dealId) return;
+  const g = getG();
+  if (!g || !dealId) return;
   const d = (DEAL_BY_ID as any)[dealId];
   if (!d || !d.partner) return;
   const player = playerCountryId();
@@ -1462,7 +1478,7 @@ function applySphereTrespassOnDeal(dealId: any, ratified: any) {
     if (patron === player) continue;
     if (ratified) {
       const client = partnerById(d.partner);
-      addDiploLedger(G, patron, {
+      addDiploLedger(g, patron, {
         id: "sphere_" + dealId,
         label:
           "Trade deal in their sphere (" +
@@ -1493,10 +1509,11 @@ function sphereRiskHint(partnerId: any) {
  *  The Kingdom when you are The Kingdom (ISO 826 already maps to "home"). */ function activePartners(
   homeRole?: any,
 ) {
+  const g = getG();
   const role = resolveHomeRole(
     homeRole != null
       ? homeRole
-      : (typeof G !== "undefined" && G && G.homeRole) || "home",
+      : (typeof g !== "undefined" && g && g.homeRole) || "home",
   );
   return PARTNERS.filter((p) => {
     if (p.id === role) return false;
@@ -1508,10 +1525,11 @@ function sphereRiskHint(partnerId: any) {
   homeRole: any,
   partner: any,
 ) {
+  const g = getG();
   const role =
     homeRole != null
       ? homeRole
-      : (typeof G !== "undefined" && G && G.homeRole) || "home";
+      : (typeof g !== "undefined" && g && g.homeRole) || "home";
   const id = typeof partner === "string" ? partner : partner.id;
   const fb =
     typeof partner === "object" && partner ? partner.tradeShare : undefined;
@@ -1520,10 +1538,11 @@ function sphereRiskHint(partnerId: any) {
 /** Rest-of-world residual so named active shares + rest still sum to 1. */ function tradeRestShare(
   homeRole: any,
 ) {
+  const g = getG();
   const role =
     homeRole != null
       ? homeRole
-      : (typeof G !== "undefined" && G && G.homeRole) || "home";
+      : (typeof g !== "undefined" && g && g.homeRole) || "home";
   const named = activePartners(role).reduce(
     (s, p) => s + partnerShare(role, p),
     0,
@@ -1534,10 +1553,11 @@ function sphereRiskHint(partnerId: any) {
   partner: any,
   homeRole: any,
 ) {
+  const g = getG();
   const role =
     homeRole != null
       ? homeRole
-      : (typeof G !== "undefined" && G && G.homeRole) || "home";
+      : (typeof g !== "undefined" && g && g.homeRole) || "home";
   const p = typeof partner === "string" ? partnerById(partner) : partner;
   if (!p || !p.deals) return [];
   return p.deals.filter((d: any) => {
@@ -1547,11 +1567,13 @@ function sphereRiskHint(partnerId: any) {
   });
 }
 function hasDeal(id: any, law?: any) {
-  const L = law || (G && G.law);
+  const g = getG();
+  const L = law || (g && g.law);
   return !!(L && L.deals && L.deals[id]);
 }
 function dealsWith(pid: any, law?: any) {
-  const L = law || (G && G.law);
+  const g = getG();
+  const L = law || (g && g.law);
   if (!L || !L.deals) return [];
   return Object.keys(L.deals).filter(
     (id) =>
@@ -1563,7 +1585,8 @@ function dealsWith(pid: any, law?: any) {
 /** Lowest lockTariff among ratified deals, or null if the lever is free. */ function lockedTariff(
   law: any,
 ) {
-  const L = law || (G && G.law);
+  const g = getG();
+  const L = law || (g && g.law);
   const blocLock = tariffLocked(L);
   if (blocLock.mode !== "none") return blocLock.cet != null ? blocLock.cet : 4;
   if (!L || !L.deals) return null;
@@ -1591,36 +1614,41 @@ function ensureTariffSchedule(law: any) {
   return law.tariffSchedule;
 }
 function syncTariffHeadline(law: any, homeRole?: any) {
-  const L = law || (G && G.law);
+  const g = getG();
+  const L = law || (g && g.law);
   if (!L) return BASE_TARIFF;
   ensureTariffSchedule(L);
   L.tariff = tariffScheduleAverage(L, homeRole);
   return L.tariff;
 }
 function playerCountryId(homeRole?: any) {
+  const g = getG();
   const role = resolveHomeRole(
     homeRole != null
       ? homeRole
-      : (typeof G !== "undefined" && G && G.homeRole) || "home",
+      : (typeof g !== "undefined" && g && g.homeRole) || "home",
   );
   return role === "home" ? "kingdom" : role;
 }
 function countryBlocId(countryId: any, blocMember?: any) {
-  const bm = blocMember || (G && G.blocMember) || {};
+  const g = getG();
+  const bm = blocMember || (g && g.blocMember) || {};
   return bm[countryId] || null;
 }
 function blocMembers(blocId: any, blocMember?: any) {
-  const bm = blocMember || (G && G.blocMember) || {};
+  const g = getG();
+  const bm = blocMember || (g && g.blocMember) || {};
   return countriesInBloc(blocId, bm);
 }
 function shareSameCustomsUnion(partnerId: any, homeRole: any, blocMember: any) {
+  const g = getG();
   const player = playerCountryId(homeRole);
   const pb = countryBlocId(partnerId, blocMember);
   const hb = countryBlocId(player, blocMember);
   if (!pb || !hb || pb !== hb) return false;
   const bloc =
     blocById(pb) ||
-    (Object.values((G && G.customBlocs) || {}) as any[]).find(
+    (Object.values((g && g.customBlocs) || {}) as any[]).find(
       (b) => b.id === pb,
     );
   return bloc && isCustomsUnion(bloc);
@@ -1631,10 +1659,11 @@ function effectiveTariff(
   homeRole?: any,
   blocMember?: any,
 ) {
-  const L = law || (G && G.law);
+  const g = getG();
+  const L = law || (g && g.law);
   const sched = ensureTariffSchedule(L);
-  const role = homeRole != null ? homeRole : (G && G.homeRole) || "home";
-  const bm = blocMember || (G && G.blocMember) || {};
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const bm = blocMember || (g && g.blocMember) || {};
   if (shareSameCustomsUnion(partnerId, role, bm)) return 0;
   const lock = tariffLocked(L, role, bm);
   if (lock.mode === "cet" || lock.mode === "full") {
@@ -1659,8 +1688,9 @@ function effectiveTariff(
   return sched.default;
 }
 function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
-  const role = homeRole != null ? homeRole : (G && G.homeRole) || "home";
-  const bm = blocMember != null ? blocMember : (G && G.blocMember) || {};
+  const g = getG();
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const bm = blocMember != null ? blocMember : (g && g.blocMember) || {};
   let sum = 0,
     w = 0;
   for (const p of activePartners(role)) {
@@ -1687,8 +1717,9 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   homeRole: any,
   blocMember: any,
 ) {
-  const role = homeRole != null ? homeRole : (G && G.homeRole) || "home";
-  const bm = blocMember != null ? blocMember : (G && G.blocMember) || {};
+  const g = getG();
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const bm = blocMember != null ? blocMember : (g && g.blocMember) || {};
   const out: Record<string, any> = {};
   for (const id in law.deals || {}) {
     if (!law.deals[id]) continue;
@@ -1699,7 +1730,7 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   const player = playerCountryId(role);
   const bid = countryBlocId(player, bm);
   if (bid) {
-    const bloc = blocById(bid) || (G && G.customBlocs && G.customBlocs[bid]);
+    const bloc = blocById(bid) || (g && g.customBlocs && g.customBlocs[bid]);
     if (bloc && bloc.accessBonus) {
       const pts = (bloc.accessBonus - 1) * 100;
       for (const p of activePartners(role)) {
@@ -1723,23 +1754,24 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   return access + tariffInt;
 }
 function tariffLocked(law: any, homeRole?: any, blocMember?: any) {
-  const role = homeRole != null ? homeRole : (G && G.homeRole) || "home";
-  const L = law || (G && G.law);
+  const g = getG();
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const L = law || (g && g.law);
   const player = playerCountryId(role);
-  const bm = blocMember || (G && G.blocMember) || {};
+  const bm = blocMember || (g && g.blocMember) || {};
   const bid = countryBlocId(player, bm);
   if (!bid)
     return {
       mode: "none",
     };
-  const bloc = blocById(bid) || (G && G.customBlocs && G.customBlocs[bid]);
+  const bloc = blocById(bid) || (g && g.customBlocs && g.customBlocs[bid]);
   if (!bloc || !isCustomsUnion(bloc))
     return {
       mode: "none",
     };
   const chair =
     bloc.chair ||
-    (G && G.customBlocs && G.customBlocs[bid] && G.customBlocs[bid].founder);
+    (g && g.customBlocs && g.customBlocs[bid] && g.customBlocs[bid].founder);
   const sched = ensureTariffSchedule(L);
   const cet = sched.cet != null ? sched.cet : bloc.defaultCet;
   if (chair === player)
@@ -1761,14 +1793,16 @@ function initBlocState(homeRole: any) {
   return bm;
 }
 function blocByIdOrCustom(blocId: any) {
-  return blocById(blocId) || (G.customBlocs && G.customBlocs[blocId]) || null;
+  const g = getG();
+  return blocById(blocId) || (g.customBlocs && g.customBlocs[blocId]) || null;
 }
 function blocAccessionSpec(blocId: any) {
+  const g = getG();
   const bloc = blocByIdOrCustom(blocId);
   if (bloc && bloc.accession) return bloc.accession;
   /* Custom blocs have no full accession spec object; use a default
    * accession shape so founded blocs can be rejoined. */
-  if (bloc && G.customBlocs && G.customBlocs[blocId]) {
+  if (bloc && g.customBlocs && g.customBlocs[blocId]) {
     return {
       memberRelationMin: 45,
       steps: {
@@ -1798,13 +1832,14 @@ function inviteAcceptMin(blocId: any) {
   return spec.memberRelationMin || 45;
 }
 function blocInviteMemberApprovals(blocId: any, _candidateId: any) {
+  const g = getG();
   const spec = defaultAccessionForBloc(blocId);
   const min = spec.memberRelationMin || 45;
   const player = playerCountryId();
   return blocMembers(blocId)
     .filter((m) => m !== player)
     .map((m) => {
-      const rel = G.rel[m] != null ? G.rel[m] : 50;
+      const rel = g.rel[m] != null ? g.rel[m] : 50;
       const p = partnerById(m);
       return {
         id: m,
@@ -1816,18 +1851,19 @@ function blocInviteMemberApprovals(blocId: any, _candidateId: any) {
     });
 }
 function blocInviteBlockers(blocId: any, candidateId: any) {
+  const g = getG();
   const out = [];
   const player = playerCountryId();
   if (countryBlocId(player) !== blocId) out.push("not in a trade bloc");
   if (countryBlocId(candidateId)) out.push("already in a bloc");
-  if (G.blocInvites && G.blocInvites[candidateId]) out.push("invite pending");
-  if (G.blocAccessionByCountry && G.blocAccessionByCountry[candidateId])
+  if (g.blocInvites && g.blocInvites[candidateId]) out.push("invite pending");
+  if (g.blocAccessionByCountry && g.blocAccessionByCountry[candidateId])
     out.push("accession in progress");
-  if (candidateId === player && G.blocAccession)
+  if (candidateId === player && g.blocAccession)
     out.push("accession in progress");
-  const candPol = G.politics && G.politics[candidateId];
+  const candPol = g.politics && g.politics[candidateId];
   if (candPol && candPol.blocAccession) out.push("accession in progress");
-  const rel = G.rel[candidateId] != null ? G.rel[candidateId] : 50;
+  const rel = g.rel[candidateId] != null ? g.rel[candidateId] : 50;
   if (rel < 40)
     out.push("relations with candidate " + rel.toFixed(0) + " (need 40+)");
   for (const a of blocInviteMemberApprovals(blocId, candidateId)) {
@@ -1854,21 +1890,24 @@ function blocInviteIsStale(blocId: any, candidateId: any) {
   );
 }
 function ensureDraftBlocState() {
-  if (!G || !G.draft) return;
-  if (!G.draft.blocInvite || typeof G.draft.blocInvite !== "object")
-    G.draft.blocInvite = {};
+  const g = getG();
+  if (!g || !g.draft) return;
+  if (!g.draft.blocInvite || typeof g.draft.blocInvite !== "object")
+    g.draft.blocInvite = {};
 }
 /** Drop staged invites that already went out or finished — they must not block Deliver. */ function pruneDraftBlocInvites() {
+  const g = getG();
   ensureDraftBlocState();
   const playerBloc = countryBlocId(playerCountryId());
   if (!playerBloc) return;
-  for (const cid of Object.keys(G.draft.blocInvite)) {
-    if (blocInviteIsStale(playerBloc, cid)) delete G.draft.blocInvite[cid];
+  for (const cid of Object.keys(g.draft.blocInvite)) {
+    if (blocInviteIsStale(playerBloc, cid)) delete g.draft.blocInvite[cid];
   }
 }
 /** Per-member relation gate for unanimous accession approval. */ function blocMemberApprovals(
   blocId: any,
 ) {
+  const g = getG();
   const spec = blocAccessionSpec(blocId);
   const min = spec ? spec.memberRelationMin || 45 : 45;
   const player = playerCountryId();
@@ -1877,7 +1916,7 @@ function ensureDraftBlocState() {
   return (bloc.members || [])
     .filter((m: any) => m !== player)
     .map((m: any) => {
-      const rel = G.rel[m] != null ? G.rel[m] : 50;
+      const rel = g.rel[m] != null ? g.rel[m] : 50;
       const p = partnerById(m);
       return {
         id: m,
@@ -1891,7 +1930,7 @@ function ensureDraftBlocState() {
 function needBlockers(need: any, law: any, ctx?: any) {
   const out = [];
   const n = need || {};
-  const D = law || G.draft || {};
+  const D = law || getG().draft || {};
   const partner = ctx && ctx.partner;
   (n.policyOff || []).forEach((p: any) => {
     if (D.policies[p])
@@ -1930,6 +1969,7 @@ function needBlockers(need: any, law: any, ctx?: any) {
   blocId: any,
   phase: any,
 ) {
+  const g = getG();
   const out = [];
   const ph = phase || "apply";
   const player = playerCountryId();
@@ -1938,8 +1978,8 @@ function needBlockers(need: any, law: any, ctx?: any) {
   if (!bloc) return ["unknown bloc"];
   const spec = blocAccessionSpec(blocId);
   const chairId = bloc.chair || bloc.founder;
-  const acc = G.blocAccession;
-  const autoAcc = G.blocAccessionByCountry && G.blocAccessionByCountry[player];
+  const acc = g.blocAccession;
+  const autoAcc = g.blocAccessionByCountry && g.blocAccessionByCountry[player];
   if (acc && acc.blocId !== blocId)
     out.push("withdraw your current application first");
   if (autoAcc && autoAcc.blocId !== blocId)
@@ -1964,7 +2004,7 @@ function needBlockers(need: any, law: any, ctx?: any) {
       out.push("alignment not complete");
   }
   if (ph === "apply" && spec && spec.chairRelationMin && chairId) {
-    const rel = G.rel[chairId] != null ? G.rel[chairId] : 50;
+    const rel = g.rel[chairId] != null ? g.rel[chairId] : 50;
     if (rel < spec.chairRelationMin) {
       const chair = partnerById(chairId);
       out.push(
@@ -1979,7 +2019,7 @@ function needBlockers(need: any, law: any, ctx?: any) {
     }
   }
   if ((ph === "align" || ph === "accede") && spec && spec.need) {
-    needBlockers(spec.need, G.draft).forEach((b) => out.push(b));
+    needBlockers(spec.need, g.draft).forEach((b) => out.push(b));
   }
   if (ph === "accede") {
     for (const a of blocMemberApprovals(blocId)) {
@@ -1995,7 +2035,7 @@ function needBlockers(need: any, law: any, ctx?: any) {
         );
     }
     if (spec && spec.chairRelationMin && chairId) {
-      const rel = G.rel[chairId] != null ? G.rel[chairId] : 50;
+      const rel = g.rel[chairId] != null ? g.rel[chairId] : 50;
       if (rel < spec.chairRelationMin) {
         out.push(
           "chair relations " +
@@ -2096,24 +2136,26 @@ function clearBilateralDeals(law: any) {
   return true;
 }
 function joinBloc(blocId: any, law: any) {
+  const g = getG();
   const player = playerCountryId();
   if (!player || countryBlocId(player)) return false;
-  return finalizeBlocJoin(G, player, blocId, law || G.law);
+  return finalizeBlocJoin(g, player, blocId, law || g.law);
 }
 function isBlocFounder() {
   const player = playerCountryId();
   const bid = countryBlocId(player);
   if (!bid) return false;
-  const custom = G.customBlocs[bid];
+  const custom = getG().customBlocs[bid];
   return !!(custom && custom.founder === player);
 }
 function blocDealMemberApprovals(blocId: any, relationMin: any) {
+  const g = getG();
   const min = relationMin || 42;
   const player = playerCountryId();
   return blocMembers(blocId)
     .filter((m) => m !== player)
     .map((m) => {
-      const rel = G.rel[m] != null ? G.rel[m] : 50;
+      const rel = g.rel[m] != null ? g.rel[m] : 50;
       const p = partnerById(m);
       return {
         id: m,
@@ -2125,6 +2167,7 @@ function blocDealMemberApprovals(blocId: any, relationMin: any) {
     });
 }
 function blocExternalDealBlockers(partnerId: any, dealId: any) {
+  const g = getG();
   const out = [];
   const player = playerCountryId();
   const bid = countryBlocId(player);
@@ -2132,11 +2175,11 @@ function blocExternalDealBlockers(partnerId: any, dealId: any) {
   else if (!isBlocFounder())
     out.push("only the bloc founder can negotiate external treaties");
   if (countryBlocId(partnerId)) out.push("partner trades through their bloc");
-  const custom = bid && G.customBlocs[bid];
+  const custom = bid && g.customBlocs[bid];
   const tpl = custom && (CUSTOM_BLOC_TEMPLATES as any)[custom.template];
   const min =
     tpl && tpl.externalDealRelationMin ? tpl.externalDealRelationMin : 42;
-  const rel = G.rel[partnerId] != null ? G.rel[partnerId] : 50;
+  const rel = g.rel[partnerId] != null ? g.rel[partnerId] : 50;
   if (rel < min)
     out.push(
       "relations with partner " + rel.toFixed(0) + " (need " + min + "+)",
@@ -2158,16 +2201,17 @@ function blocExternalDealBlockers(partnerId: any, dealId: any) {
     const d = (DEAL_BY_ID as any)[dealId];
     if (d.partner !== partnerId) out.push("deal does not match partner");
     if (d.need)
-      needBlockers(d.need, G.draft, {
+      needBlockers(d.need, g.draft, {
         partner: partnerId,
       }).forEach((b) => out.push(b));
   }
   return out;
 }
 function draftBlocSnapshotFrom(draft: any) {
-  const d = draft || G.draft || {};
-  const bm = clone(G.blocMember);
-  const custom = clone(G.customBlocs);
+  const g = getG();
+  const d = draft || g.draft || {};
+  const bm = clone(g.blocMember);
+  const custom = clone(g.customBlocs);
   const player = playerCountryId();
   if (d.blocLeave) delete bm[player];
   if (d.blocCreate && !bm[player]) {
@@ -2193,7 +2237,7 @@ function draftBlocSnapshotFrom(draft: any) {
   };
 }
 function applyDraftBlocLaw(law: any, snap: any, draft: any) {
-  const d = draft || G.draft || {};
+  const d = draft || getG().draft || {};
   const player = playerCountryId();
   const bid = snap.blocMember[player];
   ensureTariffSchedule(law);
@@ -2210,27 +2254,28 @@ function applyDraftBlocLaw(law: any, snap: any, draft: any) {
   }
 }
 function dissolveCustomBlocIfEmpty(blocId: any) {
-  if (!blocId || !G || !G.customBlocs || !G.customBlocs[blocId]) return false;
+  const g = getG();
+  if (!blocId || !g || !g.customBlocs || !g.customBlocs[blocId]) return false;
   if (blocMembers(blocId).length > 0) return false;
-  delete G.customBlocs[blocId];
-  if (G.blocInvites) {
-    for (const cid of Object.keys(G.blocInvites)) {
-      if (G.blocInvites[cid] && G.blocInvites[cid].blocId === blocId)
-        delete G.blocInvites[cid];
+  delete g.customBlocs[blocId];
+  if (g.blocInvites) {
+    for (const cid of Object.keys(g.blocInvites)) {
+      if (g.blocInvites[cid] && g.blocInvites[cid].blocId === blocId)
+        delete g.blocInvites[cid];
     }
   }
-  if (G.blocAccessionByCountry) {
-    for (const cid of Object.keys(G.blocAccessionByCountry)) {
+  if (g.blocAccessionByCountry) {
+    for (const cid of Object.keys(g.blocAccessionByCountry)) {
       if (
-        G.blocAccessionByCountry[cid] &&
-        G.blocAccessionByCountry[cid].blocId === blocId
+        g.blocAccessionByCountry[cid] &&
+        g.blocAccessionByCountry[cid].blocId === blocId
       )
-        delete G.blocAccessionByCountry[cid];
+        delete g.blocAccessionByCountry[cid];
     }
   }
-  if (G.blocAccession && G.blocAccession.blocId === blocId)
-    G.blocAccession = null;
-  for (const law of [G.law, G.draft]) {
+  if (g.blocAccession && g.blocAccession.blocId === blocId)
+    g.blocAccession = null;
+  for (const law of [g.law, g.draft]) {
     if (
       law &&
       law.tariffSchedule &&
@@ -2247,13 +2292,14 @@ function dissolveCustomBlocIfEmpty(blocId: any) {
  * seat (multiplayer enact) so a wrong homeRole cannot drop a peer by mistake.
  */
 function leaveBloc(law: any, seatId?: any) {
+  const g = getG();
   const player = seatId || playerCountryId();
   const bid = countryBlocId(player);
   if (!bid) return false;
-  const bloc = blocById(bid) || (G.customBlocs && G.customBlocs[bid]);
+  const bloc = blocById(bid) || (g.customBlocs && g.customBlocs[bid]);
   const blocName = bloc ? bloc.name : bid;
-  delete G.blocMember[player];
-  const custom = G.customBlocs && G.customBlocs[bid];
+  delete g.blocMember[player];
+  const custom = g.customBlocs && g.customBlocs[bid];
   if (custom && Array.isArray(custom.members)) {
     custom.members = custom.members.filter((m: any) => m !== player);
     /* Founder succession — remaining members keep a chair for external deals. */
@@ -2262,14 +2308,14 @@ function leaveBloc(law: any, seatId?: any) {
     }
   }
   dissolveCustomBlocIfEmpty(bid);
-  const L = law || G.law;
+  const L = law || g.law;
   const sched = ensureTariffSchedule(L);
   sched.cet = null;
   syncTariffHeadline(L);
   /* Drop any in-flight leave flag so a re-staged draft cannot no-op. */
-  if (G.draft) G.draft.blocLeave = false;
-  if (L && L !== G.draft) L.blocLeave = false;
-  notifyBlocDeparture(G, player, bid, blocName);
+  if (g.draft) g.draft.blocLeave = false;
+  if (L && L !== g.draft) L.blocLeave = false;
+  notifyBlocDeparture(g, player, bid, blocName);
   return true;
 }
 
@@ -2312,12 +2358,13 @@ function notifyBlocDeparture(
   }
 }
 function createCustomBloc(name: any, templateId: any) {
+  const g = getG();
   const tpl = (CUSTOM_BLOC_TEMPLATES as any)[templateId];
   if (!tpl) return null;
   if (!canCreateCustomBloc()) return null;
   const player = playerCountryId();
   const id = "custom_" + Date.now();
-  G.customBlocs[id] = {
+  g.customBlocs[id] = {
     id,
     name: name || tpl.name,
     founder: player,
@@ -2326,16 +2373,16 @@ function createCustomBloc(name: any, templateId: any) {
     type: tpl.type,
     defaultCet: tpl.defaultCet || null,
     accessBonus: tpl.accessBonus,
-    createdQ: G.q,
+    createdQ: g.q,
   };
-  finalizeBlocJoin(G, player, id, G.law);
-  G._customBlocFoundedQ = G.q;
+  finalizeBlocJoin(g, player, id, g.law);
+  g._customBlocFoundedQ = g.q;
   return id;
 }
 
 /** True when the player may found a custom bloc (not a member, not ascending). */
 function canCreateCustomBloc(state?: any) {
-  const g = state || G;
+  const g = state || getG();
   if (!g) return false;
   const pid = playerCountryId(g.homeRole);
   if (!pid) return false;
@@ -2350,7 +2397,7 @@ function canCreateCustomBloc(state?: any) {
  * Used by solo Cancel joining and the MP withdrawBlocAccession diplo action.
  */
 function withdrawBlocAccession(state: any, seatId?: any) {
-  const g = state || G;
+  const g = state || getG();
   if (!g) return false;
   const pid = seatId || playerCountryId(g.homeRole);
   if (!pid) return false;
@@ -2376,7 +2423,7 @@ function withdrawBlocAccession(state: any, seatId?: any) {
   return changed;
 }
 function processBlocInvites(g: any) {
-  const state = g || (typeof G !== "undefined" ? G : null);
+  const state = g || (typeof getG() !== "undefined" ? getG() : null);
   if (!state || !state.blocInvites) return;
   const notes = [];
   const player =
@@ -2440,7 +2487,7 @@ function processBlocInvites(g: any) {
     state.brief = notes.concat(state.brief).slice(0, 3);
 }
 function processBlocAccessions(g: any) {
-  const state = g || (typeof G !== "undefined" ? G : null);
+  const state = g || (typeof getG() !== "undefined" ? getG() : null);
   if (!state || !state.blocAccessionByCountry) return;
   const notes = [];
   const maxQ = 8;
@@ -2631,7 +2678,7 @@ function beginPlayerBlocAccession(state: any, blocId: any) {
       : resolveHomeRole(state.homeRole || "home");
   if (!state.blocAccessionByCountry) state.blocAccessionByCountry = {};
   /* sinceQ is next quarter: apply + step bump q in the same Deliver, so a
-   * plain G.q would advance alignment immediately on the application quarter. */
+   * plain getG().q would advance alignment immediately on the application quarter. */
   state.blocAccessionByCountry[pid] = {
     blocId,
     step: 1,
@@ -2649,19 +2696,20 @@ function applyBlocAccessionDraft(state: any, ba: any) {
   }
 }
 function inviteToBloc(countryId: any, blocId: any) {
+  const g = getG();
   if (countryBlocId(countryId)) return false;
-  if (!G.blocInvites) G.blocInvites = {};
-  const fromId = playerCountryId(G.homeRole);
-  const awaitHuman = isHumanMpSeat(G, countryId);
-  G.blocInvites[countryId] = {
+  if (!g.blocInvites) g.blocInvites = {};
+  const fromId = playerCountryId(g.homeRole);
+  const awaitHuman = isHumanMpSeat(g, countryId);
+  g.blocInvites[countryId] = {
     blocId,
-    sentQ: G.q,
-    expiresQ: G.q + 4,
+    sentQ: g.q,
+    expiresQ: g.q + 4,
     fromId,
     ...(awaitHuman ? { awaitHuman: true } : {}),
   };
   if (awaitHuman)
-    parkInboundBlocInvite(G, fromId, countryId, G.blocInvites[countryId]);
+    parkInboundBlocInvite(g, fromId, countryId, g.blocInvites[countryId]);
   return true;
 }
 /** Pick an active partner. Optional score(p) → higher wins; filter(p) to exclude. */ function pickEventPartner(
@@ -2682,7 +2730,7 @@ function inviteToBloc(countryId: any, blocId: any) {
     }
     return best;
   }
-  return pool[G.sandbox ? 0 : Math.floor(Math.random() * pool.length)];
+  return pool[getG().sandbox ? 0 : Math.floor(Math.random() * pool.length)];
 }
 function partnerById(id: any) {
   return PARTNERS.find((p) => p.id === id) || null;
@@ -3169,7 +3217,7 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
   const subs = submissions || {};
   if (!g.politics) g.politics = {};
 
-  const prevG = G;
+  const prevG = getG();
   try {
     for (const id of humans) {
       const sub = subs[id];
@@ -3262,22 +3310,22 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
           };
           /* Career flags + lowRun without UI — client shows verdict on hydrate. */
           {
-            const prev = G;
+            const prev = getG();
             try {
-              G = g;
+              setG(g);
               mountMpSeatOnSnapshot(g, id);
-              const e = G.econ;
-              const meta = polityOf(G.homeRole);
-              const metric = coupMetric(G.fac, meta);
-              G.lowRun = metric < meta.coupFloor ? (G.lowRun || 0) + 1 : 0;
-              if (!G.sandbox) {
-                if (e.yield > 10 && e.debt > 118) G.over = true;
-                else if (e.inflation > 22) G.over = true;
-                else if (G.lowRun >= meta.coupQuarters) G.over = true;
+              const e = getG().econ;
+              const meta = polityOf(getG().homeRole);
+              const metric = coupMetric(getG().fac, meta);
+              getG().lowRun = metric < meta.coupFloor ? (getG().lowRun || 0) + 1 : 0;
+              if (!getG().sandbox) {
+                if (e.yield > 10 && e.debt > 118) getG().over = true;
+                else if (e.inflation > 22) getG().over = true;
+                else if (getG().lowRun >= meta.coupQuarters) getG().over = true;
               }
               syncMpPoliticsFromG(pol);
             } finally {
-              G = prev;
+              setG(prev);
             }
           }
           /* Roll events against this seat after its step; choice is async. */
@@ -3304,7 +3352,7 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
       g.prevLaw = g.world[leadId].prevLaw || g.law;
       if (Array.isArray(g.world[leadId].log)) g.log = g.world[leadId].log;
     }
-    G = g;
+    setG(g);
     mirrorPlayerToWorld(g);
     refreshWorldTrade(g);
     g.q = (g.q || 0) + 1;
@@ -3335,7 +3383,7 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
     }
     /* Human capital regen runs inside step (aiSeat false). AI seats skip it. */
   } finally {
-    G = prevG;
+    setG(prevG);
   }
   return g;
 }
@@ -3511,26 +3559,27 @@ function defaultMpPolitics(seatId: any, role: any, name?: any) {
   });
 }
 function syncMpPoliticsFromG(pol: any) {
-  if (!pol || !G) return;
-  pol.capital = G.capital;
-  pol.fac = G.fac;
-  pol.rel = G.rel;
-  pol.mods = G.mods || [];
-  pol.sandbox = !!G.sandbox;
-  pol.rateManual = !!G.rateManual;
-  pol.manualRate = G.manualRate;
-  pol.lastEventQ = G.lastEventQ;
-  pol.lastEventId = G.lastEventId;
-  pol.setPiece8 = !!G.setPiece8;
-  pol.setPiece16 = !!G.setPiece16;
-  pol.nextMajorQ = G.nextMajorQ;
-  pol.episode = G.episode ? clone(G.episode) : null;
-  pol.polityShift = G.polityShift ? clone(G.polityShift) : null;
-  pol.lowRun = G.lowRun || 0;
-  pol.over = !!G.over;
-  pol.blocAccession = G.blocAccession ? clone(G.blocAccession) : null;
-  if (pol.country == null && G.country) pol.country = G.country;
-  syncDiploPoliticsFromGame(pol, G);
+  const g = getG();
+  if (!pol || !g) return;
+  pol.capital = g.capital;
+  pol.fac = g.fac;
+  pol.rel = g.rel;
+  pol.mods = g.mods || [];
+  pol.sandbox = !!g.sandbox;
+  pol.rateManual = !!g.rateManual;
+  pol.manualRate = g.manualRate;
+  pol.lastEventQ = g.lastEventQ;
+  pol.lastEventId = g.lastEventId;
+  pol.setPiece8 = !!g.setPiece8;
+  pol.setPiece16 = !!g.setPiece16;
+  pol.nextMajorQ = g.nextMajorQ;
+  pol.episode = g.episode ? clone(g.episode) : null;
+  pol.polityShift = g.polityShift ? clone(g.polityShift) : null;
+  pol.lowRun = g.lowRun || 0;
+  pol.over = !!g.over;
+  pol.blocAccession = g.blocAccession ? clone(g.blocAccession) : null;
+  if (pol.country == null && g.country) pol.country = g.country;
+  syncDiploPoliticsFromGame(pol, g);
 }
 function mountMpSeatOnSnapshot(g: any, seatId: any) {
   const seat = g.world[seatId];
@@ -3587,7 +3636,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
   if (!g.politics || !g.politics[seatId]) {
     return { ok: false, error: "Missing seat politics" };
   }
-  const prev = G;
+  const prev = getG();
   const saved = {
     homeRole: g.homeRole,
     econ: g.econ,
@@ -3609,7 +3658,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
     manualRate: g.manualRate,
   };
   try {
-    G = g;
+    setG(g);
     const pol = mountMpSeatOnSnapshot(g, seatId);
     if (!pol) return { ok: false, error: "Unknown seat" };
     g.q = g.q != null ? g.q : 0;
@@ -3618,9 +3667,9 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
     if (action === "assignEnvoy") {
       ok = assignEnvoy(o.partnerId);
       if (!ok) {
-        if ((G.capital || 0) < ENVOY_ASSIGN_PC)
+        if ((getG().capital || 0) < ENVOY_ASSIGN_PC)
           error = "Need " + ENVOY_ASSIGN_PC + " capital";
-        else if (G.envoys && G.envoys.indexOf(null) < 0)
+        else if (getG().envoys && getG().envoys.indexOf(null) < 0)
           error = "All envoy slots are filled";
         else error = "Could not assign envoy";
       }
@@ -3676,25 +3725,26 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
     g.sandbox = saved.sandbox;
     g.rateManual = saved.rateManual;
     g.manualRate = saved.manualRate;
-    G = prev;
+    setG(prev);
   }
 }
 
 /** Patch live G from a successful MP diplo response without wiping the draft. */
 function applyMpDiploPatch(patch: any) {
-  if (!G || !patch) return;
-  if (patch.capital != null) G.capital = patch.capital;
-  if (patch.envoys) G.envoys = clone(patch.envoys);
-  if (patch.ultimatums) G.ultimatums = clone(patch.ultimatums);
-  if (patch.fac) G.fac = clone(patch.fac);
-  if (patch.rel) G.rel = clone(patch.rel);
+  const g = getG();
+  if (!g || !patch) return;
+  if (patch.capital != null) g.capital = patch.capital;
+  if (patch.envoys) g.envoys = clone(patch.envoys);
+  if (patch.ultimatums) g.ultimatums = clone(patch.ultimatums);
+  if (patch.fac) g.fac = clone(patch.fac);
+  if (patch.rel) g.rel = clone(patch.rel);
   if (patch.blocAccessionCleared) {
-    const seatId = playerCountryId(G.homeRole);
-    withdrawBlocAccession(G, seatId);
+    const seatId = playerCountryId(g.homeRole);
+    withdrawBlocAccession(g, seatId);
   }
-  const seatId = playerCountryId(G.homeRole);
-  if (G.politics && G.politics[seatId]) {
-    const pol = G.politics[seatId];
+  const seatId = playerCountryId(g.homeRole);
+  if (g.politics && g.politics[seatId]) {
+    const pol = g.politics[seatId];
     if (patch.capital != null) pol.capital = patch.capital;
     if (patch.envoys) pol.envoys = clone(patch.envoys);
     if (patch.ultimatums) pol.ultimatums = clone(patch.ultimatums);
@@ -3705,7 +3755,7 @@ function applyMpDiploPatch(patch: any) {
 
 /** Capture diplo UI fields so an optimistic MP click can roll back on API failure. */
 function snapshotMpDiploUi(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state) return null;
   const seatId = playerCountryId(state.homeRole);
   return {
@@ -3744,7 +3794,7 @@ function snapshotMpDiploUi(g: any) {
 }
 
 function restoreMpDiploUi(snap: any, g?: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state || !snap) return;
   state.capital = snap.capital;
   state.envoys = clone(snap.envoys);
@@ -3794,16 +3844,17 @@ function restoreMpDiploUi(snap: any, g?: any) {
  * Returns { ok, error } — same validation as the solo helpers.
  */
 function applyLocalMpDiploAction(action: any, opts: any) {
+  const g = getG();
   const o = opts || {};
-  if (!G) return { ok: false, error: "No game" };
+  if (!g) return { ok: false, error: "No game" };
   let ok = false;
   let error = null;
   if (action === "assignEnvoy") {
     ok = assignEnvoy(o.partnerId);
     if (!ok) {
-      if ((G.capital || 0) < ENVOY_ASSIGN_PC)
+      if ((g.capital || 0) < ENVOY_ASSIGN_PC)
         error = "Need " + ENVOY_ASSIGN_PC + " capital";
-      else if (G.envoys && G.envoys.indexOf(null) < 0)
+      else if (g.envoys && g.envoys.indexOf(null) < 0)
         error = "All envoy slots are filled";
       else error = "Could not assign envoy";
     }
@@ -3822,26 +3873,26 @@ function applyLocalMpDiploAction(action: any, opts: any) {
             : "Could not issue ultimatum";
     }
   } else if (action === "withdrawBlocAccession") {
-    ok = withdrawBlocAccession(G);
+    ok = withdrawBlocAccession(g);
     if (!ok) error = "No accession to cancel";
   } else {
     return { ok: false, error: "Unknown action" };
   }
   if (!ok) return { ok: false, error: error || "Action failed" };
-  const seatId = playerCountryId(G.homeRole);
-  if (G.politics && G.politics[seatId]) {
-    const pol = G.politics[seatId];
-    pol.capital = G.capital;
-    pol.fac = G.fac;
-    pol.rel = G.rel;
-    syncDiploPoliticsFromGame(pol, G);
+  const seatId = playerCountryId(g.homeRole);
+  if (g.politics && g.politics[seatId]) {
+    const pol = g.politics[seatId];
+    pol.capital = g.capital;
+    pol.fac = g.fac;
+    pol.rel = g.rel;
+    syncDiploPoliticsFromGame(pol, g);
   }
   return { ok: true };
 }
 
 /** Pin the envoy roster at the start of each quarter so Orders can undo mid-quarter posts. */
 function syncEnvoysBaseline(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state) return;
   if (!state.envoys) state.envoys = emptyEnvoys();
   if (!state.envoySpend) state.envoySpend = {};
@@ -3852,7 +3903,7 @@ function syncEnvoysBaseline(g: any) {
 }
 
 function clearQuarterEnvoySpend(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state) return;
   state.envoySpend = {};
   /* Next billClauses() will re-pin baseline to the post-Deliver roster. */
@@ -3866,7 +3917,7 @@ function clearQuarterEnvoySpend(g: any) {
 
 /** Snapshot of what was sent on Deliver — used to auto-withdraw on later edits. */
 function lockMpSubmission(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state || !state.mp) return;
   state.mp.lockedSubmission = {
     draft: clone(state.draft),
@@ -3879,7 +3930,7 @@ function lockMpSubmission(g: any) {
 }
 
 function clearMpLockedSubmission(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (state && state.mp) state.mp.lockedSubmission = null;
 }
 
@@ -3895,7 +3946,7 @@ function mpSubmissionFingerprint(parts: any) {
 }
 
 function mpSubmissionDiverged(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state || !state.mp || !state.mp.waiting || !state.mp.lockedSubmission)
     return false;
   const locked = state.mp.lockedSubmission;
@@ -3915,9 +3966,10 @@ function mpSubmissionDiverged(g: any) {
  * the room never resolves against a stale submission.
  */
 function maybeAutoUnsubmitMp() {
-  if (!G || !G.mp || G.mp.bootstrapping || !G.mp.waiting) return;
-  if (!mpSubmissionDiverged(G)) return;
-  if (typeof G.mp.onAutoUnsubmit === "function") G.mp.onAutoUnsubmit();
+  const g = getG();
+  if (!g || !g.mp || g.mp.bootstrapping || !g.mp.waiting) return;
+  if (!mpSubmissionDiverged(g)) return;
+  if (typeof g.mp.onAutoUnsubmit === "function") g.mp.onAutoUnsubmit();
 }
 /** After a seat steps in lockstep, roll an ordinary/major event into pendingEvent. */
 function promoteMpMissionEvent(pol: any) {
@@ -3936,9 +3988,9 @@ function promoteMpMissionEvent(pol: any) {
   return true;
 }
 function rollMpEventIntoPolitics(g: any, seatId: any, q: any) {
-  const prev = G;
+  const prev = getG();
   try {
-    G = g;
+    setG(g);
     const pol = mountMpSeatOnSnapshot(g, seatId);
     if (!pol || pol.pendingEvent || pol.over) return;
     g.q = q;
@@ -3983,7 +4035,7 @@ function rollMpEventIntoPolitics(g: any, seatId: any, q: any) {
       syncMpPoliticsFromG(pol);
     }
   } finally {
-    G = prev;
+    setG(prev);
   }
 }
 /**
@@ -4003,9 +4055,9 @@ function applyMpEventChoice(g: any, seatId: any, optionIndex: any) {
       error: "No pending event",
     };
   }
-  const prev = G;
+  const prev = getG();
   try {
-    G = g;
+    setG(g);
     mountMpSeatOnSnapshot(g, seatId);
     g.q = g.q || 0;
     const pending = pol.pendingEvent;
@@ -4087,7 +4139,7 @@ function applyMpEventChoice(g: any, seatId: any, optionIndex: any) {
       ok: true,
     };
   } finally {
-    G = prev;
+    setG(prev);
   }
 }
 function seedMpPolitics(snap: any, humans: any) {
@@ -4134,10 +4186,10 @@ function seatIdForRoleSafe(role: any) {
  */
 function computeBillCost(law: any, draft: any, ctx: any): any {
   const o = ctx || {};
-  const prev = G;
+  const prev = getG();
   const draftCopy = clone(draft);
   try {
-    G = {
+    setG({
       law: law,
       draft: draftCopy,
       homeRole: o.homeRole || "home",
@@ -4150,7 +4202,7 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
       fac: o.fac || null,
       rel: o.rel || {},
       capital: o.capital != null ? o.capital : 42,
-    };
+    });
     /* Drop a Found clause that cannot enact — avoids charging capital for a no-op. */
     if (draftCopy.blocCreate && !canCreateCustomBloc()) {
       draftCopy.blocCreate = null;
@@ -4178,29 +4230,30 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
       clauses: [],
     };
   } finally {
-    G = prev;
+    setG(prev);
   }
 }
 
 /** Solo/MP shared: reject draft bloc actions that would no-op or break gates. */
 function mpDraftBlocGateError() {
-  if (!G || !G.draft) return null;
+  const g = getG();
+  if (!g || !g.draft) return null;
   if (
-    G.draft.blocAccession &&
-    blocJoinBlockers(G.draft.blocAccession.blocId, "apply").length
+    g.draft.blocAccession &&
+    blocJoinBlockers(g.draft.blocAccession.blocId, "apply").length
   ) {
     return (
       "Cannot apply to join — " +
-      blocJoinBlockers(G.draft.blocAccession.blocId, "apply")[0]
+      blocJoinBlockers(g.draft.blocAccession.blocId, "apply")[0]
     );
   }
-  if (G.draft.blocExternalDeal) {
-    const bed = G.draft.blocExternalDeal;
+  if (g.draft.blocExternalDeal) {
+    const bed = g.draft.blocExternalDeal;
     const blockers = blocExternalDealBlockers(bed.partnerId, bed.dealId);
     if (blockers.length) return "Cannot ratify external deal — " + blockers[0];
   }
-  for (const cid in G.draft.blocInvite || {}) {
-    if (!G.draft.blocInvite[cid]) continue;
+  for (const cid in g.draft.blocInvite || {}) {
+    if (!g.draft.blocInvite[cid]) continue;
     const playerBloc = countryBlocId(playerCountryId());
     if (!playerBloc) return "Cannot invite — not in a trade bloc";
     const blockers = blocInviteBlockers(playerBloc, cid);
@@ -4375,7 +4428,7 @@ function enactHumanSeatOnSnapshot(
 
   const draftCopy = clone(draft);
   const prevUlt = clone(pol.ultimatums || {});
-  const prev = G;
+  const prev = getG();
   const saved = {
     homeRole: g.homeRole,
     econ: g.econ,
@@ -4393,7 +4446,7 @@ function enactHumanSeatOnSnapshot(
     diploAlerts: g.diploAlerts,
   };
   try {
-    G = g;
+    setG(g);
     g.homeRole = role;
     g.econ = seat.econ;
     g.law = seat.law;
@@ -4502,13 +4555,13 @@ function enactHumanSeatOnSnapshot(
     g.activeVisits = saved.activeVisits;
     g.missionEvents = saved.missionEvents;
     g.diploAlerts = saved.diploAlerts;
-    G = prev;
+    setG(prev);
   }
 }
 
 /** Deep snapshot of live G for multiplayer rooms (JSON-safe). */
 function exportGameSnapshot(g: any) {
-  const src = g || G;
+  const src = g || getG();
   if (!src) return null;
   mirrorPlayerToWorld(src);
   /* Keep the mounted player's quarter series on their world bag for MP hydrate. */
@@ -4619,24 +4672,24 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   const homeRole = resolveHomeRole(o.homeRole || snap.homeRole || "home");
   const seatId = o.seatId || playerCountryId(homeRole);
   /* Keep locally-noted outcome alerts across remount — server never stores noted. */
-  const prevSeatPol = G && G.politics && G.politics[seatId];
+  const prevSeatPol = getG() && getG().politics && getG().politics[seatId];
   const prevNotedAlerts =
     prevSeatPol && prevSeatPol.diploAlerts
       ? prevSeatPol.diploAlerts
-      : (G && G.diploAlerts) || [];
+      : (getG() && getG().diploAlerts) || [];
   setG(clone(snap));
-  G.homeRole = homeRole;
-  G.homeIso = o.homeIso || G.homeIso || "826";
-  G.homeScale = o.homeScale != null ? o.homeScale : G.homeScale;
-  if (!G.politics) G.politics = {};
-  const pol = G.politics[seatId];
+  getG().homeRole = homeRole;
+  getG().homeIso = o.homeIso || getG().homeIso || "826";
+  getG().homeScale = o.homeScale != null ? o.homeScale : getG().homeScale;
+  if (!getG().politics) getG().politics = {};
+  const pol = getG().politics[seatId];
   if (typeof o.country === "string" && o.country.trim()) {
-    G.country = o.country.trim().slice(0, 34);
+    getG().country = o.country.trim().slice(0, 34);
   } else if (pol && pol.country) {
-    G.country = pol.country;
+    getG().country = pol.country;
   }
-  if (!G.world) G.world = {};
-  let bag = G.world[seatId];
+  if (!getG().world) getG().world = {};
+  let bag = getG().world[seatId];
   if (!bag) {
     const roleSnap = openingSnapshot(homeRole);
     bag = {
@@ -4647,34 +4700,34 @@ function hydrateGameSnapshot(snap: any, opts: any) {
       id: seatId,
       role: homeRole,
     };
-    G.world[seatId] = bag;
+    getG().world[seatId] = bag;
   }
   /* Always remount from this seat's world bag — never leave top-level snap.econ
      (often the host's frozen opening books) as the live series. */
-  G.econ = bag.econ;
-  G.law = bag.law;
-  G.prevLaw = bag.prevLaw || bag.law;
-  G.draft = clone(G.law);
-  G.draft.blocAccession = null;
-  G.draft.blocLeave = false;
-  G.draft.blocCreate = null;
-  G.draft.blocInvite = {};
-  G.draft.blocExternalDeal = null;
-  if (G.draft.missions) G.draft.missions = {};
+  getG().econ = bag.econ;
+  getG().law = bag.law;
+  getG().prevLaw = bag.prevLaw || bag.law;
+  getG().draft = clone(getG().law);
+  getG().draft.blocAccession = null;
+  getG().draft.blocLeave = false;
+  getG().draft.blocCreate = null;
+  getG().draft.blocInvite = {};
+  getG().draft.blocExternalDeal = null;
+  if (getG().draft.missions) getG().draft.missions = {};
   /* Top-bar Growth/Balance read G.log — this seat's series only. */
   if (Array.isArray(bag.log) && bag.log.length) {
-    G.log = bag.log;
+    getG().log = bag.log;
   } else if (pol && pol.lastRes && bag.econ) {
     /* Recover a one-row series if logs were dropped (old rooms / mirror bugs). */
     const lr = pol.lastRes;
-    G.log = [
+    getG().log = [
       {
         label: qLabel(
           {
-            q: G.q,
-            term: G.term,
+            q: getG().q,
+            term: getG().term,
           },
-          Math.max(0, (G.q || 1) - 1),
+          Math.max(0, (getG().q || 1) - 1),
         ),
         growth: lr.growth,
         inflation: bag.econ.inflation,
@@ -4687,83 +4740,84 @@ function hydrateGameSnapshot(snap: any, opts: any) {
         capital: pol.capital,
       },
     ];
-    bag.log = G.log;
+    bag.log = getG().log;
   } else {
-    G.log = Array.isArray(bag.log) ? bag.log : [];
+    getG().log = Array.isArray(bag.log) ? bag.log : [];
   }
   if (pol) {
     normalizeDiploPolitics(pol);
-    G.capital = pol.capital != null ? pol.capital : 42;
-    G.fac = clone(pol.fac || openingFac(homeRole));
-    G.rel = clone(pol.rel || openingRel(homeRole));
+    getG().capital = pol.capital != null ? pol.capital : 42;
+    getG().fac = clone(pol.fac || openingFac(homeRole));
+    getG().rel = clone(pol.rel || openingRel(homeRole));
     /* Per-seat Bank mode — top-level snap.rateManual is the host export and
          must not overwrite every human on hydrate. */
-    G.rateManual = !!pol.rateManual;
-    G.manualRate = pol.manualRate != null ? pol.manualRate : OPENING.rate;
-    if (G.rateManual && G.econ) {
-      G.econ.rate = clamp(G.manualRate, MANUAL_RATE_MIN, 20);
-      G.econ.atBound = G.econ.rate <= RATE_FLOOR + 0.02;
+    getG().rateManual = !!pol.rateManual;
+    getG().manualRate = pol.manualRate != null ? pol.manualRate : OPENING.rate;
+    if (getG().rateManual && getG().econ) {
+      getG().econ.rate = clamp(getG().manualRate, MANUAL_RATE_MIN, 20);
+      getG().econ.atBound = getG().econ.rate <= RATE_FLOOR + 0.02;
     }
-    G.sandbox = !!pol.sandbox;
-    G.mods = Array.isArray(pol.mods) ? clone(pol.mods) : [];
-    G.lastEventQ = pol.lastEventQ != null ? pol.lastEventQ : -3;
-    G.lastEventId = pol.lastEventId || null;
-    G.setPiece8 = !!pol.setPiece8;
-    G.setPiece16 = !!pol.setPiece16;
-    G.nextMajorQ = pol.nextMajorQ;
-    G.episode = pol.episode ? clone(pol.episode) : null;
-    G.polityShift = pol.polityShift ? clone(pol.polityShift) : null;
-    G.lowRun = pol.lowRun || 0;
-    G.over = !!pol.over;
+    getG().sandbox = !!pol.sandbox;
+    getG().mods = Array.isArray(pol.mods) ? clone(pol.mods) : [];
+    getG().lastEventQ = pol.lastEventQ != null ? pol.lastEventQ : -3;
+    getG().lastEventId = pol.lastEventId || null;
+    getG().setPiece8 = !!pol.setPiece8;
+    getG().setPiece16 = !!pol.setPiece16;
+    getG().nextMajorQ = pol.nextMajorQ;
+    getG().episode = pol.episode ? clone(pol.episode) : null;
+    getG().polityShift = pol.polityShift ? clone(pol.polityShift) : null;
+    getG().lowRun = pol.lowRun || 0;
+    getG().over = !!pol.over;
     /* Per-seat accession — do not keep another human's shared snap.blocAccession. */
-    G.blocAccession = pol.blocAccession ? clone(pol.blocAccession) : null;
+    getG().blocAccession = pol.blocAccession ? clone(pol.blocAccession) : null;
     /* Remount this seat's diplomacy — never keep shared snap.envoys. */
     const diplo = cloneDiploPolitics(pol);
-    G.envoys = diplo.envoys;
-    G.ultimatums = diplo.ultimatums;
-    G.activeVisits = diplo.activeVisits;
-    G.missionEvents = diplo.missionEvents;
-    G.diploAlerts = mergeDiploAlertsNoted(prevNotedAlerts, diplo.diploAlerts);
-    G.envoySpend = diplo.envoySpend;
-    pol.envoys = G.envoys;
-    pol.ultimatums = G.ultimatums;
-    pol.activeVisits = G.activeVisits;
-    pol.missionEvents = G.missionEvents;
-    pol.diploAlerts = G.diploAlerts;
-    pol.envoySpend = G.envoySpend;
+    getG().envoys = diplo.envoys;
+    getG().ultimatums = diplo.ultimatums;
+    getG().activeVisits = diplo.activeVisits;
+    getG().missionEvents = diplo.missionEvents;
+    getG().diploAlerts = mergeDiploAlertsNoted(prevNotedAlerts, diplo.diploAlerts);
+    getG().envoySpend = diplo.envoySpend;
+    pol.envoys = getG().envoys;
+    pol.ultimatums = getG().ultimatums;
+    pol.activeVisits = getG().activeVisits;
+    pol.missionEvents = getG().missionEvents;
+    pol.diploAlerts = getG().diploAlerts;
+    pol.envoySpend = getG().envoySpend;
   } else {
-    G.capital = G.capital != null ? G.capital : 42;
-    if (!G.fac) G.fac = openingFac(homeRole);
-    if (!G.rel) G.rel = openingRel(homeRole);
-    G.sandbox = o.sandbox != null ? !!o.sandbox : false;
-    G.politics[seatId] = defaultMpPolitics(seatId, homeRole, G.country);
-    G.politics[seatId].sandbox = G.sandbox;
-    G.politics[seatId].rateManual = !!G.rateManual;
-    G.politics[seatId].manualRate = G.manualRate;
-    if (!G.envoys) G.envoys = emptyEnvoys();
-    if (!G.ultimatums) G.ultimatums = {};
-    if (!G.activeVisits) G.activeVisits = {};
-    if (!G.missionEvents) G.missionEvents = [];
-    if (!G.diploAlerts) G.diploAlerts = [];
-    syncDiploPoliticsFromGame(G.politics[seatId], G);
+    getG().capital = getG().capital != null ? getG().capital : 42;
+    if (!getG().fac) getG().fac = openingFac(homeRole);
+    if (!getG().rel) getG().rel = openingRel(homeRole);
+    getG().sandbox = o.sandbox != null ? !!o.sandbox : false;
+    getG().politics[seatId] = defaultMpPolitics(seatId, homeRole, getG().country);
+    getG().politics[seatId].sandbox = getG().sandbox;
+    getG().politics[seatId].rateManual = !!getG().rateManual;
+    getG().politics[seatId].manualRate = getG().manualRate;
+    if (!getG().envoys) getG().envoys = emptyEnvoys();
+    if (!getG().ultimatums) getG().ultimatums = {};
+    if (!getG().activeVisits) getG().activeVisits = {};
+    if (!getG().missionEvents) getG().missionEvents = [];
+    if (!getG().diploAlerts) getG().diploAlerts = [];
+    syncDiploPoliticsFromGame(getG().politics[seatId], getG());
   }
-  G.mp = o.mp || null;
-  G.over = !!G.over;
+  getG().mp = o.mp || null;
+  getG().over = !!getG().over;
   /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
-  G.brief = [];
-  G.press = [];
+  getG().brief = [];
+  getG().press = [];
   clearAllPressFades();
   tab = null;
-  mirrorPlayerToWorld(G);
+  mirrorPlayerToWorld(getG());
   /* mirror rebuilds the player bag — keep the log we just mounted. */
-  if (G.world[seatId]) G.world[seatId].log = G.log;
-  syncNationsFromWorld(G, G.q > 0);
+  if (getG().world[seatId]) getG().world[seatId].log = getG().log;
+  syncNationsFromWorld(getG(), getG().q > 0);
   if (o.render !== false) {
     render();
     renderPress();
   }
-  return G;
+  return getG();
 }
+
 
 /* ==================================================================
    2. STATE

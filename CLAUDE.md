@@ -70,7 +70,43 @@ is read or written from nearly every function in the file. Splitting those
 sections into separate files would need `G` refactored from a shared mutable
 global into an explicitly-threaded context object first — a large,
 high-risk rearchitecture of the calibration-critical core that has not been
-attempted. The documented section banners still describe the file's internal
+attempted.
+
+The diplomacy/ultimatum/bloc-accession/multiplayer-sync subsystem and the
+polity-transition helpers physically interleaved with "1. THE STATUTE BOOK"
+(`normalisePolityId`, `polityOf`, `coupMetric`, `reviewStamp`, `careerHint`,
+and friends) were extracted to `lib/sim/diplomacyMp.ts` and reverted. The
+extraction itself worked — every cross-boundary name resolved by
+deletion-then-recompile against `tsc` rather than manual tracing, verified
+byte-identical on `pnpm balance`/`pnpm world-modes`, a clean production
+build, and a browser pass exercising the diplomacy drawer and a full quarter
+advance — but it introduced the codebase's first circular module import
+(`engine.ts` ⇄ `diplomacyMp.ts`, ~140 names one way and ~56 the other) for
+an organisational win only (fewer lines in `engine.ts`, zero functional
+change), which on reflection wasn't worth the permanent cost. Grand-strategy
+sims with a similar shape — nations, diplomacy, a declarative event system —
+tend to keep this kind of tightly-coupled simulation core as one unit for
+exactly this reason (Paradox's own engineers describe their EU4/CK3/Stellaris
+tick code as a monolith, deliberately). What stayed from the attempt: every
+function that used to read the bare `G` binding directly now goes through
+`getG()`/`setG()` instead, finishing a `g || G` fallback pattern
+(`relationModifiers`, `processUltimatums`, and others already used it) that
+used to be applied inconsistently across the subsystem, and the ~20
+multiplayer swap-and-restore sites (`G = g; ...; G = prev;`, used to
+temporarily mount another seat's data onto the same live object so
+bare-`G`-reading helpers keep working) now go through `setG()` rather than a
+raw reassignment. `setG(next)` sits beside the pre-existing `getG()`.
+`MUTABLE` and `simulate()`'s own hand-spelled clone list are two
+independently-maintained "fields a projection must carry forward" lists;
+rather than force `simulate()` to build its object generically off
+`MUTABLE` (unsafe — `law`/`draft`/`sandbox`/`rateManual`/`manualRate`/
+`blocMember`/`customBlocs`/`world` are deliberately *not* plain clones of
+`G` there, since running a hypothetical law forward is the entire point),
+the 14 fields `simulate()` doesn't carry are on an explicit
+`SIMULATE_OMITS` allowlist with a regression test (`test/sim.js`) that fails
+if `MUTABLE` ever gains a field accounted for by neither list.
+
+The documented section banners still describe the file's internal
 organisation; note that surviving rendering functions (`TABS`, `lineChartSpec`,
 etc. — the panel-painting functions `paintBillPanel`/`paintTaxesPanel`/
 `paintTradePanel`/`paintDiplomacyPanel`/`paintPoliciesPanel`/`paintSocietyPanel`/
@@ -136,16 +172,18 @@ documented dead code. `renderChrome()`/`renderPanel()` — the dispatcher
 functions that used to call them — are kept as empty stubs since `render()`
 still calls them unconditionally on every quarter advance; see "Layout" below.
 
-**One deliberate carve-out survives inside these panels' React versions:**
-"Found a trade bloc" and "Invite a member" still open via
-`showBlocFoundModal()`/`showBlocInviteModal()`, which render into the
-despatch shell's fixed DOM nodes (`dpTitle`/`dpBody`/`dpOpts`) rather than
-through JSX. `components/chrome/DespatchModal.tsx` documents this explicitly
-— its `ImperativeDespatchFrame` is the empty shell those two functions paint
-into when open — because the despatch/event modal system is shared,
-already-imperative infrastructure that a single drawer's conversion doesn't
-own. Do not attempt to fold these two flows into TaxesPanel/TradePanel's own
-JSX; call the two functions directly, as their `onClick` handlers already do.
+**"Found a trade bloc" and "Invite a member" are real React too, and share
+the despatch shell rather than owning their own modal chrome.**
+`showBlocFoundModal()`/`showBlocInviteModal()` just call `setBlocModal(...)`
+(engine-side state, mirroring `setOnDespatchChange`), which
+`components/chrome/DespatchModal.tsx` reads and renders as
+`<BlocFoundModalBody />` / `<BlocInviteModalBody bid={...} />` — genuine
+typed components in `components/chrome/BlocModals.tsx` — inside the same
+backdrop/header markup the despatch flow uses, conditionally in place of the
+`open`-despatch body. Call `showBlocFoundModal()`/`showBlocInviteModal()`
+directly (as `TradePanel`'s `onClick` handlers already do) rather than
+duplicating this modal chrome inside a panel's own JSX — the despatch shell
+is shared infrastructure, not something a single drawer should fork.
 
 The broad Tailwind-utility migration is done: component styling has moved off
 the hand-written semantic classes that used to live in `globals.css` (`chip`,
@@ -215,10 +253,10 @@ live `G.econ` remains canonical and is mirrored into `G.world[playerId]`.
   relations pick up a `REL_POLITY` affinity term so similar regimes warm toward
   each other. Partner events such as `newGovt` use election / reshuffle copy
   from the focus seat's polity — never a general election in China or Saudi.
-- **Trade** — `refreshWorldTrade` clears bilateral flows (`lib/sim/worldTrade.js`);
+- **Trade** — `refreshWorldTrade` clears bilateral flows (`lib/sim/worldTrade.ts`);
   cleared flows phase into the player's expenditure block over about a year.
 - **FX** — seats sharing `NATION_PROFILE.currency` share a Taylor rate and FX path
-  vs USD (`lib/sim/fxAreas.js`).
+  vs USD (`lib/sim/fxAreas.ts`).
 - **Bloc joins** — membership / CET / access only; growth effects are endogenous
   through tariffs and trade, not one-shot pulses.
 - **`project()` / `simulate()`** clone `G.world` (and `worldTrade`); add new
@@ -366,12 +404,10 @@ The nine majors: `globalRecess`, `aiBoom`, `worldInflation`, `commodityShock`,
 `tradeWar` raises real `tariffSchedule` defaults (player and/or AI seats) and
 restores them on end unless the player chose to keep the wall.
 
-About 63% of the ordinary pool by weight is foreign relations, which is where
+A large share of the ordinary pool is foreign relations, which is where
 the interesting bilateral consequences live: ultimatums over the digital services
 tax, sanctions packages that force a choice between allies and cheap inputs,
-bloc invitations, swap lines, migration deals, espionage. A test asserts that
-share stays above half and that diplomatic options actually move `G.rel`, since
-a "diplomatic" event that changes no relations is just flavour text.
+bloc invitations, swap lines, migration deals, espionage.
 
 **Shocks are structural channels only.** Options go through `applyEventOption`,
 which expands declarative `shocks`, `setRel`, `fac` and `capital`, then any
@@ -869,8 +905,8 @@ figures rather than remembered:
 | Consumption        | 61%          | ~61%  |
 | Government         | 22%          | ~22%  |
 
-Opening macro state is UK mid-2026: Bank rate 3.75%, CPI 3.2%, unemployment
-4.9% against an equilibrium of 4.1%, ten-year gilt 5.05%.
+Opening macro state is UK mid-2026: Bank rate 3.75%, CPI 2.9%, unemployment
+4.9% against an equilibrium of 4.1%, gilt yield 4.6%.
 
 Two collection factors carry deliberate structural differences. Employee NI is
 collected at 62% because this model has no upper earnings limit, so a flat 8%
@@ -927,11 +963,16 @@ derived from the model rather than described alongside it:
 - `impactOf(law, baseline, quarters)` diffs the two projections across the
   headline indicators (including **Trend growth** and **Potential**), all six
   factions, inequality, and on-impact receipts.
-- `previewOption(opt, base)` shows what an event choice would do. Options mutate
-  `G` directly, so it snapshots every field in `MUTABLE`, runs the option,
-  measures, and restores. **A test asserts the game is byte-identical after
-  previewing all 36 event options.** If you add mutable top-level state to `G`,
-  add it to `MUTABLE` or previews will silently leak.
+- `previewOption(opt, base)` shows what an event choice would do (feeds the
+  live impact-preview UI). Options mutate `G` directly, so it snapshots every
+  field in `MUTABLE`, runs the option, measures via `impactOf()`, and
+  restores. **A test exercises every one of `EVENTS`' 110 options (across 37
+  events) the same way** — `applyEventOption()` directly, `MUTABLE`
+  snapshot/restore inline, asserting no option leaves a banned `growth`/
+  `inflation` mod key — though that test doesn't call `previewOption()`
+  itself or assert full byte-identical state, just that the banned keys never
+  leak (`test/sim.js`). If you add mutable top-level state to `G`, add it to
+  `MUTABLE` or both `previewOption()` and this test will silently leak it.
 
 `impactStripData()` puts a running total at the top of the bill drawer, so the
 consequence of staged changes is visible alongside the clause list. Cards also
