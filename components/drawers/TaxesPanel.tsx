@@ -162,7 +162,8 @@ function CtrlRow({
         value={value}
         aria-label={name}
         onInput={(e) => onInput(parseFloat(e.currentTarget.value))}
-        onChange={(e) => onCommit(parseFloat(e.currentTarget.value))}
+        onPointerUp={(e) => onCommit(parseFloat(e.currentTarget.value))}
+        onKeyUp={(e) => onCommit(parseFloat(e.currentTarget.value))}
       />
       {note ? (
         <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
@@ -255,9 +256,6 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         value={s.rate}
         aria-label={t.name}
         onInput={(e) =>
-          setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))
-        }
-        onChange={(e) =>
           setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))
         }
       />

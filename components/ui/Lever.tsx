@@ -86,7 +86,18 @@ export function Lever({
           setLocal(v);
           onInput?.(id, v);
         }}
-        onChange={(e) => {
+        onPointerUp={(e) => {
+          const v = parseFloat(e.currentTarget.value);
+          setLocal(null);
+          onCommit?.(id, v);
+        }}
+        onKeyUp={(e) => {
+          const v = parseFloat(e.currentTarget.value);
+          setLocal(null);
+          onCommit?.(id, v);
+        }}
+        onBlur={(e) => {
+          if (local == null) return;
           const v = parseFloat(e.currentTarget.value);
           setLocal(null);
           onCommit?.(id, v);
