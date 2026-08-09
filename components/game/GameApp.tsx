@@ -648,6 +648,13 @@ export default function GameApp() {
       setHomeIso(iso);
       setHomeRole(role);
       setSelectedRole(null);
+      /* Hosting always starts a brand new game (never a reconnect — that's
+         handleResume/handleGuestReady, both routed through beginGame's own
+         hydrate-aware reset), so this needs the same "start native, not
+         whatever a previous game left behind" reset beginGame() does. This
+         path calls newGame() directly above instead of going through
+         beginGame(), so it doesn't get that reset for free. */
+      saveCurrencyPref({ display: null });
       setPhase("play");
 
       try {

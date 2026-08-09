@@ -116,10 +116,19 @@ export function stepCurrencyAreas(
           : bags[id] && bags[id].econ;
       if (!econ) continue;
       risk += econ.riskPremium != null ? econ.riskPremium : 0;
+      /* Every seat's own step() (expenditureStep() in engine.ts) already
+         smooths its own econ.caSmooth once per quarter via this same
+         CA_ADJ blend — that runs for AI seats too, since stepCountry calls
+         the full step(), not a stripped-down AI path. Re-blending it again
+         here would apply the partial adjustment twice per quarter (roughly
+         doubling the effective speed CA_ADJ's own "half-life ~11 quarters"
+         comment promises), so just read the value each member's own step
+         already produced; only fall back to this quarter's raw ratio if
+         a seat has genuinely never been stepped yet. */
       const pot = econ.potential || 100;
-      const caNow = pot > 0 ? ((econ.X || 0) - (econ.M || 0)) / pot : 0;
-      if (econ.caSmooth == null) econ.caSmooth = caNow;
-      econ.caSmooth += (caNow - econ.caSmooth) * CA_ADJ;
+      if (econ.caSmooth == null) {
+        econ.caSmooth = pot > 0 ? ((econ.X || 0) - (econ.M || 0)) / pot : 0;
+      }
       ca += econ.caSmooth;
       n++;
     }
