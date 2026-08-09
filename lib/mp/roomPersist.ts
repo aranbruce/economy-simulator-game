@@ -36,11 +36,6 @@ function kvConfig() {
   return { url: url.replace(/\/$/, ""), token };
 }
 
-/** True when this process can share rooms across Vercel instances. */
-export function hasDurableMpStore() {
-  return !!kvConfig();
-}
-
 /**
  * On Vercel without KV, in-memory rooms vanish between instances — the classic
  * "room has ended" 404 on Deliver. Local Node keeps one process, so memory is fine.
@@ -292,24 +287,7 @@ export async function deleteRoom(codeStr: string) {
   }
 }
 
-export async function roomExists(codeStr: string) {
-  const key = String(codeStr || "").toUpperCase();
-  if (!key) return false;
-  if (roomsMap().has(key)) return true;
-  const cfg = kvConfig();
-  if (!cfg) return false;
-  try {
-    const n = await kvCommand(["EXISTS", roomKey(key)]);
-    return n === 1 || n === true;
-  } catch (err) {
-    logKvFailure("exists", err);
-    return false;
-  }
-}
-
 /** Test helper — wipe process memory (KV keys left to TTL). */
 export function _resetRoomsForTests() {
   roomsMap().clear();
 }
-
-export { roomsMap };

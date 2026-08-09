@@ -12,12 +12,10 @@ import {
   saveRoomIfAbsent,
   deleteRoom,
   mpStoreMode,
-  hasDurableMpStore,
   _resetRoomsForTests,
-  roomsMap,
 } from "./roomPersist.ts";
 
-export { roomsMap, _resetRoomsForTests, hasDurableMpStore, mpStoreMode };
+export { _resetRoomsForTests, mpStoreMode };
 
 function seatIdForRole(role: string) {
   return !role || role === "home" ? "kingdom" : role;
