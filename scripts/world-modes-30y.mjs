@@ -14,7 +14,7 @@ import {
   applyAiFiscalRule,
   NATION_PROFILE,
   playerCountryId,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 
 const YEARS = 30;
 const QUARTERS = YEARS * 4;
@@ -38,7 +38,10 @@ const SEATS = [
 
 function bag(G, id) {
   const playerId = playerCountryId(G.homeRole);
-  if (id === playerId || (id === "kingdom" && (G.homeRole === "home" || G.homeRole === "kingdom"))) {
+  if (
+    id === playerId ||
+    (id === "kingdom" && (G.homeRole === "home" || G.homeRole === "kingdom"))
+  ) {
     return { econ: G.econ, law: G.law, isPlayer: true };
   }
   const w = G.world[id];
@@ -51,7 +54,8 @@ function rowFor(G, id) {
   if (!b) return null;
   const e = b.econ;
   const spend = Object.values(b.law.spend || {}).reduce((a, v) => a + v, 0);
-  const anchor = e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id]?.debt0;
+  const anchor =
+    e.debtAnchor != null ? e.debtAnchor : NATION_PROFILE[id]?.debt0;
   return {
     id,
     gdp: +e.gdp.toFixed(1),
@@ -86,7 +90,10 @@ function runMode(mode) {
   for (let q = 0; q < QUARTERS; q++) {
     if (mode === "all-ai") {
       /* Home seat is normally the human chancellor; drive it with the same
-         automatic fiscal rule the AI partners use. */ applyAiFiscalRule(G.law, G.econ);
+         automatic fiscal rule the AI partners use. */ applyAiFiscalRule(
+        G.law,
+        G.econ,
+      );
       G.draft = clone(G.law);
       G.prevLaw = clone(G.law);
     } else {
@@ -110,7 +117,7 @@ function printTable(title, rows) {
     "VAT".padStart(5),
     "U".padStart(5),
     "Infl".padStart(5),
-    "Trend".padStart(6)
+    "Trend".padStart(6),
   );
   for (const r of rows) {
     console.log(
@@ -123,7 +130,7 @@ function printTable(title, rows) {
       r.vat.toFixed(0).padStart(5),
       r.u.toFixed(1).padStart(5),
       r.infl.toFixed(1).padStart(5),
-      r.trend.toFixed(2).padStart(6)
+      r.trend.toFixed(2).padStart(6),
     );
   }
   console.log(
@@ -135,13 +142,11 @@ function printTable(title, rows) {
     "Env".padStart(5),
     "Open".padStart(5),
     "Gini".padStart(5),
-    "  (vs soc0 svc/lib/cri)"
+    "  (vs soc0 svc/lib/cri)",
   );
   for (const r of rows) {
     const pin =
-      r.services0 != null
-        ? `  (${r.services0}/${r.liberty0}/${r.crime0})`
-        : "";
+      r.services0 != null ? `  (${r.services0}/${r.liberty0}/${r.crime0})` : "";
     console.log(
       r.id.padEnd(14),
       String(r.services).padStart(5),
@@ -151,7 +156,7 @@ function printTable(title, rows) {
       String(r.env).padStart(5),
       String(r.open).padStart(5),
       String(r.gini).padStart(5),
-      pin
+      pin,
     );
   }
 }
@@ -163,30 +168,38 @@ function realismNotes(allAi, allHuman) {
   const deAi = by(allAi, "germany");
   const deHu = by(allHuman, "germany");
   console.log(
-    ` • Germany: all-AI debt ${deAi.debt.toFixed(0)}% / def ${deAi.def.toFixed(1)}% vs all-human ${deHu.debt.toFixed(0)}% / ${deHu.def.toFixed(1)}% — human freeze lets the surplus compound.`
+    ` • Germany: all-AI debt ${deAi.debt.toFixed(0)}% / def ${deAi.def.toFixed(1)}% vs all-human ${deHu.debt.toFixed(0)}% / ${deHu.def.toFixed(1)}% — human freeze lets the surplus compound.`,
   );
 
   const jpAi = by(allAi, "japan");
   const jpHu = by(allHuman, "japan");
   console.log(
-    ` • Japan: all-AI debt ${jpAi.debt.toFixed(0)}% (anchor ${jpAi.anchor}%) CAGR ${jpAi.cagr}%; all-human ${jpHu.debt.toFixed(0)}% CAGR ${jpHu.cagr}%.`
+    ` • Japan: all-AI debt ${jpAi.debt.toFixed(0)}% (anchor ${jpAi.anchor}%) CAGR ${jpAi.cagr}%; all-human ${jpHu.debt.toFixed(0)}% CAGR ${jpHu.cagr}%.`,
   );
 
-  const hotAi = allAi.filter((r) => r.cagr > 3.5).map((r) => `${r.id} ${r.cagr}%`);
-  const hotHu = allHuman.filter((r) => r.cagr > 3.5).map((r) => `${r.id} ${r.cagr}%`);
-  if (hotAi.length) console.log(` • All-AI CAGR >3.5%: ${hotAi.join(", ") || "none"} (catch-up seats OK).`);
-  if (hotHu.length) console.log(` • All-human CAGR >3.5%: ${hotHu.join(", ")}.`);
+  const hotAi = allAi
+    .filter((r) => r.cagr > 3.5)
+    .map((r) => `${r.id} ${r.cagr}%`);
+  const hotHu = allHuman
+    .filter((r) => r.cagr > 3.5)
+    .map((r) => `${r.id} ${r.cagr}%`);
+  if (hotAi.length)
+    console.log(
+      ` • All-AI CAGR >3.5%: ${hotAi.join(", ") || "none"} (catch-up seats OK).`,
+    );
+  if (hotHu.length)
+    console.log(` • All-human CAGR >3.5%: ${hotHu.join(", ")}.`);
 
   const creditorHu = allHuman.filter((r) => r.debt < -30);
   const creditorAi = allAi.filter((r) => r.debt < -30);
   console.log(
-    ` • Deep creditors (debt < −30%): all-AI ${creditorAi.map((r) => r.id).join(", ") || "none"}; all-human ${creditorHu.map((r) => r.id).join(", ") || "none"}.`
+    ` • Deep creditors (debt < −30%): all-AI ${creditorAi.map((r) => r.id).join(", ") || "none"}; all-human ${creditorHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 
   const blowAi = allAi.filter((r) => r.debt > (r.anchor || 80) + 60);
   const blowHu = allHuman.filter((r) => r.debt > (r.anchor || 80) + 60);
   console.log(
-    ` • Debt > anchor+60: all-AI ${blowAi.map((r) => r.id).join(", ") || "none"}; all-human ${blowHu.map((r) => r.id).join(", ") || "none"}.`
+    ` • Debt > anchor+60: all-AI ${blowAi.map((r) => r.id).join(", ") || "none"}; all-human ${blowHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 }
 

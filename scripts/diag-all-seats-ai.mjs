@@ -1,6 +1,13 @@
 /* 30-year AI fiscal rule run for every seat with a REALM_LAW overlay (+ UK home).
    Mirrors world-modes "all-ai" for the home seat. */
-import { clearOpeningCache, newGame, getG, clone, step, applyAiFiscalRule } from "../lib/sim/engine.js";
+import {
+  clearOpeningCache,
+  newGame,
+  getG,
+  clone,
+  step,
+  applyAiFiscalRule,
+} from "../lib/sim/engine.ts";
 import { COUNTRIES } from "../lib/sim/countries.js";
 import { REALM_LAW } from "../lib/sim/realmLaws.js";
 
@@ -13,7 +20,9 @@ const SEATS = [
 ];
 
 console.log(`AI mode — ${SEATS.length} seats, 120 quarters\n`);
-console.log("seat            | CAGR  trnd30 | u30  u*30 | dep30  dW% | inf30 rate | debt0->30 anch |  def30 | flags");
+console.log(
+  "seat            | CAGR  trnd30 | u30  u*30 | dep30  dW% | inf30 rate | debt0->30 anch |  def30 | flags",
+);
 
 for (const [role, iso, name] of SEATS) {
   clearOpeningCache();
@@ -42,6 +51,6 @@ for (const [role, iso, name] of SEATS) {
   if (e.popWork / open.popWork < 0.82) flags.push("popWork");
   const def = e._lastDeficit != null ? e._lastDeficit : NaN;
   console.log(
-    `${name.padEnd(15)} | ${cagr.toFixed(2).padStart(5)} ${e.trendGrowth.toFixed(2).padStart(6)} | ${e.unemployment.toFixed(1).padStart(4)} ${e.nairu.toFixed(1).padStart(4)} | ${e.dependency.toFixed(2).padStart(5)} ${((e.popWork / open.popWork - 1) * 100).toFixed(0).padStart(4)} | ${e.inflation.toFixed(1).padStart(5)} ${e.rate.toFixed(1).padStart(4)} | ${open.debt.toFixed(0).padStart(4)}->${e.debt.toFixed(0).padStart(4)} ${(e.debtAnchor ?? 80).toFixed(0).padStart(4)} | ${Number.isFinite(def) ? def.toFixed(1).padStart(6) : "     ?"} | ${flags.join(",") || "-"}`
+    `${name.padEnd(15)} | ${cagr.toFixed(2).padStart(5)} ${e.trendGrowth.toFixed(2).padStart(6)} | ${e.unemployment.toFixed(1).padStart(4)} ${e.nairu.toFixed(1).padStart(4)} | ${e.dependency.toFixed(2).padStart(5)} ${((e.popWork / open.popWork - 1) * 100).toFixed(0).padStart(4)} | ${e.inflation.toFixed(1).padStart(5)} ${e.rate.toFixed(1).padStart(4)} | ${open.debt.toFixed(0).padStart(4)}->${e.debt.toFixed(0).padStart(4)} ${(e.debtAnchor ?? 80).toFixed(0).padStart(4)} | ${Number.isFinite(def) ? def.toFixed(1).padStart(6) : "     ?"} | ${flags.join(",") || "-"}`,
   );
 }

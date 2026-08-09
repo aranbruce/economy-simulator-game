@@ -13,7 +13,7 @@ import {
   simulate,
   step,
   impactOf,
-} from "../lib/sim/engine.js";
+} from "../lib/sim/engine.ts";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -78,7 +78,7 @@ G = getG();
   for (let i = 0; i < 16; i++) step(G, G.law, G.law, true);
   assert(
     G.econ.nairu > baseAfter + 0.15,
-    `employer NI lift raises NAIRU (${baseAfter.toFixed(2)} → ${G.econ.nairu.toFixed(2)}; open ${baseN.toFixed(2)})`
+    `employer NI lift raises NAIRU (${baseAfter.toFixed(2)} → ${G.econ.nairu.toFixed(2)}; open ${baseN.toFixed(2)})`,
   );
 }
 
@@ -103,7 +103,7 @@ const gapTax = peakGap((l) => {
 });
 assert(
   gapG > gapTr && gapTr > gapTax - 0.15,
-  `multiplier ordering purchases (${gapG.toFixed(2)}) ≥ transfers (${gapTr.toFixed(2)}) ≥ tax cut (${gapTax.toFixed(2)})`
+  `multiplier ordering purchases (${gapG.toFixed(2)}) ≥ transfers (${gapTr.toFixed(2)}) ≥ tax cut (${gapTax.toFixed(2)})`,
 );
 
 /* Dual capital rate is a real lever. */
@@ -116,7 +116,10 @@ G = getG();
   const a = incomeYield(dual, aggregate(dual), G.econ).capital;
   dual.income.capitalRate = 35;
   const b = incomeYield(dual, aggregate(dual), G.econ).capital;
-  assert(b > a * 1.4, `dual capitalRate scales capital yield (${a.toFixed(2)} → ${b.toFixed(2)})`);
+  assert(
+    b > a * 1.4,
+    `dual capitalRate scales capital yield (${a.toFixed(2)} → ${b.toFixed(2)})`,
+  );
 }
 
 /* Incidence: equal-receipt shocks — transfers / allowance beat basic-rate cut
@@ -144,17 +147,20 @@ function cumGrowth(mut) {
   });
   assert(
     gWel > gAdd - 0.05,
-    `welfare demand ≥ additional-rate cut (${gWel.toFixed(3)} vs ${gAdd.toFixed(3)})`
+    `welfare demand ≥ additional-rate cut (${gWel.toFixed(3)} vs ${gAdd.toFixed(3)})`,
   );
   assert(
     gAllow > gAdd - 0.05,
-    `allowance demand ≥ additional-rate cut (${gAllow.toFixed(3)} vs ${gAdd.toFixed(3)})`
+    `allowance demand ≥ additional-rate cut (${gAllow.toFixed(3)} vs ${gAdd.toFixed(3)})`,
   );
   assert(
     gBasic > gAdd - 0.08,
-    `basic-rate cut demand ≥ additional-rate cut (${gBasic.toFixed(3)} vs ${gAdd.toFixed(3)})`
+    `basic-rate cut demand ≥ additional-rate cut (${gBasic.toFixed(3)} vs ${gAdd.toFixed(3)})`,
   );
-  assert(gAdd < 0.15, `additional-rate cut stays weak on demand (${gAdd.toFixed(3)})`);
+  assert(
+    gAdd < 0.15,
+    `additional-rate cut stays weak on demand (${gAdd.toFixed(3)})`,
+  );
 }
 
 if (failed) {
