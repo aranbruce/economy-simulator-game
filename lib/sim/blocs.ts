@@ -120,15 +120,6 @@ export function blocById(id: string) {
   return TEMPLATES[id] || null;
 }
 
-export function blocForCountry(
-  countryId: string,
-  blocMember: Record<string, string> = {},
-) {
-  const bid = blocMember[countryId];
-  if (!bid) return null;
-  return TEMPLATES[bid] || null;
-}
-
 export function countriesInBloc(
   blocId: string,
   blocMember: Record<string, string>,

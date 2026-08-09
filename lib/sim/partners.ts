@@ -6,11 +6,6 @@ import { metricRampCss } from "./metricRamp.ts";
 
 export const HOME_ISO = DEFAULT_HOME_ISO;
 
-/** Country id → single ISO (anchor territory on the map). */
-export const PARTNER_ISO: Record<string, string[]> = Object.fromEntries(
-  COUNTRIES.map((c: any) => [c.id, [c.iso]]),
-);
-
 /** Resolve which board role owns an ISO. */
 export function partnerForIso(
   iso: string | number,

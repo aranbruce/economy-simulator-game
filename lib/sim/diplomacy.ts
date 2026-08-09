@@ -26,7 +26,6 @@ export const SANCTION_AGAINST_RESIDUAL = -6;
 export const SANCTION_WITH_RESIDUAL = 4;
 export const SPHERE_TRESPASS_PER = -3;
 export const SPHERE_TRESPASS_CAP = -9;
-export const SPHERE_LEDGER_PTS = -6;
 export const DEAL_STRESS_PENALTY = -6;
 export const CLOSE_BORDERS_DIPLO = -4;
 export const DEFENCE_ALIGN_PTS = 2;
@@ -494,19 +493,6 @@ export function buildRelationModifiers(
   target = clamp(target, 0, 100);
 
   return { mods, target, base };
-}
-
-export function defaultUltimatumDemand(
-  partnerId: string,
-  g: GameState,
-  deps: Deps,
-) {
-  const { partnerShare } = deps;
-  const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0.05;
-  const retal = (g.econ && g.econ.retaliation) || 0;
-  if (retal > 2) return "tariffRestraint";
-  if (share >= 0.08) return "marketAccess";
-  return "political";
 }
 
 export function hasFormalProtest(e: any, partnerId: string) {

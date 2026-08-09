@@ -899,10 +899,6 @@ export const COUNTRIES: Country[] = [
   },
 ];
 
-export function countryById(id: string) {
-  return COUNTRIES.find((c) => c.id === id) || null;
-}
-
 export function resolveHomeRole(role?: string | null) {
   if (!role || role === "home") return "home";
   return role;

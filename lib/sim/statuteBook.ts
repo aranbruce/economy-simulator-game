@@ -1918,7 +1918,6 @@ const VICE_BY_ID = Object.fromEntries(
    `tradeShare` is the partner's weight in bilateral exports (sums to 0.96; the
    residual 0.04 is the rest of the world in the gravity block). */ const PARTNERS =
   COUNTRIES;
-const TRADE_REST_SHARE = 0.04;
 const GRAVITY_Y = 0.65; // elasticity of bilateral exports to partner income
 const DEAL_BY_ID: Record<string, any> = {};
 COUNTRIES.forEach((p) =>
@@ -2015,11 +2014,9 @@ export {
   type ViceId,
   VICE_BY_ID,
   PARTNERS,
-  TRADE_REST_SHARE,
   GRAVITY_Y,
   DEAL_BY_ID,
   MISSIONS,
-  type MissionId,
   MISSION_BY_ID,
   MISSION_CD,
   REL_IMPULSE_DECAY,
