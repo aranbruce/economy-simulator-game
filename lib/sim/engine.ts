@@ -5908,29 +5908,24 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   /* Term starts at currency strength = 100; rewrite settle history to match. */ for (const row of g.log) {
     if (row) row.fx = 100;
   }
-  /* row.ccyRates needs the same retroactive rebase as row.fx above, or the
-     multi-currency chart shows a false "jump" at Q1: every settle row's
-     ccyRates was computed against the *old* fx0 that was in force at the
-     time, but the rebase just above moves fx0 for the whole run going
-     forward. Rescale each currency's whole settle history by whatever
-     constant makes the final row land exactly on its CURRENCY_META baseline
-     (matching the "opening = 100" convention row.fx already gets), which
-     preserves the genuine shape of each currency's settle-period path —
-     just re-anchored, not a straight line replacing real dynamics. */ {
-    const lastRow = g.log[g.log.length - 1];
-    if (lastRow && lastRow.ccyRates) {
-      const rescale: Record<string, number> = {};
-      for (const code of Object.keys(lastRow.ccyRates)) {
-        const target = (CURRENCY_META[code] || CURRENCY_META.USD).usdRate;
-        const cur = lastRow.ccyRates[code];
-        rescale[code] = cur > 0 ? target / cur : 1;
-      }
-      for (const row of g.log) {
-        if (!row || !row.ccyRates) continue;
-        for (const code of Object.keys(row.ccyRates)) {
-          row.ccyRates[code] *= rescale[code] ?? 1;
-        }
-      }
+  /* row.ccyRates needs the same "flat until term start" treatment row.fx
+     gets just above, for every currency uniformly — only the home nation is
+     actually simulated during settle, so there is no genuine independent
+     trajectory to show for any other currency: fxPairForCurrency() can't see
+     a real one either (G.econ.nations isn't populated until after this
+     loop), so it was already silently flat for every currency but home.
+     Showing real movement for the home currency alone while every other
+     currency sat dead flat wasn't "preserving genuine dynamics" — it made
+     any comparison that didn't involve the home currency (which the
+     currency picker lets the player choose freely) flatline for the whole
+     pre-game period and then jump at Q1, the exact artifact row.fx already
+     avoids by being flat everywhere. Flatten every currency, including
+     home, to its CURRENCY_META baseline for the whole settle run — real
+     relative movement begins at term start for every pair, consistently. */
+  for (const row of g.log) {
+    if (!row || !row.ccyRates) continue;
+    for (const code of Object.keys(row.ccyRates)) {
+      row.ccyRates[code] = (CURRENCY_META[code] || CURRENCY_META.USD).usdRate;
     }
   }
   e.worldRestY = 100;

@@ -14,12 +14,15 @@ function currencyLineColor(i: number, n: number): string {
 
 /** Every currency's real rate against `anchorCcy` — usually the player's
  *  chosen display currency, defaulting to their own — indexed to 100 at the
- *  start of the game (including the settle-phase run-up before your
- *  appointment, already present in G.log). Raw rates span GBP's 1.27 to
- *  VND's 0.000039, so indexing is the only way to show them on one chart;
- *  the underlying data (row.ccyRates) is real USD-denominated values, not
- *  an abstract index — the indexing is purely a display necessity for
- *  putting wildly different face values on one axis. */
+ *  start of the game. Raw rates span GBP's 1.27 to VND's 0.000039, so
+ *  indexing is the only way to show them on one chart; the underlying data
+ *  (row.ccyRates) is real USD-denominated values, not an abstract index —
+ *  the indexing is purely a display necessity for putting wildly different
+ *  face values on one axis. Every currency sits flat through the
+ *  settle-phase run-up before your appointment (only the home nation is
+ *  actually simulated pre-game, so there is no genuine relative movement to
+ *  show yet — see settleOpeningEcon()); real movement begins at term start,
+ *  same as the pre-existing single-currency strength index already did. */
 export function CurrencyComparisonChart({
   G,
   anchorCcy,

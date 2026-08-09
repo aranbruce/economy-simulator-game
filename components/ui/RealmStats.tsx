@@ -14,6 +14,7 @@ import {
   currencyForSeat,
   liveRateBetween,
   fmtFxRate,
+  CURRENCY_META,
   shareLabel,
   T,
 } from "../../lib/sim/engine.ts";
@@ -188,6 +189,24 @@ export default function RealmStats({
      whichever realm's card happens to be open, so every card you click reads
      in the same unit. */
   const displayCcy = pref.display || currencyForSeat(G?.homeRole);
+  /* Tone for the exchange-rate stat has to track the number actually shown
+     (the live cross-rate vs whatever display currency is picked), not
+     snap.fx — snap.fx is this seat's currency vs its OWN opening, which can
+     point a different way than "how has 1 unit of it moved against the
+     display currency specifically" once the display currency is a third
+     currency that's also moving. Compare against the cross-rate implied by
+     each currency's CURRENCY_META baseline (their relative value at
+     opening) as a percentage, so the threshold in toneOf() stays meaningful
+     across currencies whose face values differ by orders of magnitude. */
+  const crossRateTone = (() => {
+    if (snap.currency === displayCcy) return null;
+    const openCross =
+      (CURRENCY_META[snap.currency] || CURRENCY_META.USD).usdRate /
+      (CURRENCY_META[displayCcy] || CURRENCY_META.USD).usdRate;
+    if (!(openCross > 0)) return null;
+    const nowCross = liveRateBetween(snap.currency, displayCcy, G);
+    return toneOf((nowCross / openCross - 1) * 100, false);
+  })();
 
   const homeName = G?.country || "United Kingdom";
 
@@ -250,7 +269,7 @@ export default function RealmStats({
                 : "Your display currency"
               : `${displayCcy} per 1 ${snap.currency}`
           }
-          tone={toneOf(snap.fx - 100, false)}
+          tone={crossRateTone}
         />
         <Stat
           label="Growth"
