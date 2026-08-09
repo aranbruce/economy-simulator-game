@@ -9920,67 +9920,6 @@ function compositionBarData() {
   }));
   return { bars, legend };
 }
-/* Share of GDP, indexed to inflation, or pegged to a service standard. */ /* Us against the rest of the world, on the numbers a Chancellor is judged on. */ function nationTableHtml() {
-  const e = G.econ,
-    n = e.nations || {};
-  const last = G.log.length ? G.log[G.log.length - 1] : null;
-  const bal = balanceOf(G.law, e);
-  const rows: any[] = (
-    [
-      {
-        name: G.country,
-        growth: last ? last.growth : e.trendGrowth,
-        debt: e.debt,
-        deficit: last ? -last.balance : -bal.balance,
-        inflation: e.inflation,
-        us: true,
-      },
-    ] as any[]
-  ).concat(
-    activePartners()
-      .filter((p) => n[p.id])
-      .map((p) => ({
-        name: p.name,
-        growth: n[p.id].growth,
-        debt: n[p.id].debt,
-        deficit: n[p.id].deficit,
-        inflation: n[p.id].inflation,
-      })),
-  );
-  rows.sort((a, b) => b.growth - a.growth);
-  const cell = (v: any, d: any, inv?: any) =>
-    '<td class="' +
-    ((inv ? -v : v) > 0 ? "pos" : (inv ? -v : v) < 0 ? "neg" : "") +
-    '">' +
-    fmt(v, d) +
-    "</td>";
-  return (
-    '<div class="ledger-wrap"><table class="ledger">' +
-    "<thead><tr><th>Country</th><th>Growth</th><th>Inflation</th><th>Deficit</th><th>Debt</th></tr></thead><tbody>" +
-    rows
-      .map(
-        (r) =>
-          "<tr" +
-          (r.us ? ' style="background:rgba(212,175,105,.16)"' : "") +
-          ">" +
-          "<td>" +
-          esc(r.name) +
-          (r.us ? " &middot; you" : "") +
-          "</td>" +
-          cell(r.growth, 1) +
-          "<td>" +
-          r.inflation.toFixed(1) +
-          "</td>" +
-          cell(-r.deficit, 1) +
-          "<td>" +
-          r.debt.toFixed(0) +
-          "</td></tr>",
-      )
-      .join("") +
-    "</tbody></table></div>"
-  );
-}
-/** Data form of nationTableHtml() for React consumers. */
 function nationTableData() {
   const e = G.econ,
     n = e.nations || {};
@@ -16354,7 +16293,6 @@ export {
   thresholdSliderMax,
   lineChartSpec,
   compositionBarData,
-  nationTableHtml,
   nationTableData,
   ledgerRows,
   clausesIn,
