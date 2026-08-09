@@ -32,7 +32,10 @@ const ALLOWED_TAGS = new Set([
   "small",
 ]);
 
-function domNodeToReact(node: ChildNode, key: number): ReactNode {
+/** `key` is the node's root-relative path (e.g. "0-1-2"), not a per-level
+ * index — a plain per-level index would collide when an unallowed tag's
+ * children splice directly into their parent's child list (see below). */
+function domNodeToReact(node: ChildNode, key: string): ReactNode {
   if (node.nodeType === Node.TEXT_NODE) {
     return node.textContent;
   }
@@ -40,7 +43,7 @@ function domNodeToReact(node: ChildNode, key: number): ReactNode {
   const el = node as Element;
   const tag = el.tagName.toLowerCase();
   const children = Array.from(el.childNodes).map((child, i) =>
-    domNodeToReact(child, i),
+    domNodeToReact(child, `${key}-${i}`),
   );
   if (!ALLOWED_TAGS.has(tag)) return children;
   const props: Record<string, any> = { key };
@@ -52,7 +55,9 @@ function domNodeToReact(node: ChildNode, key: number): ReactNode {
 function parse(html: string): ReactNode[] {
   if (!html || typeof window === "undefined") return [];
   const doc = new DOMParser().parseFromString(html, "text/html");
-  return Array.from(doc.body.childNodes).map((n, i) => domNodeToReact(n, i));
+  return Array.from(doc.body.childNodes).map((n, i) =>
+    domNodeToReact(n, String(i)),
+  );
 }
 
 export function SafeHtml({ html }: { html: string }) {

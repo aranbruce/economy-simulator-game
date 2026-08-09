@@ -855,7 +855,7 @@ export default function GameApp() {
     }
     if (getG()) render();
     bump();
-  }, [phase, bump, waiting, submitMpConfirm, unsubmitMpConfirm]);
+  }, [phase, bump]);
 
   useEffect(() => {
     if (phase !== "play" || !mpSession) return undefined;

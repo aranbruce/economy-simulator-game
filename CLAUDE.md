@@ -30,7 +30,7 @@ pnpm test            # tsx test/sim.js && tsx test/calibration.js && ...
 
 The codebase is strict-typed `.ts`/`.tsx` throughout — every file under
 `app/`, `components/` and `lib/` is `.ts`/`.tsx`, including
-`lib/sim/engine.ts` (16.6k lines) and the three panels once deferred as
+`lib/sim/engine.ts` (16.2k lines) and the three panels once deferred as
 out-of-scope (`TaxesPanel`, `TradePanel`, `DiplomacyPanel` — see below).
 `test/*.js` stay `.js` but run through the `tsx` runner rather than Next's
 compiler. `strict: true` is on project-wide, and `pnpm typecheck` covers the
