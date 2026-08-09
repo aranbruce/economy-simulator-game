@@ -21,6 +21,14 @@ import {
 } from "./worldTrade.ts";
 import { stepCurrencyAreas } from "./fxAreas.ts";
 import {
+  CURRENCY_META,
+  liveUsdRate,
+  fxPairForCurrency,
+  liveRateBetween,
+  fmtFxRate,
+  snapshotCurrencyRates,
+} from "./currencyMeta.ts";
+import {
   BASE_INCOME_DIST,
   BASE_DIST_GINI,
   buildIncomeDist,
@@ -5179,11 +5187,24 @@ const sgn = function (v: any, d: any = 1) {
   return (v > 0 ? "+" : v < 0 ? "-" : "") + Math.abs(v).toFixed(d);
 };
 const cap1 = (s: any) => s.charAt(0).toUpperCase() + s.slice(1);
-const money = (v: any) =>
-  "\u00a3" +
-  Math.round(v)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+/** Format a game-money amount (face value in the played nation's own
+ *  currency) with a currency symbol. `displayCcy` converts to any other ISO
+ *  code via the live fx-derived cross-rate; defaults to the played nation's
+ *  own currency, so existing call sites are unaffected. */
+const money = (v: any, displayCcy?: string, g?: any) => {
+  const G = g || (typeof getG === "function" ? getG() : null);
+  const nativeCcy = currencyForSeat(G && G.homeRole);
+  const ccy = displayCcy || nativeCcy;
+  const shown =
+    ccy === nativeCcy || !G ? v : v * liveRateBetween(nativeCcy, ccy, G);
+  const symbol = (CURRENCY_META[ccy] || CURRENCY_META.USD).symbol;
+  return (
+    symbol +
+    Math.round(shown)
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+  );
+};
 /** Untyped until a later modelling pass — the live game-state singleton.
  * `any` is deliberate: annotated so property access doesn't error on `never`. */
 export let G: any = null;
@@ -5270,6 +5291,9 @@ function baseLaw() {
 };
 const HOME_TREND_REF = 1.2;
 const SETTLE_QUARTERS = 48;
+/* How many settle quarters, at the tail end, ease off the rate/inflation/
+   riskPremium/expectations pin instead of resetting it outright — see the
+   comment in settleOpeningEcon(). */ const SETTLE_TAPER_QUARTERS = 12;
 let _openingByRole: Record<string, any> = {};
 /** Steady-state Taylor guess at zero gap — seed for non-home settle only. */ function taylorRateForInflation(
   pi: any,
@@ -5714,6 +5738,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
     econ: e,
     homeRole: g.homeRole,
   });
+  row.ccyRates = snapshotCurrencyRates(g);
   row.pre = true;
 }
 /** During non-home settle, crawl the policy rate toward the Taylor prescription
@@ -5789,9 +5814,40 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
       row.label = settleLabel(i);
       row.pre = true;
     }
+    /* pinOpeningHeadlines resets rate/inflation/riskPremium/expectations to
+       the exact target every quarter, all the way to the end of settle, then
+       stops the instant live play begins — the same hard-cutoff problem FX
+       itself used to have (see the comment below: forcing FX back to a fixed
+       value "reopened a competitiveness jump in Q1"). Over the tail of
+       settle, ease the pin's grip on just these FX-relevant fields toward
+       whatever the model organically computed that quarter, so the
+       underlying state (expectations, credibility, the wage/price loop) is
+       already consistent with the target by the time pinning stops for
+       real — not just the headline number itself. The guaranteed pin call
+       right after this loop still snaps everything to the exact published
+       opening figures, so this only affects how settle gets there, never
+       what it publishes. */ const quartersToEnd = SETTLE_QUARTERS - 1 - i;
+    const taper =
+      quartersToEnd < SETTLE_TAPER_QUARTERS
+        ? 1 - quartersToEnd / SETTLE_TAPER_QUARTERS
+        : 0;
+    const organic = taper
+      ? {
+          rate: g.econ.rate,
+          inflation: g.econ.inflation,
+          riskPremium: g.econ.riskPremium,
+          expect: g.econ.expect,
+          credibility: g.econ.credibility,
+        }
+      : null;
     pinOpeningHeadlines(g.econ, g.law, pin, statute, {
       freeRate,
     });
+    if (organic) {
+      for (const k of ["rate", "inflation", "riskPremium", "expect", "credibility"] as const) {
+        g.econ[k] += (organic[k] - g.econ[k]) * taper;
+      }
+    }
     Object.assign(g.econ, supply);
     if (freeRate) {
       applySettleTaylor(g.econ, pin);
@@ -5851,6 +5907,31 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   }
   /* Term starts at currency strength = 100; rewrite settle history to match. */ for (const row of g.log) {
     if (row) row.fx = 100;
+  }
+  /* row.ccyRates needs the same retroactive rebase as row.fx above, or the
+     multi-currency chart shows a false "jump" at Q1: every settle row's
+     ccyRates was computed against the *old* fx0 that was in force at the
+     time, but the rebase just above moves fx0 for the whole run going
+     forward. Rescale each currency's whole settle history by whatever
+     constant makes the final row land exactly on its CURRENCY_META baseline
+     (matching the "opening = 100" convention row.fx already gets), which
+     preserves the genuine shape of each currency's settle-period path —
+     just re-anchored, not a straight line replacing real dynamics. */ {
+    const lastRow = g.log[g.log.length - 1];
+    if (lastRow && lastRow.ccyRates) {
+      const rescale: Record<string, number> = {};
+      for (const code of Object.keys(lastRow.ccyRates)) {
+        const target = (CURRENCY_META[code] || CURRENCY_META.USD).usdRate;
+        const cur = lastRow.ccyRates[code];
+        rescale[code] = cur > 0 ? target / cur : 1;
+      }
+      for (const row of g.log) {
+        if (!row || !row.ccyRates) continue;
+        for (const code of Object.keys(row.ccyRates)) {
+          row.ccyRates[code] *= rescale[code] ?? 1;
+        }
+      }
+    }
   }
   e.worldRestY = 100;
   e.worldDemand0 = 0;
@@ -6928,6 +7009,15 @@ const WORLD_GROWTH = 2.0,
    per cent on the currency, which is the usual empirical range. */ const FX_UIP = 0.03; // fractional appreciation per point of differential
 const FX_RISK = 0.055; // fractional depreciation per point of risk premium
 const FX_ADJ = 0.38; // markets move fast, but not instantly
+/* A sustained trade surplus/deficit also moves the currency, independent of
+   the rate differential: exporters' earnings need converting into the home
+   currency, and a persistent deficit has to be funded by selling it. Kept
+   small relative to FX_UIP so it nudges rather than dominates. */ const FX_CA = 0.15; // fractional appreciation per point of net-exports/potential
+/* The current account is a multi-year phenomenon in practice — a small share
+   of daily FX turnover next to capital flows — so it acts on a slow
+   accumulator (e.caSmooth) rather than the raw quarterly trade balance, the
+   same partial-adjustment idiom FX_ADJ/T_ADJ already use elsewhere. Half-life
+   ~11 quarters. */ const CA_ADJ = 0.06;
 /* ---- Demography ----
    Three population stocks (child, working-age, old) with simple cohort flows.
    Old-age dependency = N_old / N_work drives pension caseload, health need and
@@ -7325,10 +7415,37 @@ function govDemandShares(law: any, econ: any) {
      is not a loss of competitiveness. Feeding headline inflation in here made
      every VAT change look like a real appreciation, which it is not. */ e.priceP *=
     1 + (e.inflation - e.vatEcho * 0.9) / 400;
-  /* Uncovered interest parity, with a risk premium. */ const worldRate =
-    (e.worldRate != null ? e.worldRate : WORLD_RATE) + (e.modWorldRate || 0);
+  /* Uncovered interest parity, with a risk premium and a current-account
+     term: a slow-moving average of net exports as a share of potential
+     output (the current account is a multi-year phenomenon next to capital
+     flows, not a quarterly one — see CA_ADJ), so a persistent surplus/deficit
+     pulls the currency independently of rates. The dollar is the numeraire
+     itself (fxAreas.ts pins every USD-area AI seat's target at 1 for the same
+     reason): if the player is playing as the United States, there is no
+     "USD vs USD" to float. Everyone else reacts to the US seat's *actual*
+     simulated rate this quarter, not a fixed proxy — it's a live AI seat by
+     this point, not an assumption. */ const homeIsUsd =
+    currencyForSeat(homeRole) === "USD";
+  const usRate =
+    !homeIsUsd && g && g.world && g.world.united_states && g.world.united_states.econ
+      ? g.world.united_states.econ.rate
+      : null;
+  const worldRate =
+    (usRate != null
+      ? usRate
+      : e.worldRate != null
+        ? e.worldRate
+        : WORLD_RATE) + (e.modWorldRate || 0);
   const fxUip = e.fxUip != null ? e.fxUip : FX_UIP;
-  const fxTarget = 1 + fxUip * (e.rate - worldRate) - FX_RISK * e.riskPremium;
+  const caNow = pot > 0 ? (e.X - e.M) / pot : 0;
+  if (e.caSmooth == null) e.caSmooth = caNow;
+  e.caSmooth += (caNow - e.caSmooth) * CA_ADJ;
+  const fxTarget = homeIsUsd
+    ? 1
+    : 1 +
+      fxUip * (e.rate - worldRate) -
+      FX_RISK * e.riskPremium +
+      FX_CA * e.caSmooth;
   e.fx += (fxTarget - e.fx) * FX_ADJ;
   /* Deal channels phase in. Statutory tariff and non-deal openness still bite
      immediately; only the deal's open / tariffCut / access crawl via DEAL_PHASE. */ if (
@@ -8278,6 +8395,7 @@ function govDemandShares(law: any, econ: any) {
     drag: dragRatio(law, e),
     allowance: law.income.allowance,
     fx: fxDisplayIndex("home", g),
+    ccyRates: snapshotCurrencyRates(g),
     fac: Object.assign({}, g.fac),
     rev: rev.total,
     spend: sp.prog + mS,
@@ -9563,13 +9681,25 @@ function openingRel(homeRole: any) {
   if (e.worldRestY == null) e.worldRestY = 100;
   e.worldRestY *= 1 + (WORLD_GROWTH + (e.worldShock || 0)) / 400;
 }
-/** Format USD bn as $3.6tn / $420bn for the realm card. */ function fmtGdpBn(
+/** Format a USD bn figure as $3.6tn / $420bn for the realm card. `displayCcy`
+ *  converts via the live fx-derived cross-rate; defaults to USD, so existing
+ *  call sites are unaffected. */ function fmtGdpBn(
   bn: any,
+  displayCcy?: string,
+  g?: any,
 ) {
   if (bn == null || !isFinite(bn)) return "—";
-  if (bn >= 1000) return "$" + (bn / 1000).toFixed(bn >= 10000 ? 0 : 1) + "tn";
-  if (bn >= 100) return "$" + bn.toFixed(0) + "bn";
-  return "$" + bn.toFixed(0) + "bn";
+  /* Only resolve "native" against a caller-supplied g — CountryPicker calls
+     this pre-game with no g at all, where USD is the right neutral unit for
+     comparing realms, not whatever currency a previous game happened to
+     leave in the global singleton. */
+  const nativeCcy = g ? currencyForSeat(g.homeRole) : "USD";
+  const ccy = displayCcy || nativeCcy;
+  const shown = ccy === "USD" || !g ? bn : bn * liveRateBetween("USD", ccy, g);
+  const symbol = (CURRENCY_META[ccy] || CURRENCY_META.USD).symbol;
+  if (shown >= 1000)
+    return symbol + (shown / 1000).toFixed(shown >= 10000 ? 0 : 1) + "tn";
+  return symbol + shown.toFixed(0) + "bn";
 }
 function nationStateFromProfile(p: any) {
   return {
@@ -9806,13 +9936,17 @@ function lineChartSpec(series: any, opts?: any) {
   const X = (i: any) => padL + (i / (len - 1)) * (w - padL - padR);
   const Y = (v: any) => padT + (1 - (v - mn) / (mx - mn)) * (h - padT - padB);
 
+  /* Most series (percentages, index points) read fine at a fixed 0-1
+     decimals; a few (raw FX rates spanning GBP's 1.27 down to VND's
+     0.000039) need their own formatter, so opts.fmt overrides it. */ const fmtVal =
+    opts.fmt || ((v: any) => v.toFixed(Math.abs(mx) > 60 ? 0 : 1));
   const gridLines = [];
   for (let i = 0; i <= 4; i++) {
     const v = mn + ((mx - mn) * i) / 4,
       y = Y(v);
     gridLines.push({
       y: +y.toFixed(1),
-      label: v.toFixed(Math.abs(mx) > 60 ? 0 : 1),
+      label: fmtVal(v),
     });
   }
 
@@ -9838,7 +9972,7 @@ function lineChartSpec(series: any, opts?: any) {
       dash: !!s.dash,
       points,
       lastPoint: [+X(len - 1).toFixed(1), +Y(lv).toFixed(1)],
-      lastValue: lv.toFixed(1),
+      lastValue: fmtVal(lv),
     };
   });
 
@@ -16009,6 +16143,12 @@ export {
   restGdp0ForRole,
   currencyForSeat,
   fxDisplayIndex,
+  CURRENCY_META,
+  liveUsdRate,
+  fxPairForCurrency,
+  liveRateBetween,
+  fmtFxRate,
+  snapshotCurrencyRates,
   ensureNationFx,
   clearOpeningCache,
   openingFac,

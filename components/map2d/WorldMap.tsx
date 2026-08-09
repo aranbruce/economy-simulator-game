@@ -1059,7 +1059,7 @@ export default function WorldMap({
             fontSize: 13,
           }}
         >
-          Charting the realms…
+          Loading…
         </div>
       )}
       <canvas

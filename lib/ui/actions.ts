@@ -144,12 +144,6 @@ export function addIncomeBand() {
   bump();
 }
 
-export function delIncomeBand(i: number) {
-  const G = getG();
-  G.draft.income.bands.splice(i, 1);
-  bump();
-}
-
 export function setNiRate(key: "empRate" | "erRate", value: number) {
   const G = getG();
   G.draft.ni[key] = value;

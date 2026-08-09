@@ -35,10 +35,10 @@ import {
   setIncomeUprate,
   setIncomeBandField,
   addIncomeBand,
-  delIncomeBand,
   setNiRate,
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
@@ -123,7 +123,10 @@ function CompositionBar() {
   );
 }
 
-/** Mirrors ctrlRow() — a slider row inside the income/NI panel. */
+/** Mirrors ctrlRow() — a slider row inside the income/NI panel. `secondary`
+ *  visually de-emphasises a threshold slider against the primary rate
+ *  slider it sits below, so the two are distinguishable at a glance rather
+ *  than looking like two equally-weighted controls. */
 function CtrlRow({
   name,
   value,
@@ -149,9 +152,7 @@ function CtrlRow({
     <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
       <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
-          {disp}
-        </span>
+        <span className="ml-auto tracking-[-.02em]">{disp}</span>
         <span className="w-10.5 text-right text-[11px] font-semibold text-ink-faint" />
       </div>
       <input
@@ -168,6 +169,61 @@ function CtrlRow({
       {note ? (
         <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
       ) : null}
+    </div>
+  );
+}
+
+/** A capital-income rate (dividend / savings / dual capital) with its own
+ *  Abolish/Reintroduce toggle — unlike income tax and NI there's no separate
+ *  on/off flag in the data model, so 0% *is* "abolished"; this just gives
+ *  each rate the same affordance individually rather than only as one
+ *  combined category. */
+function CapitalRateRow({
+  name,
+  value,
+  defaultValue,
+  note,
+  onSet,
+}: {
+  name: string;
+  value: number;
+  defaultValue: number;
+  note: string;
+  onSet: (v: number) => void;
+}) {
+  const on = value > 0;
+  return (
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
+      <div className="flex w-full items-baseline gap-2">
+        <span className="font-[550]">{name}</span>
+        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+          {on ? `${value}%` : "abolished"}
+        </span>
+        <Button
+          danger={on}
+          tiny
+          className="ml-2"
+          onClick={() => onSet(on ? 0 : defaultValue)}
+        >
+          {on ? "Abolish" : "Reintroduce"}
+        </Button>
+      </div>
+      {on ? (
+        <input
+          type="range"
+          min={0}
+          max={60}
+          step={1}
+          value={value}
+          aria-label={name}
+          onInput={(e) => onSet(parseFloat(e.currentTarget.value))}
+          onPointerUp={(e) => onSet(parseFloat(e.currentTarget.value))}
+          onKeyUp={(e) => onSet(parseFloat(e.currentTarget.value))}
+        />
+      ) : null}
+      <div className="mt-0.5 text-[11px] text-ink-faint">
+        {on ? note : "Scrapped. Set a rate again to reintroduce it."}
+      </div>
     </div>
   );
 }
@@ -246,7 +302,9 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
           {s.rate.toFixed(decimals)}%
         </span>
-        <span className="w-10.5 text-right text-[11px] font-semibold text-ink-faint" />
+        <Button danger tiny className="ml-2" onClick={() => abolishTax(t.id)}>
+          Abolish
+        </Button>
       </div>
       <input
         type="range"
@@ -261,17 +319,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
       />
       <div className="mt-0.5 text-[11px] text-ink-faint">
         raises {y.toFixed(2)}% of GDP
-        {t.grp === "vice"
-          ? ` · black market ${E.blackLevel.toFixed(0)}%`
-          : ""}{" "}
-        <Button
-          danger
-          customSize
-          className="ml-2 px-1.75 py-0.5 text-[11.5px]"
-          onClick={() => abolishTax(t.id)}
-        >
-          Abolish
-        </Button>
+        {t.grp === "vice" ? ` · black market ${E.blackLevel.toFixed(0)}%` : ""}
       </div>
     </div>
   );
@@ -312,7 +360,9 @@ function IncomeNiPanel({ G }: { G: any }) {
   const dr = dragRatio(G.draft, G.econ);
   const incomeOn = I.on !== false;
   const dualCap = !!REGIME_BY_ID[G.draft.regime as RegimeId].dualCapital;
-  const floorTxt = money(effectiveBands(G.draft)[0].from);
+  const { pref } = useCurrencyPref();
+  const ccy = pref.display || undefined;
+  const floorTxt = money(effectiveBands(G.draft)[0].from, ccy, G);
 
   return (
     <>
@@ -320,19 +370,16 @@ function IncomeNiPanel({ G }: { G: any }) {
         Income tax{" "}
         <b>{incomeOn ? `${y.income.toFixed(2)}% of GDP` : "abolished"}</b>
         {incomeOn && y.capital != null ? (
-          <span style={{ color: "var(--ink-faint)" }}>
+          <span className="text-ink-faint">
             {" "}
             (labour {y.labour.toFixed(2)}, capital {y.capital.toFixed(2)})
           </span>
         ) : null}{" "}
-        <Button
-          danger={incomeOn}
-          tiny
-          className="ml-2"
-          onClick={() => setIncomeOn(!incomeOn)}
-        >
-          {incomeOn ? "Abolish" : "Reintroduce"}
-        </Button>
+        {!incomeOn ? (
+          <Button tiny className="ml-2" onClick={() => setIncomeOn(true)}>
+            Reintroduce
+          </Button>
+        ) : null}
       </Eyebrow>
       <Hint>
         {incomeOn ? (
@@ -359,21 +406,21 @@ function IncomeNiPanel({ G }: { G: any }) {
       </Hint>
       {!incomeOn ? (
         <Panel>
-          <Hint>
+          <Hint className="p-2">
             The schedule is preserved so you can reintroduce it later.
             Abolishing costs 32 capital; bringing it back costs 28.
           </Hint>
         </Panel>
       ) : (
         <>
-          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+          <div className="mb-2 overflow-hidden rounded-md border border-edge bg-g-1">
             <CtrlRow
               name="Personal allowance"
               value={I.allowance}
               min={0}
               max={thresholdSliderMax(30000, I.allowance, 250)}
               step={250}
-              disp={money(I.allowance)}
+              disp={money(I.allowance, ccy, G)}
               note={
                 <>
                   real value {Math.round(dr * 100)}% of where it started
@@ -414,12 +461,17 @@ function IncomeNiPanel({ G }: { G: any }) {
               </div>
             </div>
           </div>
-          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1 p-2">
             {I.bands.map((b: any, i: number) => {
               const nm = BAND_NAMES[i] || `Band ${i + 1}`;
-              const top =
-                i + 1 < I.bands.length ? money(I.bands[i + 1].from) : "upwards";
+              const isLast = i + 1 >= I.bands.length;
+              const isBasic = i === 0;
               const dim = flat && i > 0;
+              const bandOn = isBasic || b.rate > 0;
+              const lawRate =
+                G.law.income.bands[i] && G.law.income.bands[i].rate;
+              const defaultRate =
+                lawRate != null ? lawRate : i === 0 ? 20 : i === 1 ? 40 : 45;
               return (
                 <div
                   key={i}
@@ -427,30 +479,59 @@ function IncomeNiPanel({ G }: { G: any }) {
                 >
                   <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
                     <b>{nm}</b>
-                    <span>
-                      {money(b.from)} to {top}
+                    <span className="font-normal text-ink-soft">
+                      {isLast
+                        ? "and up"
+                        : `up to ${money(I.bands[i + 1].from, ccy, G)}`}
                     </span>
-                    {I.bands.length > 1 && i === I.bands.length - 1 ? (
+                    {isBasic ? (
                       <Button
                         danger
                         tiny
                         className="ml-auto"
-                        onClick={() => delIncomeBand(i)}
+                        title="Abolishing the basic rate scraps income tax as a whole — every band goes with it."
+                        onClick={() => setIncomeOn(false)}
                       >
-                        Remove
+                        Abolish income tax
                       </Button>
-                    ) : null}
+                    ) : (
+                      <Button
+                        danger={bandOn}
+                        tiny
+                        className="ml-auto"
+                        onClick={() =>
+                          setIncomeBandField(
+                            i,
+                            "rate",
+                            bandOn ? 0 : defaultRate,
+                          )
+                        }
+                      >
+                        {bandOn ? "Abolish" : "Reintroduce"}
+                      </Button>
+                    )}
                   </div>
-                  <CtrlRow
-                    name={`${nm} rate`}
-                    value={b.rate}
-                    min={0}
-                    max={90}
-                    step={1}
-                    disp={`${b.rate}%`}
-                    onInput={(v) => setIncomeBandField(i, "rate", v)}
-                    onCommit={(v) => setIncomeBandField(i, "rate", v)}
-                  />
+                  {bandOn ? (
+                    <CtrlRow
+                      name={`${nm} rate`}
+                      value={b.rate}
+                      min={0}
+                      max={90}
+                      step={1}
+                      disp={`${b.rate}%`}
+                      note={
+                        isBasic
+                          ? "Abolishing the basic rate scraps income tax as a whole — every band goes with it."
+                          : undefined
+                      }
+                      onInput={(v) => setIncomeBandField(i, "rate", v)}
+                      onCommit={(v) => setIncomeBandField(i, "rate", v)}
+                    />
+                  ) : (
+                    <div className="py-1 text-[11px] text-ink-faint">
+                      Scrapped. Set a rate again to reintroduce it.
+                    </div>
+                  )}
                   {i > 0 ? (
                     <CtrlRow
                       name={`${nm} starts at`}
@@ -458,7 +539,7 @@ function IncomeNiPanel({ G }: { G: any }) {
                       min={15000}
                       max={thresholdSliderMax(300000, b.from, 1000)}
                       step={1000}
-                      disp={money(b.from)}
+                      disp={money(b.from, ccy, G)}
                       onInput={(v) => setIncomeBandField(i, "from", v)}
                       onCommit={(v) => setIncomeBandField(i, "from", v)}
                     />
@@ -467,11 +548,11 @@ function IncomeNiPanel({ G }: { G: any }) {
               );
             })}
             {I.bands.length < 6 ? (
-              <div className="mt-1.5 flex gap-2">
+              <div className="mt-1.5 flex flex-row items-center gap-2">
+                <CardPrice>Restructuring the bands costs 12 capital</CardPrice>
                 <Button className="ml-auto" onClick={() => addIncomeBand()}>
                   Add a band
                 </Button>
-                <CardPrice>Restructuring the bands costs 12 capital</CardPrice>
               </div>
             ) : null}
           </div>
@@ -483,44 +564,32 @@ function IncomeNiPanel({ G }: { G: any }) {
               <Hint>
                 {dualCap
                   ? "Tax on investment returns — dividends and savings interest — not on wealth itself. Both share one flat rate under this system. Selling an asset is capital gains tax."
-                  : "Tax on investment returns — dividends and savings interest — not on wealth itself, and not through the labour bands above. Selling an asset is capital gains tax."}
+                  : "Tax on investment returns — dividends and savings interest — not on wealth itself, and not through the labour bands above. Selling an asset is capital gains tax. Each can be abolished on its own."}
               </Hint>
               <div className="overflow-hidden rounded-md border border-edge bg-g-1">
                 {dualCap ? (
-                  <CtrlRow
+                  <CapitalRateRow
                     name="Capital income rate"
                     value={I.capitalRate != null ? I.capitalRate : 25}
-                    min={0}
-                    max={60}
-                    step={1}
-                    disp={`${I.capitalRate != null ? I.capitalRate : 25}%`}
+                    defaultValue={25}
                     note="one rate on dividends and savings interest alike"
-                    onInput={(v) => setIncomeField("capitalRate", v)}
-                    onCommit={(v) => setIncomeField("capitalRate", v)}
+                    onSet={(v) => setIncomeField("capitalRate", v)}
                   />
                 ) : (
                   <>
-                    <CtrlRow
+                    <CapitalRateRow
                       name="Dividend rate"
                       value={I.divRate != null ? I.divRate : 33}
-                      min={0}
-                      max={60}
-                      step={1}
-                      disp={`${I.divRate != null ? I.divRate : 33}%`}
+                      defaultValue={33}
                       note="on dividends paid to shareholders from company profits"
-                      onInput={(v) => setIncomeField("divRate", v)}
-                      onCommit={(v) => setIncomeField("divRate", v)}
+                      onSet={(v) => setIncomeField("divRate", v)}
                     />
-                    <CtrlRow
+                    <CapitalRateRow
                       name="Savings rate"
                       value={I.saveRate != null ? I.saveRate : 20}
-                      min={0}
-                      max={60}
-                      step={1}
-                      disp={`${I.saveRate != null ? I.saveRate : 20}%`}
+                      defaultValue={20}
                       note="on interest from deposits, bonds and similar savings"
-                      onInput={(v) => setIncomeField("saveRate", v)}
-                      onCommit={(v) => setIncomeField("saveRate", v)}
+                      onSet={(v) => setIncomeField("saveRate", v)}
                     />
                   </>
                 )}

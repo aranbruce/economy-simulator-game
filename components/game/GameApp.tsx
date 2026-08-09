@@ -51,6 +51,7 @@ import {
   loadMpSession,
   clearMpSession,
 } from "../../lib/mp/session.ts";
+import { saveCurrencyPref } from "../../lib/ui/currencyPref.ts";
 import WorldMap from "../map2d/WorldMap";
 import RealmStats from "../ui/RealmStats";
 import CountryPicker from "./CountryPicker";
@@ -537,6 +538,10 @@ export default function GameApp() {
       setHomeIso(opts.homeIso);
       setHomeRole(opts.homeRole || "home");
       setSelectedRole(null);
+      /* A fresh game (not a reconnect) always starts showing amounts in
+         whichever nation you just picked, not a display currency chosen for
+         a previous seat in a previous game. */
+      if (!opts.hydrate) saveCurrencyPref({ display: null });
       bootstrapPlay(opts);
       if (typeof opts.afterNewGame === "function") {
         pendingAfterNewGame.current = opts.afterNewGame;

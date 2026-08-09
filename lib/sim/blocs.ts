@@ -50,18 +50,6 @@ export const BLOC_TEMPLATES = {
       },
     },
   },
-  northern_compact: {
-    id: "northern_compact",
-    name: "Northern Compact",
-    type: "fta",
-    members: ["russia"],
-    accessBonus: 1.04,
-    accession: {
-      memberRelationMin: 42,
-      steps: { apply: 5, align: 8, accede: 12 },
-      need: {},
-    },
-  },
   andes_pact: {
     id: "andes_pact",
     name: "Andes Pact",

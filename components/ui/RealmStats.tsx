@@ -12,11 +12,14 @@ import {
   fmtGdpBn,
   fxDisplayIndex,
   currencyForSeat,
+  liveRateBetween,
+  fmtFxRate,
   shareLabel,
   T,
 } from "../../lib/sim/engine.ts";
 import type { GameState } from "../../lib/sim/types.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Button } from "./Button.tsx";
 
 function ensureNations(e: GameState) {
@@ -176,9 +179,15 @@ export default function RealmStats({
   onOpenDiplomacy,
 }: RealmStatsProps) {
   const G = useGame();
+  const { pref } = useCurrencyPref();
+  const ccy = pref.display || undefined;
   if (!role) return null;
   const snap = realmSnapshot(role, G);
   if (!snap) return null;
+  /* "Show amounts in" always resolves against the player's own currency, not
+     whichever realm's card happens to be open, so every card you click reads
+     in the same unit. */
+  const displayCcy = pref.display || currencyForSeat(G?.homeRole);
 
   const homeName = G?.country || "United Kingdom";
 
@@ -214,10 +223,10 @@ export default function RealmStats({
       <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-[720px]:gap-x-3.5 max-[720px]:gap-y-2.5">
         <Stat
           label="GDP"
-          value={fmtGdpBn(snap.gdpBn)}
+          value={fmtGdpBn(snap.gdpBn, ccy, G)}
           note={
             snap.us
-              ? "USD at market rate (opening = 100)"
+              ? `${displayCcy} at market rate`
               : vsHomeGdpNote(snap.vsHomeGdp, homeName)
           }
           tone={snap.us ? null : toneOf(snap.vsHomeGdp - 1, false)}
@@ -228,9 +237,19 @@ export default function RealmStats({
           note="Opening = 100"
         />
         <Stat
-          label={"Currency strength (" + (snap.currency || "—") + ")"}
-          value={snap.fx.toFixed(1)}
-          note="vs USD · opening = 100"
+          label={"Exchange rate (" + (snap.currency || "—") + ")"}
+          value={
+            snap.currency === displayCcy
+              ? "1.00"
+              : fmtFxRate(liveRateBetween(snap.currency, displayCcy, G))
+          }
+          note={
+            snap.currency === displayCcy
+              ? displayCcy === "USD"
+                ? "The USD numeraire itself"
+                : "Your display currency"
+              : `${displayCcy} per 1 ${snap.currency}`
+          }
           tone={toneOf(snap.fx - 100, false)}
         />
         <Stat
