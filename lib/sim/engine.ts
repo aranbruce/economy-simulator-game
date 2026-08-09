@@ -4813,7 +4813,6 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   syncNationsFromWorld(getG(), getG().q > 0);
   if (o.render !== false) {
     render();
-    renderPress();
   }
   return getG();
 }
@@ -6023,7 +6022,6 @@ function newGame(opts?: any) {
   clearAllPressFades();
   tab = null;
   render();
-  renderPress();
   /* Opening morning note is first-class, not buried in the Budget drawer. */ if (
     o.silent
   ) {
@@ -9385,16 +9383,9 @@ const billCost = () =>
 /* ==================================================================
    7. RENDERING
    ================================================================== */
-const UI_REACT_PRESS = true;
 
-const _els = Object.create(null);
-function registerEl(id: any, el: any) {
-  if (el) _els[id] = el;
-  else delete _els[id];
-}
-const $ = (id: any) =>
-  _els[id] ||
-  (typeof document !== "undefined" ? document.getElementById(id) : null);
+const $ = (id: any): any =>
+  typeof document !== "undefined" ? document.getElementById(id) : null;
 const esc = (s: any) =>
   String(s)
     .replace(/&/g, "&amp;")
@@ -14116,7 +14107,6 @@ function flushMpDiploPressAlerts() {
         break;
       }
     }
-    renderPress();
   }
   if (pol && alertSrc === pol.diploAlerts) {
     pol.diploAlerts = alertSrc;
@@ -14221,7 +14211,6 @@ function showMpBriefing(opts?: any) {
             break;
           }
         }
-        renderPress();
       }
       if (pol && alertSrc === pol.diploAlerts) {
         pol.diploAlerts = alertSrc;
@@ -14809,16 +14798,14 @@ function pushPress(clips: any) {
       if (_pressExpanded === dropped.id) _pressExpanded = null;
     }
   }
-  if (UI_REACT_PRESS) bump();
-  else renderPress();
+  bump();
 }
 function expandPress(id: any) {
   if (!G || !G.press) return false;
   if (!G.press.some((c: any) => c.id === id)) return false;
   clearPressFade(id);
   _pressExpanded = id;
-  if (UI_REACT_PRESS) bump();
-  else renderPress();
+  bump();
   return true;
 }
 function dismissPress(id: any) {
@@ -14828,8 +14815,7 @@ function dismissPress(id: any) {
   clearPressFade(id);
   if (_pressExpanded === id) _pressExpanded = null;
   G.press.splice(i, 1);
-  if (UI_REACT_PRESS) bump();
-  else renderPress();
+  bump();
   return true;
 }
 function getPressExpanded() {
@@ -14839,96 +14825,6 @@ function dismissNewestPress() {
   if (_pressExpanded) return dismissPress(_pressExpanded);
   if (!G || !G.press || !G.press.length) return false;
   return dismissPress(G.press[G.press.length - 1].id);
-}
-function clipBodyHtml(c: any) {
-  return (
-    '<div class="clip-mast">' +
-    esc(c.masthead) +
-    "</div>" +
-    '<div class="clip-kick">' +
-    esc(c.kicker) +
-    "</div>" +
-    '<h4 class="clip-hed">' +
-    esc(c.headline) +
-    "</h4>" +
-    '<p class="clip-lede">' +
-    esc(c.lede) +
-    "</p>"
-  );
-}
-function renderPress() {
-  if (UI_REACT_PRESS) return;
-  const host = $("pressLayer");
-  if (!host) return;
-  const clips = G && G.press ? G.press : [];
-  const focused =
-    _pressExpanded && clips.find((c: any) => c.id === _pressExpanded);
-  if (!focused) _pressExpanded = null;
-  host.classList.toggle("is-focusing", !!focused);
-  host.innerHTML = clips
-    .map((c: any, i: any) => {
-      if (focused && c.id === focused.id) return "";
-      const rot = (c.rot != null ? c.rot : 0).toFixed(2);
-      const delay = (i * 0.05).toFixed(2);
-      return (
-        '<article class="clipping" data-id="' +
-        esc(c.id) +
-        '" style="--clip-rot:' +
-        rot +
-        "deg;--clip-delay:" +
-        delay +
-        's" role="button" tabindex="0" aria-label="Open clipping">' +
-        clipBodyHtml(c) +
-        "</article>"
-      );
-    })
-    .join("");
-  if (focused) {
-    const rot = (focused.rot != null ? focused.rot : -1).toFixed(2);
-    host.insertAdjacentHTML(
-      "beforeend",
-      '<div class="press-focus" role="dialog" aria-modal="true" aria-label="Newspaper clipping">' +
-        '<article class="clipping clipping-focus" style="--clip-rot:' +
-        rot +
-        'deg">' +
-        clipBodyHtml(focused) +
-        '<button type="button" class="clip-dismiss">Dismiss</button>' +
-        "</article>" +
-        "</div>",
-    );
-    const backdrop = host.querySelector(".press-focus");
-    const go = () => {
-      dismissPress(focused.id);
-    };
-    backdrop.onclick = (e: any) => {
-      if (e.target === backdrop) go();
-    };
-    const btn = host.querySelector(".clip-dismiss");
-    if (btn) {
-      btn.onclick = (e: any) => {
-        e.stopPropagation();
-        go();
-      };
-      setTimeout(() => {
-        try {
-          btn.focus();
-        } catch {}
-      }, 40);
-    }
-  }
-  host.querySelectorAll(".clipping:not(.clipping-focus)").forEach((el: any) => {
-    const id = el.getAttribute("data-id");
-    const open = () => {
-      expandPress(id);
-    };
-    el.onclick = open;
-    el.onkeydown = (e: any) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        open();
-      }
-    };
-  });
 }
 function checkCrises(_res: any) {
   const e = G.econ;
@@ -16256,7 +16152,6 @@ export {
   qualEffectsData,
   composePress,
   pushPress,
-  renderPress,
   dismissPress,
   dismissNewestPress,
   expandPress,
@@ -16318,7 +16213,6 @@ export {
   renderChrome,
   renderPanel,
   $,
-  registerEl,
   T,
   setOnState,
   setOnDespatchChange,
