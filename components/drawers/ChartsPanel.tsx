@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import {
   COL,
   FACTIONS,
@@ -9,170 +8,18 @@ import {
   lineChartSpec,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Hint } from "../ui/Typography.tsx";
-
-interface ChartBoxProps {
-  title: ReactNode;
-  caption: ReactNode;
-  children: ReactNode;
-  noMargin?: boolean;
-}
-
-function ChartBox({ title, caption, children, noMargin }: ChartBoxProps) {
-  return (
-    <div
-      className={`${noMargin ? "mb-0" : "mb-2"} rounded-md border border-edge bg-g-1 px-3.5 pt-3 pb-2`}
-    >
-      <h3 className="m-0 mb-0.5 font-display text-[18px] font-normal tracking-[-.02em]">
-        {title}
-      </h3>
-      <div className="mb-2 text-xs leading-[1.4] text-ink-soft">{caption}</div>
-      {children}
-    </div>
-  );
-}
-
-interface ChartSpecSeries {
-  label: string;
-  color: string;
-  wide: boolean;
-  dash: boolean;
-  points: [number, number][];
-  lastPoint: [number, number];
-  lastValue: string;
-}
-
-interface ChartSeriesInput {
-  label: string;
-  color: string;
-  data: number[];
-  wide?: boolean;
-  dash?: boolean;
-}
-
-interface ChartSpec {
-  w: number;
-  h: number;
-  padR: number;
-  gridLines: { y: number; label: string }[];
-  targetLine: { y: number } | null;
-  xLabels: { x: number; label: string }[];
-  series: ChartSpecSeries[];
-  targetLabel: string | null;
-}
-
-/** Renders the lineChartSpec() data as real SVG — no chart library, per CLAUDE.md. */
-function LineChartSvg({ spec }: { spec: ChartSpec | null }) {
-  if (!spec)
-    return (
-      <div className="p-4 text-[12.5px] text-ink-faint">
-        Not enough quarters recorded yet.
-      </div>
-    );
-  const { w, h, padR, gridLines, targetLine, xLabels, series, targetLabel } =
-    spec;
-  return (
-    <>
-      <svg viewBox={`0 0 ${w} ${h}`} width="100%" height={h} role="img">
-        {gridLines.map((g, i) => (
-          <g key={i}>
-            <line
-              x1={36}
-              y1={g.y}
-              x2={w - padR}
-              y2={g.y}
-              stroke="#d6cdb8"
-              strokeWidth={1}
-            />
-            <text
-              x={31}
-              y={g.y + 3.5}
-              textAnchor="end"
-              fontSize={8.5}
-              fontFamily="IBM Plex Mono, monospace"
-              fill="#8d8474"
-            >
-              {g.label}
-            </text>
-          </g>
-        ))}
-        {targetLine && (
-          <line
-            x1={36}
-            y1={targetLine.y}
-            x2={w - padR}
-            y2={targetLine.y}
-            stroke="#c0392f"
-            strokeWidth={1}
-            strokeDasharray="3 3"
-          />
-        )}
-        {xLabels.map((l, i) => (
-          <text
-            key={i}
-            x={l.x}
-            y={h - 6}
-            textAnchor="middle"
-            fontSize={8}
-            fontFamily="IBM Plex Mono, monospace"
-            fill="#8d8474"
-          >
-            {l.label}
-          </text>
-        ))}
-        {series.map((s, i) => (
-          <g key={i}>
-            <polyline
-              points={s.points.map(([x, y]) => `${x},${y}`).join(" ")}
-              fill="none"
-              stroke={s.color}
-              strokeWidth={s.wide ? 2 : 1.4}
-              strokeDasharray={s.dash ? "4 3" : undefined}
-            />
-            <circle
-              cx={s.lastPoint[0]}
-              cy={s.lastPoint[1]}
-              r={2.2}
-              fill={s.color}
-            />
-            <text
-              x={w - padR + 6}
-              y={s.lastPoint[1] + 3}
-              fontSize={9}
-              fontFamily="IBM Plex Mono, monospace"
-              fill={s.color}
-            >
-              {s.lastValue}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
-        {series.map((s, i) => (
-          <span key={i}>
-            <i
-              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
-              style={{ background: s.color }}
-            />
-            {s.label}
-          </span>
-        ))}
-        {targetLabel && (
-          <span>
-            <i
-              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
-              style={{ background: "#c0392f" }}
-            />
-            {targetLabel}
-          </span>
-        )}
-      </div>
-    </>
-  );
-}
+import {
+  ChartBox,
+  LineChartSvg,
+  type ChartSeriesInput,
+} from "../ui/LineChart.tsx";
+import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 
 export function ChartsPanel() {
   const G = useGame();
+  const { pref } = useCurrencyPref();
 
   if (G.log.length < 2) {
     return (
@@ -189,6 +36,7 @@ export function ChartsPanel() {
     ? (G.econ.gdp / G.econ.potential - 1) * 100
     : 0;
   const fxCode = currencyForSeat(G.homeRole);
+  const anchorCcy = pref.display || fxCode;
   const facColors = [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink];
 
   return (
@@ -217,6 +65,7 @@ export function ChartsPanel() {
           ])}
         />
       </ChartBox>
+      <CurrencyComparisonChart G={G} anchorCcy={anchorCcy} />
       <div className="grid grid-cols-2 gap-2 max-[800px]:grid-cols-1">
         <ChartBox
           noMargin
@@ -239,25 +88,6 @@ export function ChartsPanel() {
                 { label: "Bank rate", color: COL.blue, data: col("rate") },
               ],
               { target: 2, targetLabel: "Target" },
-            )}
-          />
-        </ChartBox>
-        <ChartBox
-          noMargin
-          title={`Currency strength (${fxCode})`}
-          caption="Index versus the USD numeraire, 100 at term start. Stronger hurts exports and cheapens imports — watch net trade below."
-        >
-          <LineChartSvg
-            spec={lineChartSpec(
-              [
-                {
-                  label: "Currency strength",
-                  color: COL.brass,
-                  data: col("fx"),
-                  wide: true,
-                },
-              ],
-              { target: 100, targetLabel: "Opening" },
             )}
           />
         </ChartBox>

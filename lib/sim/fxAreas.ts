@@ -15,7 +15,13 @@ const RATE_FLOOR = 0.1;
 const FX_UIP = 0.03;
 const FX_RISK = 0.055;
 const FX_ADJ = 0.38;
-const WORLD_RATE_USD = 2.6; // USD / numeraire short rate proxy
+const FX_CA = 0.15; // fractional appreciation per point of net-exports/potential
+/* The current account is a multi-year phenomenon in practice — it's a small
+   share of daily FX turnover next to capital flows — so it acts on a slow
+   accumulator rather than the raw quarterly trade balance, the same
+   partial-adjustment idiom FX_ADJ/T_ADJ already use elsewhere. Half-life
+   ~11 quarters. */ const CA_ADJ = 0.06;
+const WORLD_RATE_USD = 2.6; // fallback proxy only if no USD-area seat is present
 
 /** Group seat ids by ISO currency code. */
 function currencyAreas(seatIds: string[]) {
@@ -49,12 +55,16 @@ export function stepCurrencyAreas(
   const areaRate: Record<string, number> = {};
   const areaFx: Record<string, number> = {};
 
+  /* Pass 1: every area's own policy rate. Split out from the FX pass below
+     so a non-USD area can react to *this quarter's* live US rate rather
+     than a fixed proxy — which needs every area's rate already known,
+     including USD's, before any area's FX target is computed. Object key
+     order isn't something to lean on for that. */
   for (const ccy of Object.keys(areas)) {
     const members = areas[ccy];
     let infl = 0,
       gap = 0,
-      n = 0,
-      risk = 0;
+      n = 0;
     let leadRate = null;
     for (const id of members) {
       const econ =
@@ -66,14 +76,12 @@ export function stepCurrencyAreas(
       const pot = econ.potential || 100;
       const gdp = econ.gdp != null ? econ.gdp : 100;
       gap += (gdp / pot - 1) * 100;
-      risk += econ.riskPremium != null ? econ.riskPremium : 0;
       n++;
       if (id === o.playerId && econ.rate != null) leadRate = econ.rate;
     }
     if (!n) continue;
     infl /= n;
     gap /= n;
-    risk /= n;
     const underlying = infl;
     const target =
       R_NEUTRAL_REAL +
@@ -86,15 +94,58 @@ export function stepCurrencyAreas(
         Math.max(RATE_FLOOR, Math.min(20, target));
     }
     areaRate[ccy] = rate;
+  }
+
+  const worldRateNow =
+    areaRate.USD != null ? areaRate.USD : WORLD_RATE_USD;
+
+  /* Pass 2: each area's FX target, now that worldRateNow is the actual
+     dollar-area rate this quarter (falling back to the fixed proxy only if
+     no USD-area seat exists in this run at all). */
+  for (const ccy of Object.keys(areas)) {
+    const rate = areaRate[ccy];
+    if (rate == null) continue;
+    const members = areas[ccy];
+    let risk = 0,
+      ca = 0,
+      n = 0;
+    for (const id of members) {
+      const econ =
+        id === o.playerId && o.playerEcon
+          ? o.playerEcon
+          : bags[id] && bags[id].econ;
+      if (!econ) continue;
+      risk += econ.riskPremium != null ? econ.riskPremium : 0;
+      /* Every seat's own step() (expenditureStep() in engine.ts) already
+         smooths its own econ.caSmooth once per quarter via this same
+         CA_ADJ blend — that runs for AI seats too, since stepCountry calls
+         the full step(), not a stripped-down AI path. Re-blending it again
+         here would apply the partial adjustment twice per quarter (roughly
+         doubling the effective speed CA_ADJ's own "half-life ~11 quarters"
+         comment promises), so just read the value each member's own step
+         already produced; only fall back to this quarter's raw ratio if
+         a seat has genuinely never been stepped yet. */
+      const pot = econ.potential || 100;
+      if (econ.caSmooth == null) {
+        econ.caSmooth = pot > 0 ? ((econ.X || 0) - (econ.M || 0)) / pot : 0;
+      }
+      ca += econ.caSmooth;
+      n++;
+    }
+    if (!n) continue;
+    risk /= n;
+    ca /= n;
 
     const uip =
       members.reduce((s, id) => {
         const p = PROFILES[id];
         return s + (p && p.fxUip != null ? p.fxUip : FX_UIP);
       }, 0) / members.length;
-    const worldR = ccy === "USD" ? rate : WORLD_RATE_USD;
+    const worldR = ccy === "USD" ? rate : worldRateNow;
     const fxTarget =
-      ccy === "USD" ? 1 : 1 + uip * (rate - worldR) - FX_RISK * risk;
+      ccy === "USD"
+        ? 1
+        : 1 + uip * (rate - worldR) - FX_RISK * risk + FX_CA * ca;
     areaFx[ccy] = fxTarget;
   }
 

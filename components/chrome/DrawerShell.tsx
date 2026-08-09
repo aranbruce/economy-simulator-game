@@ -4,8 +4,6 @@ import {
   TABS,
   billClauses,
   capitalShortfallHint,
-  currencyForSeat,
-  fxDisplayIndex,
   getTab,
   setTab,
 } from "../../lib/sim/engine.ts";
@@ -34,7 +32,7 @@ export function DrawerShell() {
       : "no clauses";
   } else if (tab === "trade") {
     name = "Trade";
-    sub = `Currency strength (${currencyForSeat(G.homeRole)}) ${fxDisplayIndex("home").toFixed(1)}`;
+    sub = "Blocs · deals · currency";
   } else if (tab === "diplomacy") {
     name = "Diplomacy";
     sub = "Envoys · missions · relations";

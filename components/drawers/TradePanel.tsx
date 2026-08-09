@@ -20,8 +20,8 @@ import {
   sphereRiskHint,
   effectiveTariff,
   shareLabel,
-  fxDisplayIndex,
   currencyForSeat,
+  CURRENCY_META,
   ensureDiploStocks,
   syncTariffHeadline,
   ensureTariffSchedule,
@@ -53,7 +53,9 @@ import {
   toggleBlocInviteDraft,
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
+import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
@@ -68,36 +70,34 @@ const REGION_ORDER = [
   "oceania",
 ];
 
+const CCY_CODES = Object.keys(CURRENCY_META).sort();
+
 function CurrencyPanel({ G }: { G: any }) {
-  const fxIdx = fxDisplayIndex("home");
   const fxCode = currencyForSeat(G.homeRole);
-  const fxTone =
-    fxIdx > 100.5
-      ? "text-green-lt"
-      : fxIdx < 99.5
-        ? "text-red-lt"
-        : "text-white";
+  const { pref, setDisplay } = useCurrencyPref();
+  const anchorCcy = pref.display || fxCode;
+
   return (
     <>
       <Eyebrow>Currency</Eyebrow>
-      <div className="mb-3 overflow-hidden rounded-md border border-edge bg-g-1 px-3.5 py-3">
-        <div className="flex flex-wrap items-baseline gap-3">
-          <div
-            className={`text-[28px] leading-none font-[650] tracking-[-.03em] ${fxTone}`}
-          >
-            {fxIdx.toFixed(1)}
-          </div>
-          <div className="min-w-40 flex-1">
-            <div className="text-sm font-[650]">
-              Currency strength ({fxCode})
-            </div>
-            <Hint>
-              Versus the USD numeraire. Opening = 100. A stronger currency hurts
-              exports and cheapens imports. The Bank and fiscal risk move it —
-              you do not set it directly.
-            </Hint>
-          </div>
-        </div>
+      <CurrencyComparisonChart G={G} anchorCcy={anchorCcy} />
+      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-edge bg-g-1 px-3.5 py-2.5">
+        <label className="text-[10px] font-semibold tracking-[.06em] text-ink-faint uppercase">
+          Show amounts in
+        </label>
+        <select
+          className="rounded border border-edge bg-g-3 px-2 py-1 text-[12px] text-white"
+          value={pref.display || fxCode}
+          onChange={(e) =>
+            setDisplay(e.target.value === fxCode ? null : e.target.value)
+          }
+        >
+          {CCY_CODES.map((c) => (
+            <option key={c} value={c}>
+              {c === fxCode ? `${c} (native)` : c}
+            </option>
+          ))}
+        </select>
       </div>
     </>
   );

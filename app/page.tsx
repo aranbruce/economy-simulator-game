@@ -17,7 +17,7 @@ const GameApp = dynamic(() => import("../components/game/GameApp"), {
         fontSize: "15px",
       }}
     >
-      Loading the cabinet…
+      Loading…
     </div>
   ),
 });

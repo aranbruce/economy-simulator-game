@@ -63,7 +63,6 @@ const BLOC_FILL: Record<string, string> = {
   continental_union: "#4a7ab8",
   pacific_accord: "#3d8a7a",
   gulf_council: "#b09050",
-  northern_compact: "#8a6a7a",
   andes_pact: "#9a6b4a",
   asean_circle: "#5a9a7a",
 };

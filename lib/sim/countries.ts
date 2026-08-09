@@ -53,7 +53,6 @@ export const DEFAULT_BLOC_MEMBER: Record<string, string> = {
   korea: "pacific_accord",
   saudi: "gulf_council",
   uae: "gulf_council",
-  russia: "northern_compact",
   brazil: "andes_pact",
   mexico: "andes_pact",
   argentina: "andes_pact",
