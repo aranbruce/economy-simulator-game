@@ -59,7 +59,7 @@ const NO_BLOC_FILL = "#3a4558";
 const CUSTOM_BLOC_FILL = "#6a7a9a";
 
 /** Distinct bloc hues — members of the same bloc share a fill. */
-export const BLOC_FILL: Record<string, string> = {
+const BLOC_FILL: Record<string, string> = {
   continental_union: "#4a7ab8",
   pacific_accord: "#3d8a7a",
   gulf_council: "#b09050",
@@ -72,7 +72,7 @@ function roleCountryId(role: string, G: GameState) {
   return role === "home" ? playerCountryId(G.homeRole) : role;
 }
 
-export function roleBlocId(role: string, G: GameState = getG()) {
+function roleBlocId(role: string, G: GameState = getG()) {
   if (!G) return null;
   return countryBlocId(roleCountryId(role, G), G.blocMember);
 }
@@ -110,7 +110,7 @@ function homeDeficit(G: GameState) {
   return -balanceOf(G.law, G.econ).balance;
 }
 
-export function boardMetricValue(
+function boardMetricValue(
   role: string,
   metric: string,
   G: GameState = getG(),

@@ -18,7 +18,7 @@ const FX_ADJ = 0.38;
 const WORLD_RATE_USD = 2.6; // USD / numeraire short rate proxy
 
 /** Group seat ids by ISO currency code. */
-export function currencyAreas(seatIds: string[]) {
+function currencyAreas(seatIds: string[]) {
   const areas: Record<string, string[]> = {};
   for (const id of seatIds) {
     const p = PROFILES[id];

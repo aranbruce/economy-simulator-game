@@ -49,7 +49,7 @@ function clamp(x: number, lo: number, hi: number) {
 }
 
 /** Population-weighted mean income. */
-export function distMean(dist: IncomeSlice[]) {
+function distMean(dist: IncomeSlice[]) {
   let m = 0;
   for (const s of dist) m += s.inc * s.w;
   return m;
@@ -150,7 +150,7 @@ export function buildIncomeDist(targetGini?: number | null): IncomeSlice[] {
 }
 
 /** Opening society gini pin for a playable seat (home / kingdom → 35). */
-export function distGiniForRole(role?: string | null) {
+function distGiniForRole(role?: string | null) {
   const id = resolveHomeRole(role || "home");
   if (id === "home" || id === "kingdom") {
     const k = PROFILES.kingdom;
@@ -189,5 +189,3 @@ export function activeIncomeDist(econ: any): IncomeSlice[] {
 export function clearIncomeDistCache() {
   _distByRole = {};
 }
-
-export { BASE_MEAN, BASE_MEDIAN, BASE_PRETAX_GINI };

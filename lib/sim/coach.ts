@@ -31,7 +31,7 @@ export function capitalShortfallHint(need: number, have: number) {
   );
 }
 
-export interface CoachStepDef {
+interface CoachStepDef {
   id: string;
   title: string;
   body: string;

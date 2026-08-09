@@ -18,7 +18,7 @@ const STOPS: [number, number, number][] = [
   [255, 69, 58], // #FF453A red
 ];
 
-export function metricRamp(t: number): [number, number, number] {
+function metricRamp(t: number): [number, number, number] {
   t = clamp(t, 0, 1);
   const x = t * (STOPS.length - 1);
   const i = Math.min(STOPS.length - 2, Math.floor(x));

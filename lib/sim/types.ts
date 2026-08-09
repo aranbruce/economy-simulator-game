@@ -15,13 +15,13 @@ export type FactionId =
 /** A points-per-faction effect bag — present on taxes, policies, regimes,
  * vice states and diplomatic missions. Every key is optional; absent
  * factions are simply unaffected. */
-export type FactionEffects = Partial<Record<FactionId, number>>;
+type FactionEffects = Partial<Record<FactionId, number>>;
 
 /** A structural-channel effect bag (labour, tfp, ucost, part, …) — see
  * CLAUDE.md "Adding content" for the open list of channel keys. Loosely
  * typed by design: the channel set is extended in content data, not in
  * the engine, so a closed union would fight every new tax/policy. */
-export type ChannelEffects = Partial<Record<string, number>>;
+type ChannelEffects = Partial<Record<string, number>>;
 
 /** One of `FACTIONS` in engine.ts — the six blocs above, with the
  * population-weight used to aggregate approval. */

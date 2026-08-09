@@ -19,7 +19,7 @@ export function worldSeatIds() {
 }
 
 /** Trade-matrix row for a seat (kingdom uses home weights when absent). */
-export function matrixRow(seatId: string) {
+function matrixRow(seatId: string) {
   if (MATRIX[seatId]) return MATRIX[seatId];
   if (seatId === "kingdom" && MATRIX.home) return MATRIX.home;
   return MATRIX.home || {};
