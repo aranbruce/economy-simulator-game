@@ -9948,7 +9948,7 @@ function renderPanel() {
 }
 
 function pendingUltimatumIds(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state || !state.ultimatums) return [];
   return Object.keys(state.ultimatums).filter(
     (id) => state.ultimatums[id] && state.ultimatums[id].status === "pending",
@@ -9956,7 +9956,7 @@ function pendingUltimatumIds(g: any) {
 }
 
 function ultimatumQuartersLeft(g: any, partnerId: any) {
-  const state = g || G;
+  const state = g || getG();
   const u = state && state.ultimatums && state.ultimatums[partnerId];
   if (!u || u.status !== "pending") return 0;
   return Math.max(0, (u.expiresQ || 0) - (state.q || 0));
@@ -9970,7 +9970,7 @@ function ultimatumWaitingCopy(ultLeft: any) {
 }
 
 function hasDiploAttention(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state) return false;
   if (pendingUltimatumIds(state).length) return true;
   return Object.keys(state.activeVisits || {}).some(
@@ -9978,42 +9978,8 @@ function hasDiploAttention(g: any) {
   );
 }
 
-function diploHudHtml(g?: any) {
-  const state = g || G;
-  if (!state) return "";
-  const chips = [];
-  for (const id of pendingUltimatumIds(state)) {
-    const p = partnerById(id);
-    const left = ultimatumQuartersLeft(state, id);
-    const u = state.ultimatums[id];
-    const label = u.label || u.demand || "demand";
-    chips.push(
-      '<span class="diplo-hud-chip ult" title="Ultimatum — opens Diplomacy">' +
-        esc(p ? p.name : id) +
-        " · " +
-        esc(label) +
-        " <b>" +
-        left +
-        "Q</b></span>",
-    );
-  }
-  for (const id of Object.keys(state.activeVisits || {})) {
-    const left = visitQuartersLeft(state, id);
-    if (left <= 0) continue;
-    const p = partnerById(id);
-    chips.push(
-      '<span class="diplo-hud-chip visit" title="State visit — opens Diplomacy">' +
-        esc(p ? p.name : id) +
-        " · visit <b>" +
-        left +
-        "Q</b></span>",
-    );
-  }
-  return chips.join("");
-}
-/** Data form of diploHudHtml() for React consumers. */
 function diploHudChips(g: any) {
-  const state = g || G;
+  const state = g || getG();
   if (!state) return [];
   const chips = [];
   for (const id of pendingUltimatumIds(state)) {
@@ -16038,7 +16004,6 @@ export {
   ultimatumQuartersLeft,
   ultimatumWaitingCopy,
   hasDiploAttention,
-  diploHudHtml,
   diploHudChips,
   gdp0ForSeat,
   realmGdpBn,

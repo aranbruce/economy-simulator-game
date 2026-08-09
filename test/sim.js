@@ -163,7 +163,7 @@ import {
   visitQuartersLeft,
   isVisitActive,
   diploMapMarkers,
-  diploHudHtml,
+  diploHudChips,
   hasFormalProtest,
 } from "../lib/sim/engine.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
@@ -4757,14 +4757,20 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
       status: "pending",
     },
   };
-  const hud = diploHudHtml(G);
-  assert(/japan/i.test(hud) && /visit/i.test(hud), "hud shows active visit");
+  const chips = diploHudChips(G);
   assert(
-    /germany/i.test(hud) && /Cut tariffs/i.test(hud),
+    chips.some((c) => c.kind === "visit" && /japan/i.test(c.name)),
+    "hud shows active visit",
+  );
+  assert(
+    chips.some(
+      (c) =>
+        c.kind === "ult" && /germany/i.test(c.name) && c.label === "Cut tariffs",
+    ),
     "hud shows live ultimatum",
   );
   assert(
-    !diploHudHtml({ ...G, activeVisits: {}, ultimatums: {} }),
+    diploHudChips({ ...G, activeVisits: {}, ultimatums: {} }).length === 0,
     "empty hud when nothing active",
   );
 }
@@ -4857,9 +4863,9 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     /World Post/.test(defyClips[0].masthead),
     "defy uses world press masthead",
   );
-  const hud = diploHudHtml(G);
+  const chips = diploHudChips(G);
   assert(
-    !/conceded/i.test(hud || ""),
+    !chips.some((c) => /conceded/i.test(c.label || "")),
     "ultimatum outcomes no longer appear on diplo hud",
   );
   assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
