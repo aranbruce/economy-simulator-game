@@ -119,6 +119,13 @@ function project(lng: number, lat: number): Point {
   return [x, y];
 }
 
+/** Viewport size, floored so the plate never fits into a degenerate frame —
+ *  paint() and plateLayout() (used by hit-testing/zoom-anchoring) must agree
+ *  on this or a click/hover can target a different point than what's drawn. */
+function clampViewport(cssW: number, cssH: number) {
+  return { W: Math.max(320, Math.floor(cssW)), H: Math.max(240, Math.floor(cssH)) };
+}
+
 /** Fit the equirectangular plate into the viewport, letterboxed. */
 function computePlateLayout(W: number, H: number) {
   const fit = Math.min(W, H * (360 / (LAT_MAX - LAT_MIN)));
@@ -514,8 +521,7 @@ export default function WorldMap({
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const cssW = wrap?.clientWidth || window.innerWidth;
     const cssH = wrap?.clientHeight || window.innerHeight;
-    const W = Math.max(320, Math.floor(cssW));
-    const H = Math.max(240, Math.floor(cssH));
+    const { W, H } = clampViewport(cssW, cssH);
     if (canvas.width !== W * dpr || canvas.height !== H * dpr) {
       canvas.width = W * dpr;
       canvas.height = H * dpr;
@@ -881,8 +887,9 @@ export default function WorldMap({
   const plateLayout = useCallback(() => {
     const wrap = wrapRef.current;
     if (!wrap) return null;
-    const W = wrap.clientWidth || window.innerWidth;
-    const H = wrap.clientHeight || window.innerHeight;
+    const cssW = wrap.clientWidth || window.innerWidth;
+    const cssH = wrap.clientHeight || window.innerHeight;
+    const { W, H } = clampViewport(cssW, cssH);
     return { W, H, ...computePlateLayout(W, H) };
   }, []);
 
