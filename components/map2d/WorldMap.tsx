@@ -36,6 +36,10 @@ interface CountryFeature {
   iso: string;
   polys: Polys;
   role: string | null;
+  /** Precomputed once at load — ringStrokeChains() per ring, broken at
+   *  antimeridian-cut edges. Geometry never changes after load, so this is
+   *  invariant to pan/zoom and must not be recomputed on every paint(). */
+  strokeChains: Ring[][][];
 }
 
 const OCEAN = "#080e1c";
@@ -130,7 +134,11 @@ function repeatOffsets(
   originX: number,
   period: number,
   viewportW: number,
-  maxCopies = 16,
+  /* Safety bound, not a real budget: even an extreme W:H window ratio at
+   * MIN_ZOOM needs well under this many tiled copies to fully cover the
+   * viewport. It only exists to stop a runaway loop if `period` is ever
+   * pathologically small; it must not silently truncate real coverage. */
+  maxCopies = 64,
 ): number[] {
   if (!(period > 0)) return [0];
   const kMin = Math.floor(-originX / period) - 1;
@@ -574,10 +582,7 @@ export default function WorldMap({
     ];
     const renderList = order.map((c) => {
       const role = roleForFeature(c.iso, hRole, hIso);
-      const strokeChains = c.polys.map((rings) =>
-        rings.map((ring) => ringStrokeChains(ring)),
-      );
-      return { c, role, fill: fillFor(role, c.iso), strokeChains };
+      return { c, role, fill: fillFor(role, c.iso), strokeChains: c.strokeChains };
     });
 
     /* Every visible tiled copy of a country is filled/stroked in one path
@@ -839,6 +844,9 @@ export default function WorldMap({
               iso,
               polys,
               role: realmRoleForIso(iso),
+              strokeChains: polys.map((rings) =>
+                rings.map((ring) => ringStrokeChains(ring)),
+              ),
             };
           })
           .filter(Boolean);
