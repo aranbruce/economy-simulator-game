@@ -135,6 +135,12 @@ import {
   CAP_INCOME_SHARE,
   DIV_OF_CAPITAL,
   DEF_NI,
+  DEF_HEAD_OF_STATE,
+  DEF_ELECTORAL,
+  DEF_WORK_HOURS,
+  DEF_CHILDCARE,
+  DEF_MIN_WAGE,
+  DEF_PENSION,
   BAND_NAMES,
   INDIRECT_PASS,
   TARIFF_PASS,
@@ -170,6 +176,7 @@ import {
   U_ADJ,
   EMPLOYEE_COLLECT,
 } from "./statuteBook.ts";
+import { LAW_GROUPS, LAW_GROUP_BY_ID } from "./lawGroups.ts";
 function normalisePolityId(key: any) {
   return key && POLITY[key] ? key : null;
 }
@@ -207,8 +214,53 @@ function normalisePolityId(key: any) {
 function polityOf(role?: any) {
   return POLITY[polityIdOf(role)];
 }
+/** True once any LawGroup option that only makes sense under one-party rule
+ *  is staged — single-party or banned opposition, a suppressed parliament,
+ *  or banned assembly rights. Drives `syncPolityFromGroups` below, so the
+ *  player never picks a contradictory "democracy with banned opposition"
+ *  state; `law.polity` follows automatically instead of being its own
+ *  pickable field. Hybrid is deliberately unreachable this way — the
+ *  derivation is binary. */ function isAuthoritarianSignal(law: any) {
+  const g = (law && law.groups) || {};
+  return (
+    g.partyPluralism === "singleParty" ||
+    g.partyPluralism === "banned" ||
+    g.parliamentaryPowers === "suppressed" ||
+    g.assemblyRights === "banned"
+  );
+}
+/** Derives `law.polity` (democracy/authoritarian only) from the LawGroup
+ *  selections above, called from `setGroupOption` after every stage. Only
+ *  flips at the boundary — staging a second authoritarian-signal option
+ *  while already authoritarian is a no-op, same on the way back down. */ function syncPolityFromGroups(
+  law: any,
+) {
+  if (!law || !law.groups) return;
+  const authSignal = isAuthoritarianSignal(law);
+  const wasAuth = law.polity === "authoritarian";
+  if (authSignal && !wasAuth) law.polity = "authoritarian";
+  else if (!authSignal && wasAuth) law.polity = "democracy";
+}
 function termLenOf(role: any) {
-  return polityOf(role).termLen || TERM_LEN;
+  const base = polityOf(role).termLen || TERM_LEN;
+  const g = getG();
+  /* Only override when the player has actually moved the mandate-duration
+     slider away from its default — at the default, every polity keeps its
+     own natural cadence (a 20-quarter election clock, a 40-quarter party
+     congress, …) exactly as before this lever existed. */ if (
+    g &&
+    g.law &&
+    g.law.headOfState &&
+    g.law.headOfState.mandateYears &&
+    g.law.headOfState.mandateYears !== DEF_HEAD_OF_STATE.mandateYears
+  ) {
+    const id = resolveHomeRole(role != null ? role : (g && g.homeRole) || "home");
+    const home = resolveHomeRole(g.homeRole || "home");
+    if (id === home || role == null || role === g.homeRole) {
+      return Math.round(g.law.headOfState.mandateYears) * 4;
+    }
+  }
+  return base;
 }
 /** All live polity ids (ladder order). `from` is ignored — any system can
  *  stage any other; capital scales with distance via polityChangePc. */ function polityReachable(
@@ -225,6 +277,30 @@ function polityCanReach(from: any, to: any) {
 ) {
   return Math.abs(polityRank(to) - polityRank(from));
 }
+/** Small multiplier on the capital cost of a polity change, driven by
+ *  judicial immunity and parliamentary powers (lib/sim/lawGroups.ts) — the
+ *  one place that content reaches past pure data into the polity mechanics
+ *  themselves. `law.polity`/`POLITY`/`polityRank`/`polityAffinity` etc. stay
+ *  untouched; this only scales the price. */ function stateFormChangePcMult(
+  law: any,
+) {
+  const groups = (law && law.groups) || {};
+  let mult = 1;
+  /* "partial" immunity and "sovereign" powers are the opening defaults, so
+     they carry no premium — only a departure from them does, keeping the
+     multiplier exactly 1 (a no-op) at the game's default settings. */ if (
+    groups.judicialImmunity === "total"
+  )
+    mult += 0.15;
+  else if (groups.judicialImmunity === "none") mult -= 0.1;
+  if (groups.parliamentaryPowers === "suppressed") mult += 0.25;
+  else if (groups.parliamentaryPowers === "consultative") mult += 0.05;
+  return clamp(mult, 0.6, 1.6);
+}
+function stateFormCapitalRegenMult(law: any) {
+  const groups = (law && law.groups) || {};
+  return groups.parliamentaryPowers === "suppressed" ? 0.85 : 1;
+}
 /** Political capital to stage a polity change. Adjacent uses the target's
  *  changePc; leaping democracy ↔ authoritarian adds POLITY_LEAP_EXTRA. */ const POLITY_LEAP_EXTRA = 32;
 function polityChangePc(from: any, to: any) {
@@ -233,7 +309,9 @@ function polityChangePc(from: any, to: any) {
   if (!dest || src === dest) return 0;
   const base = POLITY[dest].changePc || 40;
   const steps = politySteps(src, dest);
-  return base + Math.max(0, steps - 1) * POLITY_LEAP_EXTRA;
+  const g = getG();
+  const mult = stateFormChangePcMult(g && (g.draft || g.law));
+  return Math.ceil((base + Math.max(0, steps - 1) * POLITY_LEAP_EXTRA) * mult);
 }
 /** Symmetric affinity score in [-1, 1] for relations target. */ function polityAffinity(
   a: any,
@@ -5241,6 +5319,31 @@ function baseLaw() {
     tariff: BASE_TARIFF,
     tariffSchedule: defaultTariffSchedule(),
     missions: {},
+    /* State & Constitution / Labor & Welfare: `groups` is the generalised
+       VICE "pick one of N" pattern (see lib/sim/lawGroups.ts), defaulted to
+       a UK-like opening position. The rest are bespoke slider groups
+       following the law.income/law.ni pattern. */ groups: {
+      hereditary: "elected",
+      territorialStructure: "unitary",
+      termLimit: "none",
+      judicialImmunity: "partial",
+      partyPluralism: "multiParty",
+      extremistLegality: "legal",
+      parliamentaryPowers: "sovereign",
+      assemblyRights: "free",
+      strikeLegality: "protected",
+      votingSystem: "majoritySingle",
+      unionLegality: "legal",
+      boardRepresentation: "none",
+      informalEnforcement: "standard",
+      pensionIndexing: "discretionary",
+    },
+    headOfState: Object.assign({}, DEF_HEAD_OF_STATE),
+    electoral: Object.assign({}, DEF_ELECTORAL),
+    workHours: Object.assign({}, DEF_WORK_HOURS),
+    childcare: Object.assign({}, DEF_CHILDCARE),
+    minWage: Object.assign({}, DEF_MIN_WAGE),
+    pension: Object.assign({}, DEF_PENSION),
   };
   return law;
 }
@@ -5257,8 +5360,21 @@ function baseLaw() {
 ) {
   for (const t of TAXES) {
     if (!t.req) continue;
-    const [viceId, ...allowed] = t.req;
-    if (!allowed.includes(law.vice[viceId])) law.taxes[t.id].on = false;
+    if (!resolveReqState(law, t.req)) law.taxes[t.id].on = false;
+  }
+}
+/** Force a LawGroup option off the draft when its own `req` gate fails
+ *  (e.g. Absolute Monarchy staged, then the player reverts `law.polity` to
+ *  democracy) — mirrors syncViceTaxes for the generalised group pattern. */ function syncGroupReqs(
+  law: any,
+) {
+  if (!law.groups) return;
+  for (const g of LAW_GROUPS) {
+    const cur = g.options.find((o) => o.id === law.groups[g.id]);
+    if (cur && cur.req && !resolveReqState(law, cur.req)) {
+      const fallback = g.options.find((o) => !o.req || resolveReqState(law, o.req));
+      if (fallback) law.groups[g.id] = fallback.id;
+    }
   }
 }
 /** Opening statute for a playable seat. `home` is the UK baseLaw unchanged. */ function lawForRole(
@@ -5268,6 +5384,12 @@ function baseLaw() {
   applyRealmLawOverlay(law, REALM_LAW[realmLawKey(role)] || null);
   syncViceTaxes(law);
   law.polity = profilePolityId(role);
+  const id = resolveHomeRole(role || "home");
+  const profile =
+    id === "home" || id === "kingdom" ? NATION_PROFILE.kingdom : (NATION_PROFILE as any)[id];
+  law.groups.hereditary = profile && profile.hereditary ? "hereditary" : "elected";
+  if (law.polity === "authoritarian") law.groups.partyPluralism = "singleParty";
+  syncGroupReqs(law);
   if (law.tariff != null) law.tariffSchedule.default = law.tariff;
   syncTariffHeadline(law, role);
   return law;
@@ -6203,13 +6325,23 @@ const EDU_RND_SPILL = 0.1; // share of education above baseline that feeds R
 const KSTAR_SCALE = K0 / ((ALPHA * 100) / (UC_BASE / 100));
 /* ==================================================================
    3. AGGREGATION  (what the statute book does to the country)
-   ================================================================== */ function taxAvailable(
-  t: any,
+   ================================================================== */ /** Resolve a `req` array against live law state. Historically `req` always
+ *  meant `[viceId, ...allowedStates]` against `law.vice`; a `LawGroupOption`
+ *  (see lib/sim/lawGroups.ts) can also gate against `law.polity` or another
+ *  law group, using a `"kind:id"` prefix. Bare ids (no prefix) keep meaning
+ *  `law.vice[id]`, so every existing vice-gated tax is unaffected. */ function resolveReqState(
   law: any,
+  req: string[],
 ) {
+  const [key, ...allowed] = req;
+  if (key === "polity") return allowed.includes(law.polity || "democracy");
+  const [kind, id] = key.includes(":") ? key.split(":") : ["vice", key];
+  const val = kind === "group" ? law.groups && law.groups[id] : law.vice[id];
+  return allowed.includes(val);
+}
+function taxAvailable(t: any, law: any) {
   if (!t.req) return true;
-  const [viceId, ...allowed] = t.req;
-  return allowed.includes(law.vice[viceId]);
+  return resolveReqState(law, t.req);
 }
 /* First-round CPI contribution from a change in duties, VAT or the tariff. */ function indirectTaxDelta(
   law: any,
@@ -6261,6 +6393,91 @@ const CH_KEYS = new Set([
   "rndEffort",
   "fertility",
 ]);
+/* ---- Labor & Social Welfare bespoke slider effects ----
+   Each mirrors the shape of the generic `add()` loops above but reads a
+   plain law.* group rather than a content array, following the law.income/
+   law.ni pattern (see CLAUDE.md "TypeScript migration"). Every term is
+   measured against the DEF_* default, so a law left at its default
+   contributes nothing — only a deviation from it moves the model. */ function workHoursEffect(
+  law: any,
+) {
+  const wh = law.workHours || DEF_WORK_HOURS;
+  const dHours = wh.weeklyHours - DEF_WORK_HOURS.weeklyHours;
+  const dLeave = wh.leaveDays - DEF_WORK_HOURS.leaveDays;
+  return {
+    part: -0.08 * dHours - 0.02 * dLeave,
+    tfp: -0.012 * dHours,
+    fac: {
+      workers: -0.5 * dHours + 0.3 * dLeave,
+      business: 0.4 * dHours - 0.25 * dLeave,
+    },
+  };
+}
+/** Childcare subsidy, 0-100% ("Free" at 100). Supersedes the old boolean
+ *  "Universal childcare" policy — at subsidyPct === 100 this reproduces its
+ *  exact ch/fac/cost numbers; below that, effects scale linearly. Not in
+ *  DIPLO_POLICY_KEYS or any `kills` list, so the clean replacement is safe
+ *  (unlike minWage, which stayed additive because it *is* watchlisted). */ function childcareEffect(
+  law: any,
+) {
+  const c = law.childcare || DEF_CHILDCARE;
+  const k = (c.subsidyPct || 0) / 100;
+  return {
+    fac: { workers: 5 * k, urban: 4 * k, business: 2 * k, pensioners: -1 * k },
+    ch: { part: 2.5 * k, fertility: 2.6 * k, tfp: 0.04 * k },
+    spend: 0.85 * k,
+  };
+}
+/** A statutory minimum-wage rate, distinct from the "Living wage uprating"
+ *  policy (see DEF_MIN_WAGE). Scaled so `rate === DEF_MIN_WAGE.rate` exactly
+ *  reproduces what that policy already models — this is a genuinely new,
+ *  independent lever, not a replacement for it. */ function minWageEffect(
+  law: any,
+) {
+  const mw = law.minWage || DEF_MIN_WAGE;
+  if (!mw.on || !(mw.rate > 0)) return { imp: null, fac: null, ch: null };
+  const k = mw.rate / DEF_MIN_WAGE.rate;
+  return {
+    imp: { gini: -0.3 * k },
+    fac: { workers: 6 * k, business: -6 * k, rural: -2 * k },
+    ch: { replace: 1.0 * k, mpcw: 4.0 * k, ucost: 0.02 * k, nairu: 0.03 * k, part: 0.05 * k },
+  };
+}
+/** Level shift in the minimum-wage rate this quarter, feeding the wage/price
+ *  block the same way the employer-NI-rate delta (`dEr`) does. */ function minWageRateOf(
+  law: any,
+) {
+  return law.minWage && law.minWage.on ? law.minWage.rate : 0;
+}
+function electoralEffect(law: any) {
+  const el = law.electoral || DEF_ELECTORAL;
+  const dAge = el.votingAge - DEF_ELECTORAL.votingAge;
+  const fac: Record<string, number> = {
+    urban: -0.15 * dAge,
+    rural: 0.1 * dAge,
+  };
+  const imp: Record<string, number> = {};
+  if (el.mandatoryVoting) {
+    fac.workers = (fac.workers || 0) + 1;
+    fac.patriots = (fac.patriots || 0) - 1;
+    imp.lib = -0.5;
+  }
+  return { imp, fac };
+}
+/** Retirement age feeds labour supply directly through `ch.labour` — the
+ *  same multiplier the demography block's own labour-force growth already
+ *  goes through (`force = L*(1+E.labour/100)*part`). Deliberately does NOT
+ *  touch `ageingLabourDrag`/`DEP_0`: CLAUDE.md flags the cohort dependency
+ *  identity as load-bearing and required to mirror step()'s demography
+ *  block exactly, so a second independent lever into it is out of scope
+ *  here. */ function pensionEffect(law: any) {
+  const p = law.pension || DEF_PENSION;
+  const dAge = p.retirementAge - DEF_PENSION.retirementAge;
+  return {
+    ch: { labour: 0.35 * dAge },
+    fac: { pensioners: -0.6 * dAge, workers: 0.15 * dAge },
+  };
+}
 function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   /* `ch` carries effects that act through a real channel: labour supply, the
      capital stock, productivity, the cost of capital, the replacement ratio,
@@ -6358,6 +6575,23 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
     const st = v.states.find((s) => s.id === law.vice[v.id]);
     if (st) add(st.imp, st.fac);
   }
+  /* State & Constitution / Labor & Welfare: the generalised "pick one of N"
+     pattern (lib/sim/lawGroups.ts), summed the same way as the VICE loop
+     just above — one generic block regardless of how many groups exist. */ for (const grp of LAW_GROUPS) {
+    const opt = (law.groups && grp.options.find((o) => o.id === law.groups[grp.id])) || null;
+    if (opt) add(opt.imp, opt.fac, 1, opt.ch);
+  }
+  const wh = workHoursEffect(law);
+  add(null, wh.fac, 1, { part: wh.part, tfp: wh.tfp });
+  const mw = minWageEffect(law);
+  add(mw.imp, mw.fac, 1, mw.ch);
+  const el = electoralEffect(law);
+  add(el.imp, el.fac);
+  const pe = pensionEffect(law);
+  add(null, pe.fac, 1, pe.ch);
+  const cc = childcareEffect(law);
+  add(null, cc.fac, 1, cc.ch);
+  E.spend += cc.spend;
   for (const id in law.deals) {
     if (!law.deals[id]) continue;
     const d = (DEAL_BY_ID as any)[id];
@@ -6482,6 +6716,9 @@ const CORP_LAG = 0.3; // corporation tax is paid in arrears
 const CGT_LAG = 0.25;
 const PENSION_GDP_SHARE = 5.8; // roughly the state-pension share inside welfare
 const TRIPLE_FLOOR = 2.5; // statutory floor under the triple lock, %/year
+/* Deliberately close to DEF_PENSION.statePensionAnnual (12000) so the floor
+   below lands ≈0.96 at the default — matching the typical benefit/caseload
+   value almost exactly, rather than introducing a jump on a fresh game. */ const PENSION_ADEQUACY_REF = 12500;
 function welfareCost(law: any, econ: any) {
   const u = (econ && econ.unemployment) || U_STAR;
   /* Triple lock: the state pension rises by max(earnings growth, CPI, 2.5%)
@@ -6565,7 +6802,8 @@ function serviceScore(id: DeptId, law: any, econ: any) {
   const idx = (econ && econ.pensionIndex) || 1;
   const lockOn = !!(law.policies && law.policies.tripleLock);
   const benefit = (law.spend.welfare / 13.3) * (lockOn ? idx : 1);
-  return benefit / caseload;
+  const floor = ((law.pension || DEF_PENSION).statePensionAnnual || 0) / PENSION_ADEQUACY_REF;
+  return Math.max(benefit / caseload, floor);
 }
 function spending(law: any, E: any, econ: any) {
   let prog = 0;
@@ -7811,6 +8049,10 @@ function govDemandShares(law: any, econ: any) {
     ((law.ni.erOn === false ? 0 : law.ni.erRate) -
       (prevLaw.ni.erOn === false ? 0 : prevLaw.ni.erRate)) *
     0.06;
+  /* A fresh minimum-wage rise passes through into prices the quarter it
+     lands, mirroring dEr above. Expressed as a fraction of the reference
+     rate so it is zero whenever the lever is untouched (or off). */ const dMinWage =
+    ((minWageRateOf(law) - minWageRateOf(prevLaw)) / DEF_MIN_WAGE.rate) * 3;
   /* Inertia carries *underlying* inflation forward, not the indirect-tax echo. A
      VAT change is a one-off shift in the price level: it shows up in the annual
      rate for four quarters and then drops out. Feeding it through the persistence
@@ -7841,7 +8083,8 @@ function govDemandShares(law: any, econ: any) {
       PI_KAPPA * (1 + PI_CONVEX * Math.max(0, newGap)) * newGap +
       shockNow +
       e.vatEcho +
-      dEr,
+      dEr +
+      dMinWage,
     -4,
     45,
   );
@@ -8346,9 +8589,9 @@ function govDemandShares(law: any, econ: any) {
   /* Base regen plus a mild approval bonus. Tuned so a mid-term chancellor can
      stage a few medium bills without living permanently at the capital floor.
      Authoritarian seats recover capital more slowly — tenure is
-     cheaper than legislative pace. */ const regen = polityOf(
-    g.homeRole,
-  ).capitalRegen;
+     cheaper than legislative pace. Suppressing parliament costs a little more
+     of it still — there is no legislature to lean on for legitimacy. */ const regen =
+    polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
   g.capital = clamp(g.capital + (3.2 + (appr - 45) * 0.1) * regen, 0, 100);
   if (law.policies.fiscalRule && deficit > 4) {
     g.ruleBreaches++;
@@ -8969,6 +9212,60 @@ function projectionWarnings(p: any) {
 const fmtRate = (t: any, r: any) => r.toFixed(dp(t)) + "%";
 const rateCost = (t: any, d: any) =>
   Math.max(1, Math.ceil((Math.abs(d) / t.max) * 25));
+/** Generic diff for a bespoke slider group living directly on `law` — the
+ *  law.income/law.ni pattern (see CLAUDE.md "TypeScript migration"), lifted
+ *  into one shared helper instead of one hand-written block per group.
+ *  Every clause is tagged `tab: "laws"`. */ function sliderGroupClauses(
+  out: any[],
+  groupKey: string,
+  label: string,
+  L: any,
+  D: any,
+  fields: Record<
+    string,
+    { name: string; pc: number; decimals?: number; unit?: string }
+  >,
+) {
+  const a = L[groupKey] || {};
+  const b = D[groupKey] || {};
+  for (const key in fields) {
+    const av = a[key];
+    const bv = b[key];
+    const f = fields[key];
+    if (typeof av === "boolean" || typeof bv === "boolean") {
+      if (!!av === !!bv) continue;
+      out.push({
+        label: label + ": " + f.name + (bv ? " on" : " off"),
+        pc: f.pc,
+        tab: "laws",
+        undo: () => {
+          b[key] = av;
+        },
+      });
+      continue;
+    }
+    if (Math.abs((bv || 0) - (av || 0)) < 1e-9) continue;
+    const dec = f.decimals ?? 0;
+    const unit = f.unit || "";
+    out.push({
+      label:
+        label +
+        ": " +
+        f.name +
+        " " +
+        (av || 0).toFixed(dec) +
+        unit +
+        " to " +
+        (bv || 0).toFixed(dec) +
+        unit,
+      pc: Math.max(1, Math.ceil(Math.abs(bv - av) * f.pc)),
+      tab: "laws",
+      undo: () => {
+        b[key] = av;
+      },
+    });
+  }
+}
 function billClauses() {
   pruneDraftBlocInvites();
   const L = G.law,
@@ -8992,7 +9289,7 @@ function billClauses() {
           "Change the political system: " +
           ((POLITY[to] && POLITY[to].label) || to),
         pc: polityChangePc(from, to),
-        tab: "society",
+        tab: "laws",
         undo: () => {
           D.polity = L.polity;
         },
@@ -9403,6 +9700,7 @@ function billClauses() {
       out.push({
         label: (b ? "Enact " : "Repeal ") + p.name,
         pc: b ? p.pc : Math.ceil(p.pc * 0.7),
+        tab: (p as any).lawsCat ? "laws" : undefined,
         undo: () => {
           if (a) D.policies[p.id] = true;
           else delete D.policies[p.id];
@@ -9415,12 +9713,52 @@ function billClauses() {
       out.push({
         label: v.name + ": " + to.label.toLowerCase(),
         pc: v.pc,
+        tab: "laws",
         undo: () => {
           D.vice[v.id] = L.vice[v.id];
         },
       });
     }
   }
+  /* State & Constitution / Labor & Welfare — see lib/sim/lawGroups.ts. One
+     generic diff for every LawGroup (mirrors the VICE block just above),
+     plus the bespoke slider groups that follow the law.income/law.ni
+     pattern. Every clause here is tagged `tab: "laws"` explicitly rather
+     than relying on clausesIn()'s regex fallback. */ for (const grp of LAW_GROUPS) {
+    if ((L.groups || {})[grp.id] !== (D.groups || {})[grp.id]) {
+      const to = grp.options.find((o) => o.id === D.groups[grp.id])!;
+      out.push({
+        label: grp.name + ": " + to.label.toLowerCase(),
+        pc: to.pc,
+        tab: "laws",
+        undo: () => {
+          D.groups[grp.id] = L.groups[grp.id];
+        },
+      });
+    }
+  }
+  sliderGroupClauses(out, "headOfState", "Head of state", L, D, {
+    mandateYears: { name: "Mandate duration", pc: 3, decimals: 0, unit: " yr" },
+  });
+  sliderGroupClauses(out, "electoral", "Electoral system", L, D, {
+    votingAge: { name: "Minimum voting age", pc: 1, decimals: 0, unit: "" },
+    mandatoryVoting: { name: "Mandatory voting", pc: 8 },
+  });
+  sliderGroupClauses(out, "workHours", "Work hours", L, D, {
+    weeklyHours: { name: "Legal weekly hours", pc: 1.5, decimals: 0, unit: " hrs" },
+    leaveDays: { name: "Paid annual leave", pc: 0.8, decimals: 0, unit: " days" },
+  });
+  sliderGroupClauses(out, "childcare", "Childcare", L, D, {
+    subsidyPct: { name: "Childcare subsidy", pc: 0.15, decimals: 0, unit: "%" },
+  });
+  sliderGroupClauses(out, "minWage", "Minimum wage", L, D, {
+    on: { name: "Statutory minimum wage", pc: 12 },
+    rate: { name: "Minimum wage rate", pc: 1.2, decimals: 2, unit: "/hr" },
+  });
+  sliderGroupClauses(out, "pension", "Pension", L, D, {
+    retirementAge: { name: "Legal retirement age", pc: 1.5, decimals: 0, unit: " yrs" },
+    statePensionAnnual: { name: "State pension", pc: 0.001, decimals: 0, unit: "/yr" },
+  });
   for (const id in DEAL_BY_ID) {
     const a = !!L.deals[id],
       b = !!G.draft.deals[id];
@@ -9776,16 +10114,13 @@ const TABS = [
     id: "taxes",
     name: "Taxes",
     icon: "percent",
+    wide: true,
   },
   {
-    id: "policies",
-    name: "Policies",
+    id: "laws",
+    name: "Laws",
     icon: "scroll",
-  },
-  {
-    id: "society",
-    name: "Society",
-    icon: "people",
+    wide: true,
   },
   {
     id: "trade",
@@ -9801,6 +10136,7 @@ const TABS = [
     id: "charts",
     name: "Charts",
     icon: "chart",
+    wide: true,
   },
 ];
 const ICONS = {
@@ -9816,6 +10152,8 @@ const ICONS = {
   seal: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="7" r="4.2"/><path d="M5.2 10.8L4 14l4-1.4L12 14l-1.2-3.2"/><circle cx="8" cy="7" r="1.4"/></svg>',
   chart:
     '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 13.5h11"/><path d="M4 11V7.5M7 11V4M10 11V8.5M13 11V6"/></svg>',
+  gavel:
+    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9.5 2.5l4 4-1.6 1.6-4-4z"/><path d="M7.8 4.2l4 4L4.7 15.3l-1.9-1.9z"/><path d="M2 14.5h6"/></svg>',
   clock:
     '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 4.5v4l2.5 2.5"/></svg>',
   close:
@@ -9860,16 +10198,20 @@ function clausesIn(tabId: any, cl: any) {
   const pats = {
     budget: /points of GDP/,
     taxes: /tax|duty|levy|rate|tariff|Restructure|price|pricing/i,
-    policies: /Enact|Repeal/,
-    society:
-      /Cannabis|Psychedelics|Gambling|Alcohol|Tobacco|Adult services|Change the political system/,
     trade: /Ratify|Withdraw|tariff|Propose|Leave|Found|join /i,
     diplomacy:
       /summit|State visit|Formal protest|Restrictive measures|envoy|mission/i,
     charts: /(?!)/,
+    laws: /(?!)/,
   };
-  return cl.some(
-    (c: any) => (pats as any)[tabId] && (pats as any)[tabId].test(c.label),
+  /* Every Laws-drawer clause (and the pre-existing polity-change clause)
+     carries an explicit `tab`, checked first so new content never needs a
+     new regex here — the fallback below is unchanged for older clauses that
+     don't set one. */ return cl.some(
+    (c: any) =>
+      c.tab
+        ? c.tab === tabId
+        : (pats as any)[tabId] && (pats as any)[tabId].test(c.label),
   );
 }
 /* Cash thresholds uprate with wages; keep real slider headroom constant so a
@@ -15972,6 +16314,17 @@ export {
   BAND_NAMES,
   DEF_INCOME,
   DEF_NI,
+  DEF_HEAD_OF_STATE,
+  DEF_ELECTORAL,
+  DEF_WORK_HOURS,
+  DEF_CHILDCARE,
+  DEF_MIN_WAGE,
+  DEF_PENSION,
+  LAW_GROUPS,
+  LAW_GROUP_BY_ID,
+  resolveReqState,
+  isAuthoritarianSignal,
+  syncPolityFromGroups,
   MISSIONS,
   MISSION_BY_ID,
   MISSION_CD,

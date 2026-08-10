@@ -283,6 +283,40 @@ const BAND_NAMES = [
   "Fifth",
   "Sixth",
 ];
+/* ---- State & Constitution / Labor & Welfare bespoke slider groups ----
+   Same shape as DEF_INCOME/DEF_NI above: a plain defaults object living
+   directly on `law` rather than in a generic content array, because each
+   is a group of related numeric levers rather than a single on/off/rate
+   toggle. See lib/sim/lawGroups.ts for the "pick one of N" law groups
+   (state form, union legality, …) that sit alongside these. */
+const DEF_HEAD_OF_STATE = {
+  mandateYears: 5,
+};
+const DEF_ELECTORAL = {
+  votingAge: 18,
+  mandatoryVoting: false,
+};
+const DEF_WORK_HOURS = {
+  weeklyHours: 38,
+  leaveDays: 28,
+};
+const DEF_CHILDCARE = {
+  subsidyPct: 0,
+};
+/* A statutory minimum-wage rate, distinct from the "Living wage uprating"
+   POLICIES entry: that policy pegs the floor to two thirds of median
+   earnings as an uprating *rule*; this is the numeric rate itself, which
+   the wage/price block and the low-income participation margin read
+   directly. Off by default, matching the pre-existing opening calibration
+   (which assumed no statutory floor effect on the income distribution). */ const DEF_MIN_WAGE =
+  {
+    on: false,
+    rate: 11.5,
+  };
+/* ~ the real UK new State Pension (annual, 2025-26). */ const DEF_PENSION = {
+  retirementAge: 66,
+  statePensionAnnual: 12000,
+};
 /* Pass-through of a point of rate into the CPI basket (first-round price-level
    shift). VAT is large because most of the basket is standard-rated; duties are
    smaller shares. Used by the generalised indirect-tax echo, not as permanent
@@ -903,27 +937,8 @@ const REGIME_BY_ID = Object.fromEntries(
    derived from the income distribution where the policy changes transfers or
    wages, not authored as a Gini override. */ const POLICIES = [
   {
-    id: "childcare",
-    name: "Universal childcare",
-    cat: "Work",
-    cost: 0.85,
-    pc: 12,
-    blurb:
-      "Free places from nine months. Pulls a lot of second earners back into work.",
-    ch: {
-      part: 2.5,
-      fertility: 2.6,
-      tfp: 0.04,
-    },
-    fac: {
-      workers: 5,
-      urban: 4,
-      business: 2,
-      pensioners: -1,
-    },
-  },
-  {
     id: "ubi",
+    lawsCat: "Welfare",
     name: "Universal basic income",
     cat: "Welfare",
     cost: 5.2,
@@ -945,6 +960,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "fourDay",
+    lawsCat: "Work",
     name: "Four-day week in the public sector",
     cat: "Work",
     cost: 0.5,
@@ -961,6 +977,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "minWage",
+    lawsCat: "Work",
     name: "Living wage uprating",
     cat: "Work",
     cost: 0.15,
@@ -978,6 +995,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "dereg",
+    lawsCat: "Work",
     name: "Labour market deregulation",
     cat: "Work",
     cost: 0,
@@ -998,6 +1016,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "rentCtrl",
+    lawsCat: "Housing",
     name: "Rent controls",
     cat: "Housing",
     cost: 0,
@@ -1014,6 +1033,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "planning",
+    lawsCat: "Housing",
     name: "Planning liberalisation",
     cat: "Housing",
     cost: 0,
@@ -1033,6 +1053,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "socialHousing",
+    lawsCat: "Housing",
     name: "Mass social housebuilding",
     cat: "Housing",
     cost: 1.4,
@@ -1052,6 +1073,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "tuition",
+    lawsCat: "Education",
     name: "Abolish tuition fees",
     cat: "Education",
     cost: 0.85,
@@ -1070,6 +1092,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "skills",
+    lawsCat: "Education",
     name: "National skills guarantee",
     cat: "Education",
     cost: 0.5,
@@ -1088,6 +1111,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "tripleLock",
+    lawsCat: "Welfare",
     name: "Pension triple lock",
     cat: "Welfare",
     cost: 0.35,
@@ -1104,6 +1128,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "socialCare",
+    lawsCat: "Welfare",
     name: "Free personal social care",
     cat: "Welfare",
     cost: 0.85,
@@ -1124,6 +1149,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "swf",
+    lawsCat: "Industry & Enterprise",
     name: "Sovereign wealth fund",
     cat: "Economy",
     cost: 1.0,
@@ -1140,6 +1166,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "rnd",
+    lawsCat: "Industry & Enterprise",
     name: "Research credits and industrial strategy",
     cat: "Economy",
     cost: 0.55,
@@ -1157,6 +1184,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "nationalise",
+    lawsCat: "Industry & Enterprise",
     name: "Public ownership of rail and water",
     cat: "Economy",
     cost: 2.2,
@@ -1178,6 +1206,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "nuclear",
+    lawsCat: "Energy & Climate",
     name: "Civil nuclear programme",
     cat: "Energy & climate",
     cost: 0.9,
@@ -1201,6 +1230,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "netZero",
+    lawsCat: "Energy & Climate",
     name: "Binding net zero pathway",
     cat: "Energy & climate",
     cost: 0.7,
@@ -1220,6 +1250,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "cbam",
+    lawsCat: "Energy & Climate",
     name: "Carbon border adjustment",
     cat: "Energy & climate",
     cost: 0,
@@ -1241,6 +1272,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "rewild",
+    lawsCat: "Energy & Climate",
     name: "Land restoration programme",
     cat: "Energy & climate",
     cost: 0.35,
@@ -1256,6 +1288,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "prisonReform",
+    lawsCat: "Policing & Prisons",
     name: "Sentencing and prison reform",
     cat: "Justice",
     cost: -0.25,
@@ -1274,6 +1307,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "police",
+    lawsCat: "Policing & Prisons",
     name: "Neighbourhood policing expansion",
     cat: "Justice",
     cost: 0.45,
@@ -1294,6 +1328,7 @@ const REGIME_BY_ID = Object.fromEntries(
     id: "digitalId",
     name: "Digital identity and real-time tax reporting",
     cat: "State",
+    lawsCat: "Civil Liberties",
     cost: 0.3,
     pc: 22,
     blurb:
@@ -1312,6 +1347,7 @@ const REGIME_BY_ID = Object.fromEntries(
     id: "openVisas",
     name: "Open work visas",
     cat: "Borders",
+    lawsCat: "Borders & Immigration",
     cost: 0,
     pc: 18,
     blurb: "Uncapped routes for shortage occupations.",
@@ -1331,6 +1367,7 @@ const REGIME_BY_ID = Object.fromEntries(
     id: "closeBorders",
     name: "Strict migration caps",
     cat: "Borders",
+    lawsCat: "Borders & Immigration",
     cost: 0.2,
     pc: 14,
     blurb: "Hard numerical limits across every route.",
@@ -1349,6 +1386,7 @@ const REGIME_BY_ID = Object.fromEntries(
     id: "conscript",
     name: "National service",
     cat: "State",
+    lawsCat: "Defence",
     cost: 0.6,
     pc: 16,
     blurb: "A year of civic or military service at eighteen.",
@@ -1365,6 +1403,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "fiscalRule",
+    lawsCat: "Fiscal Framework",
     name: "Statutory debt rule",
     cat: "State",
     cost: 0,
@@ -1380,6 +1419,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "fracking",
+    lawsCat: "Energy & Climate",
     name: "Shale and fracking licence",
     cat: "Energy & climate",
     cost: 0.15,
@@ -1403,6 +1443,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "energyBills",
+    lawsCat: "Energy & Climate",
     name: "Household energy bill support",
     cat: "Energy & climate",
     cost: 1.1,
@@ -1424,6 +1465,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "firstHome",
+    lawsCat: "Housing",
     name: "First-home buyer support",
     cat: "Housing",
     cost: 0.45,
@@ -1443,6 +1485,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "stockSales",
+    lawsCat: "Housing",
     name: "Social housing stock sales",
     cat: "Housing",
     cost: -0.4,
@@ -1463,6 +1506,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "apprentices",
+    lawsCat: "Education",
     name: "Apprenticeship and college expansion",
     cat: "Education",
     cost: 0.4,
@@ -1483,6 +1527,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "greenBelt",
+    lawsCat: "Housing",
     name: "Protected countryside",
     cat: "Housing",
     cost: 0,
@@ -1503,6 +1548,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "zeroHoursBan",
+    lawsCat: "Work",
     name: "Ban on zero-hours contracts",
     cat: "Work",
     cost: 0.1,
@@ -1522,6 +1568,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "evictionBan",
+    lawsCat: "Housing",
     name: "No-fault eviction ban",
     cat: "Housing",
     cost: 0.05,
@@ -1539,6 +1586,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "waitingList",
+    lawsCat: "Welfare",
     name: "Elective waiting-list recovery",
     cat: "Welfare",
     cost: 0.85,
@@ -1558,6 +1606,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "winterMeans",
+    lawsCat: "Welfare",
     name: "Means-test winter energy payment",
     cat: "Welfare",
     cost: -0.25,
@@ -1572,6 +1621,7 @@ const REGIME_BY_ID = Object.fromEntries(
   },
   {
     id: "hydroPause",
+    lawsCat: "Energy & Climate",
     name: "Domestic hydrocarbon licensing pause",
     cat: "Energy & climate",
     cost: 0.1,
@@ -1997,6 +2047,12 @@ export {
   CAP_INCOME_SHARE,
   DIV_OF_CAPITAL,
   DEF_NI,
+  DEF_HEAD_OF_STATE,
+  DEF_ELECTORAL,
+  DEF_WORK_HOURS,
+  DEF_CHILDCARE,
+  DEF_MIN_WAGE,
+  DEF_PENSION,
   BAND_NAMES,
   INDIRECT_PASS,
   TARIFF_PASS,

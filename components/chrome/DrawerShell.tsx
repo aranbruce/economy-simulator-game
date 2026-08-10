@@ -40,7 +40,7 @@ export function DrawerShell() {
     name = (TABS.find((t) => t.id === tab) || {}).name || tab;
   }
 
-  const wide = tab === "charts" || tab === "policies" || tab === "taxes";
+  const wide = !!(TABS.find((t) => t.id === tab) as any)?.wide;
 
   return (
     <div

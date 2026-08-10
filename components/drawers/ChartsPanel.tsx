@@ -3,6 +3,9 @@
 import {
   COL,
   FACTIONS,
+  aggregate,
+  approvalOf,
+  clamp,
   currencyForSeat,
   fmt,
   lineChartSpec,
@@ -17,15 +20,114 @@ import {
 } from "../ui/LineChart.tsx";
 import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 
+const FBAR_TONE: Record<string, string> = { good: "bg-green", bad: "bg-red" };
+
 export function ChartsPanel() {
   const G = useGame();
   const { pref } = useCurrencyPref();
+  const E: any = aggregate(G.draft);
+  const e = G.econ;
+  const socialBars: [string, string, number][] = [
+    ["liberty", "Civil liberty", e.liberty],
+    ["crime", "Crime", e.crime],
+    ["health", "Public health", e.health],
+    ["env", "Environment", e.env],
+    ["black", "Black market share", E.blackLevel],
+    ["gini", "Inequality (Gini)", e.gini],
+  ];
+
+  /* Current-state snapshot — not history, so it renders regardless of how
+     much log data exists (unlike the trend charts below, which need at
+     least two quarters). Moved here from the old Society tab: same bars,
+     same computation, only the wrapper changed to fit Charts' ChartBox
+     rhythm. */ const snapshot = (
+    <>
+      <ChartBox
+        title="Where you stand"
+        caption="Faction approval right now, weighted by population share."
+      >
+        {FACTIONS.map((f: any) => {
+          const v = G.fac[f.id];
+          const cls = v > 55 ? "good" : v < 38 ? "bad" : "";
+          return (
+            <div
+              key={f.id}
+              className="mb-1 grid grid-cols-[110px_1fr_34px] items-center gap-2 text-[12.5px]"
+            >
+              <span>
+                {f.name}{" "}
+                <span className="text-[10px] text-ink-faint">
+                  {Math.round(f.w * 100)}%
+                </span>
+              </span>
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${cls ? FBAR_TONE[cls] : "bg-ink-soft"}`}
+                  style={{ width: `${v.toFixed(0)}%` }}
+                />
+              </span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
+            </div>
+          );
+        })}
+        <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]">
+          <span className="font-semibold">Approval</span>
+          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+            <i
+              className="block h-full rounded-none bg-red transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
+              style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
+            />
+          </span>
+          <span className="text-right text-[11.5px] font-semibold text-ink-soft">
+            {approvalOf(G.fac).toFixed(0)}
+          </span>
+        </div>
+      </ChartBox>
+      <ChartBox
+        title="Social indicators"
+        caption="Liberty, crime, health, environment, the black-market share and inequality — current levels, not trend."
+      >
+        {socialBars.map(([k, n, v]) => {
+          const bad = k === "crime" || k === "black" || k === "gini";
+          const tone = bad
+            ? v > 50
+              ? "bg-red"
+              : "bg-ink-soft"
+            : v > 55
+              ? "bg-green"
+              : "bg-ink-soft";
+          return (
+            <div
+              key={k}
+              className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
+            >
+              <span>{n}</span>
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${tone}`}
+                  style={{ width: `${clamp(v, 0, 100).toFixed(0)}%` }}
+                />
+              </span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
+            </div>
+          );
+        })}
+      </ChartBox>
+    </>
+  );
 
   if (G.log.length < 2) {
     return (
-      <div className="p-4 text-[12.5px] text-ink-faint">
-        Deliver a bill or two. The charts need at least two quarters of data.
-      </div>
+      <>
+        {snapshot}
+        <div className="p-4 text-[12.5px] text-ink-faint">
+          Deliver a bill or two. The charts need at least two quarters of data.
+        </div>
+      </>
     );
   }
 
@@ -41,6 +143,7 @@ export function ChartsPanel() {
 
   return (
     <>
+      {snapshot}
       {preN ? (
         <Hint>Includes the {preN}-quarter run-up before your appointment.</Hint>
       ) : null}

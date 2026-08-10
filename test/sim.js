@@ -2372,7 +2372,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
     "leap clause uses leap PC",
   );
-  assert(clausesIn("society", cl), "polity clause counts toward Society");
+  assert(clausesIn("laws", cl), "polity clause counts toward Laws");
 
   G.draft.polity = "hybrid";
   cl = billClauses();
@@ -3225,7 +3225,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   newGame();
   G = getG();
   const fertLaw = clone(G.law);
-  fertLaw.policies.childcare = true;
+  fertLaw.childcare.subsidyPct = 100;
   const path = simulate(fertLaw, 16);
   newGame();
   G = getG();
@@ -5100,13 +5100,13 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "skills guarantee off at opening",
   );
   G.draft.policies.skills = true;
-  assert(!tickCoach(), "skills without Policies open does not advance");
+  assert(!tickCoach(), "skills without Laws open does not advance");
   delete G.draft.policies.skills;
-  setTab("policies");
+  setTab("laws");
   G.draft.policies.skills = true;
   assert(
     tickCoach(),
-    "enacting skills with Policies open readies policies step",
+    "enacting skills with Laws open readies policies step",
   );
   G = getG();
   assert(

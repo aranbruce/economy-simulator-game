@@ -95,6 +95,20 @@ const ICONS = {
       <path d="M4 11V7.5M7 11V4M10 11V8.5M13 11V6" />
     </svg>
   ),
+  gavel: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <path d="M9.5 2.5l4 4-1.6 1.6-4-4z" />
+      <path d="M7.8 4.2l4 4L4.7 15.3l-1.9-1.9z" />
+      <path d="M2 14.5h6" />
+    </svg>
+  ),
   close: (
     <svg
       width="10"

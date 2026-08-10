@@ -106,6 +106,39 @@ export interface Policy {
   fund?: boolean;
   rule?: boolean;
   tripleLock?: boolean;
+  /** When set, this item reads as law rather than economic policy and
+   * renders in the Laws drawer's State & Constitution rail under this
+   * category name instead of in PoliciesPanel — see `components/drawers/
+   * LawsPanel.tsx` and `components/drawers/PoliciesPanel.tsx`. */
+  lawsCat?: string;
+}
+
+/** One option within a `LawGroup` — see `lib/sim/lawGroups.ts`. Shaped like
+ * a `ViceState` but for a law that isn't a regulated vice good (state form,
+ * union legality, judicial immunity, …). `req` reuses the generalised
+ * `resolveReqState()` format: `["polity", ...allowed]` or bare vice id. */
+export interface LawGroupOption {
+  id: string;
+  label: string;
+  blurb: string;
+  pc: number;
+  req?: string[];
+  imp?: Partial<Record<string, number>>;
+  fac?: FactionEffects;
+  ch?: ChannelEffects;
+}
+
+/** One of `LAW_GROUPS` — the generalised "pick one of N states" pattern
+ * VICE established, lifted out of the vice-goods domain so State &
+ * Constitution / Labor & Welfare (and future menus) can use it too.
+ * `law.groups[id]` holds the current option id. `menu` selects which rail
+ * category of the Laws drawer the group renders under. */
+export interface LawGroup {
+  id: string;
+  name: string;
+  menu: "state" | "labor";
+  cat: string;
+  options: LawGroupOption[];
 }
 
 /** One legality state of a `Vice` (e.g. cannabis: banned/decrim/legal). */
@@ -150,6 +183,10 @@ export interface IncomeSlice {
  * lib/sim/nationProfiles.ts (NATION_PROFILE). */
 export interface NationProfile {
   polity: "democracy" | "hybrid" | "authoritarian";
+  /** Opening `law.groups.hereditary` pin — only set true on seats with a
+   * hereditary head of state; every other seat defaults to elected. See
+   * `lib/sim/lawGroups.ts`. */
+  hereditary?: boolean;
   trend: number;
   debt0: number;
   deficit0: number;
