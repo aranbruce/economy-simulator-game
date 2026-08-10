@@ -59,6 +59,7 @@ import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
+import { Callout } from "../ui/Callout.tsx";
 import type { Country, CountryDeal } from "../../lib/sim/countries.ts";
 
 const REGION_ORDER = [
@@ -219,11 +220,7 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
       <Hint>
         Member relations and policy alignment are checked as stages complete.
       </Hint>
-      {blocked ? (
-        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
-          {blockers[0]}
-        </div>
-      ) : null}
+      {blocked ? <Callout tone="red">{blockers[0]}</Callout> : null}
       <CardFoot>
         <CardPrice>{pc} capital</CardPrice>
         <Button
@@ -313,9 +310,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
             <AccessionPipeline cur={0} />
             <ApprovalTable approvals={approvals} />
             {blockers.length ? (
-              <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
-                {blockers[0]}
-              </div>
+              <Callout tone="red">{blockers[0]}</Callout>
             ) : (
               <div className="block text-[11px] text-green">
                 Ready to deliver — every member approves.
@@ -385,9 +380,9 @@ function BlocAccessionTracker({ G, bid }: { G: any; bid: string }) {
             <AccessionPipeline cur={t.cur} />
             <Hint>{t.detail}</Hint>
             {!t.ok ? (
-              <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+              <Callout tone="red">
                 At risk — relations below the threshold
-              </div>
+              </Callout>
             ) : null}
           </Card>
         );
@@ -731,7 +726,7 @@ function NationTable() {
           {rows.map((r: any, i: number) => (
             <tr
               key={i}
-              className={r.us ? "bg-[rgba(212,175,105,.16)]" : undefined}
+              className={r.us ? "bg-accent/16" : undefined}
             >
               <td className={NATION_TD}>
                 {r.name}
@@ -783,9 +778,9 @@ function PartnerDealRow({
         ))}
       </div>
       {unmet.length && !signed ? (
-        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+        <Callout tone="red" className="mb-2">
           Blocked: {unmet.join("; ")}
-        </div>
+        </Callout>
       ) : null}
       <CardFoot>
         <CardPrice>{signed ? "ratified" : `${d.pc} capital`}</CardPrice>
@@ -928,9 +923,9 @@ function PartnerTradeCard({
         {effectiveTariff(p.id, G.draft).toFixed(1)}%
       </div>
       {stress >= 1 ? (
-        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+        <Callout tone="red">
           Deal access suspended (stress {stress.toFixed(0)})
-        </div>
+        </Callout>
       ) : null}
       {dealsBody}
     </Card>

@@ -708,8 +708,13 @@ input[type="range"]:focus-visible {
 }
 
 /* ================= country setup (over the world map) ================= */
-.setup-active #worldMapLayer {
-  z-index: 0;
+/* Layered so it composes correctly with WorldMap's Tailwind `z-0` class —
+   unlayered CSS would always beat it regardless of value (see note above
+   on @layer components). */
+@layer components {
+  .setup-active #worldMapLayer {
+    z-index: 0;
+  }
 }
 .setup-banner.hud-frame::before {
   top: 5px;

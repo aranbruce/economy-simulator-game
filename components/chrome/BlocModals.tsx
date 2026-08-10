@@ -12,6 +12,7 @@ import {
 import { confirmBlocFound, confirmBlocInvite } from "../../lib/ui/actions.ts";
 import { AccessionPipeline, ApprovalTable } from "../drawers/TradePanel.tsx";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
+import { Callout } from "../ui/Callout.tsx";
 
 const REGION_ORDER = [
   "europe",
@@ -214,9 +215,9 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
               approvals={blocInviteMemberApprovals(bid, selected.partner.id)}
             />
             {blocInviteBlockers(bid, selected.partner.id).length ? (
-              <div className="mt-1.5 mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+              <Callout tone="red" className="mt-1.5">
                 {blocInviteBlockers(bid, selected.partner.id).join(" · ")}
-              </div>
+              </Callout>
             ) : (
               <div className="mt-1.5 block text-[11px] text-green">
                 Ready to propose — every member approves.
