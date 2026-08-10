@@ -55,7 +55,7 @@ export function PoliciesPanel() {
         id,
     );
     return (
-      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-amber">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 rounded-md border border-amber/20 bg-amber/10 p-2 text-[11px] text-amber">
         Cannot sit with {names.join(", ")}
       </div>
     );

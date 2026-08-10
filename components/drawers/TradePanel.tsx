@@ -220,7 +220,9 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
         Member relations and policy alignment are checked as stages complete.
       </Hint>
       {blocked ? (
-        <div className="block text-[11px] text-red">{blockers[0]}</div>
+        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+          {blockers[0]}
+        </div>
       ) : null}
       <CardFoot>
         <CardPrice>{pc} capital</CardPrice>
@@ -311,7 +313,9 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
             <AccessionPipeline cur={0} />
             <ApprovalTable approvals={approvals} />
             {blockers.length ? (
-              <div className="block text-[11px] text-red">{blockers[0]}</div>
+              <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
+                {blockers[0]}
+              </div>
             ) : (
               <div className="block text-[11px] text-green">
                 Ready to deliver — every member approves.
@@ -381,7 +385,7 @@ function BlocAccessionTracker({ G, bid }: { G: any; bid: string }) {
             <AccessionPipeline cur={t.cur} />
             <Hint>{t.detail}</Hint>
             {!t.ok ? (
-              <div className="block text-[11px] text-red">
+              <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
                 At risk — relations below the threshold
               </div>
             ) : null}
@@ -727,7 +731,7 @@ function NationTable() {
           {rows.map((r: any, i: number) => (
             <tr
               key={i}
-              style={r.us ? { background: "rgba(212,175,105,.16)" } : undefined}
+              className={r.us ? "bg-[rgba(212,175,105,.16)]" : undefined}
             >
               <td className={NATION_TD}>
                 {r.name}
@@ -779,7 +783,7 @@ function PartnerDealRow({
         ))}
       </div>
       {unmet.length && !signed ? (
-        <div className="block text-[11px] text-red">
+        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
           Blocked: {unmet.join("; ")}
         </div>
       ) : null}
@@ -924,7 +928,7 @@ function PartnerTradeCard({
         {effectiveTariff(p.id, G.draft).toFixed(1)}%
       </div>
       {stress >= 1 ? (
-        <div className="block text-[11px] text-red">
+        <div className="mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
           Deal access suspended (stress {stress.toFixed(0)})
         </div>
       ) : null}

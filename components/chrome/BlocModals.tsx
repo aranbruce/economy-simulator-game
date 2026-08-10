@@ -214,7 +214,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
               approvals={blocInviteMemberApprovals(bid, selected.partner.id)}
             />
             {blocInviteBlockers(bid, selected.partner.id).length ? (
-              <div className="mt-1.5 block text-[11px] text-red">
+              <div className="mt-1.5 mb-2 block rounded-md border border-red/20 bg-red/10 p-2 text-[11px] text-red">
                 {blocInviteBlockers(bid, selected.partner.id).join(" · ")}
               </div>
             ) : (

@@ -162,10 +162,7 @@ export function LineChartSvg({
         ))}
         {targetLabel && (
           <span>
-            <i
-              className="mr-1.25 inline-block h-0.5 w-3 rounded-none align-[3px]"
-              style={{ background: "#c0392f" }}
-            />
+            <i className="mr-1.25 inline-block h-0.5 w-3 rounded-none bg-[#c0392f] align-[3px]" />
             {targetLabel}
           </span>
         )}

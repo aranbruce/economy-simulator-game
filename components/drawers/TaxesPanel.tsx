@@ -237,10 +237,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
 
   if (!avail) {
     return (
-      <div
-        className="border-b border-edge px-3 py-2 last:border-b-0"
-        style={{ opacity: 0.5 }}
-      >
+      <div className="border-b border-edge px-3 py-2 opacity-50 last:border-b-0">
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
@@ -256,10 +253,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   }
   if (killed) {
     return (
-      <div
-        className="border-b border-edge px-3 py-2 last:border-b-0"
-        style={{ opacity: 0.5 }}
-      >
+      <div className="border-b border-edge px-3 py-2 opacity-50 last:border-b-0">
         <div className="flex items-baseline gap-2 text-[13px]">
           <span>{t.name}</span>
           <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
@@ -639,10 +633,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("empRate", v)}
             />
           ) : (
-            <div
-              className="text-[12.5px] leading-[1.4] text-ink-soft"
-              style={{ margin: "2px 0 0" }}
-            >
+            <div className="mt-0.5 text-[12.5px] leading-[1.4] text-ink-soft">
               Scrapped. About{" "}
               {incomeYield(
                 withNi(G.draft, "empOn", true),
@@ -683,10 +674,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("erRate", v)}
             />
           ) : (
-            <div
-              className="text-[12.5px] leading-[1.4] text-ink-soft"
-              style={{ margin: "2px 0 0" }}
-            >
+            <div className="mt-0.5 text-[12.5px] leading-[1.4] text-ink-soft">
               Scrapped. About{" "}
               {incomeYield(
                 withNi(G.draft, "erOn", true),

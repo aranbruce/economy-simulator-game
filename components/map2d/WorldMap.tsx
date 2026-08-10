@@ -1040,25 +1040,10 @@ export default function WorldMap({
     <div
       id="worldMapLayer"
       ref={wrapRef}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 0,
-        background:
-          "radial-gradient(ellipse at 50% 45%,#0f1c33 0%,#080e1c 58%,#04060c 100%)",
-      }}
+      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#0f1c33_0%,#080e1c_58%,#04060c_100%)]"
     >
       {!ready && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "grid",
-            placeItems: "center",
-            color: "rgba(255,255,255,.4)",
-            fontSize: 13,
-          }}
-        >
+        <div className="absolute inset-0 grid place-items-center text-[13px] text-white/40">
           Loading…
         </div>
       )}
@@ -1069,15 +1054,7 @@ export default function WorldMap({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          display: "block",
-          cursor: "grab",
-          touchAction: "none",
-        }}
+        className="absolute inset-0 block h-full w-full cursor-grab"
         aria-label={
           setupMode ? "Choose your country on the world map" : "World map"
         }
