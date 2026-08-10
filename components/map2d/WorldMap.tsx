@@ -115,6 +115,31 @@ function project(lng: number, lat: number): Point {
   return [x, y];
 }
 
+/** Fit the equirectangular plate into the viewport, letterboxed. */
+function computePlateLayout(W: number, H: number) {
+  const fit = Math.min(W, H * (360 / (LAT_MAX - LAT_MIN)));
+  const plateW = fit;
+  const plateH = fit * ((LAT_MAX - LAT_MIN) / 360);
+  return { plateW, plateH, ox: (W - plateW) / 2, oy: (H - plateH) / 2 };
+}
+
+/** Horizontal pixel offsets at which the plate must be redrawn so a tiled
+ *  copy covers every point of the viewport — the board wraps east/west, so
+ *  panning past one edge should reveal the far side instead of bare ocean. */
+function repeatOffsets(
+  originX: number,
+  period: number,
+  viewportW: number,
+  maxCopies = 16,
+): number[] {
+  if (!(period > 0)) return [0];
+  const kMin = Math.floor(-originX / period) - 1;
+  const kMax = Math.ceil((viewportW - originX) / period) + 1;
+  const out: number[] = [];
+  for (let k = kMin; k <= kMax && out.length < maxCopies; k++) out.push(k * period);
+  return out.length ? out : [0];
+}
+
 /**
  * Split a ring that crosses the antimeridian into pieces that each stay inside
  * [-180, 180]. Without this, Russia / Fiji stretch into full-width bars.
@@ -187,6 +212,39 @@ function splitAntimeridianRing(ring: Ring): Ring[] {
         ([lng, lat]: Point) => Number.isFinite(lng) && Number.isFinite(lat),
       ),
     );
+}
+
+const SEAM_EPS = 1e-6;
+/** True if a normalised-space edge runs along the antimeridian cut that
+ *  `splitAntimeridianRing` adds (both endpoints pinned to nx≈0 or nx≈1, on
+ *  the same side) — a synthetic edge, not real coastline. */
+function isSeamEdge(a: Point, b: Point): boolean {
+  const nearLeft = (n: number) => n < SEAM_EPS;
+  const nearRight = (n: number) => n > 1 - SEAM_EPS;
+  return (
+    (nearLeft(a[0]) && nearLeft(b[0])) || (nearRight(a[0]) && nearRight(b[0]))
+  );
+}
+
+/** Break a ring into polylines for stroking, omitting antimeridian-cut
+ *  edges — otherwise a split country like Russia strokes a straight line
+ *  through itself wherever its two pieces sit side by side (routine once
+ *  the map wraps, and possible even unwrapped right at the plate edge). */
+function ringStrokeChains(ring: Ring): Ring[] {
+  const chains: Ring[] = [];
+  let cur: Ring = [ring[0]];
+  for (let i = 0; i < ring.length - 1; i++) {
+    const a = ring[i];
+    const b = ring[i + 1];
+    if (isSeamEdge(a, b)) {
+      if (cur.length > 1) chains.push(cur);
+      cur = [b];
+    } else {
+      cur.push(b);
+    }
+  }
+  if (cur.length > 1) chains.push(cur);
+  return chains;
 }
 
 function geomToPolys(geom: any): Polys {
@@ -477,14 +535,12 @@ export default function WorldMap({
     ctx.fillRect(0, 0, W, H);
 
     const { scale, tx, ty } = viewRef.current;
-    /* Fit the equirectangular plate into the viewport, letterboxed. */
-    const fit = Math.min(W, H * (360 / (LAT_MAX - LAT_MIN)));
-    const plateW = fit;
-    const plateH = fit * ((LAT_MAX - LAT_MIN) / 360);
-    const ox = (W - plateW) / 2;
-    const oy = (H - plateH) / 2;
-    const toScreen = (nx: number, ny: number): Point => [
-      ox + nx * plateW * scale + tx,
+    const { plateW, plateH, ox, oy } = computePlateLayout(W, H);
+    /* The board wraps east/west: draw the plate at every horizontal offset
+       needed to tile the current viewport instead of once. */
+    const offsets = repeatOffsets(ox + tx, plateW * scale, W);
+    const toScreen = (nx: number, ny: number, dx: number): Point => [
+      ox + nx * plateW * scale + tx + dx,
       oy + ny * plateH * scale + ty,
     ];
 
@@ -516,25 +572,55 @@ export default function WorldMap({
       ...countries.filter((c) => c.role && c.role !== "home"),
       ...countries.filter((c) => c.role === "home"),
     ];
-
-    for (const c of order) {
+    const renderList = order.map((c) => {
       const role = roleForFeature(c.iso, hRole, hIso);
-      const fill = fillFor(role, c.iso);
+      const strokeChains = c.polys.map((rings) =>
+        rings.map((ring) => ringStrokeChains(ring)),
+      );
+      return { c, role, fill: fillFor(role, c.iso), strokeChains };
+    });
+
+    /* Every visible tiled copy of a country is filled/stroked in one path
+       per country (not one path per copy) — two separate fill() calls that
+       happen to share an edge each anti-alias that edge independently, and
+       compositing them leaves a visible hairline gap where the coverage
+       doesn't sum to 100%. A single path spanning every offset avoids that,
+       which matters once wrap makes two tiled copies of a country (e.g. the
+       two antimeridian-split pieces of Russia) sit edge-to-edge. */
+    for (const { c, role, fill, strokeChains } of renderList) {
       ctx.beginPath();
-      for (const rings of c.polys) {
-        for (const ring of rings) {
-          ring.forEach(([nx, ny], i) => {
-            const [x, y] = toScreen(nx, ny);
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          });
-          ctx.closePath();
+      for (const dx of offsets) {
+        for (const rings of c.polys) {
+          for (const ring of rings) {
+            ring.forEach(([nx, ny], i) => {
+              const [x, y] = toScreen(nx, ny, dx);
+              if (i === 0) ctx.moveTo(x, y);
+              else ctx.lineTo(x, y);
+            });
+            ctx.closePath();
+          }
         }
       }
       ctx.fillStyle = fill;
       ctx.fill("evenodd");
-      /* Always stroke land so adjoining realms (Russia / China) stay distinct
-         even when fills are close. */
+      /* Always stroke land so adjoining realms (Russia / China) stay
+         distinct even when fills are close. Stroked separately from the
+         fill path, and broken at antimeridian-cut edges, so a split
+         country's two pieces don't draw a seam line through themselves. */
+      ctx.beginPath();
+      for (const dx of offsets) {
+        for (const group of strokeChains) {
+          for (const ringChains of group) {
+            for (const chain of ringChains) {
+              chain.forEach(([nx, ny], i) => {
+                const [x, y] = toScreen(nx, ny, dx);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+              });
+            }
+          }
+        }
+      }
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
@@ -555,33 +641,42 @@ export default function WorldMap({
         .flatMap((c) => c.polys);
       if (homePolys.length) {
         const [hx, hy] = polysCentroid(homePolys);
-        const [hsx, hsy] = toScreen(hx, hy);
-        for (const p of activePartners(hRole)) {
-          const pPolys = countries
-            .filter((c) => roleForFeature(c.iso, hRole, hIso) === p.id)
-            .flatMap((c) => c.polys);
-          if (!pPolys.length) continue;
-          const [px, py] = polysCentroid(pPolys);
-          const [psx, psy] = toScreen(px, py);
-          const rel = G.rel[p.id] ?? 50;
-          ctx.beginPath();
-          ctx.moveTo(hsx, hsy);
-          ctx.quadraticCurveTo(
-            (hsx + psx) / 2,
-            (hsy + psy) / 2 - H * 0.03 * scale,
-            psx,
-            psy,
-          );
-          ctx.strokeStyle =
-            rel > 62
-              ? "rgba(48,209,88,.22)"
-              : rel > 45
-                ? "rgba(100,210,255,.18)"
-                : "rgba(255,69,58,.16)";
-          ctx.lineWidth = selectedRole === p.id ? 2 : 1;
-          ctx.setLineDash([4, 6]);
-          ctx.stroke();
-          ctx.setLineDash([]);
+        const partnerLines = activePartners(hRole)
+          .map((p) => {
+            const pPolys = countries
+              .filter((c) => roleForFeature(c.iso, hRole, hIso) === p.id)
+              .flatMap((c) => c.polys);
+            if (!pPolys.length) return null;
+            const [px, py] = polysCentroid(pPolys);
+            const rel = G.rel[p.id] ?? 50;
+            const stroke =
+              rel > 62
+                ? "rgba(48,209,88,.22)"
+                : rel > 45
+                  ? "rgba(100,210,255,.18)"
+                  : "rgba(255,69,58,.16)";
+            return { px, py, stroke, lineWidth: selectedRole === p.id ? 2 : 1 };
+          })
+          .filter((x): x is NonNullable<typeof x> => x != null);
+
+        for (const dx of offsets) {
+          const [hsx, hsy] = toScreen(hx, hy, dx);
+          for (const { px, py, stroke, lineWidth } of partnerLines) {
+            const [psx, psy] = toScreen(px, py, dx);
+            ctx.beginPath();
+            ctx.moveTo(hsx, hsy);
+            ctx.quadraticCurveTo(
+              (hsx + psx) / 2,
+              (hsy + psy) / 2 - H * 0.03 * scale,
+              psx,
+              psy,
+            );
+            ctx.strokeStyle = stroke;
+            ctx.lineWidth = lineWidth;
+            ctx.setLineDash([4, 6]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
         }
       }
     }
@@ -594,43 +689,51 @@ export default function WorldMap({
         if (!byPartner[m.partnerId]) byPartner[m.partnerId] = [];
         byPartner[m.partnerId].push(m);
       }
-      for (const partnerId of Object.keys(byPartner)) {
-        const polys = polysForRole(
-          partnerId,
-          countries,
-          hRole,
-          hIso,
-          setupMode,
-        );
-        if (!polys) continue;
-        const [nx, ny] = polysCentroid(polys);
-        const [x, y] = toScreen(nx, ny);
-        const kinds: string[] = byPartner[partnerId]
-          .map((m) => m.kind)
-          .sort(
-            (a: string, b: string) =>
-              DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
+      const partnerMarkerRows = Object.keys(byPartner)
+        .map((partnerId) => {
+          const polys = polysForRole(
+            partnerId,
+            countries,
+            hRole,
+            hIso,
+            setupMode,
           );
-        const widths = kinds.map((kind) =>
-          measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE),
-        );
-        const rowW =
-          widths.reduce((sum, w) => sum + w, 0) +
-          DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
-        let cursor = x - rowW / 2;
-        kinds.forEach((kind, i) => {
-          const sx = cursor + widths[i] / 2;
-          cursor += widths[i] + DIPLO_MARKER_PAD;
-          const sy = y - DIPLO_MARKER_OFFSET;
-          drawDiploEmoji(
-            ctx,
-            DIPLO_EMOJI[kind],
-            sx,
-            sy,
-            DIPLO_MARKER_SIZE,
-            kind === "summit_staged" ? 0.82 : 1,
+          if (!polys) return null;
+          const [nx, ny] = polysCentroid(polys);
+          const kinds: string[] = byPartner[partnerId]
+            .map((m) => m.kind)
+            .sort(
+              (a: string, b: string) =>
+                DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
+            );
+          const widths = kinds.map((kind) =>
+            measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE),
           );
-        });
+          const rowW =
+            widths.reduce((sum, w) => sum + w, 0) +
+            DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
+          return { nx, ny, kinds, widths, rowW };
+        })
+        .filter((x): x is NonNullable<typeof x> => x != null);
+
+      for (const dx of offsets) {
+        for (const { nx, ny, kinds, widths, rowW } of partnerMarkerRows) {
+          const [x, y] = toScreen(nx, ny, dx);
+          let cursor = x - rowW / 2;
+          kinds.forEach((kind, i) => {
+            const sx = cursor + widths[i] / 2;
+            cursor += widths[i] + DIPLO_MARKER_PAD;
+            const sy = y - DIPLO_MARKER_OFFSET;
+            drawDiploEmoji(
+              ctx,
+              DIPLO_EMOJI[kind],
+              sx,
+              sy,
+              DIPLO_MARKER_SIZE,
+              kind === "summit_staged" ? 0.82 : 1,
+            );
+          });
+        }
       }
 
       if (markers.length) {
@@ -667,33 +770,41 @@ export default function WorldMap({
       ? ["home", ...PARTNERS.map((p) => p.id).filter((id) => id !== "kingdom")]
       : ["home", ...activePartners(hRole).map((p) => p.id)];
 
-    for (const role of labelRoles) {
-      const polys = polysForRole(role, countries, hRole, hIso, setupMode);
-      if (!polys) continue;
-      const [nx, ny] = polysCentroid(polys);
-      const [x, y] = toScreen(nx, ny);
-      let text;
-      if (role === "home") {
-        const homeName = setupMode
-          ? realmByRole("home").name
-          : (G && G.country) || realmByRole(hRole).name;
-        text = setupMode
-          ? homeName
-          : boardMetricMapLabel("home", mapMetric ?? null, homeName, G);
-      } else {
-        const p = PARTNERS.find((x) => x.id === role);
-        const name = p ? p.name : role;
-        text = setupMode
-          ? name
-          : boardMetricMapLabel(role, mapMetric ?? null, name, G);
+    const labelRows = labelRoles
+      .map((role) => {
+        const polys = polysForRole(role, countries, hRole, hIso, setupMode);
+        if (!polys) return null;
+        const [nx, ny] = polysCentroid(polys);
+        let text;
+        if (role === "home") {
+          const homeName = setupMode
+            ? realmByRole("home").name
+            : (G && G.country) || realmByRole(hRole).name;
+          text = setupMode
+            ? homeName
+            : boardMetricMapLabel("home", mapMetric ?? null, homeName, G);
+        } else {
+          const p = PARTNERS.find((x) => x.id === role);
+          const name = p ? p.name : role;
+          text = setupMode
+            ? name
+            : boardMetricMapLabel(role, mapMetric ?? null, name, G);
+        }
+        const tw = ctx.measureText(text).width;
+        const hot = isSelected(role) || hoverRole === role;
+        return { nx, ny, text, tw, hot };
+      })
+      .filter((x): x is NonNullable<typeof x> => x != null);
+
+    for (const dx of offsets) {
+      for (const { nx, ny, text, tw, hot } of labelRows) {
+        const [x, y] = toScreen(nx, ny, dx);
+        ctx.fillStyle = `rgba(8,14,28,${hot ? 0.9 : 0.72})`;
+        roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(text, x, y);
       }
-      const tw = ctx.measureText(text).width;
-      const hot = isSelected(role) || hoverRole === role;
-      ctx.fillStyle = `rgba(8,14,28,${hot ? 0.9 : 0.72})`;
-      roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
-      ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.fillText(text, x, y);
     }
 
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
@@ -764,17 +875,7 @@ export default function WorldMap({
     if (!wrap) return null;
     const W = wrap.clientWidth || window.innerWidth;
     const H = wrap.clientHeight || window.innerHeight;
-    const fit = Math.min(W, H * (360 / (LAT_MAX - LAT_MIN)));
-    const plateW = fit;
-    const plateH = fit * ((LAT_MAX - LAT_MIN) / 360);
-    return {
-      W,
-      H,
-      plateW,
-      plateH,
-      ox: (W - plateW) / 2,
-      oy: (H - plateH) / 2,
-    };
+    return { W, H, ...computePlateLayout(W, H) };
   }, []);
 
   /** Zoom toward a canvas-local point (or the plate centre). */
@@ -833,8 +934,11 @@ export default function WorldMap({
       const rect = canvas.getBoundingClientRect();
       const sx = clientX - rect.left;
       const sy = clientY - rect.top;
+      /* The board wraps east/west, so any horizontally-tiled copy of a
+         country should hit-test the same as the canonical one. */
+      const rawNx = (sx - ox - tx) / (plateW * scale);
       return {
-        nx: (sx - ox - tx) / (plateW * scale),
+        nx: ((rawNx % 1) + 1) % 1,
         ny: (sy - oy - ty) / (plateH * scale),
       };
     },
