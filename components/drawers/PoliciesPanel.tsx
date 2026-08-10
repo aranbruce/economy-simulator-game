@@ -16,6 +16,7 @@ import { SegControl } from "../ui/SegControl.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardGrid, CardFoot, CardPrice } from "../ui/Card.tsx";
+import { Callout } from "../ui/Callout.tsx";
 import type { Policy } from "../../lib/sim/types.ts";
 
 const POLICY_CAT_ORDER = [
@@ -55,9 +56,9 @@ export function PoliciesPanel() {
         id,
     );
     return (
-      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-amber">
+      <Callout tone="amber" className="flex flex-wrap gap-x-2.5 gap-y-0.75">
         Cannot sit with {names.join(", ")}
-      </div>
+      </Callout>
     );
   };
 
