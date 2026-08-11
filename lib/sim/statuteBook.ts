@@ -1323,7 +1323,7 @@ const CONSUMPTION_BONUS = {
     cost: 0.15,
     pc: 16,
     blurb:
-      "A one-off path to legal status for undocumented residents already working and resident.",
+      "A one-off path to legal status for undocumented people already living and working here.",
     ch: {
       labour: 0.3,
       part: 0.4,
