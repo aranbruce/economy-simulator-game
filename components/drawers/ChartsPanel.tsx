@@ -3,9 +3,13 @@
 import {
   COL,
   FACTIONS,
+  aggregate,
+  approvalOf,
+  clamp,
   currencyForSeat,
   fmt,
   lineChartSpec,
+  getDrawerCat,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
@@ -17,18 +21,119 @@ import {
 } from "../ui/LineChart.tsx";
 import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 
+const FBAR_TONE: Record<string, string> = { good: "bg-green", bad: "bg-red" };
+
+export type ChartCat =
+  "growth" | "prices" | "finances" | "politics" | "society";
+/** Read by DrawerShell.tsx, which now owns the pill row itself. */
+export const CATS: [ChartCat, string][] = [
+  ["growth", "Growth"],
+  ["prices", "Prices & rates"],
+  ["finances", "Public finances"],
+  ["politics", "Politics"],
+  ["society", "Society"],
+];
+
 export function ChartsPanel() {
+  const cat = getDrawerCat("charts", "growth") as ChartCat;
   const G = useGame();
   const { pref } = useCurrencyPref();
+  const E: any = aggregate(G.draft);
+  const e = G.econ;
+  const socialBars: [string, string, number][] = [
+    ["liberty", "Civil liberty", e.liberty],
+    ["crime", "Crime", e.crime],
+    ["health", "Public health", e.health],
+    ["env", "Environment", e.env],
+    ["black", "Black market share", E.blackLevel],
+    ["gini", "Inequality (Gini)", e.gini],
+  ];
 
-  if (G.log.length < 2) {
-    return (
-      <div className="p-4 text-[12.5px] text-ink-faint">
-        Deliver a bill or two. The charts need at least two quarters of data.
-      </div>
-    );
-  }
+  /* Current-state snapshot — not history, so it renders regardless of how
+     much log data exists (unlike the trend charts below, which need at
+     least two quarters). Moved here from the old Society tab: same bars,
+     same computation, only the wrapper changed to fit Charts' ChartBox
+     rhythm. */ const snapshot = (
+    <>
+      <ChartBox
+        title="Where you stand"
+        caption="Faction approval right now, weighted by population share."
+      >
+        {FACTIONS.map((f: any) => {
+          const v = G.fac[f.id];
+          const cls = v > 55 ? "good" : v < 38 ? "bad" : "";
+          return (
+            <div
+              key={f.id}
+              className="mb-1 grid grid-cols-[110px_1fr_34px] items-center gap-2 text-[12.5px]"
+            >
+              <span>
+                {f.name}{" "}
+                <span className="text-[10px] text-ink-faint">
+                  {Math.round(f.w * 100)}%
+                </span>
+              </span>
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${cls ? FBAR_TONE[cls] : "bg-ink-soft"}`}
+                  style={{ width: `${v.toFixed(0)}%` }}
+                />
+              </span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
+            </div>
+          );
+        })}
+        <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]">
+          <span className="font-semibold">Approval</span>
+          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+            <i
+              className="block h-full rounded-none bg-red transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
+              style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
+            />
+          </span>
+          <span className="text-right text-[11.5px] font-semibold text-ink-soft">
+            {approvalOf(G.fac).toFixed(0)}
+          </span>
+        </div>
+      </ChartBox>
+      <ChartBox
+        title="Social indicators"
+        caption="Liberty, crime, health, environment, the black-market share and inequality — current levels, not trend."
+      >
+        {socialBars.map(([k, n, v]) => {
+          const bad = k === "crime" || k === "black" || k === "gini";
+          const tone = bad
+            ? v > 50
+              ? "bg-red"
+              : "bg-ink-soft"
+            : v > 55
+              ? "bg-green"
+              : "bg-ink-soft";
+          return (
+            <div
+              key={k}
+              className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
+            >
+              <span>{n}</span>
+              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                <i
+                  className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${tone}`}
+                  style={{ width: `${clamp(v, 0, 100).toFixed(0)}%` }}
+                />
+              </span>
+              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+                {v.toFixed(0)}
+              </span>
+            </div>
+          );
+        })}
+      </ChartBox>
+    </>
+  );
 
+  const hasLog = G.log.length >= 2;
   const col = (k: string) => G.log.map((r: any) => r[k]);
   const preN = G.log.filter((r: any) => r.pre).length;
   const tr = G.econ.trendGrowth;
@@ -39,11 +144,26 @@ export function ChartsPanel() {
   const anchorCcy = pref.display || fxCode;
   const facColors = [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink];
 
-  return (
+  const noData = (
+    <div className="p-4 text-[12.5px] text-ink-faint">
+      Deliver a bill or two. The charts need at least two quarters of data.
+    </div>
+  );
+  const preHint = preN ? (
+    <Hint>Includes the {preN}-quarter run-up before your appointment.</Hint>
+  ) : null;
+  const withData = (el: React.ReactNode) =>
+    !hasLog ? (
+      noData
+    ) : (
+      <>
+        {preHint}
+        {el}
+      </>
+    );
+
+  const growth = withData(
     <>
-      {preN ? (
-        <Hint>Includes the {preN}-quarter run-up before your appointment.</Hint>
-      ) : null}
       <ChartBox
         title="Output against potential"
         caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend (top bar) is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
@@ -65,119 +185,19 @@ export function ChartsPanel() {
           ])}
         />
       </ChartBox>
-      <CurrencyComparisonChart G={G} anchorCcy={anchorCcy} />
-      <div className="grid grid-cols-2 gap-2 max-[800px]:grid-cols-1">
-        <ChartBox
-          noMargin
-          title="Inflation and Bank rate"
-          caption={
-            G.rateManual
-              ? "Base rate is pinned by you. Inflation still answers to the gap and expectations."
-              : "You set fiscal policy. The Bank answers with the rate."
-          }
-        >
-          <LineChartSvg
-            spec={lineChartSpec(
-              [
-                {
-                  label: "Inflation",
-                  color: COL.ox,
-                  data: col("inflation"),
-                  wide: true,
-                },
-                { label: "Bank rate", color: COL.blue, data: col("rate") },
-              ],
-              { target: 2, targetLabel: "Target" },
-            )}
-          />
-        </ChartBox>
-        <ChartBox
-          noMargin
-          title="Unemployment"
-          caption="Okun's relationship: output above trend pulls people into work."
-        >
-          <LineChartSvg
-            spec={lineChartSpec([
-              {
-                label: "Unemployment",
-                color: COL.plum,
-                data: col("unemployment"),
-                wide: true,
-              },
-            ])}
-          />
-        </ChartBox>
-        <ChartBox
-          noMargin
-          title="Debt"
-          caption="Per cent of GDP. Interest compounds whether you are looking or not."
-        >
-          <LineChartSvg
-            spec={lineChartSpec([
-              {
-                label: "Debt",
-                color: COL.ink,
-                data: col("debt"),
-                wide: true,
-              },
-            ])}
-          />
-        </ChartBox>
-        <ChartBox
-          noMargin
-          title="Gilt yield"
-          caption={`What the market charges ${G.country} to borrow.`}
-        >
-          <LineChartSvg
-            spec={lineChartSpec([
-              {
-                label: "Yield",
-                color: COL.ox,
-                data: col("yield"),
-                wide: true,
-              },
-            ])}
-          />
-        </ChartBox>
-      </div>
       <ChartBox
-        title="Approval by faction"
-        caption="The overall number hides everything interesting."
+        title="Unemployment"
+        caption="Okun's relationship: output above trend pulls people into work."
       >
         <LineChartSvg
-          spec={lineChartSpec(
-            FACTIONS.map((f: any, i: number): ChartSeriesInput => ({
-              label: f.name,
-              color: facColors[i],
-              data: G.log.map((r: any) => r.fac[f.id]),
-            })).concat([
-              {
-                label: "Overall",
-                color: COL.soft,
-                data: col("approval"),
-                wide: true,
-                dash: true,
-              },
-            ]),
-          )}
-        />
-      </ChartBox>
-      <ChartBox
-        title="The personal allowance in real terms"
-        caption="Deflated by CPI and indexed to this seat's opening allowance. Uprate holds the line; Freeze lets inflation raise taxes without a vote."
-      >
-        <LineChartSvg
-          spec={lineChartSpec(
-            [
-              {
-                label: "Real value of the allowance",
-                color: COL.brass,
-                data: G.log.map((r: any) => r.drag * 100),
-                wide: true,
-              },
-            ],
-            { target: 100, targetLabel: "Where it started" },
-          )}
+          spec={lineChartSpec([
+            {
+              label: "Unemployment",
+              color: COL.plum,
+              data: col("unemployment"),
+              wide: true,
+            },
+          ])}
         />
       </ChartBox>
       <ChartBox
@@ -257,6 +277,55 @@ export function ChartsPanel() {
           )}
         />
       </ChartBox>
+    </>,
+  );
+
+  const prices = withData(
+    <>
+      <CurrencyComparisonChart G={G} anchorCcy={anchorCcy} />
+      <ChartBox
+        title="Inflation and Bank rate"
+        caption={
+          G.rateManual
+            ? "Base rate is pinned by you. Inflation still answers to the gap and expectations."
+            : "You set fiscal policy. The Bank answers with the rate."
+        }
+      >
+        <LineChartSvg
+          spec={lineChartSpec(
+            [
+              {
+                label: "Inflation",
+                color: COL.ox,
+                data: col("inflation"),
+                wide: true,
+              },
+              { label: "Bank rate", color: COL.blue, data: col("rate") },
+            ],
+            { target: 2, targetLabel: "Target" },
+          )}
+        />
+      </ChartBox>
+      <ChartBox
+        title="Gilt yield"
+        caption={`What the market charges ${G.country} to borrow.`}
+      >
+        <LineChartSvg
+          spec={lineChartSpec([
+            {
+              label: "Yield",
+              color: COL.ox,
+              data: col("yield"),
+              wide: true,
+            },
+          ])}
+        />
+      </ChartBox>
+    </>,
+  );
+
+  const finances = withData(
+    <>
       <ChartBox
         title="Receipts and spending"
         caption="Points of GDP. The distance between the lines is the deficit."
@@ -279,6 +348,77 @@ export function ChartsPanel() {
           ])}
         />
       </ChartBox>
-    </>
+      <ChartBox
+        title="Debt"
+        caption="Per cent of GDP. Interest compounds whether you are looking or not."
+      >
+        <LineChartSvg
+          spec={lineChartSpec([
+            {
+              label: "Debt",
+              color: COL.ink,
+              data: col("debt"),
+              wide: true,
+            },
+          ])}
+        />
+      </ChartBox>
+      <ChartBox
+        title="The personal allowance in real terms"
+        caption="Deflated by CPI and indexed to this seat's opening allowance. Uprate holds the line; Freeze lets inflation raise taxes without a vote."
+      >
+        <LineChartSvg
+          spec={lineChartSpec(
+            [
+              {
+                label: "Real value of the allowance",
+                color: COL.brass,
+                data: G.log.map((r: any) => r.drag * 100),
+                wide: true,
+              },
+            ],
+            { target: 100, targetLabel: "Where it started" },
+          )}
+        />
+      </ChartBox>
+    </>,
   );
+
+  const politics = withData(
+    <ChartBox
+      title="Approval by faction"
+      caption="The overall number hides everything interesting."
+    >
+      <LineChartSvg
+        spec={lineChartSpec(
+          FACTIONS.map((f: any, i: number): ChartSeriesInput => ({
+            label: f.name,
+            color: facColors[i],
+            data: G.log.map((r: any) => r.fac[f.id]),
+          })).concat([
+            {
+              label: "Overall",
+              color: COL.soft,
+              data: col("approval"),
+              wide: true,
+              dash: true,
+            },
+          ]),
+        )}
+      />
+    </ChartBox>,
+  );
+
+  const content =
+    cat === "society"
+      ? snapshot
+      : cat === "growth"
+        ? growth
+        : cat === "prices"
+          ? prices
+          : cat === "finances"
+            ? finances
+            : politics;
+
+  return <>{content}</>;
 }

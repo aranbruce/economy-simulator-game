@@ -2,17 +2,14 @@
 
 import type { ReactNode } from "react";
 import {
-  REGIMES,
-  REGIME_BY_ID,
-  type RegimeId,
   TAXES,
   VICE_BY_ID,
   type ViceId,
   BAND_NAMES,
-  T,
   aggregate,
   revenue,
   incomeYield,
+  incomeByBand,
   taxAvailable,
   dragRatio,
   dp,
@@ -22,9 +19,12 @@ import {
   effectiveBands,
   withIncomeOn,
   withNi,
+  TAPER_RATE,
+  isFlatIncome,
+  isDualCapital,
+  getDrawerCat,
 } from "../../lib/sim/engine.ts";
 import {
-  setDraftRegime,
   introduceTax,
   abolishTax,
   setDraftTaxRate,
@@ -35,57 +35,27 @@ import {
   setIncomeUprate,
   setIncomeBandField,
   addIncomeBand,
+  removeIncomeBand,
   setNiRate,
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
-import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
-import type { Tax, Regime } from "../../lib/sim/types.ts";
+import { CardPrice } from "../ui/Card.tsx";
+import type { Tax } from "../../lib/sim/types.ts";
 
-const GROUPS: [string, string][] = [
+export type TaxCat = "income" | "wealth" | "consumption" | "corporate" | "vice";
+/** Read by DrawerShell.tsx, which now owns the pill row itself. Income tax
+ *  leads — it's the single largest line, so it's what opening Taxes shows
+ *  first rather than sitting after every other tax group. */
+export const CATS: [TaxCat, string][] = [
+  ["income", "Income tax"],
   ["wealth", "Capital, land and inheritance"],
   ["consumption", "Consumption and duties"],
   ["corporate", "Business"],
   ["vice", "Regulated goods and services"],
 ];
-
-function RegimeCards({ G }: { G: any }) {
-  return (
-    <CardGrid>
-      {REGIMES.map((r: Regime) => {
-        const on = G.draft.regime === r.id;
-        const isLaw = G.law.regime === r.id;
-        return (
-          <Card key={r.id} on={isLaw} staged={on && !isLaw}>
-            <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
-              {r.name}
-              <CardCat>{isLaw ? "in force" : `${r.pc} capital`}</CardCat>
-            </h4>
-            <p className="m-0 text-xs leading-[1.42] text-ink-soft">
-              {T(r.blurb)}
-            </p>
-            <CardFoot>
-              {on ? (
-                <CardPrice>
-                  {isLaw ? "Current system" : "Staged in the bill"}
-                </CardPrice>
-              ) : (
-                <Button
-                  className="ml-auto"
-                  onClick={() => setDraftRegime(r.id)}
-                >
-                  Adopt
-                </Button>
-              )}
-            </CardFoot>
-          </Card>
-        );
-      })}
-    </CardGrid>
-  );
-}
 
 function CompositionBar() {
   const { bars, legend } = compositionBarData();
@@ -231,9 +201,6 @@ function CapitalRateRow({
 function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   const s = G.draft.taxes[t.id];
   const avail = taxAvailable(t, G.draft);
-  const killed = (
-    REGIME_BY_ID[G.draft.regime as RegimeId].kills || []
-  ).includes(t.id);
 
   if (!avail) {
     return (
@@ -247,21 +214,6 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         <div className="mt-0.5 text-[11px] text-ink-faint">
           Requires a change to the law on{" "}
           {VICE_BY_ID[t.req![0] as ViceId].name.toLowerCase()}.
-        </div>
-      </div>
-    );
-  }
-  if (killed) {
-    return (
-      <div className="border-b border-edge px-3 py-2 opacity-50 last:border-b-0">
-        <div className="flex items-baseline gap-2 text-[13px]">
-          <span>{t.name}</span>
-          <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
-            abolished
-          </span>
-        </div>
-        <div className="mt-0.5 text-[11px] text-ink-faint">
-          Removed by the flat tax structure.
         </div>
       </div>
     );
@@ -350,10 +302,11 @@ function IncomeNiPanel({ G }: { G: any }) {
   const N = G.draft.ni;
   const E = aggregate(G.draft);
   const y = incomeYield(G.draft, E, G.econ);
-  const flat = !!REGIME_BY_ID[G.draft.regime as RegimeId].flatIncome;
+  const bandRev = incomeByBand(G.draft, E, G.econ);
+  const flat = isFlatIncome(G.draft);
   const dr = dragRatio(G.draft, G.econ);
   const incomeOn = I.on !== false;
-  const dualCap = !!REGIME_BY_ID[G.draft.regime as RegimeId].dualCapital;
+  const dualCap = isDualCapital(G.draft);
   const { pref } = useCurrencyPref();
   const ccy = pref.display || undefined;
   const floorTxt = money(effectiveBands(G.draft)[0].from, ccy, G);
@@ -381,7 +334,7 @@ function IncomeNiPanel({ G }: { G: any }) {
             Labour rates apply only above their own threshold, and only to wages
             and salaries.
             {flat
-              ? " The flat tax structure has collapsed every band into the first, and capital income is taxed at that same rate."
+              ? " Every labour band now shares one rate, so there is nothing left to graduate — capital income below keeps its own separate rates unless you align those too."
               : ""}
             {G.sandbox
               ? " Sandbox note: cutting the additional rate puts money where the MPC is low; with deficit finance the yield/FX channel can make the demand effect weakly negative — incidence is calibrated against relative demand from transfers and rate cuts."
@@ -429,6 +382,19 @@ function IncomeNiPanel({ G }: { G: any }) {
               onInput={(v) => setIncomeAllowance(v)}
               onCommit={(v) => setIncomeAllowance(v)}
             />
+            {flat ? null : (
+              <CtrlRow
+                name="Allowance taper starts at"
+                value={I.taperStart}
+                min={50000}
+                max={thresholdSliderMax(300000, I.taperStart, 1000)}
+                step={1000}
+                disp={money(I.taperStart, ccy, G)}
+                note={`Withdrawn 50p in the pound above this — gone entirely by ${money(I.taperStart + I.allowance / TAPER_RATE, ccy, G)}.`}
+                onInput={(v) => setIncomeField("taperStart", v)}
+                onCommit={(v) => setIncomeField("taperStart", v)}
+              />
+            )}
             <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
               <div className="flex w-full items-baseline gap-2">
                 <span className="font-[550]">Threshold policy</span>
@@ -460,16 +426,10 @@ function IncomeNiPanel({ G }: { G: any }) {
               const nm = BAND_NAMES[i] || `Band ${i + 1}`;
               const isLast = i + 1 >= I.bands.length;
               const isBasic = i === 0;
-              const dim = flat && i > 0;
-              const bandOn = isBasic || b.rate > 0;
-              const lawRate =
-                G.law.income.bands[i] && G.law.income.bands[i].rate;
-              const defaultRate =
-                lawRate != null ? lawRate : i === 0 ? 20 : i === 1 ? 40 : 45;
               return (
                 <div
                   key={i}
-                  className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${dim ? "opacity-50" : ""}`}
+                  className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25"
                 >
                   <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
                     <b>{nm}</b>
@@ -488,44 +448,26 @@ function IncomeNiPanel({ G }: { G: any }) {
                       >
                         Abolish income tax
                       </Button>
-                    ) : (
-                      <Button
-                        danger={bandOn}
-                        tiny
-                        className="ml-auto"
-                        onClick={() =>
-                          setIncomeBandField(
-                            i,
-                            "rate",
-                            bandOn ? 0 : defaultRate,
-                          )
-                        }
-                      >
-                        {bandOn ? "Abolish" : "Reintroduce"}
-                      </Button>
-                    )}
+                    ) : null}
                   </div>
-                  {bandOn ? (
-                    <CtrlRow
-                      name={`${nm} rate`}
-                      value={b.rate}
-                      min={0}
-                      max={90}
-                      step={1}
-                      disp={`${b.rate}%`}
-                      note={
-                        isBasic
-                          ? "Abolishing the basic rate scraps income tax as a whole — every band goes with it."
-                          : undefined
-                      }
-                      onInput={(v) => setIncomeBandField(i, "rate", v)}
-                      onCommit={(v) => setIncomeBandField(i, "rate", v)}
-                    />
-                  ) : (
-                    <div className="py-1 text-[11px] text-ink-faint">
-                      Scrapped. Set a rate again to reintroduce it.
-                    </div>
-                  )}
+                  <CtrlRow
+                    name={`${nm} rate`}
+                    value={b.rate}
+                    min={0}
+                    max={90}
+                    step={1}
+                    disp={`${b.rate}%`}
+                    note={
+                      isBasic
+                        ? "Abolishing the basic rate scraps income tax as a whole — every band goes with it."
+                        : undefined
+                    }
+                    onInput={(v) => setIncomeBandField(i, "rate", v)}
+                    onCommit={(v) => setIncomeBandField(i, "rate", v)}
+                  />
+                  <div className="mt-0.5 text-[11px] text-ink-faint">
+                    raises {(bandRev[i] || 0).toFixed(2)}% of GDP
+                  </div>
                   {i > 0 ? (
                     <CtrlRow
                       name={`${nm} starts at`}
@@ -541,55 +483,47 @@ function IncomeNiPanel({ G }: { G: any }) {
                 </div>
               );
             })}
-            {I.bands.length < 6 ? (
-              <div className="mt-1.5 flex flex-row items-center gap-2">
-                <CardPrice>Restructuring the bands costs 12 capital</CardPrice>
-                <Button className="ml-auto" onClick={() => addIncomeBand()}>
-                  Add a band
-                </Button>
+            <div className="mt-1.5 flex flex-row items-center gap-2">
+              <CardPrice>Restructuring the bands costs 12 capital</CardPrice>
+              <div className="ml-auto flex gap-2">
+                {I.bands.length > 1 ? (
+                  <Button danger onClick={() => removeIncomeBand()}>
+                    Remove a band
+                  </Button>
+                ) : null}
+                {I.bands.length < 6 ? (
+                  <Button onClick={() => addIncomeBand()}>Add a band</Button>
+                ) : null}
               </div>
-            ) : null}
+            </div>
           </div>
-          {!flat ? (
-            <>
-              <Eyebrow className="mt-5">
-                Capital income <b>{y.capital.toFixed(2)}% of GDP</b>
-              </Eyebrow>
-              <Hint>
-                {dualCap
-                  ? "Tax on investment returns — dividends and savings interest — not on wealth itself. Both share one flat rate under this system. Selling an asset is capital gains tax."
-                  : "Tax on investment returns — dividends and savings interest — not on wealth itself, and not through the labour bands above. Selling an asset is capital gains tax. Each can be abolished on its own."}
-              </Hint>
-              <div className="overflow-hidden rounded-md border border-edge bg-g-1">
-                {dualCap ? (
-                  <CapitalRateRow
-                    name="Capital income rate"
-                    value={I.capitalRate != null ? I.capitalRate : 25}
-                    defaultValue={25}
-                    note="one rate on dividends and savings interest alike"
-                    onSet={(v) => setIncomeField("capitalRate", v)}
-                  />
-                ) : (
-                  <>
-                    <CapitalRateRow
-                      name="Dividend rate"
-                      value={I.divRate != null ? I.divRate : 33}
-                      defaultValue={33}
-                      note="on dividends paid to shareholders from company profits"
-                      onSet={(v) => setIncomeField("divRate", v)}
-                    />
-                    <CapitalRateRow
-                      name="Savings rate"
-                      value={I.saveRate != null ? I.saveRate : 20}
-                      defaultValue={20}
-                      note="on interest from deposits, bonds and similar savings"
-                      onSet={(v) => setIncomeField("saveRate", v)}
-                    />
-                  </>
-                )}
-              </div>
-            </>
-          ) : null}
+          <Eyebrow className="mt-5">
+            Capital income <b>{y.capital.toFixed(2)}% of GDP</b>
+          </Eyebrow>
+          <Hint>
+            Tax on investment returns — dividends and savings interest — not on
+            wealth itself, and not through the labour bands above. Selling an
+            asset is capital gains tax. Each can be abolished on its own.
+            {dualCap
+              ? " The two already agree — this is a dual system, one flat rate on capital income, separate from labour."
+              : ""}
+          </Hint>
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+            <CapitalRateRow
+              name="Dividend rate"
+              value={I.divRate != null ? I.divRate : 33}
+              defaultValue={33}
+              note="on dividends paid to shareholders from company profits"
+              onSet={(v) => setIncomeField("divRate", v)}
+            />
+            <CapitalRateRow
+              name="Savings rate"
+              value={I.saveRate != null ? I.saveRate : 20}
+              defaultValue={20}
+              note="on interest from deposits, bonds and similar savings"
+              onSet={(v) => setIncomeField("saveRate", v)}
+            />
+          </div>
         </>
       )}
       <Eyebrow className="mt-5">
@@ -695,28 +629,18 @@ export function TaxesPanel() {
   const G = useGame();
   const E = aggregate(G.draft);
   const rev = revenue(G.draft, E);
+  const cat = getDrawerCat("taxes", "income") as TaxCat;
+  const catLabel = CATS.find(([id]) => id === cat)?.[1] || cat;
 
   return (
     <>
-      <Eyebrow>The structure of the system</Eyebrow>
-      <Hint>
-        Changing the architecture is the biggest thing you can do, and the most
-        expensive. Rates within a system are cheap by comparison.
-      </Hint>
-      <RegimeCards G={G} />
-      <Eyebrow className="mt-5">Where the money comes from</Eyebrow>
+      <Eyebrow>Where the money comes from</Eyebrow>
       <CompositionBar />
-      {GROUPS.map(([group, label]) => (
-        <TaxGroupPanel
-          key={group}
-          group={group}
-          label={label}
-          G={G}
-          E={E}
-          rev={rev}
-        />
-      ))}
-      <IncomeNiPanel G={G} />
+      {cat === "income" ? (
+        <IncomeNiPanel G={G} />
+      ) : (
+        <TaxGroupPanel group={cat} label={catLabel} G={G} E={E} rev={rev} />
+      )}
     </>
   );
 }

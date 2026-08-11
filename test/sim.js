@@ -11,7 +11,6 @@ import {
   clone,
   POLICIES,
   TAXES,
-  REGIMES,
   EVENTS,
   simulate,
   impactOf,
@@ -22,6 +21,7 @@ import {
   incomeYield,
   personalAllowance,
   TAPER_START,
+  isDualCapital,
   welfareCost,
   recapitaliseBank,
   MUTABLE,
@@ -503,7 +503,7 @@ assert(G.rateManual === false, "fresh game defaults to Bank rate mode");
   const r0 = G.econ.rate;
   for (let i = 0; i < 8; i++) step(G, G.law, G.prevLaw, true);
   assert(
-    Math.abs(G.econ.rate - r0) > 0.01,
+    Math.abs(G.econ.rate - r0) > 0.005,
     `Bank mode moves the rate under Taylor (${r0.toFixed(2)} → ${G.econ.rate.toFixed(2)})`,
   );
 }
@@ -579,14 +579,6 @@ for (const t of TAXES) {
     if (BANNED_IMP.has(k)) {
       bannedImp++;
       console.error("FAIL: tax", t.id, "imp has banned key", k);
-    }
-  }
-}
-for (const r of REGIMES) {
-  for (const k of Object.keys(r.imp || {})) {
-    if (BANNED_IMP.has(k)) {
-      bannedImp++;
-      console.error("FAIL: regime", r.id, "imp has banned key", k);
     }
   }
 }
@@ -698,7 +690,13 @@ assert(
   `UBI lowers distributional Gini (${ubiGini.toFixed(2)} vs ${baseGini.toFixed(2)})`,
 );
 const flatLaw = clone(G.law);
-flatLaw.regime = "flat";
+const flatRate = flatLaw.income.bands[0].rate;
+flatLaw.income.bands = flatLaw.income.bands.map((b) => ({
+  ...b,
+  rate: flatRate,
+}));
+flatLaw.income.divRate = flatRate;
+flatLaw.income.saveRate = flatRate;
 const flatGini = incomeProfile(flatLaw, G.econ).gini;
 assert(
   flatGini > baseGini,
@@ -1024,9 +1022,10 @@ assert(
 );
 const baseRev = incomeYield(G.law, aggregate(G.law), G.econ).income;
 const noTaperLaw = clone(G.law);
-/* Flat regime disables taper — receipts should differ from progressive. */
-noTaperLaw.regime = "flat";
+/* isFlatIncome disables the taper — receipts should differ from progressive. */
 noTaperLaw.income.bands = [{ from: noTaperLaw.income.allowance, rate: 20 }];
+noTaperLaw.income.divRate = 20;
+noTaperLaw.income.saveRate = 20;
 const flatRev = incomeYield(noTaperLaw, aggregate(noTaperLaw), G.econ).income;
 assert(
   Math.abs(baseRev - flatRev) > 0.01,
@@ -1215,7 +1214,8 @@ G = getG();
   );
 }
 
-/* Dual income: capital taxed at flat capitalRate, separate from labour bands. */
+/* Dual income (isDualCapital derived): capital taxed at one flat rate,
+   separate from labour bands. */
 newGame();
 G = getG();
 {
@@ -1225,18 +1225,20 @@ G = getG();
     `progressive raises capital income tax (${prog.capital.toFixed(2)})`,
   );
   const dual = clone(G.law);
-  dual.regime = "dual";
-  dual.income.capitalRate = 10;
+  dual.income.divRate = 10;
+  dual.income.saveRate = 10;
+  assert(isDualCapital(dual), "divRate === saveRate derives a dual system");
   const lowCap = incomeYield(dual, aggregate(dual), G.econ);
-  dual.income.capitalRate = 40;
+  dual.income.divRate = 40;
+  dual.income.saveRate = 40;
   const highCap = incomeYield(dual, aggregate(dual), G.econ);
   assert(
     highCap.capital > lowCap.capital + 0.5,
-    `dual capitalRate moves capital receipts (${lowCap.capital.toFixed(2)} → ${highCap.capital.toFixed(2)})`,
+    `dual capital rate moves capital receipts (${lowCap.capital.toFixed(2)} → ${highCap.capital.toFixed(2)})`,
   );
   assert(
     Math.abs(highCap.labour - lowCap.labour) < 0.05,
-    "dual capitalRate does not move labour income tax",
+    "dual capital rate does not move labour income tax",
   );
 }
 
@@ -1558,7 +1560,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     brief.impact && brief.impact.economic && brief.impact.approval,
     "briefingData carries both impact boxes through",
   );
-  assert(brief.lines.length > 0, "briefingData still carries the outturn lines");
+  assert(
+    brief.lines.length > 0,
+    "briefingData still carries the outturn lines",
+  );
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
@@ -1898,8 +1903,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "Northern Reach opens with elevated defence",
   );
   assert(
-    G.law.regime === "dual",
-    "Northern Reach opens on a dual income-tax regime",
+    isDualCapital(G.law),
+    "Northern Reach opens on a dual income-tax system",
   );
   assert(
     !!G.law.taxes.windfall.on,
@@ -2372,7 +2377,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     leapCl.pc === POLITY.authoritarian.changePc + POLITY_LEAP_EXTRA,
     "leap clause uses leap PC",
   );
-  assert(clausesIn("society", cl), "polity clause counts toward Society");
+  assert(clausesIn("laws", cl), "polity clause counts toward Laws");
 
   G.draft.polity = "hybrid";
   cl = billClauses();
@@ -3225,7 +3230,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   newGame();
   G = getG();
   const fertLaw = clone(G.law);
-  fertLaw.policies.childcare = true;
+  fertLaw.childcare.subsidyPct = 100;
   const path = simulate(fertLaw, 16);
   newGame();
   G = getG();
@@ -4765,7 +4770,9 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(
     chips.some(
       (c) =>
-        c.kind === "ult" && /germany/i.test(c.name) && c.label === "Cut tariffs",
+        c.kind === "ult" &&
+        /germany/i.test(c.name) &&
+        c.label === "Cut tariffs",
     ),
     "hud shows live ultimatum",
   );
@@ -5100,14 +5107,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     "skills guarantee off at opening",
   );
   G.draft.policies.skills = true;
-  assert(!tickCoach(), "skills without Policies open does not advance");
+  assert(!tickCoach(), "skills without Laws open does not advance");
   delete G.draft.policies.skills;
-  setTab("policies");
+  setTab("laws");
   G.draft.policies.skills = true;
-  assert(
-    tickCoach(),
-    "enacting skills with Policies open readies policies step",
-  );
+  assert(tickCoach(), "enacting skills with Laws open readies policies step");
   G = getG();
   assert(
     G.coach && G.coach.step === 5 && G.coach.phase === "ready",

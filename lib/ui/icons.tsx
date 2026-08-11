@@ -41,20 +41,6 @@ const ICONS = {
       <path d="M6 5.5h3.5M6 8h3.5M6 10.5h2" />
     </svg>
   ),
-  people: (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-    >
-      <circle cx="6" cy="5.5" r="2.2" />
-      <path d="M2.4 13c.3-2.3 1.8-3.6 3.6-3.6S9.3 10.7 9.6 13" />
-      <path d="M10.6 4.2a2.1 2.1 0 010 4M11 9.6c1.6.2 2.7 1.5 3 3.4" />
-    </svg>
-  ),
   globe: (
     <svg
       width="15"
@@ -93,6 +79,20 @@ const ICONS = {
     >
       <path d="M2.5 13.5h11" />
       <path d="M4 11V7.5M7 11V4M10 11V8.5M13 11V6" />
+    </svg>
+  ),
+  gavel: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <path d="M9.5 2.5l4 4-1.6 1.6-4-4z" />
+      <path d="M7.8 4.2l4 4L4.7 15.3l-1.9-1.9z" />
+      <path d="M2 14.5h6" />
     </svg>
   ),
   close: (

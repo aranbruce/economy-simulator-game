@@ -21,6 +21,7 @@ import {
   issueUltimatum,
   hideDespatchShell,
   CUSTOM_BLOC_TEMPLATES,
+  syncPolityFromGroups,
 } from "../sim/engine.ts";
 
 const TRANSFER_DEPTS: Record<string, number> = { welfare: 1 };
@@ -66,12 +67,6 @@ export function setDraftTaxRate(taxId: string, value: number) {
   bump();
 }
 
-export function setDraftRegime(regimeId: string) {
-  const G = getG();
-  G.draft.regime = regimeId;
-  bump();
-}
-
 export function introduceTax(taxId: string) {
   const G = getG();
   const t = TAX_BY_ID[taxId as TaxId];
@@ -109,7 +104,7 @@ export function setIncomeAllowance(value: number) {
 }
 
 export function setIncomeField(
-  key: "divRate" | "saveRate" | "capitalRate",
+  key: "divRate" | "saveRate" | "taperStart",
   value: number,
 ) {
   const G = getG();
@@ -141,6 +136,20 @@ export function addIncomeBand() {
     from: Math.round((last.from * 1.8) / 1000) * 1000 + 20000,
     rate: Math.min(90, last.rate + 5),
   });
+  bump();
+}
+
+/** Removes the top band (mirrors addIncomeBand's push) rather than zeroing
+ *  its rate in place — a zeroed-but-still-present band creates an untaxed
+ *  bracket above its threshold instead of letting the band below it cover
+ *  that income, and its "restore" default goes stale the moment the
+ *  abolition is enacted (G.law's own rate becomes 0 too). Basic always
+ *  survives; abolishing income tax entirely is the separate setIncomeOn
+ *  toggle. */
+export function removeIncomeBand() {
+  const G = getG();
+  const bands = G.draft.income.bands;
+  if (bands.length > 1) bands.pop();
   bump();
 }
 
@@ -334,6 +343,31 @@ export function setManualRate(value: number, min: number) {
   G.econ.atBound = G.econ.rate <= RATE_FLOOR + 0.02;
   const sid = playerCountryId();
   if (G.politics && G.politics[sid]) G.politics[sid].manualRate = G.manualRate;
+  bump();
+}
+
+/** Stage a `LawGroup` option (see lib/sim/lawGroups.ts) — the generalised
+ *  VICE pattern used by State & Constitution / Labor & Welfare content. */
+export function setGroupOption(groupId: string, optionId: string) {
+  const G = getG();
+  if (!G.draft.groups) G.draft.groups = {};
+  G.draft.groups[groupId] = optionId;
+  syncPolityFromGroups(G.draft);
+  bump();
+}
+
+/** Set one field on a bespoke law slider group (law.headOfState, law.electoral,
+ *  law.partyFunding, law.regional, law.workHours, law.minWage, law.pension,
+ *  law.welfareMix, law.laborRelations — the law.income/law.ni pattern). One
+ *  generic setter rather than a near-identical function per field. */
+export function setLawField(
+  groupKey: string,
+  field: string,
+  value: number | boolean,
+) {
+  const G = getG();
+  if (!G.draft[groupKey]) G.draft[groupKey] = {};
+  G.draft[groupKey][field] = value;
   bump();
 }
 

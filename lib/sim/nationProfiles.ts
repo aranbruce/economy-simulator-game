@@ -131,6 +131,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   spain: {
     polity: "democracy",
+    hereditary: true,
     trend: 1.8,
     debt0: 104,
     deficit0: 3.0,
@@ -172,6 +173,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   netherlands: {
     polity: "democracy",
+    hereditary: true,
     trend: 1.4,
     debt0: 48,
     deficit0: 2.5,
@@ -460,6 +462,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   japan: {
     polity: "democracy",
+    hereditary: true,
     trend: 0.8,
     debt0: 252,
     deficit0: 4.0,
@@ -502,6 +505,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   australia: {
     polity: "democracy",
+    hereditary: true,
     trend: 2.1,
     debt0: 55,
     deficit0: 2.0,
@@ -543,6 +547,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   saudi: {
     polity: "authoritarian",
+    hereditary: true,
     trend: 2.5,
     debt0: 30,
     deficit0: 0.5,
@@ -585,6 +590,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   uae: {
     polity: "authoritarian",
+    hereditary: true,
     trend: 3.0,
     debt0: 28,
     deficit0: 1.0,
@@ -711,6 +717,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   canada: {
     polity: "democracy",
+    hereditary: true,
     trend: 2.5,
     debt0: 110,
     deficit0: 2.0,
@@ -1084,6 +1091,7 @@ export const NATION_PROFILE: Record<string, NationProfile> = {
   },
   kingdom: {
     polity: "democracy",
+    hereditary: true,
     trend: 1.2,
     debt0: 94,
     deficit0: 4.5,

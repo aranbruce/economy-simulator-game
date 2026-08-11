@@ -64,25 +64,6 @@ export interface Tax {
   trade?: Record<string, number>;
 }
 
-/** One of `REGIMES` — an income-tax architecture (bands, flat, dual, …).
- * `mult` rescales other tax bases; `flatIncome`/`dualCapital` are structural
- * flags read by the income engine, not effect bags. */
-export interface Regime {
-  id: string;
-  name: string;
-  pc: number;
-  blurb: string;
-  mult: Partial<Record<string, number>>;
-  imp?: Partial<Record<string, number>>;
-  ch?: ChannelEffects;
-  fac: FactionEffects;
-  flatIncome?: boolean;
-  dualCapital?: boolean;
-  /** Tax ids this regime abolishes outright (e.g. flat kills the additional
-   * rate). Reserved for future regimes — none currently set it. */
-  kills?: string[];
-}
-
 /** One of `POLICIES`. `cost` is annual % of GDP (negative saves money);
  * `kills` lists mutually exclusive policies. See CLAUDE.md "Adding content". */
 export interface Policy {
@@ -101,11 +82,51 @@ export interface Policy {
   trade?: number;
   /** Shock resilience contribution (e.g. diversification policies). */
   resilience?: number;
-  /** One-off structural flags read by name at the call site, matching
-   * `flatIncome`/`dualCapital` on Regime — not effect bags. */
+  /** One-off structural flags read by name at the call site, not effect
+   * bags. */
   fund?: boolean;
   rule?: boolean;
   tripleLock?: boolean;
+  /** Which Laws-drawer category this policy renders under — see
+   * `MENU_CATS` in `components/drawers/LawsPanel.tsx`, the only place
+   * `PolicyCard` is ever mounted. Every `POLICIES` entry sets this in
+   * practice; a missing value renders nowhere. */
+  lawsCat?: string;
+}
+
+/** One option within a `LawGroup` — see `lib/sim/lawGroups.ts`. Shaped like
+ * a `ViceState` but for a law that isn't a regulated vice good (state form,
+ * union legality, judicial immunity, …). `req` reuses the generalised
+ * `resolveReqState()` format: `["polity", ...allowed]` or bare vice id. */
+export interface LawGroupOption {
+  id: string;
+  label: string;
+  blurb: string;
+  pc: number;
+  req?: string[];
+  imp?: Partial<Record<string, number>>;
+  fac?: FactionEffects;
+  ch?: ChannelEffects;
+}
+
+/** One of `LAW_GROUPS` — the generalised "pick one of N states" pattern
+ * VICE established, lifted out of the vice-goods domain so State &
+ * Constitution / Labor & Welfare (and future menus) can use it too.
+ * `law.groups[id]` holds the current option id. `menu` selects which rail
+ * category of the Laws drawer the group renders under. */
+export interface LawGroup {
+  id: string;
+  name: string;
+  menu:
+    | "state"
+    | "labor"
+    | "rights"
+    | "economy"
+    | "environment"
+    | "justice"
+    | "vice";
+  cat: string;
+  options: LawGroupOption[];
 }
 
 /** One legality state of a `Vice` (e.g. cannabis: banned/decrim/legal). */
@@ -150,6 +171,10 @@ export interface IncomeSlice {
  * lib/sim/nationProfiles.ts (NATION_PROFILE). */
 export interface NationProfile {
   polity: "democracy" | "hybrid" | "authoritarian";
+  /** Opening `law.groups.hereditary` pin — only set true on seats with a
+   * hereditary head of state; every other seat defaults to elected. See
+   * `lib/sim/lawGroups.ts`. */
+  hereditary?: boolean;
   trend: number;
   debt0: number;
   deficit0: number;

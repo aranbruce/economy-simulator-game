@@ -25,6 +25,7 @@ import {
   COUNTRY_REGIONS,
   pruneInvalidDraftMissions,
   relationModifiersData,
+  getDrawerCat,
 } from "../../lib/sim/engine.ts";
 import { relationColour } from "../../lib/sim/partners.ts";
 import {
@@ -47,6 +48,11 @@ const REGION_ORDER = [
   "gulf",
   "oceania",
 ];
+/** Read by DrawerShell.tsx, which now owns the pill row itself. */
+export const CATS: [string, string][] = REGION_ORDER.map((r) => [
+  r,
+  (COUNTRY_REGIONS as any)[r] || r,
+]);
 
 function relationTone(rel: number) {
   if (rel >= 60) return "warm";
@@ -463,34 +469,23 @@ export function DiplomacyPanel() {
   ensureDiploStocks(G.econ);
   if (!G.draft.missions) G.draft.missions = {};
   pruneInvalidDraftMissions(G);
+  const region = getDrawerCat("diplomacy", REGION_ORDER[0]);
 
-  const byRegion: Record<string, any[]> = {};
-  for (const p of activePartners()) {
-    const r = p.region || "other";
-    if (!byRegion[r]) byRegion[r] = [];
-    byRegion[r].push(p);
-  }
+  const list = activePartners().filter(
+    (p: Country) => (p.region || "other") === region,
+  );
 
   return (
     <>
       <EnvoySummary G={G} />
-      <Eyebrow className="mt-5">Partners</Eyebrow>
-      {REGION_ORDER.map((r) => {
-        const list = byRegion[r];
-        if (!list || !list.length) return null;
-        return (
-          <div key={r}>
-            <Eyebrow className="mt-5">
-              {(COUNTRY_REGIONS as any)[r] || r}
-            </Eyebrow>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 max-[720px]:grid-cols-1">
-              {list.map((p: Country) => (
-                <PartnerDiploCard key={p.id} p={p} G={G} />
-              ))}
-            </div>
-          </div>
-        );
-      })}
+      <Eyebrow className="mt-5">
+        {(COUNTRY_REGIONS as any)[region] || region}
+      </Eyebrow>
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 max-[720px]:grid-cols-1">
+        {list.map((p: Country) => (
+          <PartnerDiploCard key={p.id} p={p} G={G} />
+        ))}
+      </div>
     </>
   );
 }

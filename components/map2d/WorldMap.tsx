@@ -123,7 +123,10 @@ function project(lng: number, lat: number): Point {
  *  paint() and plateLayout() (used by hit-testing/zoom-anchoring) must agree
  *  on this or a click/hover can target a different point than what's drawn. */
 function clampViewport(cssW: number, cssH: number) {
-  return { W: Math.max(320, Math.floor(cssW)), H: Math.max(240, Math.floor(cssH)) };
+  return {
+    W: Math.max(320, Math.floor(cssW)),
+    H: Math.max(240, Math.floor(cssH)),
+  };
 }
 
 /** Fit the equirectangular plate into the viewport, letterboxed. */
@@ -151,7 +154,8 @@ function repeatOffsets(
   const kMin = Math.floor(-originX / period) - 1;
   const kMax = Math.ceil((viewportW - originX) / period) + 1;
   const out: number[] = [];
-  for (let k = kMin; k <= kMax && out.length < maxCopies; k++) out.push(k * period);
+  for (let k = kMin; k <= kMax && out.length < maxCopies; k++)
+    out.push(k * period);
   return out.length ? out : [0];
 }
 
@@ -588,7 +592,12 @@ export default function WorldMap({
     ];
     const renderList = order.map((c) => {
       const role = roleForFeature(c.iso, hRole, hIso);
-      return { c, role, fill: fillFor(role, c.iso), strokeChains: c.strokeChains };
+      return {
+        c,
+        role,
+        fill: fillFor(role, c.iso),
+        strokeChains: c.strokeChains,
+      };
     });
 
     /* Every visible tiled copy of a country is filled/stroked in one path

@@ -86,8 +86,8 @@ export const COACH_STEPS: CoachStepDef[] = [
     id: "policies",
     title: "Skills on the statute book",
     body: "<p>Spending isn’t everything. Turn on the <b>National skills guarantee</b> — a law that funds retraining. It also helps skills and growth, with a small ongoing cost.</p>",
-    task: "Bottom left → Policies → turn on National skills guarantee.",
-    tab: "policies",
+    task: "Bottom left → Laws → Economy → turn on National skills guarantee.",
+    tab: "laws",
   },
   {
     id: "trade",
@@ -315,8 +315,8 @@ export function coachSubtasks(
       return [
         {
           id: "tab",
-          label: "Open Policies (bottom left)",
-          done: tab === "policies",
+          label: "Open Laws (bottom left)",
+          done: tab === "laws",
         },
         {
           id: "skills",

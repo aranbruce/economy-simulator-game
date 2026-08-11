@@ -7,10 +7,16 @@ interface LeverProps {
   id: string;
   name: string;
   value: number;
-  min: number;
-  max: number;
+  min?: number;
+  max?: number;
   step?: number;
   decimals?: number;
+  /** Suffix appended after the formatted number. Defaults to "%" to match
+   *  every existing caller; ignored when `format` or `labels` is given. */
+  unit?: string;
+  /** Full control over the displayed value, e.g. `(v) => `${Math.round(v)} days`` —
+   *  overrides `unit` entirely when given. */
+  format?: (value: number, decimals: number) => string;
   note?: ReactNode;
   className?: string;
   disabled?: boolean;
@@ -28,6 +34,8 @@ export function Lever({
   max,
   step = 0.1,
   decimals = 1,
+  unit,
+  format,
   note,
   className = "",
   disabled = false,
@@ -38,6 +46,9 @@ export function Lever({
 }: LeverProps) {
   const [local, setLocal] = useState<number | null>(null);
   const display = local != null ? local : value;
+  const effMin = min ?? 0;
+  const effMax = max ?? 100;
+  const effStep = step;
 
   const paintDelta = useCallback(() => {
     if (base == null || !Number.isFinite(display)) return "";
@@ -57,6 +68,12 @@ export function Lever({
     chgColor = up === upIsGood ? "text-green-lt" : "text-red-lt";
   }
 
+  const displayText = Number.isFinite(display)
+    ? format
+      ? format(display, decimals)
+      : `${display.toFixed(decimals)}${unit ?? "%"}`
+    : "—";
+
   return (
     <div
       className="border-b border-edge px-3 py-2 last:border-b-0"
@@ -65,7 +82,7 @@ export function Lever({
       <div className="flex items-baseline gap-2 text-[13px]">
         <span className="font-[550]">{name}</span>
         <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
-          {Number.isFinite(display) ? `${display.toFixed(decimals)}%` : "—"}
+          {displayText}
         </span>
         <span
           className={`w-10.5 text-right text-[11px] font-semibold ${chgColor || "text-ink-faint"}`}
@@ -75,9 +92,9 @@ export function Lever({
       </div>
       <input
         type="range"
-        min={min}
-        max={max}
-        step={step}
+        min={effMin}
+        max={effMax}
+        step={effStep}
         value={display}
         disabled={disabled}
         aria-label={name}
