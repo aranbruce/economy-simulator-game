@@ -458,7 +458,7 @@ Breaking any of these will fail the suite, and should.
   than `G.capital`.
 - **Taxes gated on legality must vanish when the law changes.** When a vice
   moves to a state where its duty is invalid, `G.draft.taxes[id].on` is forced
-  false in the Society tab handler.
+  false by `syncViceTaxes()`.
 
 ## Adding content
 
