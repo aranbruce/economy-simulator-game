@@ -7,16 +7,17 @@ interface CatPillsProps<T extends string> {
 }
 
 /** Horizontally-scrollable pill row for switching between a single option at
- *  a time — the same idiom as the dock's own tab strip. Used by
- *  LawsPanel.tsx (State & Constitution / Labor & Welfare) and
- *  PoliciesPanel.tsx (policy category). */
+ *  a time — the same idiom as the dock's own tab strip. Rendered by
+ *  DrawerShell.tsx as part of the drawer's persistent header (not by the
+ *  individual panels), so spacing is the wrapper's responsibility, not
+ *  this component's. */
 export function CatPills<T extends string>({
   options,
   value,
   onChange,
 }: CatPillsProps<T>) {
   return (
-    <div className="mb-3 flex gap-1.5 overflow-x-auto scrollbar-none">
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
       {options.map(([id, label]) => (
         <button
           key={id}

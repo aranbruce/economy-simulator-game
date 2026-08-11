@@ -14,7 +14,6 @@
  * law bag shape — real typing lands with Phase 4's engine.js pass. */
 export function applyRealmLawOverlay(law: any, overlay: any) {
   if (!overlay) return law;
-  if (overlay.regime) law.regime = overlay.regime;
   if (overlay.tariff != null) law.tariff = overlay.tariff;
   if (overlay.spend) {
     for (const id in overlay.spend) {
@@ -35,6 +34,7 @@ export function applyRealmLawOverlay(law: any, overlay: any) {
       law.income.bands = overlay.income.bands.map((b: any) => ({ ...b }));
   }
   if (overlay.ni) Object.assign(law.ni, overlay.ni);
+  if (overlay.minWage) Object.assign(law.minWage, overlay.minWage);
   if (overlay.policies) {
     for (const id in overlay.policies) {
       if (overlay.policies[id]) law.policies[id] = true;
@@ -91,9 +91,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 30,
       saveRate: 25,
-      capitalRate: 28,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 14 },
+    /* SMIC — generous relative to median pay by European standards. */ minWage:
+      { on: true, rate: 12 },
     policies: {
       minWage: true,
       netZero: true,
@@ -152,9 +153,14 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 20,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 6 },
+    /* Federal floor ($7.25/hr) is notoriously low relative to income —
+       many states run well above it, but there is no national floor near
+       what the allowance scale would otherwise suggest. */ minWage: {
+      on: true,
+      rate: 8,
+    },
     policies: {
       minWage: true,
       planning: true,
@@ -205,9 +211,11 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 20,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 8, erRate: 16 },
+    /* Provincial minimum wages exist nationwide but sit modestly below
+       typical income, with patchier enforcement than developed markets. */ minWage:
+      { on: true, rate: 5 },
     policies: {
       rnd: true,
       skills: true,
@@ -252,18 +260,19 @@ export const REALM_LAW: Record<string, any> = {
     },
     income: {
       allowance: 7000,
-      /* 2025 progressive scale (13/15/18…22) via dual capital + rising top. */
+      /* 2025 progressive scale (13/15/18…22) via dual capital + rising top —
+         divRate === saveRate so isDualCapital(law) derives true on open. */
       bands: [
         { from: 7000, rate: 13 },
         { from: 60000, rate: 15 },
         { from: 200000, rate: 18 },
       ],
       divRate: 15,
-      saveRate: 13,
-      capitalRate: 15,
+      saveRate: 15,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 12 },
-    regime: "dual",
+    /* MROT set nationally by decree; modest relative to typical earnings. */ minWage:
+      { on: true, rate: 4 },
     policies: { conscript: true, nuclear: true, police: true, fracking: true },
     vice: {
       cannabis: "banned",
@@ -307,9 +316,13 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 20,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 8 },
+    /* Minimum Wages Act / Code on Wages coverage, but low relative to
+       income and unevenly enforced across states and sectors. */ minWage: {
+      on: true,
+      rate: 3,
+    },
     policies: {
       openVisas: false,
       skills: true,
@@ -361,9 +374,11 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 15,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 5, erRate: 7 },
+    /* National Minimum Wage Act, raised substantially in 2024 (₦70,000/mo)
+       but still modest in absolute terms and unevenly enforced. */ minWage:
+      { on: true, rate: 3 },
     policies: { openVisas: true, skills: true, police: true },
     vice: {
       cannabis: "decrim",
@@ -408,9 +423,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 15,
-      capitalRate: 22,
     },
     ni: { empOn: true, erOn: true, empRate: 7, erRate: 12 },
+    /* Salário mínimo — a major, actively-uprated national institution. */ minWage:
+      { on: true, rate: 5 },
     policies: { minWage: true, socialHousing: true, openVisas: true },
     vice: {
       cannabis: "decrim",
@@ -455,9 +471,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 30,
       saveRate: 19,
-      capitalRate: 25,
     },
     ni: { empOn: false, erOn: true, empRate: 0, erRate: 11 },
+    /* National Minimum Wage — one of the highest in the world in both
+       absolute and relative terms. */ minWage: { on: true, rate: 19 },
     policies: {
       minWage: true,
       netZero: true,
@@ -509,9 +526,12 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 0,
       saveRate: 0,
-      capitalRate: 0,
     },
     ni: { empOn: false, erOn: false, empRate: 0, erRate: 0 },
+    /* A wage floor exists only for Saudi nationals (Saudization/Nitaqat),
+       not the foreign workforce that is the majority of the private
+       sector — off, since there is no broad statutory minimum. */ minWage:
+      { on: false, rate: 0 },
     policies: {
       swf: true,
       nuclear: true,
@@ -557,12 +577,12 @@ export const REALM_LAW: Record<string, any> = {
         { from: 55000, rate: 29 },
         { from: 150000, rate: 33 },
       ],
-      divRate: 25,
-      saveRate: 15,
-      capitalRate: 25,
+      /* divRate === saveRate so isDualCapital(law) derives true on open. */ divRate: 25,
+      saveRate: 25,
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 8 },
-    regime: "dual",
+    /* Provincial minimum wages nationwide, solid mid-to-upper generosity. */ minWage:
+      { on: true, rate: 15 },
     policies: {
       openVisas: true,
       skills: true,
@@ -611,9 +631,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 25,
       saveRate: 15,
-      capitalRate: 22,
     },
     ni: { empOn: true, erOn: true, empRate: 7, erRate: 10 },
+    /* Single national minimum wage, substantially raised in recent years. */ minWage:
+      { on: true, rate: 8 },
     policies: {
       skills: true,
       rnd: true,
@@ -662,9 +683,12 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 15,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 6 },
+    /* Provincial UMP system; modest relative to income. */ minWage: {
+      on: true,
+      rate: 3,
+    },
     policies: { skills: true, minWage: true, openVisas: false },
     vice: {
       cannabis: "banned",
@@ -706,9 +730,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 15,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 9, erRate: 14 },
+    /* Asgari ücret — risen sharply in nominal terms and now a large share
+       (over half) of the average wage. */ minWage: { on: true, rate: 4 },
     policies: { conscript: true, minWage: true, police: true },
     vice: {
       cannabis: "banned",
@@ -752,9 +777,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 15,
       saveRate: 15,
-      capitalRate: 15,
     },
     ni: { empOn: true, erOn: true, empRate: 8, erRate: 14 },
+    /* SMVM exists but has been persistently eroded by high inflation. */ minWage:
+      { on: true, rate: 2.5 },
     policies: { minWage: true, socialHousing: true },
     vice: {
       cannabis: "legal",
@@ -796,9 +822,12 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 15,
       saveRate: 10,
-      capitalRate: 15,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 8 },
+    /* Regional minimum wage system; modest relative to income. */ minWage: {
+      on: true,
+      rate: 2.5,
+    },
     policies: { skills: true, minWage: true, openVisas: false },
     vice: {
       cannabis: "banned",
@@ -840,9 +869,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 19,
       saveRate: 19,
-      capitalRate: 19,
     },
     ni: { empOn: true, erOn: true, empRate: 9, erRate: 12 },
+    /* Actively and substantially uprated in recent years — a solid floor. */ minWage:
+      { on: true, rate: 8 },
     policies: { minWage: true, skills: true, fiscalRule: true, nuclear: true },
     vice: {
       cannabis: "decrim",
@@ -885,9 +915,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 15,
       saveRate: 10,
-      capitalRate: 15,
     },
     ni: { empOn: true, erOn: true, empRate: 5, erRate: 8 },
+    /* Private-sector minimum wage was only formalised/raised recently
+       (~2024); still weakly enforced. */ minWage: { on: true, rate: 2.5 },
     policies: { conscript: true, closeBorders: false, police: true },
     vice: {
       cannabis: "banned",
@@ -930,9 +961,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 15,
       saveRate: 10,
-      capitalRate: 15,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 6 },
+    /* Sector/region wage-board system; patchy enforcement, modest levels. */ minWage:
+      { on: true, rate: 2 },
     policies: { skills: true, openVisas: true, police: true },
     vice: {
       cannabis: "decrim",
@@ -977,9 +1009,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 26,
       saveRate: 25,
-      capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 15 },
+    /* Mindestlohn, introduced 2015 — now a well-established national floor. */ minWage:
+      { on: true, rate: 10 },
     policies: {
       minWage: true,
       netZero: true,
@@ -1030,9 +1063,11 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 26,
       saveRate: 26,
-      capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 14 },
+    /* Italy has no statutory minimum wage — pay floors come from sectoral
+       collective bargaining agreements instead, one of the few EU
+       countries without a legal minimum. */ minWage: { on: false, rate: 0 },
     policies: {
       minWage: true,
       netZero: true,
@@ -1080,9 +1115,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 23,
       saveRate: 19,
-      capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 6, erRate: 14 },
+    /* SMI has risen over 50% since 2018 — now fairly generous relative to
+       income. */ minWage: { on: true, rate: 10 },
     policies: {
       minWage: true,
       netZero: true,
@@ -1130,9 +1166,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 26,
       saveRate: 19,
-      capitalRate: 26,
     },
     ni: { empOn: true, erOn: true, empRate: 8, erRate: 12 },
+    /* Wettelijk minimumloon — a solid European-standard wage floor. */ minWage:
+      { on: true, rate: 11 },
     policies: {
       minWage: true,
       netZero: true,
@@ -1180,9 +1217,11 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 15,
       saveRate: 15,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 5, erRate: 10 },
+    /* Salario mínimo rose sharply through the late 2010s/2020s reforms;
+       still modest in absolute terms but much improved relative to before. */ minWage:
+      { on: true, rate: 4 },
     policies: { minWage: true, openVisas: true, skills: true },
     vice: {
       cannabis: "decrim",
@@ -1226,9 +1265,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 20,
-      capitalRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 12 },
+    /* Prefecture-set regional minimum wage; moderate and rising. */ minWage:
+      { on: true, rate: 6 },
     policies: {
       fiscalRule: true,
       skills: true,
@@ -1279,9 +1319,13 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 0,
       saveRate: 0,
-      capitalRate: 0,
     },
     ni: { empOn: false, erOn: false, empRate: 0, erRate: 0 },
+    /* No broad statutory minimum wage for the private-sector/expatriate
+       workforce that makes up the vast majority of employment. */ minWage: {
+      on: false,
+      rate: 0,
+    },
     policies: { swf: true, openVisas: true, planning: true, nuclear: true },
     vice: {
       cannabis: "banned",
@@ -1324,9 +1368,10 @@ export const REALM_LAW: Record<string, any> = {
       ],
       divRate: 20,
       saveRate: 18,
-      capitalRate: 22,
     },
     ni: { empOn: true, erOn: true, empRate: 4, erRate: 8 },
+    /* National Minimum Wage Act (2019) — a moderate, actively-enforced
+       policy priority. */ minWage: { on: true, rate: 4 },
     policies: {
       minWage: true,
       skills: true,

@@ -106,19 +106,20 @@ assert(
   `multiplier ordering purchases (${gapG.toFixed(2)}) ≥ transfers (${gapTr.toFixed(2)}) ≥ tax cut (${gapTax.toFixed(2)})`,
 );
 
-/* Dual capital rate is a real lever. */
+/* Dual capital rate (dividend rate === savings rate) is a real lever. */
 newGame();
 G = getG();
 {
   const dual = clone(G.law);
-  dual.regime = "dual";
-  dual.income.capitalRate = 15;
+  dual.income.divRate = 15;
+  dual.income.saveRate = 15;
   const a = incomeYield(dual, aggregate(dual), G.econ).capital;
-  dual.income.capitalRate = 35;
+  dual.income.divRate = 35;
+  dual.income.saveRate = 35;
   const b = incomeYield(dual, aggregate(dual), G.econ).capital;
   assert(
     b > a * 1.4,
-    `dual capitalRate scales capital yield (${a.toFixed(2)} → ${b.toFixed(2)})`,
+    `dual capital rate scales capital yield (${a.toFixed(2)} → ${b.toFixed(2)})`,
   );
 }
 

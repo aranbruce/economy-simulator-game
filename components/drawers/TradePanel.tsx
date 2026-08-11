@@ -41,6 +41,7 @@ import {
   showBlocFoundModal,
   showBlocInviteModal,
   nationTableData,
+  getDrawerCat,
 } from "../../lib/sim/engine.ts";
 import {
   toggleDraftDeal,
@@ -69,6 +70,24 @@ const REGION_ORDER = [
   "africa",
   "gulf",
   "oceania",
+];
+
+export type TradeCat =
+  | "tariffs"
+  | "currency"
+  | "blocs"
+  | "compare"
+  | "partners";
+/** Read by DrawerShell.tsx, which now owns the pill row itself. Tariffs
+ *  leads as the default landing view; "partners" is also what setTab()
+ *  in engine.ts selects when a map click scrolls to a specific partner,
+ *  so that card is never hidden behind a different pill. */
+export const CATS: [TradeCat, string][] = [
+  ["tariffs", "Tariffs"],
+  ["currency", "Currency"],
+  ["blocs", "Trade blocs"],
+  ["compare", "Comparison"],
+  ["partners", "Partners"],
 ];
 
 const CCY_CODES = Object.keys(CURRENCY_META).sort();
@@ -522,7 +541,7 @@ function BlocMembershipPanel({ G }: { G: any }) {
   const bid = countryBlocId(player);
   return (
     <>
-      <Eyebrow className="mt-5">Trade blocs</Eyebrow>
+      <Eyebrow>Trade blocs</Eyebrow>
       {bid ? <BlocMemberView G={G} bid={bid} /> : <BlocNonMemberView G={G} />}
     </>
   );
@@ -978,22 +997,33 @@ export function TradePanel() {
   ensureDiploStocks(G.econ);
   const Eagg = aggregate(G.draft, G.homeRole, G.blocMember);
   syncTariffHeadline(G.draft);
+  const cat = getDrawerCat("trade", "tariffs") as TradeCat;
 
+  if (cat === "currency") return <CurrencyPanel G={G} />;
+  if (cat === "blocs") return <BlocMembershipPanel G={G} />;
+  if (cat === "compare")
+    return (
+      <>
+        <Eyebrow>How {G.country} compares</Eyebrow>
+        <NationTable />
+      </>
+    );
+  if (cat === "partners")
+    return (
+      <>
+        <Eyebrow>Partners and agreements</Eyebrow>
+        <PartnerCardsByRegion G={G} />
+      </>
+    );
   return (
     <>
-      <CurrencyPanel G={G} />
-      <BlocMembershipPanel G={G} />
-      <Eyebrow className="mt-5">Tariffs</Eyebrow>
+      <Eyebrow>Tariffs</Eyebrow>
       <Hint>
         Set rates by bloc or country. Partners in the same bloc share one lever.
         Customs-union members trade at zero internally.
       </Hint>
       <TradeReadout G={G} Eagg={Eagg} />
       <TariffScheduleSection G={G} />
-      <Eyebrow className="mt-5">How {G.country} compares</Eyebrow>
-      <NationTable />
-      <Eyebrow className="mt-5">Partners and agreements</Eyebrow>
-      <PartnerCardsByRegion G={G} />
     </>
   );
 }

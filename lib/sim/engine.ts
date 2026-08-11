@@ -148,9 +148,10 @@ import {
   type TaxId,
   TAXES,
   TAX_BY_ID,
-  REGIMES,
-  type RegimeId,
-  REGIME_BY_ID,
+  FLAT_BONUS,
+  DUAL_BONUS,
+  LAND_BONUS,
+  CONSUMPTION_BONUS,
   POLICIES,
   type PolicyId,
   POLICY_BY_ID,
@@ -4946,6 +4947,72 @@ function hydrateGameSnapshot(snap: any, opts: any) {
    famous 60% marginal band when the higher rate is 40%:
      MTR = statutory + 0.5 * statutory  while the taper runs. */ const TAPER_START = 100000,
   TAPER_RATE = 0.5;
+/** Flat = every currently-active labour band agrees on rate — trivially
+ *  true the moment only Basic is left (removeIncomeBand), same as when
+ *  several bands are dragged to the same number. Crisp, not fuzzy —
+ *  sliders in this UI are stepped, so exact agreement is a deliberate,
+ *  reachable action, not a hairsbreadth accident. Capital income
+ *  (dividend/savings) is a genuinely separate question: capitalTaxOn()
+ *  always reads its own two rates, so a flat labour schedule never
+ *  silently overrides what the capital-rate sliders show — a flat income
+ *  tax with untouched capital rates is a real, common shape (most
+ *  real-world flat-tax proposals are about the labour schedule only), not
+ *  a partial/incomplete version of something else. */ function isFlatIncome(
+  law: any,
+) {
+  const bands = law.income.bands;
+  const r0 = bands[0].rate;
+  return bands.every((b: any) => Math.abs(b.rate - r0) < 1e-6);
+}
+/** Dual = dividend and savings rates agree with each other (capital
+ *  unified onto one rate) while the labour bands stay progressive — if
+ *  labour is already flat there's nothing left to call "dual" instead. */ function isDualCapital(
+  law: any,
+) {
+  if (isFlatIncome(law)) return false;
+  return Math.abs(law.income.divRate - law.income.saveRate) < 1e-6;
+}
+/** 0..1: how far Land value tax's rate sits between off and its own max —
+ *  replaces the old "Land value shift" regime pick. 0 at the opening
+ *  default (tax off), so the opening deficit is untouched until the
+ *  player actually raises it. */ function landCommitment(law: any) {
+  const t = law.taxes.landTax;
+  if (!t || !t.on) return 0;
+  return clamp(t.rate / TAX_BY_ID.landTax.max, 0, 1);
+}
+/** 0..1: how far VAT's rate sits between its opening default and its max —
+ *  replaces the old "Consumption-led" regime pick. 0 at the opening
+ *  default rate, same reasoning as landCommitment. */ function consumptionCommitment(
+  law: any,
+) {
+  const t = law.taxes.vat;
+  if (!t || !t.on) return 0;
+  const def = TAX_BY_ID.vat.def,
+    max = TAX_BY_ID.vat.max;
+  return clamp((t.rate - def) / (max - def), 0, 1);
+}
+/** Combined base multipliers from all four derived signals, additive on
+ *  the delta from 1 so they stack rather than fight for exclusivity — a
+ *  flat income tax and a land-value lean are independent choices now, not
+ *  mutually exclusive picks. income is floored defensively; nothing today
+ *  pushes it toward a ceiling. */ function regimeMultipliers(law: any) {
+  const flat = isFlatIncome(law) ? 1 : 0;
+  const dual = isDualCapital(law) ? 1 : 0;
+  const land = landCommitment(law);
+  const cons = consumptionCommitment(law);
+  return {
+    income: Math.max(
+      0.5,
+      1 -
+        (1 - FLAT_BONUS.incomeMult) * flat -
+        (1 - DUAL_BONUS.incomeMult) * dual -
+        (1 - LAND_BONUS.incomeMult) * land -
+        (1 - CONSUMPTION_BONUS.incomeMult) * cons,
+    ),
+    wealth: 1 + (DUAL_BONUS.wealthMult - 1) * dual + (LAND_BONUS.wealthMult - 1) * land,
+    consumption: 1 + (CONSUMPTION_BONUS.consumptionMult - 1) * cons,
+  };
+}
 function effectiveBands(law: any) {
   const I = law.income;
   const b = I.bands.map((x: any, i: any) =>
@@ -4961,7 +5028,7 @@ function effectiveBands(law: any) {
   );
   for (let i = 1; i < b.length; i++)
     if (b[i].from < b[i - 1].from) b[i].from = b[i - 1].from;
-  return (REGIME_BY_ID as any)[law.regime].flatIncome
+  return isFlatIncome(law)
     ? [
         {
           from: b[0].from,
@@ -4972,12 +5039,13 @@ function effectiveBands(law: any) {
 }
 function personalAllowance(y: any, law: any) {
   const A0 = law.income.allowance;
-  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return A0;
-  return Math.max(0, A0 - TAPER_RATE * Math.max(0, y - TAPER_START));
+  if (isFlatIncome(law)) return A0;
+  const ts = law.income.taperStart != null ? law.income.taperStart : TAPER_START;
+  return Math.max(0, A0 - TAPER_RATE * Math.max(0, y - ts));
 }
 function bandsForIncome(y: any, law: any) {
   const bands = effectiveBands(law);
-  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return bands;
+  if (isFlatIncome(law)) return bands;
   const A = personalAllowance(y, law);
   return bands.map((b: any, i: any) =>
     i === 0
@@ -5019,11 +5087,12 @@ function incomeTaxOn(y: any, bands: any) {
   y: any,
   law: any,
 ) {
-  if ((REGIME_BY_ID as any)[law.regime].flatIncome) return 0;
+  if (isFlatIncome(law)) return 0;
   const A0 = law.income.allowance;
   if (A0 <= 0) return 0;
-  const end = TAPER_START + A0 / TAPER_RATE;
-  if (y <= TAPER_START || y >= end) return 0;
+  const ts = law.income.taperStart != null ? law.income.taperStart : TAPER_START;
+  const end = ts + A0 / TAPER_RATE;
+  if (y <= ts || y >= end) return 0;
   const bands = effectiveBands(law);
   return marginalBand(bands, y) * TAPER_RATE;
 }
@@ -5039,18 +5108,17 @@ function incomeTaxOn(y: any, bands: any) {
     er: ni.erOn === false ? 0 : ((base * ni.erRate) / 100) * EMPLOYER_COLLECT,
   };
 }
-function capitalTaxOn(yDiv: any, ySave: any, law: any) {
+/** Always reads its own two rates — no special "flat forces capital to the
+ *  labour rate" branch, since isFlatIncome() is now labour-only. When a
+ *  player does align divRate/saveRate with the labour rate too, this
+ *  already produces the identical number to the old forced branch; it's
+ *  just no longer forced. */ function capitalTaxOn(
+  yDiv: any,
+  ySave: any,
+  law: any,
+) {
   const I = law.income;
   if (I.on === false) return 0;
-  const R = (REGIME_BY_ID as any)[law.regime];
-  if (R.flatIncome) {
-    const r = (I.bands[0] && I.bands[0].rate) || 20;
-    return ((yDiv + ySave) * r) / 100;
-  }
-  if (R.dualCapital) {
-    const r = I.capitalRate != null ? I.capitalRate : 25;
-    return ((yDiv + ySave) * r) / 100;
-  }
   const divR = I.divRate != null ? I.divRate : 33;
   const saveR = I.saveRate != null ? I.saveRate : 20;
   return (yDiv * divR) / 100 + (ySave * saveR) / 100;
@@ -5059,7 +5127,7 @@ function incomeYield(law: any, E: any, econ: any) {
   const ni = law.ni,
     wage = (econ && econ.wageIndex) || 1;
   const dist = activeIncomeDist(econ);
-  const mult = ((REGIME_BY_ID as any)[law.regime].mult || {}).income || 1;
+  const mult = regimeMultipliers(law).income;
   const incomeOn = law.income.on !== false;
   let tax = 0,
     emp = 0,
@@ -5110,6 +5178,71 @@ function incomeYield(law: any, E: any, econ: any) {
     employer: er * k,
     total: (tax * mult + capTax + emp + er) * k,
   };
+}
+/** Revenue raised by each nominal income-tax band (% of GDP), for the
+ *  per-band UI readout — mirrors incomeYield()'s exact declaredLab/scaling
+ *  so the figures sum to incomeYield(...).labour, at the cost of some
+ *  duplication with its loop (same trade-off revenue() already makes for
+ *  its own per-tax `by` breakdown). Bracket arithmetic matches
+ *  incomeTaxOn()'s internal loop, just kept per-bracket instead of summed.
+ *  Under a derived flat tax, bandsForIncome() collapses to one bracket —
+ *  every nominal band's rate already agrees there, so that single total is
+ *  split back across the nominal bands by width rather than showing zero
+ *  for the ones the collapse absorbed. */ function incomeByBand(
+  law: any,
+  E: any,
+  econ: any,
+) {
+  const nBands = law.income.bands.length;
+  const out = new Array(nBands).fill(0);
+  if (law.income.on === false) return out;
+  const ni = law.ni,
+    wage = (econ && econ.wageIndex) || 1;
+  const dist = activeIncomeDist(econ);
+  const mult = regimeMultipliers(law).income;
+  const flat = isFlatIncome(law);
+  let meanBase = 0;
+  for (const slice of dist) {
+    const y = slice.inc * wage;
+    meanBase += y * slice.w;
+    const yLab = y * (1 - CAP_INCOME_SHARE);
+    const bands = bandsForIncome(yLab, law);
+    const floor = bands[0].from;
+    const mtrNi = ni.empOn === false ? 0 : yLab > floor ? ni.empRate : 0;
+    const mtrLab = marginalBand(bands, yLab) + taperMtrBoost(yLab, law);
+    const mtr = (mtrLab + mtrNi) / 100;
+    const kink = bandKink(bands, yLab);
+    const declaredLab =
+      Math.min(yLab, kink) +
+      Math.max(0, yLab - kink) * declaredFactor(slice.inc, mtr);
+    const taxedBands = bandsForIncome(declaredLab, law);
+    if (flat) {
+      const totalTax = incomeTaxOn(declaredLab, taxedBands) * slice.w;
+      const nomBands = law.income.bands;
+      const widths = nomBands.map((b: any, i: any) => {
+        const to = i + 1 < nBands ? nomBands[i + 1].from : declaredLab;
+        return Math.max(0, Math.min(declaredLab, to) - b.from);
+      });
+      const totalWidth = widths.reduce((s: number, w: number) => s + w, 0);
+      if (totalWidth > 0)
+        widths.forEach((w: number, i: number) => {
+          out[i] += (totalTax * w) / totalWidth;
+        });
+    } else {
+      for (let i = 0; i < taxedBands.length && i < nBands; i++) {
+        const from = taxedBands[i].from,
+          to = i + 1 < taxedBands.length ? taxedBands[i + 1].from : Infinity;
+        if (declaredLab > from)
+          out[i] +=
+            (((Math.min(declaredLab, to) - from) * taxedBands[i].rate) /
+              100) *
+            slice.w;
+      }
+    }
+  }
+  const evasion = 1 - clamp(E ? E.eva : 0, -0.7, 0.7) * 0.05;
+  const k = ((LABOUR_SHARE * 100) / meanBase) * evasion;
+  return out.map((v) => v * k * mult);
 }
 /* Population-weighted marginal rate and progressivity. Declared-income effects
    are handled inside incomeYield; this is the separate real-economy channel:
@@ -5290,7 +5423,6 @@ export let G: any = null;
 export let tab: string | null = null;
 function baseLaw() {
   const law = {
-    regime: "progressive",
     polity: "democracy",
     taxes: Object.fromEntries(
       TAXES.map((t) => [
@@ -5337,6 +5469,24 @@ function baseLaw() {
       boardRepresentation: "none",
       informalEnforcement: "standard",
       pensionIndexing: "discretionary",
+      abortion: "onDemand",
+      sameSexMarriage: "legal",
+      euthanasia: "passiveOnly",
+      transRecognition: "medicalGatekept",
+      surrogacy: "altruisticOnly",
+      pressFreedom: "free",
+      internetCensorship: "none",
+      blasphemyLaw: "none",
+      gunOwnership: "licensed",
+      religiousDress: "unrestricted",
+      religionTaxStatus: "exemptRegistered",
+      deathPenalty: "abolished",
+      wiretapPowers: "warrantRequired",
+      biometricId: "limitedToCrime",
+      socialCredit: "none",
+      asylumPolicy: "standardProcessing",
+      familyReunification: "standard",
+      citizenshipPath: "standardNaturalisation",
     },
     headOfState: Object.assign({}, DEF_HEAD_OF_STATE),
     electoral: Object.assign({}, DEF_ELECTORAL),
@@ -6541,12 +6691,18 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
       for (const f in fac) if (f in E.fac) (E.fac as any)[f] += fac[f] * k;
     }
   };
-  const R = (REGIME_BY_ID as any)[law.regime];
-  add(R.imp, R.fac, 1, R.ch);
+  add(FLAT_BONUS.imp, FLAT_BONUS.fac, isFlatIncome(law) ? 1 : 0, FLAT_BONUS.ch);
+  add(DUAL_BONUS.imp, DUAL_BONUS.fac, isDualCapital(law) ? 1 : 0, DUAL_BONUS.ch);
+  add(null, LAND_BONUS.fac, landCommitment(law), LAND_BONUS.ch);
+  add(
+    null,
+    CONSUMPTION_BONUS.fac,
+    consumptionCommitment(law),
+    CONSUMPTION_BONUS.ch,
+  );
   for (const t of TAXES) {
     const s = law.taxes[t.id];
     if (!s || !s.on || !taxAvailable(t, law)) continue;
-    if (R.kills && R.kills.includes(t.id)) continue;
     add(t.imp, t.fac, s.rate - t.def, t.ch);
   }
   /* Tariffs: openness and faction effects here; the price and volume channels
@@ -6643,14 +6799,12 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   }
 }
 function revenue(law: any, E: any, econ?: any) {
-  const R = (REGIME_BY_ID as any)[law.regime],
-    mult = R.mult || {};
+  const mult = regimeMultipliers(law);
   const by: Record<string, any> = {};
   let total = 0;
   for (const t of TAXES) {
     const s = law.taxes[t.id];
     if (!s || !s.on || !taxAvailable(t, law)) continue;
-    if (R.kills && R.kills.includes(t.id)) continue;
     let base = t.base * ((mult as any)[t.grp] || 1);
     if (t.grp === "vice") base *= 1 - E.blackLevel / 100;
     base *= taxBaseIndex(t, econ);
@@ -9271,15 +9425,13 @@ function billClauses() {
   const L = G.law,
     D = G.draft,
     out = [];
-  if (D.regime !== L.regime)
-    out.push({
-      label:
-        "Restructure the tax system: " + (REGIME_BY_ID as any)[D.regime].name,
-      pc: (REGIME_BY_ID as any)[D.regime].pc,
-      undo: () => {
-        D.regime = L.regime;
-      },
-    });
+  /* Flat/Dual are derived (isFlatIncome/isDualCapital), not a separate
+     pick, and deliberately carry no clause of their own — reaching either
+     one is already priced through the band/rate clauses below (restructure
+     the bands, each band's own rate change, dividend/savings rate changes).
+     A standalone "you triggered Flat, that's 34 capital" surcharge on top
+     would be an extra, unexplained cost with nothing in the UI to justify
+     it now that there's no regime label shown. */
   if ((D.polity || "democracy") !== (L.polity || "democracy")) {
     const to = D.polity || "democracy";
     const from = L.polity || "democracy";
@@ -9352,6 +9504,22 @@ function billClauses() {
         },
       });
     }
+    if (
+      Math.abs(
+        (D.income.taperStart != null ? D.income.taperStart : TAPER_START) -
+          (L.income.taperStart != null ? L.income.taperStart : TAPER_START),
+      ) > 1
+    ) {
+      const from = L.income.taperStart != null ? L.income.taperStart : TAPER_START;
+      const to = D.income.taperStart != null ? D.income.taperStart : TAPER_START;
+      out.push({
+        label: "Allowance taper starts at " + money(from) + " to " + money(to),
+        pc: Math.max(1, Math.ceil(Math.abs(to - from) / 5000)),
+        undo: () => {
+          D.income.taperStart = L.income.taperStart;
+        },
+      });
+    }
     if (D.income.uprate !== L.income.uprate) {
       out.push({
         label: D.income.uprate
@@ -9410,15 +9578,11 @@ function billClauses() {
     const CAP_LABEL = {
       divRate: "Dividend rate",
       saveRate: "Savings rate",
-      capitalRate: "Capital income rate",
     };
     for (const k in CAP_LABEL) {
       const a = L.income[k],
         b = D.income[k];
       if (a == null || b == null || Math.abs(a - b) < 1e-9) continue;
-      const dual = !!(REGIME_BY_ID as any)[D.regime].dualCapital;
-      if (dual && (k === "divRate" || k === "saveRate")) continue;
-      if (!dual && k === "capitalRate") continue;
       out.push({
         label:
           (CAP_LABEL as any)[k] +
@@ -16270,6 +16434,17 @@ function setOnTabChange(fn: any) {
 function setTab(t: any, scrollPartner?: any) {
   const prev = tab;
   tab = t;
+  /* A partner scroll target has to land on the pill that actually shows
+     that partner's card, or queueDrawerPartnerScroll() retries for ~1.5s
+     and silently gives up — the card is never in the DOM to find. Mutated
+     directly (not via setDrawerCat) since this function does its own
+     bump() below. */ if (scrollPartner) {
+    if (t === "trade") drawerCat.trade = "partners";
+    else if (t === "diplomacy") {
+      const p = partnerById(scrollPartner);
+      if (p && p.region) drawerCat.diplomacy = p.region;
+    }
+  }
   if (_onTabChange && t !== prev) _onTabChange(t, prev);
   render(scrollPartner ? { skipBump: true, scrollPartner } : undefined);
   /* React chrome reads tab via getTab() but only re-renders on bump(). */
@@ -16277,6 +16452,21 @@ function setTab(t: any, scrollPartner?: any) {
 }
 function getTab() {
   return tab;
+}
+/** Which pill category is selected within a given drawer tab (laws/charts/
+ *  taxes) — lives outside G so it's not part of the game-state clone/save
+ *  surface, same rationale as `tab` itself. Keyed per-tab so switching
+ *  drawers remembers each one's last category instead of resetting it.
+ *  DrawerShell.tsx owns the pill row; panels just read their own slot. */ let drawerCat: Record<
+  string,
+  string
+> = {};
+function getDrawerCat(tabId: string, def: string) {
+  return drawerCat[tabId] || def;
+}
+function setDrawerCat(tabId: string, cat: string) {
+  drawerCat[tabId] = cat;
+  bump();
 }
 function getG() {
   return G;
@@ -16300,9 +16490,10 @@ export {
   TAXES,
   TAX_BY_ID,
   type TaxId,
-  REGIMES,
-  REGIME_BY_ID,
-  type RegimeId,
+  FLAT_BONUS,
+  DUAL_BONUS,
+  LAND_BONUS,
+  CONSUMPTION_BONUS,
   POLICIES,
   POLICY_BY_ID,
   type PolicyId,
@@ -16530,11 +16721,18 @@ export {
   previewOption,
   applyEventOption,
   incomeYield,
+  incomeByBand,
   incomeProfile,
   effectiveBands,
   personalAllowance,
   TAPER_START,
+  TAPER_RATE,
   capitalTaxOn,
+  isFlatIncome,
+  isDualCapital,
+  landCommitment,
+  consumptionCommitment,
+  regimeMultipliers,
   CAP_INCOME_SHARE,
   PRIVATE_WEALTH0,
   MPC_INCIDENCE,
@@ -16677,6 +16875,8 @@ export {
   requestSetup,
   setTab,
   getTab,
+  getDrawerCat,
+  setDrawerCat,
   setOnTabChange,
   getG,
   setG,

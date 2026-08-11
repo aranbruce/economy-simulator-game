@@ -64,25 +64,6 @@ export interface Tax {
   trade?: Record<string, number>;
 }
 
-/** One of `REGIMES` — an income-tax architecture (bands, flat, dual, …).
- * `mult` rescales other tax bases; `flatIncome`/`dualCapital` are structural
- * flags read by the income engine, not effect bags. */
-export interface Regime {
-  id: string;
-  name: string;
-  pc: number;
-  blurb: string;
-  mult: Partial<Record<string, number>>;
-  imp?: Partial<Record<string, number>>;
-  ch?: ChannelEffects;
-  fac: FactionEffects;
-  flatIncome?: boolean;
-  dualCapital?: boolean;
-  /** Tax ids this regime abolishes outright (e.g. flat kills the additional
-   * rate). Reserved for future regimes — none currently set it. */
-  kills?: string[];
-}
-
 /** One of `POLICIES`. `cost` is annual % of GDP (negative saves money);
  * `kills` lists mutually exclusive policies. See CLAUDE.md "Adding content". */
 export interface Policy {
@@ -101,8 +82,8 @@ export interface Policy {
   trade?: number;
   /** Shock resilience contribution (e.g. diversification policies). */
   resilience?: number;
-  /** One-off structural flags read by name at the call site, matching
-   * `flatIncome`/`dualCapital` on Regime — not effect bags. */
+  /** One-off structural flags read by name at the call site, not effect
+   * bags. */
   fund?: boolean;
   rule?: boolean;
   tripleLock?: boolean;
@@ -136,7 +117,7 @@ export interface LawGroupOption {
 export interface LawGroup {
   id: string;
   name: string;
-  menu: "state" | "labor";
+  menu: "state" | "labor" | "rights" | "justice";
   cat: string;
   options: LawGroupOption[];
 }

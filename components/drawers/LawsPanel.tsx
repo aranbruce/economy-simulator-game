@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   LAW_GROUPS,
   VICE,
@@ -10,24 +9,39 @@ import {
   bump,
   qualEffectsData,
   fullEffectsData,
+  resolveReqState,
   taxAvailable,
+  getDrawerCat,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { setGroupOption, setLawField } from "../../lib/ui/actions.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
-import { Card, CardGrid, CardCat } from "../ui/Card.tsx";
+import { Card, CardCat } from "../ui/Card.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
 import { PolicyCard } from "../ui/PolicyCard.tsx";
-import { CatPills } from "../ui/CatPills.tsx";
-import type { LawGroup, Policy, ViceState } from "../../lib/sim/types.ts";
+import type {
+  LawGroup,
+  LawGroupOption,
+  Policy,
+  ViceState,
+} from "../../lib/sim/types.ts";
 
-type Menu = "state" | "labor" | "economy" | "environment" | "justice" | "vice";
+export type Menu =
+  | "state"
+  | "labor"
+  | "rights"
+  | "economy"
+  | "environment"
+  | "justice"
+  | "vice";
 
-const MENUS: [Menu, string][] = [
+/** Read by DrawerShell.tsx, which now owns the pill row itself. */
+export const MENUS: [Menu, string][] = [
   ["state", "State & Constitution"],
   ["labor", "Labor & Welfare"],
+  ["rights", "Civil Rights"],
   ["economy", "Economy"],
   ["environment", "Environment"],
   ["justice", "Justice"],
@@ -40,7 +54,6 @@ const STATE_CATS = [
   "Political Parties",
   "Parliament",
   "Regional Sovereignty",
-  "Civil Liberties",
   "Borders & Immigration",
   "Defence",
 ];
@@ -57,12 +70,29 @@ const LABOR_CATS = [
   "Retirement",
   "Workplace Association",
 ];
-const ECONOMY_CATS = ["Industry & Enterprise", "Education", "Fiscal Framework"];
+/* Personal/social rights, split out of State & Constitution (which stays
+   about state structure) and Vice & Narcotics (which stays its own pill).
+   "Civil Liberties" moved here wholesale — assembly/strike rights and
+   digital ID read as rights content, not state-structure content. */
+const RIGHTS_CATS = [
+  "Civil Liberties",
+  "Family & Bioethics",
+  "Media & Speech",
+  "Weapons",
+  "Religious Affairs",
+];
+const ECONOMY_CATS = [
+  "Industry & Enterprise",
+  "Education",
+  "Fiscal Framework",
+  "Infrastructure",
+];
 const ENVIRONMENT_CATS = ["Energy & Climate"];
-const JUSTICE_CATS = ["Policing & Prisons"];
+const JUSTICE_CATS = ["Policing & Prisons", "Penal Code", "Surveillance"];
 const MENU_CATS: Record<Menu, string[]> = {
   state: STATE_CATS,
   labor: LABOR_CATS,
+  rights: RIGHTS_CATS,
   economy: ECONOMY_CATS,
   environment: ENVIRONMENT_CATS,
   justice: JUSTICE_CATS,
@@ -210,40 +240,47 @@ const SLIDER_SECTIONS: SliderSection[] = [
   },
 ];
 
+function optionAllowed(law: any, o: LawGroupOption) {
+  return !o.req || resolveReqState(law, o.req);
+}
+
 function GroupCard({ grp }: { grp: LawGroup }) {
   const G = useGame();
   const draftId = (G.draft.groups || {})[grp.id];
   const lawId = (G.law.groups || {})[grp.id];
   const current = grp.options.find((o) => o.id === draftId) || grp.options[0];
-  const draftIdx = Math.max(
-    0,
-    grp.options.findIndex((o) => o.id === draftId),
-  );
-  const lawIdx = Math.max(
-    0,
-    grp.options.findIndex((o) => o.id === lawId),
-  );
   const effectsData = G.sandbox
     ? fullEffectsData(current.imp, current.fac, 0, current.ch)
     : qualEffectsData(current.imp, current.fac, 0, current.ch);
   return (
-    <Card on={draftId === lawId} staged={draftId !== lawId}>
+    <Card staged={draftId !== lawId}>
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {grp.name}
         <CardCat>{current.pc} capital</CardCat>
       </h4>
-      <Lever
-        id={grp.id}
-        name=""
-        value={draftIdx}
-        base={lawIdx}
-        labels={grp.options.map((o) => o.label)}
-        className="no-border"
-        onCommit={(_, idx) => {
-          const o = grp.options[Math.round(idx)];
-          if (o) setGroupOption(grp.id, o.id);
-        }}
-      />
+      <div className="flex w-full flex-wrap gap-0.5 rounded-sm bg-g-1 p-0.5">
+        {grp.options.map((o) => {
+          const allowed = o.id === draftId || optionAllowed(G.draft, o);
+          const staged = o.id === draftId && o.id !== lawId;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              aria-pressed={o.id === draftId}
+              disabled={!allowed}
+              title={
+                allowed
+                  ? undefined
+                  : "Not available under the current political system"
+              }
+              className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-35 aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
+              onClick={() => allowed && setGroupOption(grp.id, o.id)}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">
         {T(current.blurb)}
       </p>
@@ -312,7 +349,7 @@ function ViceCardGrid() {
   };
 
   return (
-    <CardGrid>
+    <div className="flex flex-col gap-2">
       {VICE.map((v) => {
         const cur = G.draft.vice[v.id];
         const inLaw = G.law.vice[v.id];
@@ -321,7 +358,7 @@ function ViceCardGrid() {
           ? fullEffectsData(st.imp, st.fac, 0)
           : qualEffectsData(st.imp, st.fac, 0);
         return (
-          <Card key={v.id} on={cur === inLaw} staged={cur !== inLaw}>
+          <Card key={v.id} staged={cur !== inLaw}>
             <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {v.name}
               <CardCat>{v.pc} capital</CardCat>
@@ -356,7 +393,7 @@ function ViceCardGrid() {
           </Card>
         );
       })}
-    </CardGrid>
+    </div>
   );
 }
 
@@ -428,15 +465,19 @@ function MenuSection({ menu }: { menu: Menu }) {
               <SliderSectionCard key={s.groupKey} section={s} />
             ))}
             {isVice ? <ViceCardGrid /> : null}
-            {catGroups.length || catPolicies.length ? (
-              <CardGrid>
+            {catGroups.length ? (
+              <div className="mb-2 flex flex-col gap-2">
                 {catGroups.map((g) => (
                   <GroupCard key={g.id} grp={g} />
                 ))}
+              </div>
+            ) : null}
+            {catPolicies.length ? (
+              <div className="flex flex-col gap-2">
                 {catPolicies.map((p) => (
                   <PolicyCard key={p.id} p={p} />
                 ))}
-              </CardGrid>
+              </div>
             ) : null}
           </div>
         );
@@ -446,20 +487,16 @@ function MenuSection({ menu }: { menu: Menu }) {
 }
 
 export function LawsPanel() {
-  const [menu, setMenu] = useState<Menu>("state");
+  useGame(); // subscribe to bump() so DrawerShell's pill change re-renders us
+  const menu = getDrawerCat("laws", "state") as Menu;
 
   return (
     <>
-      <div className="fixed inset-x-0 top-13.75 z-10 border-b border-edge bg-panel px-3.5 pt-3 pb-0">
-        <CatPills options={MENUS} value={menu} onChange={setMenu} />
-      </div>
-      <div className="mt-14">
-        <Hint className="my-3">
-          Every option here is a real, costed clause — staging one adds it to
-          the Programme like any tax or policy.
-        </Hint>
-        <MenuSection menu={menu} />
-      </div>
+      <Hint className="my-3">
+        Every option here is a real, costed clause — staging one adds it to
+        the Programme like any tax or policy.
+      </Hint>
+      <MenuSection menu={menu} />
     </>
   );
 }

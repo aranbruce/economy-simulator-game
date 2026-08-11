@@ -6,13 +6,37 @@ import {
   capitalShortfallHint,
   getTab,
   setTab,
+  getDrawerCat,
+  setDrawerCat,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { DrawerContent } from "./DrawerContent.tsx";
+import { CatPills } from "../ui/CatPills.tsx";
+import { MENUS as LAWS_MENUS } from "../drawers/LawsPanel.tsx";
+import { CATS as CHARTS_CATS } from "../drawers/ChartsPanel.tsx";
+import { CATS as TAXES_CATS } from "../drawers/TaxesPanel.tsx";
+import { CATS as DIPLOMACY_CATS } from "../drawers/DiplomacyPanel.tsx";
+import { CATS as TRADE_CATS } from "../drawers/TradePanel.tsx";
 
 function billCost() {
   return billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
 }
+
+/** Category pills for a drawer live here, as real persistent chrome, rather
+ *  than each panel faking stickiness with `position: fixed` at a
+ *  hand-tuned pixel offset against this shell's own header height. Add an
+ *  entry here (and export the panel's own `CATS`/`MENUS` + default id) to
+ *  give any other drawer the same pill row. */
+const PILL_CONFIG: Record<
+  string,
+  { options: [string, string][]; def: string }
+> = {
+  laws: { options: LAWS_MENUS, def: "state" },
+  charts: { options: CHARTS_CATS, def: "growth" },
+  taxes: { options: TAXES_CATS, def: "income" },
+  diplomacy: { options: DIPLOMACY_CATS, def: DIPLOMACY_CATS[0][0] },
+  trade: { options: TRADE_CATS, def: "tariffs" },
+};
 
 export function DrawerShell() {
   const G = useGame();
@@ -41,6 +65,7 @@ export function DrawerShell() {
   }
 
   const wide = !!(TABS.find((t) => t.id === tab) as any)?.wide;
+  const pillConfig = PILL_CONFIG[tab];
 
   return (
     <div
@@ -73,6 +98,15 @@ export function DrawerShell() {
           &#10005;
         </button>
       </div>
+      {pillConfig ? (
+        <div className="flex-none border-b border-edge bg-panel px-3.5 py-2.25 max-[720px]:px-3">
+          <CatPills
+            options={pillConfig.options}
+            value={getDrawerCat(tab, pillConfig.def)}
+            onChange={(v) => setDrawerCat(tab, v)}
+          />
+        </div>
+      ) : null}
       <div
         className="dw-body overflow-y-auto overscroll-contain px-3.5 pt-3 pb-4 [-webkit-overflow-scrolling:touch] max-[720px]:px-3 max-[720px]:pt-2.5 max-[720px]:pb-3.5"
         id="drawerBody"

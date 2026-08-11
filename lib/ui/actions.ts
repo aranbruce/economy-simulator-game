@@ -67,12 +67,6 @@ export function setDraftTaxRate(taxId: string, value: number) {
   bump();
 }
 
-export function setDraftRegime(regimeId: string) {
-  const G = getG();
-  G.draft.regime = regimeId;
-  bump();
-}
-
 export function introduceTax(taxId: string) {
   const G = getG();
   const t = TAX_BY_ID[taxId as TaxId];
@@ -110,7 +104,7 @@ export function setIncomeAllowance(value: number) {
 }
 
 export function setIncomeField(
-  key: "divRate" | "saveRate" | "capitalRate",
+  key: "divRate" | "saveRate" | "taperStart",
   value: number,
 ) {
   const G = getG();
@@ -142,6 +136,20 @@ export function addIncomeBand() {
     from: Math.round((last.from * 1.8) / 1000) * 1000 + 20000,
     rate: Math.min(90, last.rate + 5),
   });
+  bump();
+}
+
+/** Removes the top band (mirrors addIncomeBand's push) rather than zeroing
+ *  its rate in place — a zeroed-but-still-present band creates an untaxed
+ *  bracket above its threshold instead of letting the band below it cover
+ *  that income, and its "restore" default goes stale the moment the
+ *  abolition is enacted (G.law's own rate becomes 0 too). Basic always
+ *  survives; abolishing income tax entirely is the separate setIncomeOn
+ *  toggle. */
+export function removeIncomeBand() {
+  const G = getG();
+  const bands = G.draft.income.bands;
+  if (bands.length > 1) bands.pop();
   bump();
 }
 

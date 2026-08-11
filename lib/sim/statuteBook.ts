@@ -12,15 +12,7 @@
  * mutually recursive around the `G` global and splitting them needs a
  * `G`-decoupling rearchitecture, not a mechanical move.
  */
-import type {
-  Faction,
-  Dept,
-  Tax,
-  Regime,
-  Policy,
-  Vice,
-  Mission,
-} from "./types.ts";
+import type { Faction, Dept, Tax, Policy, Vice, Mission } from "./types.ts";
 import { COUNTRIES } from "./countries.ts";
 
 const FACTIONS = [
@@ -121,10 +113,11 @@ type DeptId = (typeof DEPTS)[number]["id"];
    residual so the opening fiscal position stays put. */ const OTHER_SPEND = 7.7,
   OTHER_REV = 12.25,
   TERM_LEN = 20;
-/* Political regime per seat. Opening pin on NATION_PROFILE; live player polity
-   lives on law.polity and can be restaged from Society. REGIMES above is tax
-   architecture only. Three types only — former absolute monarchies (Saudi, UAE)
-   use authoritarian. */ const POLITY: Record<string, any> = {
+/* Political regime per seat (democracy/hybrid/authoritarian) — unrelated to
+   tax architecture (isFlatIncome/isDualCapital/landCommitment/
+   consumptionCommitment in engine.ts). Opening pin on NATION_PROFILE; live
+   player polity lives on law.polity and can be restaged from Society. Three
+   types only — former absolute monarchies (Saudi, UAE) use authoritarian. */ const POLITY: Record<string, any> = {
   democracy: {
     termLen: 20,
     loseAt: 44,
@@ -241,6 +234,9 @@ const DEF_INCOME = {
   on: true,
   allowance: 12570,
   uprate: true,
+  /* Above this, the allowance withdraws at a fixed 50p in the pound
+     (TAPER_RATE in engine.ts, not player-adjustable — this slider only
+     moves where the taper starts). */ taperStart: 100000,
   bands: [
     {
       from: 12570,
@@ -256,9 +252,10 @@ const DEF_INCOME = {
     },
   ],
   /* Capital income is a share of each slice, taxed separately from labour.
-     Progressive: UK-ish dividend and savings rates. Dual: one flat capitalRate. */ divRate: 33,
+     UK-ish dividend and savings rates; if the two ever agree, that already
+     is a "dual" system (isDualCapital in engine.ts) — no separate field
+     needed. */ divRate: 33,
   saveRate: 20,
-  capitalRate: 25,
 };
 /* Share of gross personal income treated as capital (dividends + savings), and
    the split between those two within the capital slice. */ const CAP_INCOME_SHARE = 0.14;
@@ -307,12 +304,16 @@ const DEF_CHILDCARE = {
    POLICIES entry: that policy pegs the floor to two thirds of median
    earnings as an uprating *rule*; this is the numeric rate itself, which
    the wage/price block and the low-income participation margin read
-   directly. Off by default, matching the pre-existing opening calibration
-   (which assumed no statutory floor effect on the income distribution). */ const DEF_MIN_WAGE =
-  {
-    on: false,
-    rate: 11.5,
-  };
+   directly. The UK has had a statutory minimum wage since 1999 (the
+   National Living Wage today), so this is on by default; rate is ~ the
+   NLW for 21+, projected to mid-2026. Every REALM_LAW overlay sets its
+   own on/rate — see realmLaws.ts — since most countries have one but a
+   few genuinely don't (Italy: wages set by sectoral bargaining, no
+   statutory floor; UAE: no broad statutory minimum for the private-sector
+   workforce). */ const DEF_MIN_WAGE = {
+  on: true,
+  rate: 12.6,
+};
 /* ~ the real UK new State Pension (annual, 2025-26). */ const DEF_PENSION = {
   retirementAge: 66,
   statePensionAnnual: 12000,
@@ -823,113 +824,42 @@ const TAX_BY_ID = Object.fromEntries(TAXES.map((t) => [t.id, t])) as Record<
   Tax
 >;
 /* --- the structure of the tax system itself ---
+   These used to be five mutually-exclusive `REGIMES` the player picked from
+   a card. All five are now derived from the sliders that already exist —
+   Flat and Dual from rate *agreement* (isFlatIncome/isDualCapital in
+   engine.ts), Land value shift and Consumption-led from how far Land value
+   tax / VAT sit from their defaults (landCommitment/consumptionCommitment).
+   The four bundles below carry exactly the old regimes' magnitudes; nothing
+   here is a re-tune, just a move off the discrete `id`/`pc`/`blurb` shape
+   (billClauses() prices the two crisp ones directly; the continuous pair's
+   cost is already paid through the underlying tax's own rate-change price).
    Growth effects come from lighter labour wedges (part), lower capital costs
    (ucost) and land-use (kboost), not from a pot fudge. Inequality is derived
-   from the post-tax income distribution. */ const REGIMES = [
-  {
-    id: "progressive",
-    name: "Progressive bands",
-    pc: 0,
-    blurb:
-      "Graduated rates on income, separate rates on capital. What {C} has always done.",
-    mult: {},
-    imp: {},
-    fac: {},
-  },
-  {
-    id: "flat",
-    name: "Flat tax",
-    pc: 34,
-    blurb:
-      "One rate on all income above an allowance. The additional rate is abolished and collection gets cheaper.",
-    mult: {
-      income: 0.88,
-    },
-    imp: {
-      eva: -0.05,
-    },
-    ch: {
-      part: 0.35,
-      ucost: -0.06,
-    },
-    fac: {
-      business: 7,
-      workers: -7,
-      urban: -5,
-      pensioners: -2,
-    },
-    flatIncome: true,
-  },
-  {
-    id: "consumption",
-    name: "Consumption-led",
-    pc: 32,
-    blurb:
-      "Tax what people spend, not what they earn. Income tax bases shrink, VAT and duties do the heavy lifting.",
-    mult: {
-      income: 0.72,
-      consumption: 1.35,
-    },
-    ch: {
-      part: 0.25,
-      ucost: -0.08,
-    },
-    fac: {
-      business: 5,
-      workers: -5,
-      pensioners: -5,
-      urban: -2,
-    },
-  },
-  {
-    id: "landValue",
-    name: "Land value shift",
-    pc: 38,
-    blurb:
-      "Tax the unimproved value of land and lighten the load on work. Economists approve. Landowners do not.",
-    mult: {
-      income: 0.9,
-      wealth: 2.4,
-    },
-    ch: {
-      part: 0.2,
-      ucost: -0.12,
-      kboost: 0.28,
-    },
-    fac: {
-      rural: -11,
-      business: 3,
-      urban: 4,
-      pensioners: -4,
-    },
-  },
-  {
-    id: "dual",
-    name: "Dual income system",
-    pc: 28,
-    blurb:
-      "Labour income taxed progressively, capital income at a single flat rate. Broad base, fewer leaks.",
-    mult: {
-      wealth: 1.55,
-      income: 0.95,
-    },
-    imp: {
-      eva: -0.08,
-    },
-    ch: {
-      ucost: -0.04,
-    },
-    fac: {
-      business: 2,
-      workers: 1,
-    },
-    dualCapital: true,
-  },
-] as const satisfies Regime[];
-type RegimeId = (typeof REGIMES)[number]["id"];
-const REGIME_BY_ID = Object.fromEntries(
-  REGIMES.map((r) => [r.id, r]),
-) as Record<RegimeId, Regime>;
+   from the post-tax income distribution. */ const FLAT_BONUS = {
+  incomeMult: 0.88,
+  imp: { eva: -0.05 },
+  ch: { part: 0.35, ucost: -0.06 },
+  fac: { business: 7, workers: -7, urban: -5, pensioners: -2 },
+};
+const DUAL_BONUS = {
+  incomeMult: 0.95,
+  wealthMult: 1.55,
+  imp: { eva: -0.08 },
+  ch: { ucost: -0.04 },
+  fac: { business: 2, workers: 1 },
+};
+const LAND_BONUS = {
+  incomeMult: 0.9,
+  wealthMult: 2.4,
+  ch: { part: 0.2, ucost: -0.12, kboost: 0.28 },
+  fac: { rural: -11, business: 3, urban: 4, pensioners: -4 },
+};
+const CONSUMPTION_BONUS = {
+  incomeMult: 0.72,
+  consumptionMult: 1.35,
+  ch: { part: 0.25, ucost: -0.08 },
+  fac: { business: 5, workers: -5, pensioners: -5, urban: -2 },
+};
 /* --- policies. cost is % of GDP per year; pc is political capital ---
    `imp` is the social layer (services, liberty, crime, health, environment,
    evasion, black market). Macro effects belong in `ch`: labour supply, capital,
@@ -1383,6 +1313,26 @@ const REGIME_BY_ID = Object.fromEntries(
     kills: ["openVisas"],
   },
   {
+    id: "undocumentedAmnesty",
+    lawsCat: "Borders & Immigration",
+    name: "Regularisation of undocumented workers",
+    cat: "Borders",
+    cost: 0.15,
+    pc: 16,
+    blurb:
+      "A one-off path to legal status for undocumented residents already working and resident.",
+    ch: {
+      labour: 0.3,
+      part: 0.4,
+    },
+    fac: {
+      workers: 4,
+      urban: 3,
+      patriots: -9,
+      business: 2,
+    },
+  },
+  {
     id: "conscript",
     name: "National service",
     cat: "State",
@@ -1642,6 +1592,107 @@ const REGIME_BY_ID = Object.fromEntries(
     },
     resilience: -0.25,
     kills: ["fracking"],
+  },
+  {
+    id: "highSpeedRail",
+    lawsCat: "Infrastructure",
+    name: "High-speed rail programme",
+    cat: "Infrastructure",
+    cost: 1.3,
+    pc: 20,
+    blurb:
+      "A new high-speed line linking major cities. Years of disruption along the route for a permanent capacity gain.",
+    ch: {
+      kboost: 0.4,
+      tfp: 0.05,
+    },
+    fac: {
+      business: 5,
+      workers: 3,
+      urban: 3,
+      rural: -4,
+    },
+  },
+  {
+    id: "smartGrid",
+    lawsCat: "Infrastructure",
+    name: "Smart grid rollout",
+    cat: "Infrastructure",
+    cost: 0.7,
+    pc: 14,
+    blurb:
+      "Digital metering and load-balancing across the national grid, cutting waste and easing renewables integration.",
+    imp: {
+      env: 2,
+    },
+    ch: {
+      kboost: 0.3,
+      tfp: 0.08,
+    },
+    fac: {
+      business: 4,
+      urban: 2,
+    },
+  },
+  {
+    id: "motorwayExpansion",
+    lawsCat: "Infrastructure",
+    name: "Motorway network expansion",
+    cat: "Infrastructure",
+    cost: 0.8,
+    pc: 12,
+    blurb:
+      "New lanes and links across the strategic road network. Faster freight, more traffic, more emissions.",
+    imp: {
+      env: -3,
+    },
+    ch: {
+      kboost: 0.35,
+    },
+    fac: {
+      business: 4,
+      rural: 4,
+      urban: -2,
+    },
+  },
+  {
+    id: "airportExpansion",
+    lawsCat: "Infrastructure",
+    name: "Airport capacity expansion",
+    cat: "Infrastructure",
+    cost: 0.5,
+    pc: 14,
+    blurb:
+      "New runway and terminal capacity at the country's busiest airports. More routes and trade, more noise for those nearby.",
+    imp: {
+      open: 2,
+      env: -3,
+    },
+    ch: {
+      kboost: 0.25,
+    },
+    fac: {
+      business: 6,
+      urban: -4,
+    },
+  },
+  {
+    id: "telecomRollout",
+    lawsCat: "Infrastructure",
+    name: "National telecom network rollout",
+    cat: "Infrastructure",
+    cost: 0.4,
+    pc: 10,
+    blurb:
+      "Fibre and next-generation mobile coverage extended to every region, including where the commercial case alone wouldn't reach.",
+    ch: {
+      tfp: 0.1,
+      kboost: 0.1,
+    },
+    fac: {
+      business: 5,
+      rural: 4,
+    },
   },
 ] as const satisfies Policy[];
 type PolicyId = (typeof POLICIES)[number]["id"];
@@ -2060,9 +2111,10 @@ export {
   type TaxId,
   TAXES,
   TAX_BY_ID,
-  REGIMES,
-  type RegimeId,
-  REGIME_BY_ID,
+  FLAT_BONUS,
+  DUAL_BONUS,
+  LAND_BONUS,
+  CONSUMPTION_BONUS,
   POLICIES,
   type PolicyId,
   POLICY_BY_ID,
