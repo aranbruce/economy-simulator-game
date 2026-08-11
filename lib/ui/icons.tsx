@@ -41,20 +41,6 @@ const ICONS = {
       <path d="M6 5.5h3.5M6 8h3.5M6 10.5h2" />
     </svg>
   ),
-  people: (
-    <svg
-      width="15"
-      height="15"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.3"
-    >
-      <circle cx="6" cy="5.5" r="2.2" />
-      <path d="M2.4 13c.3-2.3 1.8-3.6 3.6-3.6S9.3 10.7 9.6 13" />
-      <path d="M10.6 4.2a2.1 2.1 0 010 4M11 9.6c1.6.2 2.7 1.5 3 3.4" />
-    </svg>
-  ),
   globe: (
     <svg
       width="15"
