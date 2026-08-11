@@ -117,7 +117,7 @@ export interface LawGroupOption {
 export interface LawGroup {
   id: string;
   name: string;
-  menu: "state" | "labor" | "rights" | "justice";
+  menu: "state" | "labor" | "rights" | "economy" | "environment" | "justice" | "vice";
   cat: string;
   options: LawGroupOption[];
 }

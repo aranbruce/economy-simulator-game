@@ -94,8 +94,8 @@ import {
 /* ==================================================================
    1. THE STATUTE BOOK  (all content data)
    ================================================================== */
-/* The pure-data content arrays (FACTIONS, DEPTS, TAXES, REGIMES, POLICIES,
-   VICE, PARTNERS, MISSIONS) and their macro-constant neighbours now live in
+/* The pure-data content arrays (FACTIONS, DEPTS, TAXES, POLICIES, VICE,
+   PARTNERS, MISSIONS) and their macro-constant neighbours now live in
    ./statuteBook.ts, split out for having zero dependency on the live game
    state `G`. The diplomacy/ultimatum/bloc-accession/multiplayer-sync
    subsystem and the polity-transition helpers just below (normalisePolityId,
@@ -16457,7 +16457,7 @@ function getTab() {
  *  taxes) — lives outside G so it's not part of the game-state clone/save
  *  surface, same rationale as `tab` itself. Keyed per-tab so switching
  *  drawers remembers each one's last category instead of resetting it.
- *  DrawerShell.tsx owns the pill row; panels just read their own slot. */ let drawerCat: Record<
+ *  DrawerShell.tsx owns the pill row; panels just read their own slot. */ const drawerCat: Record<
   string,
   string
 > = {};

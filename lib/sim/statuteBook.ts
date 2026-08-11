@@ -1,8 +1,8 @@
 /**
  * The statute book: pure content data (no reference to the live game state
  * `G`) extracted from lib/sim/engine.ts's "1. THE STATUTE BOOK" section —
- * FACTIONS, DEPTS, TAXES, REGIMES, POLICIES, VICE, PARTNERS, MISSIONS, and
- * the macro constants interleaved among them. Verified line-by-line to
+ * FACTIONS, DEPTS, TAXES, POLICIES, VICE, PARTNERS, MISSIONS, and the
+ * macro constants interleaved among them. Verified line-by-line to
  * contain zero references to `G` before being moved here; the polity-
  * transition helper functions that *do* reference `G` (normalisePolityId,
  * polityOf, coupMetric, and friends) stay behind in engine.ts. See
