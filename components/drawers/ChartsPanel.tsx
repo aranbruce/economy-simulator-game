@@ -23,7 +23,8 @@ import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
 
 const FBAR_TONE: Record<string, string> = { good: "bg-green", bad: "bg-red" };
 
-export type ChartCat = "growth" | "prices" | "finances" | "politics" | "society";
+export type ChartCat =
+  "growth" | "prices" | "finances" | "politics" | "society";
 /** Read by DrawerShell.tsx, which now owns the pill row itself. */
 export const CATS: [ChartCat, string][] = [
   ["growth", "Growth"],

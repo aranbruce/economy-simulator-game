@@ -73,11 +73,7 @@ const REGION_ORDER = [
 ];
 
 export type TradeCat =
-  | "tariffs"
-  | "currency"
-  | "blocs"
-  | "compare"
-  | "partners";
+  "tariffs" | "currency" | "blocs" | "compare" | "partners";
 /** Read by DrawerShell.tsx, which now owns the pill row itself. Tariffs
  *  leads as the default landing view; "partners" is also what setTab()
  *  in engine.ts selects when a map click scrolls to a specific partner,
@@ -743,10 +739,7 @@ function NationTable() {
         </thead>
         <tbody>
           {rows.map((r: any, i: number) => (
-            <tr
-              key={i}
-              className={r.us ? "bg-accent/16" : undefined}
-            >
+            <tr key={i} className={r.us ? "bg-accent/16" : undefined}>
               <td className={NATION_TD}>
                 {r.name}
                 {r.us ? " · you" : ""}

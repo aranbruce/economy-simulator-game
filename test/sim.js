@@ -1560,7 +1560,10 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     brief.impact && brief.impact.economic && brief.impact.approval,
     "briefingData carries both impact boxes through",
   );
-  assert(brief.lines.length > 0, "briefingData still carries the outturn lines");
+  assert(
+    brief.lines.length > 0,
+    "briefingData still carries the outturn lines",
+  );
 }
 
 /* Partner opening macros match IMF-calibrated NATION_PROFILE (April 2026). */
@@ -4767,7 +4770,9 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(
     chips.some(
       (c) =>
-        c.kind === "ult" && /germany/i.test(c.name) && c.label === "Cut tariffs",
+        c.kind === "ult" &&
+        /germany/i.test(c.name) &&
+        c.label === "Cut tariffs",
     ),
     "hud shows live ultimatum",
   );
@@ -5106,10 +5111,7 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   delete G.draft.policies.skills;
   setTab("laws");
   G.draft.policies.skills = true;
-  assert(
-    tickCoach(),
-    "enacting skills with Laws open readies policies step",
-  );
+  assert(tickCoach(), "enacting skills with Laws open readies policies step");
   G = getG();
   assert(
     G.coach && G.coach.step === 5 && G.coach.phase === "ready",

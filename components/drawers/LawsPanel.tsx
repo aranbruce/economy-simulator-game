@@ -29,13 +29,7 @@ import type {
 } from "../../lib/sim/types.ts";
 
 export type Menu =
-  | "state"
-  | "labor"
-  | "rights"
-  | "economy"
-  | "environment"
-  | "justice"
-  | "vice";
+  "state" | "labor" | "rights" | "economy" | "environment" | "justice" | "vice";
 
 /** Read by DrawerShell.tsx, which now owns the pill row itself. */
 export const MENUS: [Menu, string][] = [
@@ -438,8 +432,8 @@ function RegimeTypeBanner() {
       <p className="m-0 text-[11px] leading-[1.4] text-ink-faint">
         Derived automatically from Political Parties, Parliament and Civil
         Liberties below — single-party rule, banned opposition, a suppressed
-        parliament or banned assembly all tip the system authoritarian.
-        Nothing here is picked directly.
+        parliament or banned assembly all tip the system authoritarian. Nothing
+        here is picked directly.
       </p>
     </div>
   );
@@ -493,8 +487,8 @@ export function LawsPanel() {
   return (
     <>
       <Hint className="my-3">
-        Every option here is a real, costed clause — staging one adds it to
-        the Programme like any tax or policy.
+        Every option here is a real, costed clause — staging one adds it to the
+        Programme like any tax or policy.
       </Hint>
       <MenuSection menu={menu} />
     </>

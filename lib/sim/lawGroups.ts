@@ -153,7 +153,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "banned",
         label: "Extremist parties banned",
-        blurb: "Parties advocating violence or the abolition of the constitution are proscribed.",
+        blurb:
+          "Parties advocating violence or the abolition of the constitution are proscribed.",
         pc: 10,
         fac: { urban: 2 },
         imp: { lib: -1, cri: -1 },
@@ -169,7 +170,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "sovereign",
         label: "Sovereign parliament",
-        blurb: "Parliament can make or unmake any law, including the executive's budget.",
+        blurb:
+          "Parliament can make or unmake any law, including the executive's budget.",
         pc: 14,
         fac: { urban: 4, workers: 2, patriots: -2 },
         imp: { lib: 2 },
@@ -177,7 +179,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "consultative",
         label: "Consultative assembly",
-        blurb: "An assembly is heard but the executive is not bound by its vote.",
+        blurb:
+          "An assembly is heard but the executive is not bound by its vote.",
         pc: 10,
         fac: { patriots: 2, urban: -4 },
         imp: { lib: -2 },
@@ -201,7 +204,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "free",
         label: "Free association and assembly",
-        blurb: "Citizens may organise, demonstrate and petition without a permit regime.",
+        blurb:
+          "Citizens may organise, demonstrate and petition without a permit regime.",
         pc: 8,
         fac: { urban: 4, workers: 2 },
         imp: { lib: 3 },
@@ -209,7 +213,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Restricted association and assembly",
-        blurb: "Gatherings require a permit and may be refused at the state's discretion.",
+        blurb:
+          "Gatherings require a permit and may be refused at the state's discretion.",
         pc: 10,
         fac: { patriots: 2, urban: -4 },
         imp: { lib: -3, cri: -1 },
@@ -217,7 +222,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "banned",
         label: "Association and assembly banned",
-        blurb: "Public gatherings and independent civic organisation are prohibited.",
+        blurb:
+          "Public gatherings and independent civic organisation are prohibited.",
         pc: 20,
         fac: { patriots: 1, urban: -8 },
         imp: { lib: -7, cri: -2 },
@@ -242,7 +248,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Strikes restricted",
-        blurb: "A cooling-off period and ballot threshold apply before action is lawful.",
+        blurb:
+          "A cooling-off period and ballot threshold apply before action is lawful.",
         pc: 8,
         fac: { business: 2, workers: -1 },
       },
@@ -266,7 +273,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "proportional",
         label: "Proportional representation",
-        blurb: "Seats track vote share; smaller parties can win representation.",
+        blurb:
+          "Seats track vote share; smaller parties can win representation.",
         pc: 14,
         fac: { urban: 3, rural: -1 },
         imp: { lib: 1 },
@@ -281,7 +289,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "majorityTwoRound",
         label: "Majority, two-round",
-        blurb: "A runoff between the leading candidates if no one clears a majority.",
+        blurb:
+          "A runoff between the leading candidates if no one clears a majority.",
         pc: 10,
         fac: { rural: 1, urban: 1 },
       },
@@ -296,21 +305,24 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "unitary",
         label: "Unitary state",
-        blurb: "One national government holds sovereign authority; regions administer, not legislate.",
+        blurb:
+          "One national government holds sovereign authority; regions administer, not legislate.",
         pc: 10,
         fac: { patriots: 2, urban: 1 },
       },
       {
         id: "federal",
         label: "Federal system",
-        blurb: "Constituent states or provinces hold their own constitutional powers.",
+        blurb:
+          "Constituent states or provinces hold their own constitutional powers.",
         pc: 18,
         fac: { rural: 3, urban: 1, patriots: -1 },
       },
       {
         id: "confederate",
         label: "Confederation",
-        blurb: "A loose union of largely sovereign members, bound by treaty rather than a single constitution.",
+        blurb:
+          "A loose union of largely sovereign members, bound by treaty rather than a single constitution.",
         pc: 24,
         fac: { rural: 5, patriots: -4, business: -2 },
         imp: { open: 0.3 },
@@ -335,14 +347,16 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Unions restricted",
-        blurb: "Unions may organise but face tight limits on recognition and action.",
+        blurb:
+          "Unions may organise but face tight limits on recognition and action.",
         pc: 14,
         fac: { business: 2, workers: -3 },
       },
       {
         id: "legal",
         label: "Unions legal",
-        blurb: "Workers may organise and bargain collectively without special restriction.",
+        blurb:
+          "Workers may organise and bargain collectively without special restriction.",
         pc: 6,
         fac: { workers: 4, business: -1 },
         imp: { lib: 1 },
@@ -350,7 +364,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "mandatorySectoral",
         label: "Mandatory sectoral bargaining",
-        blurb: "Pay and conditions are set by sector-wide agreement, binding every employer.",
+        blurb:
+          "Pay and conditions are set by sector-wide agreement, binding every employer.",
         pc: 16,
         fac: { workers: 8, business: -6 },
         imp: { gini: -1 },
@@ -374,7 +389,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "consultative",
         label: "Consultative works council",
-        blurb: "A works council is consulted on major decisions but does not vote.",
+        blurb:
+          "A works council is consulted on major decisions but does not vote.",
         pc: 8,
         fac: { workers: 2, business: -1 },
       },
@@ -434,7 +450,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "wages",
         label: "Linked to wage growth",
-        blurb: "The state pension tracks average earnings, which usually outpaces prices.",
+        blurb:
+          "The state pension tracks average earnings, which usually outpaces prices.",
         pc: 10,
         fac: { pensioners: 5, workers: -1 },
       },
@@ -464,7 +481,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Allowed under conditions",
-        blurb: "Permitted for medical necessity, fetal abnormality or sexual assault, within a gestational limit.",
+        blurb:
+          "Permitted for medical necessity, fetal abnormality or sexual assault, within a gestational limit.",
         pc: 10,
         imp: { lib: -1 },
         fac: { patriots: 1, urban: -1 },
@@ -488,7 +506,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "banned",
         label: "Banned",
-        blurb: "Marriage is defined as between a man and a woman; no equivalent status exists.",
+        blurb:
+          "Marriage is defined as between a man and a woman; no equivalent status exists.",
         pc: 12,
         imp: { lib: -5 },
         fac: { patriots: 4, urban: -6 },
@@ -496,7 +515,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "civilUnion",
         label: "Civil unions only",
-        blurb: "Same-sex couples may register a civil union with most but not all of marriage's legal rights.",
+        blurb:
+          "Same-sex couples may register a civil union with most but not all of marriage's legal rights.",
         pc: 8,
         imp: { lib: 0 },
         fac: { urban: 2, patriots: -1 },
@@ -504,7 +524,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "legal",
         label: "Legal marriage",
-        blurb: "Same-sex couples may marry on the same legal terms as anyone else.",
+        blurb:
+          "Same-sex couples may marry on the same legal terms as anyone else.",
         pc: 16,
         imp: { lib: 5 },
         fac: { urban: 6, patriots: -5 },
@@ -528,7 +549,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "passiveOnly",
         label: "Passive withdrawal only",
-        blurb: "Life-sustaining treatment may be withdrawn on request; active assistance remains illegal.",
+        blurb:
+          "Life-sustaining treatment may be withdrawn on request; active assistance remains illegal.",
         pc: 6,
         imp: { lib: 0 },
         fac: {},
@@ -536,7 +558,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "assistedLegal",
         label: "Assisted dying legal",
-        blurb: "A terminally ill adult may request medical assistance to end their life, under safeguards.",
+        blurb:
+          "A terminally ill adult may request medical assistance to end their life, under safeguards.",
         pc: 18,
         imp: { lib: 4 },
         fac: { urban: 4, pensioners: 2, patriots: -3 },
@@ -552,7 +575,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "unrecognised",
         label: "Not legally recognised",
-        blurb: "The law records only the sex assigned at birth; no process changes it.",
+        blurb:
+          "The law records only the sex assigned at birth; no process changes it.",
         pc: 14,
         imp: { lib: -5 },
         fac: { patriots: 3, urban: -5 },
@@ -560,7 +584,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "medicalGatekept",
         label: "Medical panel required",
-        blurb: "Legal gender may be changed after diagnosis and review by a medical panel.",
+        blurb:
+          "Legal gender may be changed after diagnosis and review by a medical panel.",
         pc: 6,
         imp: { lib: 0 },
         fac: {},
@@ -568,7 +593,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "selfId",
         label: "Self-identification",
-        blurb: "An adult may change their legal gender by statutory declaration, without a medical process.",
+        blurb:
+          "An adult may change their legal gender by statutory declaration, without a medical process.",
         pc: 22,
         imp: { lib: 5 },
         fac: { urban: 5, patriots: -6 },
@@ -584,7 +610,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "banned",
         label: "Banned",
-        blurb: "Surrogacy arrangements of any kind are unenforceable and unlawful to broker.",
+        blurb:
+          "Surrogacy arrangements of any kind are unenforceable and unlawful to broker.",
         pc: 8,
         imp: { lib: -3 },
         fac: { patriots: 2 },
@@ -616,7 +643,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "free",
         label: "Free press",
-        blurb: "No licensing or prior restraint on news publication; editorial decisions are the outlet's own.",
+        blurb:
+          "No licensing or prior restraint on news publication; editorial decisions are the outlet's own.",
         pc: 10,
         imp: { lib: 8 },
         fac: { urban: 3, patriots: -2 },
@@ -624,7 +652,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Restricted",
-        blurb: "Outlets are licensed and subject to a statutory code enforced by a state regulator.",
+        blurb:
+          "Outlets are licensed and subject to a statutory code enforced by a state regulator.",
         pc: 16,
         imp: { lib: 0 },
         fac: { patriots: 3 },
@@ -632,7 +661,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "stateControlled",
         label: "State-controlled",
-        blurb: "Major news outlets are state-owned or editorially directed by the government.",
+        blurb:
+          "Major news outlets are state-owned or editorially directed by the government.",
         pc: 30,
         imp: { lib: -8 },
         fac: { patriots: 7, business: -6, urban: -10 },
@@ -656,7 +686,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "filtered",
         label: "Filtered",
-        blurb: "Specific categories of content are blocked at the network level.",
+        blurb:
+          "Specific categories of content are blocked at the network level.",
         pc: 14,
         imp: { lib: 0 },
         fac: { patriots: 2 },
@@ -664,7 +695,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "firewall",
         label: "National firewall",
-        blurb: "Foreign platforms are blocked by default and traffic is filtered at the border.",
+        blurb:
+          "Foreign platforms are blocked by default and traffic is filtered at the border.",
         pc: 26,
         imp: { lib: -6 },
         ch: { tfp: -0.05 },
@@ -689,7 +721,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "civilDefamation",
         label: "Civil defamation only",
-        blurb: "Religious insult can found a civil claim but carries no criminal penalty.",
+        blurb:
+          "Religious insult can found a civil claim but carries no criminal penalty.",
         pc: 8,
         imp: { lib: 0 },
         fac: { patriots: 1 },
@@ -713,7 +746,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "banned",
         label: "Total ban",
-        blurb: "Private citizens may not own firearms outside narrow sporting exemptions.",
+        blurb:
+          "Private citizens may not own firearms outside narrow sporting exemptions.",
         pc: 16,
         imp: { lib: -4, cri: -2 },
         fac: { urban: 3, rural: -4 },
@@ -721,7 +755,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "licensed",
         label: "Licensed ownership",
-        blurb: "Ownership requires a licence, background checks and secure storage.",
+        blurb:
+          "Ownership requires a licence, background checks and secure storage.",
         pc: 8,
         imp: { lib: 0 },
         fac: {},
@@ -745,7 +780,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "unrestricted",
         label: "Unrestricted",
-        blurb: "No law governs religious dress in public or in public institutions.",
+        blurb:
+          "No law governs religious dress in public or in public institutions.",
         pc: 8,
         imp: { lib: 5 },
         fac: { urban: 2, patriots: -1 },
@@ -753,7 +789,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restrictedInInstitutions",
         label: "Restricted in institutions",
-        blurb: "Face-covering and overt religious dress are restricted for staff and students in public institutions.",
+        blurb:
+          "Face-covering and overt religious dress are restricted for staff and students in public institutions.",
         pc: 12,
         imp: { lib: 0 },
         fac: { patriots: 2 },
@@ -761,7 +798,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "bannedInPublic",
         label: "Banned in public",
-        blurb: "Face-covering religious dress may not be worn in any public place.",
+        blurb:
+          "Face-covering religious dress may not be worn in any public place.",
         pc: 22,
         imp: { lib: -5 },
         fac: { patriots: 5, urban: -7 },
@@ -777,7 +815,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "noSpecialStatus",
         label: "No special status",
-        blurb: "Religious organisations are taxed on the same terms as any other body.",
+        blurb:
+          "Religious organisations are taxed on the same terms as any other body.",
         pc: 6,
         imp: {},
         fac: { patriots: -2 },
@@ -785,7 +824,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "exemptRegistered",
         label: "Registered orgs exempt",
-        blurb: "Registered religious charities are exempt from tax on donations and worship property.",
+        blurb:
+          "Registered religious charities are exempt from tax on donations and worship property.",
         pc: 8,
         imp: {},
         fac: {},
@@ -793,7 +833,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "stateFunded",
         label: "Established church, state-funded",
-        blurb: "A designated state religion receives direct public funding alongside its tax exemption.",
+        blurb:
+          "A designated state religion receives direct public funding alongside its tax exemption.",
         pc: 16,
         imp: { rev: -0.15 },
         fac: { patriots: 4, rural: 2, urban: -2 },
@@ -817,7 +858,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "retainedRare",
         label: "Retained, rarely used",
-        blurb: "Available in law for the gravest offences but sentenced only exceptionally.",
+        blurb:
+          "Available in law for the gravest offences but sentenced only exceptionally.",
         pc: 16,
         imp: { lib: 0 },
         fac: { patriots: 3 },
@@ -841,7 +883,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "warrantRequired",
         label: "Judicial warrant required",
-        blurb: "Communications interception needs prior sign-off from a judge or equivalent.",
+        blurb:
+          "Communications interception needs prior sign-off from a judge or equivalent.",
         pc: 8,
         imp: { lib: 3 },
         fac: {},
@@ -849,7 +892,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "expandedWarrant",
         label: "Expanded executive warrant",
-        blurb: "A government minister, not a judge, may authorise interception.",
+        blurb:
+          "A government minister, not a judge, may authorise interception.",
         pc: 14,
         imp: { lib: -3, cri: -0.7 },
         fac: { patriots: 3, urban: -4 },
@@ -857,7 +901,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "warrantless",
         label: "Warrantless authority",
-        blurb: "Agencies may intercept communications without prior authorisation.",
+        blurb:
+          "Agencies may intercept communications without prior authorisation.",
         pc: 24,
         imp: { lib: -7, cri: -1.5 },
         fac: { patriots: 6, urban: -9 },
@@ -873,7 +918,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "none",
         label: "Not deployed",
-        blurb: "No biometric identification or facial recognition database exists.",
+        blurb:
+          "No biometric identification or facial recognition database exists.",
         pc: 8,
         imp: { lib: 3 },
         fac: {},
@@ -881,7 +927,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "limitedToCrime",
         label: "Limited to serious crime",
-        blurb: "Facial recognition matching is authorised only against a watchlist for serious offences.",
+        blurb:
+          "Facial recognition matching is authorised only against a watchlist for serious offences.",
         pc: 12,
         imp: { lib: 0 },
         fac: {},
@@ -889,7 +936,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "mass",
         label: "Mass deployment",
-        blurb: "Facial recognition runs continuously across public spaces and public services.",
+        blurb:
+          "Facial recognition runs continuously across public spaces and public services.",
         pc: 22,
         imp: { lib: -6, cri: -1.2 },
         fac: { patriots: 5, business: 2, urban: -7 },
@@ -913,7 +961,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "pilot",
         label: "Regional pilot",
-        blurb: "A limited pilot links administrative records to a conduct score in select regions.",
+        blurb:
+          "A limited pilot links administrative records to a conduct score in select regions.",
         pc: 16,
         imp: { lib: -3 },
         fac: { patriots: 3, urban: -4 },
@@ -921,7 +970,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "national",
         label: "National system",
-        blurb: "A single national score links access to services and travel to conduct records.",
+        blurb:
+          "A single national score links access to services and travel to conduct records.",
         pc: 30,
         imp: { lib: -9, open: -2 },
         fac: { patriots: 8, business: -3, urban: -10 },
@@ -937,7 +987,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "minimalQuota",
         label: "Minimal quota",
-        blurb: "Asylum claims are accepted only in the smallest numbers required by treaty obligation.",
+        blurb:
+          "Asylum claims are accepted only in the smallest numbers required by treaty obligation.",
         pc: 14,
         imp: {},
         fac: { patriots: 7, business: -4 },
@@ -945,7 +996,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "standardProcessing",
         label: "Standard processing",
-        blurb: "Claims are assessed individually against the normal refugee test.",
+        blurb:
+          "Claims are assessed individually against the normal refugee test.",
         pc: 8,
         imp: {},
         fac: {},
@@ -953,7 +1005,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "generousQuota",
         label: "Generous quota",
-        blurb: "An expanded annual resettlement quota accepts claims well beyond treaty minimums.",
+        blurb:
+          "An expanded annual resettlement quota accepts claims well beyond treaty minimums.",
         pc: 18,
         imp: {},
         fac: { workers: 3, urban: 3, patriots: -8 },
@@ -969,7 +1022,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "restricted",
         label: "Restricted",
-        blurb: "Only a spouse and minor children may join a settled resident, subject to an income test.",
+        blurb:
+          "Only a spouse and minor children may join a settled resident, subject to an income test.",
         pc: 10,
         imp: {},
         fac: { patriots: 4 },
@@ -977,7 +1031,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "standard",
         label: "Standard",
-        blurb: "Immediate family may join a settled resident under the ordinary rules.",
+        blurb:
+          "Immediate family may join a settled resident under the ordinary rules.",
         pc: 6,
         imp: {},
         fac: {},
@@ -985,7 +1040,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "expedited",
         label: "Expedited",
-        blurb: "Family reunification applications are fast-tracked and the eligible family is broader.",
+        blurb:
+          "Family reunification applications are fast-tracked and the eligible family is broader.",
         pc: 14,
         imp: {},
         fac: { urban: 3, patriots: -5 },
@@ -1001,7 +1057,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "strictTestAndResidency",
         label: "Strict test and residency",
-        blurb: "Naturalisation requires an extended residency period, a language test and a civics exam.",
+        blurb:
+          "Naturalisation requires an extended residency period, a language test and a civics exam.",
         pc: 12,
         imp: {},
         fac: { patriots: 6, rural: 2 },
@@ -1009,7 +1066,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "standardNaturalisation",
         label: "Standard naturalisation",
-        blurb: "A standard residency period, language requirement and civics test apply.",
+        blurb:
+          "A standard residency period, language requirement and civics test apply.",
         pc: 6,
         imp: {},
         fac: {},
@@ -1017,7 +1075,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "fastTrack",
         label: "Fast-track",
-        blurb: "A shortened residency period and a simplified test open the path to citizenship.",
+        blurb:
+          "A shortened residency period and a simplified test open the path to citizenship.",
         pc: 18,
         imp: {},
         fac: { business: 3, urban: 3, patriots: -7 },

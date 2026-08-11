@@ -45,12 +45,7 @@ import { Button } from "../ui/Button.tsx";
 import { CardPrice } from "../ui/Card.tsx";
 import type { Tax } from "../../lib/sim/types.ts";
 
-export type TaxCat =
-  | "income"
-  | "wealth"
-  | "consumption"
-  | "corporate"
-  | "vice";
+export type TaxCat = "income" | "wealth" | "consumption" | "corporate" | "vice";
 /** Read by DrawerShell.tsx, which now owns the pill row itself. Income tax
  *  leads — it's the single largest line, so it's what opening Taxes shows
  *  first rather than sitting after every other tax group. */
@@ -506,9 +501,9 @@ function IncomeNiPanel({ G }: { G: any }) {
             Capital income <b>{y.capital.toFixed(2)}% of GDP</b>
           </Eyebrow>
           <Hint>
-            Tax on investment returns — dividends and savings interest — not
-            on wealth itself, and not through the labour bands above. Selling
-            an asset is capital gains tax. Each can be abolished on its own.
+            Tax on investment returns — dividends and savings interest — not on
+            wealth itself, and not through the labour bands above. Selling an
+            asset is capital gains tax. Each can be abolished on its own.
             {dualCap
               ? " The two already agree — this is a dual system, one flat rate on capital income, separate from labour."
               : ""}

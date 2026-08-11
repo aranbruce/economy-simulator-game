@@ -255,7 +255,9 @@ function termLenOf(role: any) {
     g.law.headOfState.mandateYears &&
     g.law.headOfState.mandateYears !== DEF_HEAD_OF_STATE.mandateYears
   ) {
-    const id = resolveHomeRole(role != null ? role : (g && g.homeRole) || "home");
+    const id = resolveHomeRole(
+      role != null ? role : (g && g.homeRole) || "home",
+    );
     const home = resolveHomeRole(g.homeRole || "home");
     if (id === home || role == null || role === g.homeRole) {
       return Math.round(g.law.headOfState.mandateYears) * 4;
@@ -3402,7 +3404,8 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
               const e = getG().econ;
               const meta = polityOf(getG().homeRole);
               const metric = coupMetric(getG().fac, meta);
-              getG().lowRun = metric < meta.coupFloor ? (getG().lowRun || 0) + 1 : 0;
+              getG().lowRun =
+                metric < meta.coupFloor ? (getG().lowRun || 0) + 1 : 0;
               if (!getG().sandbox) {
                 if (e.yield > 10 && e.debt > 118) getG().over = true;
                 else if (e.inflation > 22) getG().over = true;
@@ -4861,7 +4864,10 @@ function hydrateGameSnapshot(snap: any, opts: any) {
     getG().ultimatums = diplo.ultimatums;
     getG().activeVisits = diplo.activeVisits;
     getG().missionEvents = diplo.missionEvents;
-    getG().diploAlerts = mergeDiploAlertsNoted(prevNotedAlerts, diplo.diploAlerts);
+    getG().diploAlerts = mergeDiploAlertsNoted(
+      prevNotedAlerts,
+      diplo.diploAlerts,
+    );
     getG().envoySpend = diplo.envoySpend;
     pol.envoys = getG().envoys;
     pol.ultimatums = getG().ultimatums;
@@ -4874,7 +4880,11 @@ function hydrateGameSnapshot(snap: any, opts: any) {
     if (!getG().fac) getG().fac = openingFac(homeRole);
     if (!getG().rel) getG().rel = openingRel(homeRole);
     getG().sandbox = o.sandbox != null ? !!o.sandbox : false;
-    getG().politics[seatId] = defaultMpPolitics(seatId, homeRole, getG().country);
+    getG().politics[seatId] = defaultMpPolitics(
+      seatId,
+      homeRole,
+      getG().country,
+    );
     getG().politics[seatId].sandbox = getG().sandbox;
     getG().politics[seatId].rateManual = !!getG().rateManual;
     getG().politics[seatId].manualRate = getG().manualRate;
@@ -4901,7 +4911,6 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   }
   return getG();
 }
-
 
 /* ==================================================================
    2. STATE
@@ -5009,7 +5018,10 @@ function hydrateGameSnapshot(snap: any, opts: any) {
         (1 - LAND_BONUS.incomeMult) * land -
         (1 - CONSUMPTION_BONUS.incomeMult) * cons,
     ),
-    wealth: 1 + (DUAL_BONUS.wealthMult - 1) * dual + (LAND_BONUS.wealthMult - 1) * land,
+    wealth:
+      1 +
+      (DUAL_BONUS.wealthMult - 1) * dual +
+      (LAND_BONUS.wealthMult - 1) * land,
     consumption: 1 + (CONSUMPTION_BONUS.consumptionMult - 1) * cons,
   };
 }
@@ -5040,7 +5052,8 @@ function effectiveBands(law: any) {
 function personalAllowance(y: any, law: any) {
   const A0 = law.income.allowance;
   if (isFlatIncome(law)) return A0;
-  const ts = law.income.taperStart != null ? law.income.taperStart : TAPER_START;
+  const ts =
+    law.income.taperStart != null ? law.income.taperStart : TAPER_START;
   return Math.max(0, A0 - TAPER_RATE * Math.max(0, y - ts));
 }
 function bandsForIncome(y: any, law: any) {
@@ -5090,7 +5103,8 @@ function incomeTaxOn(y: any, bands: any) {
   if (isFlatIncome(law)) return 0;
   const A0 = law.income.allowance;
   if (A0 <= 0) return 0;
-  const ts = law.income.taperStart != null ? law.income.taperStart : TAPER_START;
+  const ts =
+    law.income.taperStart != null ? law.income.taperStart : TAPER_START;
   const end = ts + A0 / TAPER_RATE;
   if (y <= ts || y >= end) return 0;
   const bands = effectiveBands(law);
@@ -5234,8 +5248,7 @@ function incomeYield(law: any, E: any, econ: any) {
           to = i + 1 < taxedBands.length ? taxedBands[i + 1].from : Infinity;
         if (declaredLab > from)
           out[i] +=
-            (((Math.min(declaredLab, to) - from) * taxedBands[i].rate) /
-              100) *
+            (((Math.min(declaredLab, to) - from) * taxedBands[i].rate) / 100) *
             slice.w;
       }
     }
@@ -5522,7 +5535,9 @@ function baseLaw() {
   for (const g of LAW_GROUPS) {
     const cur = g.options.find((o) => o.id === law.groups[g.id]);
     if (cur && cur.req && !resolveReqState(law, cur.req)) {
-      const fallback = g.options.find((o) => !o.req || resolveReqState(law, o.req));
+      const fallback = g.options.find(
+        (o) => !o.req || resolveReqState(law, o.req),
+      );
       if (fallback) law.groups[g.id] = fallback.id;
     }
   }
@@ -5536,8 +5551,11 @@ function baseLaw() {
   law.polity = profilePolityId(role);
   const id = resolveHomeRole(role || "home");
   const profile =
-    id === "home" || id === "kingdom" ? NATION_PROFILE.kingdom : (NATION_PROFILE as any)[id];
-  law.groups.hereditary = profile && profile.hereditary ? "hereditary" : "elected";
+    id === "home" || id === "kingdom"
+      ? NATION_PROFILE.kingdom
+      : (NATION_PROFILE as any)[id];
+  law.groups.hereditary =
+    profile && profile.hereditary ? "hereditary" : "elected";
   if (law.polity === "authoritarian") law.groups.partyPluralism = "singleParty";
   syncGroupReqs(law);
   if (law.tariff != null) law.tariffSchedule.default = law.tariff;
@@ -6116,7 +6134,13 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
       freeRate,
     });
     if (organic) {
-      for (const k of ["rate", "inflation", "riskPremium", "expect", "credibility"] as const) {
+      for (const k of [
+        "rate",
+        "inflation",
+        "riskPremium",
+        "expect",
+        "credibility",
+      ] as const) {
         g.econ[k] += (organic[k] - g.econ[k]) * taper;
       }
     }
@@ -6590,7 +6614,13 @@ const CH_KEYS = new Set([
   return {
     imp: { gini: -0.3 * k },
     fac: { workers: 6 * k, business: -6 * k, rural: -2 * k },
-    ch: { replace: 1.0 * k, mpcw: 4.0 * k, ucost: 0.02 * k, nairu: 0.03 * k, part: 0.05 * k },
+    ch: {
+      replace: 1.0 * k,
+      mpcw: 4.0 * k,
+      ucost: 0.02 * k,
+      nairu: 0.03 * k,
+      part: 0.05 * k,
+    },
   };
 }
 /** Level shift in the minimum-wage rate this quarter, feeding the wage/price
@@ -6692,7 +6722,12 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
     }
   };
   add(FLAT_BONUS.imp, FLAT_BONUS.fac, isFlatIncome(law) ? 1 : 0, FLAT_BONUS.ch);
-  add(DUAL_BONUS.imp, DUAL_BONUS.fac, isDualCapital(law) ? 1 : 0, DUAL_BONUS.ch);
+  add(
+    DUAL_BONUS.imp,
+    DUAL_BONUS.fac,
+    isDualCapital(law) ? 1 : 0,
+    DUAL_BONUS.ch,
+  );
   add(null, LAND_BONUS.fac, landCommitment(law), LAND_BONUS.ch);
   add(
     null,
@@ -6734,7 +6769,9 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   /* State & Constitution / Labor & Welfare: the generalised "pick one of N"
      pattern (lib/sim/lawGroups.ts), summed the same way as the VICE loop
      just above — one generic block regardless of how many groups exist. */ for (const grp of LAW_GROUPS) {
-    const opt = (law.groups && grp.options.find((o) => o.id === law.groups[grp.id])) || null;
+    const opt =
+      (law.groups && grp.options.find((o) => o.id === law.groups[grp.id])) ||
+      null;
     if (opt) add(opt.imp, opt.fac, 1, opt.ch);
   }
   const wh = workHoursEffect(law);
@@ -6956,7 +6993,9 @@ function serviceScore(id: DeptId, law: any, econ: any) {
   const idx = (econ && econ.pensionIndex) || 1;
   const lockOn = !!(law.policies && law.policies.tripleLock);
   const benefit = (law.spend.welfare / 13.3) * (lockOn ? idx : 1);
-  const floor = ((law.pension || DEF_PENSION).statePensionAnnual || 0) / PENSION_ADEQUACY_REF;
+  const floor =
+    ((law.pension || DEF_PENSION).statePensionAnnual || 0) /
+    PENSION_ADEQUACY_REF;
   return Math.max(benefit / caseload, floor);
 }
 function spending(law: any, E: any, econ: any) {
@@ -7814,15 +7853,16 @@ function govDemandShares(law: any, econ: any) {
      this point, not an assumption. */ const homeIsUsd =
     currencyForSeat(homeRole) === "USD";
   const usRate =
-    !homeIsUsd && g && g.world && g.world.united_states && g.world.united_states.econ
+    !homeIsUsd &&
+    g &&
+    g.world &&
+    g.world.united_states &&
+    g.world.united_states.econ
       ? g.world.united_states.econ.rate
       : null;
   const worldRate =
-    (usRate != null
-      ? usRate
-      : e.worldRate != null
-        ? e.worldRate
-        : WORLD_RATE) + (e.modWorldRate || 0);
+    (usRate != null ? usRate : e.worldRate != null ? e.worldRate : WORLD_RATE) +
+    (e.modWorldRate || 0);
   const fxUip = e.fxUip != null ? e.fxUip : FX_UIP;
   const caNow = pot > 0 ? (e.X - e.M) / pot : 0;
   if (e.caSmooth == null) e.caSmooth = caNow;
@@ -9510,8 +9550,10 @@ function billClauses() {
           (L.income.taperStart != null ? L.income.taperStart : TAPER_START),
       ) > 1
     ) {
-      const from = L.income.taperStart != null ? L.income.taperStart : TAPER_START;
-      const to = D.income.taperStart != null ? D.income.taperStart : TAPER_START;
+      const from =
+        L.income.taperStart != null ? L.income.taperStart : TAPER_START;
+      const to =
+        D.income.taperStart != null ? D.income.taperStart : TAPER_START;
       out.push({
         label: "Allowance taper starts at " + money(from) + " to " + money(to),
         pc: Math.max(1, Math.ceil(Math.abs(to - from) / 5000)),
@@ -9909,8 +9951,18 @@ function billClauses() {
     mandatoryVoting: { name: "Mandatory voting", pc: 8 },
   });
   sliderGroupClauses(out, "workHours", "Work hours", L, D, {
-    weeklyHours: { name: "Legal weekly hours", pc: 1.5, decimals: 0, unit: " hrs" },
-    leaveDays: { name: "Paid annual leave", pc: 0.8, decimals: 0, unit: " days" },
+    weeklyHours: {
+      name: "Legal weekly hours",
+      pc: 1.5,
+      decimals: 0,
+      unit: " hrs",
+    },
+    leaveDays: {
+      name: "Paid annual leave",
+      pc: 0.8,
+      decimals: 0,
+      unit: " days",
+    },
   });
   sliderGroupClauses(out, "childcare", "Childcare", L, D, {
     subsidyPct: { name: "Childcare subsidy", pc: 0.15, decimals: 0, unit: "%" },
@@ -9920,8 +9972,18 @@ function billClauses() {
     rate: { name: "Minimum wage rate", pc: 1.2, decimals: 2, unit: "/hr" },
   });
   sliderGroupClauses(out, "pension", "Pension", L, D, {
-    retirementAge: { name: "Legal retirement age", pc: 1.5, decimals: 0, unit: " yrs" },
-    statePensionAnnual: { name: "State pension", pc: 0.001, decimals: 0, unit: "/yr" },
+    retirementAge: {
+      name: "Legal retirement age",
+      pc: 1.5,
+      decimals: 0,
+      unit: " yrs",
+    },
+    statePensionAnnual: {
+      name: "State pension",
+      pc: 0.001,
+      decimals: 0,
+      unit: "/yr",
+    },
   });
   for (const id in DEAL_BY_ID) {
     const a = !!L.deals[id],
@@ -10369,11 +10431,10 @@ function clausesIn(tabId: any, cl: any) {
   /* Every Laws-drawer clause (and the pre-existing polity-change clause)
      carries an explicit `tab`, checked first so new content never needs a
      new regex here — the fallback below is unchanged for older clauses that
-     don't set one. */ return cl.some(
-    (c: any) =>
-      c.tab
-        ? c.tab === tabId
-        : (pats as any)[tabId] && (pats as any)[tabId].test(c.label),
+     don't set one. */ return cl.some((c: any) =>
+    c.tab
+      ? c.tab === tabId
+      : (pats as any)[tabId] && (pats as any)[tabId].test(c.label),
   );
 }
 /* Cash thresholds uprate with wages; keep real slider headroom constant so a

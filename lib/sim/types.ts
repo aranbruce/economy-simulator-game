@@ -87,10 +87,10 @@ export interface Policy {
   fund?: boolean;
   rule?: boolean;
   tripleLock?: boolean;
-  /** When set, this item reads as law rather than economic policy and
-   * renders in the Laws drawer's State & Constitution rail under this
-   * category name instead of in PoliciesPanel — see `components/drawers/
-   * LawsPanel.tsx` and `components/drawers/PoliciesPanel.tsx`. */
+  /** Which Laws-drawer category this policy renders under — see
+   * `MENU_CATS` in `components/drawers/LawsPanel.tsx`, the only place
+   * `PolicyCard` is ever mounted. Every `POLICIES` entry sets this in
+   * practice; a missing value renders nowhere. */
   lawsCat?: string;
 }
 
@@ -117,7 +117,14 @@ export interface LawGroupOption {
 export interface LawGroup {
   id: string;
   name: string;
-  menu: "state" | "labor" | "rights" | "economy" | "environment" | "justice" | "vice";
+  menu:
+    | "state"
+    | "labor"
+    | "rights"
+    | "economy"
+    | "environment"
+    | "justice"
+    | "vice";
   cat: string;
   options: LawGroupOption[];
 }

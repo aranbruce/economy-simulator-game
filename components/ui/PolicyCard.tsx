@@ -16,9 +16,7 @@ import { Callout } from "./Callout.tsx";
 import type { Policy } from "../../lib/sim/types.ts";
 
 /** A single POLICIES card — enact/repeal toggle, effects, `kills` blocker.
- *  Shared between PoliciesPanel.tsx and LawsPanel.tsx (for the handful of
- *  Policy entries that read as law rather than economic policy, see
- *  `Policy.lawsCat`). */
+ *  Mounted only from LawsPanel.tsx, grouped by `Policy.lawsCat`. */
 export function PolicyCard({ p }: { p: Policy }) {
   const G = useGame();
   const isLaw = !!G.law.policies[p.id];
@@ -42,7 +40,8 @@ export function PolicyCard({ p }: { p: Policy }) {
       {p.kills
         .map(
           (id) =>
-            (POLICY_BY_ID[id as PolicyId] && POLICY_BY_ID[id as PolicyId].name) ||
+            (POLICY_BY_ID[id as PolicyId] &&
+              POLICY_BY_ID[id as PolicyId].name) ||
             id,
         )
         .join(", ")}

@@ -377,8 +377,10 @@ export const REALM_LAW: Record<string, any> = {
     },
     ni: { empOn: true, erOn: true, empRate: 5, erRate: 7 },
     /* National Minimum Wage Act, raised substantially in 2024 (₦70,000/mo)
-       but still modest in absolute terms and unevenly enforced. */ minWage:
-      { on: true, rate: 3 },
+       but still modest in absolute terms and unevenly enforced. */ minWage: {
+      on: true,
+      rate: 3,
+    },
     policies: { openVisas: true, skills: true, police: true },
     vice: {
       cannabis: "decrim",
@@ -530,8 +532,10 @@ export const REALM_LAW: Record<string, any> = {
     ni: { empOn: false, erOn: false, empRate: 0, erRate: 0 },
     /* A wage floor exists only for Saudi nationals (Saudization/Nitaqat),
        not the foreign workforce that is the majority of the private
-       sector — off, since there is no broad statutory minimum. */ minWage:
-      { on: false, rate: 0 },
+       sector — off, since there is no broad statutory minimum. */ minWage: {
+      on: false,
+      rate: 0,
+    },
     policies: {
       swf: true,
       nuclear: true,
@@ -1267,8 +1271,10 @@ export const REALM_LAW: Record<string, any> = {
       saveRate: 20,
     },
     ni: { empOn: true, erOn: true, empRate: 10, erRate: 12 },
-    /* Prefecture-set regional minimum wage; moderate and rising. */ minWage:
-      { on: true, rate: 6 },
+    /* Prefecture-set regional minimum wage; moderate and rising. */ minWage: {
+      on: true,
+      rate: 6,
+    },
     policies: {
       fiscalRule: true,
       skills: true,

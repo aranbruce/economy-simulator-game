@@ -117,7 +117,10 @@ type DeptId = (typeof DEPTS)[number]["id"];
    tax architecture (isFlatIncome/isDualCapital/landCommitment/
    consumptionCommitment in engine.ts). Opening pin on NATION_PROFILE; live
    player polity lives on law.polity and can be restaged from Society. Three
-   types only — former absolute monarchies (Saudi, UAE) use authoritarian. */ const POLITY: Record<string, any> = {
+   types only — former absolute monarchies (Saudi, UAE) use authoritarian. */ const POLITY: Record<
+  string,
+  any
+> = {
   democracy: {
     termLen: 20,
     loseAt: 44,

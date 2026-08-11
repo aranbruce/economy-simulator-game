@@ -50,8 +50,8 @@ pragmatic-bulk-pass approach used for the rest of the migration.
 
 **`lib/sim/statuteBook.ts`** (2k lines) is the one slice of "1. THE STATUTE
 BOOK" that has been split out: `FACTIONS`, `DEPTS`, `TAXES`/`TAX_BY_ID`,
-`REGIMES`/`REGIME_BY_ID`, `POLICIES`/`POLICY_BY_ID`, `VICE`/`VICE_BY_ID`,
-`PARTNERS`, `MISSIONS`/`MISSION_BY_ID`, their derived `*Id` union types, and
+`POLICIES`/`POLICY_BY_ID`, `VICE`/`VICE_BY_ID`, `PARTNERS`,
+`MISSIONS`/`MISSION_BY_ID`, their derived `*Id` union types, and
 the macro constants interleaved among them — verified line-by-line to have
 zero reference to the live game state `G` before being moved, so the move is
 a pure relocation with no behavioural change (confirmed byte-identical on
@@ -100,7 +100,7 @@ raw reassignment. `setG(next)` sits beside the pre-existing `getG()`.
 independently-maintained "fields a projection must carry forward" lists;
 rather than force `simulate()` to build its object generically off
 `MUTABLE` (unsafe — `law`/`draft`/`sandbox`/`rateManual`/`manualRate`/
-`blocMember`/`customBlocs`/`world` are deliberately *not* plain clones of
+`blocMember`/`customBlocs`/`world` are deliberately _not_ plain clones of
 `G` there, since running a hypothetical law forward is the entire point),
 the 14 fields `simulate()` doesn't carry are on an explicit
 `SIMULATE_OMITS` allowlist with a regression test (`test/sim.js`) that fails
@@ -197,7 +197,7 @@ top-edge pseudo-element, the newspaper-clipping press skin, and SVG chart
 styling. When touching a component, prefer a genuine dynamic value (a
 computed bar-width `%`, a live colour) as an inline `style={{}}` prop over a
 one-off Tailwind arbitrary-value class, matching the pattern already used
-throughout `components/drawers/*.tsx` — but a *static* value should always be
+throughout `components/drawers/*.tsx` — but a _static_ value should always be
 a Tailwind class, never a hardcoded inline style.
 
 ## Architecture
@@ -206,7 +206,7 @@ a Tailwind class, never a hardcoded inline style.
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/`                           | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                           |
 | `lib/sim/engine.ts`              | State, aggregate, step, project, bill, map, events, panel data                                                                                                                     |
-| `lib/sim/statuteBook.ts`         | Pure content data split out of engine.ts: `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                  |
+| `lib/sim/statuteBook.ts`         | Pure content data split out of engine.ts: `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                             |
 | `lib/sim/worldTrade.ts`          | Bilateral trade clearing across seats                                                                                                                                              |
 | `lib/sim/fxAreas.ts`             | Currency-area Taylor rules and FX vs USD                                                                                                                                           |
 | `lib/sim/partners.ts`            | Partner id → ISO country sets for the world map                                                                                                                                    |
@@ -218,18 +218,18 @@ Engine sections still follow the numbered banners. Section 1's pure content
 data now lives in `lib/sim/statuteBook.ts` (see "TypeScript migration"
 above); sections 2–9 remain in `lib/sim/engine.ts`:
 
-| Section             | Contains                                                                                                                                                         |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. The statute book | All content data (`lib/sim/statuteBook.ts`): `TAXES`, `REGIMES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS`. The polity-transition helpers physically interleaved with this data in the original section (`normalisePolityId`, `polityOf`, `coupMetric`, …) reference `G` and stay in `engine.ts` |
-| 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                                                                         |
-| 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine                                                          |
-| 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                       |
-| 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                    |
-| 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                         |
-| 7a. The map         | Rendering helpers (`TABS`, `lineChartSpec()`, …) — see the note above on the panel-painting functions this section used to also hold. The procedural-map data that gave the section its name (`REGIONS`, `initRegions()`, `stepRegions()`) has since been removed as unreferenced |
-| 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                 |
-| 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                    |
-| 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                    |
+| Section             | Contains                                                                                                                                                                                                                                                                                                    |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. The statute book | All content data (`lib/sim/statuteBook.ts`): `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS`. The polity-transition helpers physically interleaved with this data in the original section (`normalisePolityId`, `polityOf`, `coupMetric`, …) reference `G` and stay in `engine.ts` |
+| 2. State            | `newGame()`, `baseLaw()`, the `G` global                                                                                                                                                                                                                                                                    |
+| 3. Aggregation      | `aggregate()`, `revenue()`, `spending()`, `balanceOf()`, `potentialGrowth()`, and the income tax engine                                                                                                                                                                                                     |
+| 4. The engine       | `step()` — one quarter of macro simulation                                                                                                                                                                                                                                                                  |
+| 5. Projection       | `project()`, `projectionWarnings()` — the pre-budget forecast                                                                                                                                                                                                                                               |
+| 6. The bill         | `billClauses()` — diffs `G.draft` against `G.law` and prices each change                                                                                                                                                                                                                                    |
+| 7a. The map         | Rendering helpers (`TABS`, `lineChartSpec()`, …) — see the note above on the panel-painting functions this section used to also hold. The procedural-map data that gave the section its name (`REGIONS`, `initRegions()`, `stepRegions()`) has since been removed as unreferenced                           |
+| 7. Rendering        | Tabs, sliders, cards, SVG charts                                                                                                                                                                                                                                                                            |
+| 8. Despatches       | `EVENTS`, term reviews (election/congress), crises, game over                                                                                                                                                                                                                                               |
+| 9. Flow             | `enact()`, `projectionModal()`, button wiring                                                                                                                                                                                                                                                               |
 
 ### Multi-country world
 
@@ -343,8 +343,7 @@ nothing else in the engine.
 
 ## Layout
 
-The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index
-0. Everything else is React, floating over it:
+The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index 0. Everything else is React, floating over it:
 
 - Topbar — country, term, and the stat chips (`components/chrome/TopBarStats.tsx`,
   built on `components/ui/Chip.tsx`)

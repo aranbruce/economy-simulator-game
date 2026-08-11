@@ -17,14 +17,14 @@ export function CatPills<T extends string>({
   onChange,
 }: CatPillsProps<T>) {
   return (
-    <div className="flex gap-1.5 overflow-x-auto scrollbar-none">
+    <div className="flex scrollbar-none gap-1.5 overflow-x-auto">
       {options.map(([id, label]) => (
         <button
           key={id}
           type="button"
           aria-pressed={id === value}
           onClick={() => onChange(id)}
-          className="flex-none cursor-pointer rounded-full border border-edge bg-g-1 px-3 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-ink-soft transition-colors duration-150 hover:text-white aria-pressed:border-frame aria-pressed:bg-accent-dim aria-pressed:text-accent-lt focus-visible:outline-2 focus-visible:outline-accent"
+          className="flex-none cursor-pointer rounded-full border border-edge bg-g-1 px-3 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:border-frame aria-pressed:bg-accent-dim aria-pressed:text-accent-lt"
         >
           {label}
         </button>

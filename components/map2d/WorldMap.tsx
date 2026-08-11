@@ -830,6 +830,13 @@ export default function WorldMap({
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,.28)";
     ctx.textAlign = "left";
+    ctx.fillText(
+      setupMode
+        ? "Click a country · pinch or scroll to zoom · drag to pan"
+        : "Pinch or scroll to zoom · drag to pan",
+      14,
+      H - 14,
+    );
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
   useEffect(() => {
