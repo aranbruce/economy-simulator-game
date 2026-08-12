@@ -15447,6 +15447,10 @@ function expandPress(id: any) {
   clip.seen = true;
   _pressExpanded = id;
   _newsOpen = true;
+  /* Same reason toggleNewsOpen() clears tab: the focused-clip overlay sits
+     below the drawer's z-index, so an auto-popped clip would otherwise
+     render invisibly behind an open drawer instead of over it. */
+  tab = null;
   bump();
   return true;
 }

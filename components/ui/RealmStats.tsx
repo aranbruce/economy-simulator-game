@@ -16,12 +16,14 @@ import {
   fmtFxRate,
   CURRENCY_META,
   shareLabel,
+  playerCountryId,
   T,
 } from "../../lib/sim/engine.ts";
 import type { GameState } from "../../lib/sim/types.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
-import { Button } from "./Button.tsx";
+import { flagSrc } from "../../lib/ui/flags.ts";
+import { CloseIcon } from "../../lib/ui/icons.tsx";
 
 function ensureNations(e: GameState) {
   if (e.nations) {
@@ -133,19 +135,19 @@ interface StatProps {
 
 function Stat({ label, value, note, tone }: StatProps) {
   const toneCls =
-    tone === "pos" ? "text-green-lt" : tone === "neg" ? "text-red-lt" : "";
+    tone === "pos" ? "text-[#2e6b2e]" : tone === "neg" ? "text-[#a4392b]" : "";
   return (
     <div className="min-w-[30%]">
-      <div className="text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
+      <div className="text-[9.5px] font-bold tracking-[.08em] text-[#6b5c3e] uppercase">
         {label}
       </div>
       <div
-        className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-white ${toneCls}`}
+        className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-[#1a1814] ${toneCls}`}
       >
         {value}
       </div>
       {note ? (
-        <div className="mt-px text-[11px] text-ink-soft">{note}</div>
+        <div className="mt-px text-[11px] text-[#3a3428]">{note}</div>
       ) : null}
     </div>
   );
@@ -209,33 +211,47 @@ export default function RealmStats({
   })();
 
   const homeName = G?.country || "United Kingdom";
+  const flagRole = snap.us ? playerCountryId(G?.homeRole) : role;
 
   return (
     <aside
-      className="realm-card hud-frame hud-surface-lg pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto px-4 pt-3.5 pb-4 max-[720px]:top-auto max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:max-h-[min(48dvh,calc(100dvh-200px))] max-[720px]:w-auto max-[720px]:px-3.5 max-[720px]:py-3 max-[540px]:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-[540px]:max-h-[min(42dvh,calc(100dvh-190px))]"
+      className="realm-card pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-[720px]:top-auto max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:max-h-[min(48dvh,calc(100dvh-200px))] max-[720px]:w-auto max-[720px]:px-3.5 max-[720px]:py-3 max-[540px]:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-[540px]:max-h-[min(42dvh,calc(100dvh-190px))]"
       role="dialog"
       aria-label={snap.name}
     >
-      <div className="mb-2.5 flex items-start gap-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-bold tracking-widest text-accent-lt uppercase">
-            {snap.us ? "Home" : "Partner realm"}
+      <div className="mb-2.5 flex items-start justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <span
+            className="grid size-11 flex-none place-items-center overflow-hidden rounded-full border-2 border-[#8a6420] shadow-[0_3px_10px_rgba(0,0,0,.35)]"
+            aria-hidden="true"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={flagSrc(flagRole)}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </span>
+          <div className="min-w-0">
+            <div className="text-[10px] font-bold tracking-widest text-[#8a6420] uppercase">
+              {snap.us ? "Home" : "Partner realm"}
+            </div>
+            <h2 className="mt-0.5 mb-0 font-display text-[21px] font-normal tracking-[-.02em] text-[#1a1814] max-[720px]:text-lg">
+              {snap.name}
+            </h2>
           </div>
-          <h2 className="mt-1 mb-0 font-display text-[22px] font-normal tracking-[-.02em] max-[720px]:text-lg">
-            {snap.name}
-          </h2>
         </div>
         <button
           type="button"
-          className="size-7 cursor-pointer rounded-sm border border-edge bg-g-3 text-xs leading-none text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white"
+          className="grid size-7 flex-none cursor-pointer place-items-center rounded-full border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] text-[#6b5c3e] transition duration-160 hover:bg-[rgba(40,32,18,.14)] hover:text-[#1a1814] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.94]"
           aria-label="Close"
           onClick={onClose}
         >
-          ✕
+          <CloseIcon />
         </button>
       </div>
 
-      <p className="mb-3.5 text-[13px] leading-[1.4] text-ink-soft">
+      <p className="mb-3.5 text-[13px] leading-[1.4] text-[#3a3428]">
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
@@ -310,26 +326,28 @@ export default function RealmStats({
       </div>
 
       {snap.tradeShare && (
-        <div className="mb-3 text-xs text-ink-soft">{snap.tradeShare}</div>
+        <div className="mb-3 text-xs text-[#3a3428]">{snap.tradeShare}</div>
       )}
 
       {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
         <div className="mt-0.5 flex flex-wrap gap-2">
           {onOpenDiplomacy && (
-            <Button
-              className="min-w-0 flex-1"
+            <button
+              type="button"
+              className="min-w-0 flex-1 cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] px-3.25 py-1.5 text-[11.5px] font-[650] tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.96]"
               onClick={() => onOpenDiplomacy(role)}
             >
               Open diplomacy
-            </Button>
+            </button>
           )}
           {onOpenTrade && (
-            <Button
-              className="min-w-0 flex-1"
+            <button
+              type="button"
+              className="min-w-0 flex-1 cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] px-3.25 py-1.5 text-[11.5px] font-[650] tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.96]"
               onClick={() => onOpenTrade(role)}
             >
               Open trade talks
-            </Button>
+            </button>
           )}
         </div>
       )}
