@@ -58,7 +58,7 @@ export function MapChrome({
   }
 
   return (
-    <div className="pointer-events-none fixed right-0 bottom-21.5 left-0 z-5 flex flex-col items-center gap-2 px-3 max-md:bottom-(--drawer-bottom,calc(128px+env(safe-area-inset-bottom,0px))) max-md:gap-1.5 max-md:px-2 max-sm:bottom-(--drawer-bottom,calc(118px+env(safe-area-inset-bottom,0px)))">
+    <div className="pointer-events-none fixed inset-x-0 bottom-23 z-5 flex flex-col items-center gap-2 px-3 max-md:bottom-(--drawer-bottom,calc(128px+env(safe-area-inset-bottom,0px))) max-md:gap-1.5 max-md:px-2 max-sm:bottom-(--drawer-bottom,calc(118px+env(safe-area-inset-bottom,0px)))">
       {labelContent && (
         <div
           id="mapLabel"
@@ -69,7 +69,7 @@ export function MapChrome({
       )}
       <div
         id="mapMetrics"
-        className="pointer-events-auto w-[min(420px,92vw)] flex-none rounded-sm border border-edge bg-panel shadow-spec backdrop-blur-md backdrop-saturate-130 max-md:w-full max-md:max-w-none"
+        className="pointer-events-auto w-[min(420px,92vw)] flex-none rounded-sm border border-edge bg-panel shadow-spec backdrop-blur-md backdrop-saturate-130 max-md:max-w-none"
       >
         <SegControl
           mini
