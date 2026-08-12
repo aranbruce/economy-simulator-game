@@ -15541,9 +15541,16 @@ function getNewsOpen() {
 }
 function toggleNewsOpen() {
   _newsOpen = !_newsOpen;
-  /* Opening the inbox closes whatever drawer is open — they'd otherwise
-     dock to the same side and fight for space. */
-  if (_newsOpen) tab = null;
+  if (_newsOpen) {
+    /* Opening the inbox closes whatever drawer is open — they'd otherwise
+       dock to the same side and fight for space. */
+    tab = null;
+  } else {
+    /* Closing via the rail button (not the in-focus back/close control)
+       should always return to the list next time, not resume whatever
+       clip was last open. */
+    _pressExpanded = null;
+  }
   bump();
   return _newsOpen;
 }
@@ -16170,9 +16177,12 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
 function enact() {
   if (G.over) return;
   /* Close any open drawer/news inbox immediately, before the quarter-flash
-     animation, rather than leaving it open over the new quarter. */
+     animation, rather than leaving it open over the new quarter. Clearing
+     _pressExpanded too, not just _newsOpen, so a later reopen shows the
+     list rather than silently resuming whatever clip was last focused. */
   tab = null;
   _newsOpen = false;
+  _pressExpanded = null;
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
   const cl = billClauses(),
@@ -16576,8 +16586,12 @@ function setTab(t: any, scrollPartner?: any) {
   tab = t;
   /* Opening a drawer closes the news inbox — mirrors toggleNewsOpen()
      closing whatever drawer is open, so the two never fight for the same
-     side of the screen. */
-  if (t) _newsOpen = false;
+     side of the screen. Clears _pressExpanded too, so reopening News later
+     shows the list rather than resuming a stale focused clip. */
+  if (t) {
+    _newsOpen = false;
+    _pressExpanded = null;
+  }
   /* A partner scroll target has to land on the pill that actually shows
      that partner's card, or queueDrawerPartnerScroll() retries for ~1.5s
      and silently gives up — the card is never in the DOM to find. Mutated

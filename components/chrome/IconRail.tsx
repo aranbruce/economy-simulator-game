@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  billClauses,
-  clausesIn,
   getNewsOpen,
   getTab,
   hasDiploAttention,
@@ -42,10 +40,12 @@ export function IconRail() {
   const G = useGame();
   const tab = getTab();
   const newsOpen = getNewsOpen();
-  const cl = billClauses();
   const unread = newsUnreadCount();
-  const diploAttn = hasDiploAttention(G);
+  /* diploUlt short-circuits diploAttn past its own internal
+     pendingUltimatumIds() check whenever there's already an ultimatum,
+     instead of computing the same list twice. */
   const diploUlt = pendingUltimatumIds(G).length > 0;
+  const diploAttn = diploUlt || hasDiploAttention(G);
   const situations = ongoingSituations(G);
   const overviewActive = tab === "overview";
 
@@ -88,7 +88,11 @@ export function IconRail() {
       icon: "chart",
       active: tab === "charts",
       ariaLabel: "Charts",
-      badge: clausesIn("charts", cl) ? { kind: "pip", color: "amber" } : null,
+      /* No clause is ever tagged tab: "charts" (nothing in Charts is
+         staged/enacted through the bill — it's read-only), so this button
+         never has a pip to show. Avoids running billClauses()'s full
+         draft-vs-law diff on every render just to confirm that. */
+      badge: null,
       onClick: () => setTab(tab === "charts" ? null : "charts"),
     },
   ];

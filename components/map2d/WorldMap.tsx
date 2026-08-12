@@ -512,6 +512,18 @@ function grainTile(): HTMLCanvasElement | null {
   _grainTile = c;
   return _grainTile;
 }
+/** createPattern() only needs to run once — a CanvasPattern isn't bound to
+ *  the context that created it, so the same object composites fine on any
+ *  2D context. Recreating it every paint() (unthrottled on drag/pinch) was
+ *  pure allocation churn for an unchanging texture. */
+let _grainPattern: CanvasPattern | null = null;
+function grainPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (_grainPattern) return _grainPattern;
+  const tile = grainTile();
+  if (!tile) return null;
+  _grainPattern = ctx.createPattern(tile, "repeat");
+  return _grainPattern;
+}
 
 /**
  * Real-world map: Natural Earth coastlines, home and partner realms lit,
@@ -961,17 +973,14 @@ export default function WorldMap({
     /* Paper-grain texture, composited last so it sits over terrain, trade
        lines, markers and labels alike — an aged-atlas finish, not just a
        terrain effect. */
-    const tile = grainTile();
-    if (tile) {
-      const pattern = ctx.createPattern(tile, "repeat");
-      if (pattern) {
-        ctx.save();
-        ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.5;
-        ctx.fillStyle = pattern;
-        ctx.fillRect(0, 0, W, H);
-        ctx.restore();
-      }
+    const pattern = grainPattern(ctx);
+    if (pattern) {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
     }
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
