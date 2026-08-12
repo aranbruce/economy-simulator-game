@@ -14,6 +14,7 @@ import {
   sgn,
   RATE_FLOOR,
   MANUAL_RATE_MIN,
+  ENVOY_UPKEEP_PC,
   clamp,
 } from "../../lib/sim/engine.ts";
 import {
@@ -245,6 +246,16 @@ export function BillDrawer() {
               </span>
             </div>
           ) : null}
+          {capOutlook.envoyCount > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>
+                Envoy upkeep ({capOutlook.envoyCount} × −{ENVOY_UPKEEP_PC})
+              </span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.envoyUpkeep.toFixed(1)}
+              </span>
+            </div>
+          ) : null}
           <div className="flex py-0.75 text-ink-soft">
             <span>From popularity ({Math.round(capOutlook.approval)}% approval)</span>
             <span
@@ -266,6 +277,9 @@ export function BillDrawer() {
             Capital regenerates every quarter, faster the more popular you
             are. Below about {Math.round(capOutlook.breakeven)}% approval it
             goes into reverse and capital falls instead of growing.
+            {capOutlook.envoyCount > 0
+              ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
+              : ""}
           </Hint>
         </div>
       ) : null}

@@ -15,6 +15,7 @@ export const LEDGER_CAP = 25;
 export const ENVOY_SLOTS = 2;
 export const ENVOY_TARGET = 2;
 export const ENVOY_ASSIGN_PC = 0.5;
+export const ENVOY_UPKEEP_PC = 0.5;
 export const ENVOY_RECALL_PC = 0;
 export const ULTIMATUM_PC = 10;
 export const ULTIMATUM_CD = 6;

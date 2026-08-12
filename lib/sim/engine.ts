@@ -44,6 +44,7 @@ import {
   ENVOY_SLOTS,
   ENVOY_TARGET,
   ENVOY_ASSIGN_PC,
+  ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
@@ -8786,7 +8787,16 @@ function govDemandShares(law: any, econ: any) {
      cheaper than legislative pace. Suppressing parliament costs a little more
      of it still — there is no legislature to lean on for legitimacy. */ const regen =
     polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
-  g.capital = clamp(g.capital + (3.2 + (appr - 45) * 0.1) * regen, 0, 100);
+  /* Envoys are a standing commitment, not a one-off spend — each posted
+     envoy costs a little capital every quarter on top of the upfront
+     assignment fee. */
+  const envoyUpkeep =
+    (g.envoys || []).filter(Boolean).length * ENVOY_UPKEEP_PC;
+  g.capital = clamp(
+    g.capital + (3.2 + (appr - 45) * 0.1) * regen - envoyUpkeep,
+    0,
+    100,
+  );
   if (law.policies.fiscalRule && deficit > 4) {
     g.ruleBreaches++;
     g.capital = clamp(g.capital - 3, 0, 100);
@@ -10076,13 +10086,17 @@ function capitalOutlook() {
     polityOf(G.homeRole).capitalRegen * stateFormCapitalRegenMult(G.draft);
   const gain = (3.2 + (approval - 45) * 0.1) * regen;
   const breakeven = 45 - 3.2 / 0.1;
+  const envoyCount = (G.envoys || []).filter(Boolean).length;
+  const envoyUpkeep = envoyCount * ENVOY_UPKEEP_PC;
   const afterBill = clamp(G.capital - cost, 0, 100);
   return {
     cost,
     current: G.capital,
     afterBill,
     gain,
-    nextQuarter: clamp(afterBill + gain, 0, 100),
+    envoyCount,
+    envoyUpkeep,
+    nextQuarter: clamp(afterBill + gain - envoyUpkeep, 0, 100),
     approval,
     breakeven,
   };
@@ -16653,6 +16667,7 @@ export {
   ENVOY_SLOTS,
   ENVOY_TARGET,
   ENVOY_ASSIGN_PC,
+  ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
   ULTIMATUM_PC,
   ULTIMATUM_CD,

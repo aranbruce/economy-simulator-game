@@ -29,8 +29,17 @@ export function realmRoleForIso(iso: string | number) {
   return country ? country.id : null;
 }
 
-/** Relations 0–100 → green through yellow/orange to red. No blue. */
+/** Relations 0–100 → green through yellow/orange to red. No blue.
+ *  A straight linear map spends most of its range in the ramp's own
+ *  yellow/amber middle third, so anything short of a genuine extreme reads
+ *  as the same washed-out yellow. Push values away from the neutral
+ *  midpoint (sqrt of the normalised distance) before feeding the ramp, so
+ *  even a mild lean reads as a real colour and only genuinely neutral
+ *  relations (rel ≈ 50) stay yellow. */
 export function relationColour(rel: number) {
-  const t = 1 - Math.max(0, Math.min(100, +rel || 0)) / 100;
+  const r = Math.max(0, Math.min(100, +rel || 0));
+  const centered = (r - 50) / 50; // -1 (worst) .. 1 (best)
+  const amplified = Math.sign(centered) * Math.sqrt(Math.abs(centered));
+  const t = 1 - (50 + amplified * 50) / 100;
   return metricRampCss(t);
 }

@@ -28,6 +28,12 @@ export function OverviewPanel() {
   const noun = reviewNoun();
   const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
 
+  const electionAtRisk = left <= 4 && therm <= polityOf().loseAt;
+  const electionDetail =
+    left <= 4
+      ? `Score ~${therm.toFixed(0)} — ${electionAtRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
+      : "Too early to score — the threshold only starts mattering in the final 4 quarters";
+
   const flags: Flag[] = [
     {
       label: "Inflation",
@@ -51,14 +57,6 @@ export function OverviewPanel() {
       detail: `${appr.toFixed(0)}% overall`,
       state: appr < 30 ? "alert" : appr > 55 ? "good" : "",
     },
-    {
-      label: nounLabel,
-      detail:
-        left <= 4
-          ? `In ${left}Q — score ~${therm.toFixed(0)}${therm <= polityOf().loseAt ? " (at risk)" : ""}`
-          : `In ${left} quarters`,
-      state: left <= 4 && therm <= polityOf().loseAt ? "alert" : "",
-    },
   ];
 
   return (
@@ -81,6 +79,27 @@ export function OverviewPanel() {
           </div>
         </>
       ) : null}
+
+      <Eyebrow>{nounLabel}</Eyebrow>
+      <div
+        className={`mb-4 rounded-md border px-3 py-2.25 ${electionAtRisk ? "border-red/35 bg-red/8" : "border-edge bg-g-1"}`}
+      >
+        <div className="flex items-baseline gap-2 text-[12.5px] font-[650]">
+          <span>
+            {left} quarter{left === 1 ? "" : "s"} to go
+          </span>
+          {electionAtRisk ? (
+            <span className="ml-auto text-[10px] font-bold tracking-[.04em] text-red-lt uppercase">
+              At risk
+            </span>
+          ) : null}
+        </div>
+        <div
+          className={`mt-0.5 text-[11px] ${electionAtRisk ? "text-red-lt" : "text-ink-faint"}`}
+        >
+          {electionDetail}
+        </div>
+      </div>
 
       <Eyebrow>Faction approval</Eyebrow>
       <div className="mb-4 flex flex-col gap-2">
