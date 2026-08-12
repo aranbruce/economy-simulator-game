@@ -1097,11 +1097,7 @@ export default function GameApp() {
             )}
 
             {worldOk && (
-              <MapChrome
-                mapMetric={mapMetric}
-                selectedRole={selectedRole}
-                onMetricChange={setMapMetric}
-              />
+              <MapChrome mapMetric={mapMetric} onMetricChange={setMapMetric} />
             )}
 
             <PressLayer />

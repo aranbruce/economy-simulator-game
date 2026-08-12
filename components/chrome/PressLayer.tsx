@@ -54,13 +54,13 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-visible p-4 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {ordered.length === 0 ? (
-            <p className="m-0 text-sm text-ink-soft [text-shadow:0_1px_4px_rgba(0,0,0,.8)]">
+            <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
               Nothing yet this term.
-            </p>
+            </div>
           ) : (
             ordered.map((c: any, i: number) => (
               <article
