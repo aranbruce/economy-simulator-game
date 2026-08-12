@@ -224,7 +224,7 @@ export default function MultiplayerLobby({
                   return (
                     <li
                       key={p.seatId + p.name}
-                      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[10px] border border-white/6 bg-white/4 px-2.5 py-2 text-[13px] leading-[1.3] text-ink max-[720px]:grid-cols-[1fr_auto] max-[720px]:gap-x-2 max-[720px]:gap-y-1"
+                      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[10px] border border-white/6 bg-white/4 px-2.5 py-2 text-[13px] leading-[1.3] text-ink max-md:grid-cols-[1fr_auto] max-md:gap-x-2 max-md:gap-y-1"
                     >
                       <span className="min-w-0 font-semibold">
                         {p.name}
@@ -235,7 +235,7 @@ export default function MultiplayerLobby({
                           </em>
                         ) : null}
                       </span>
-                      <span className="min-w-0 truncate text-xs text-ink-soft max-[720px]:col-span-full">
+                      <span className="min-w-0 truncate text-xs text-ink-soft max-md:col-span-full">
                         {seat.name}
                       </span>
                       {p.isHost ? (
@@ -322,9 +322,9 @@ export default function MultiplayerLobby({
       </HudFrame>
       <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex w-full flex-col gap-3.5">
-          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-[720px]:grid-cols-1">
+          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-md:grid-cols-1">
             <div className="flex min-w-0 flex-1 flex-col gap-0">
-              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.75">
                   <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
                     Your seat
@@ -355,7 +355,7 @@ export default function MultiplayerLobby({
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 max-[720px]:grid-cols-1">
+          <div className="grid grid-cols-2 gap-2.5 max-md:grid-cols-1">
             <section
               className="flex min-h-full flex-col justify-between gap-3 rounded-md border border-white/7 bg-white/4 px-3.25 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05)]"
               aria-labelledby="mpHostPath"
@@ -403,7 +403,7 @@ export default function MultiplayerLobby({
                   be open.
                 </p>
               </div>
-              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[560px]:grid-cols-1">
+              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-sm:grid-cols-1">
                 <label className="flex w-auto min-w-0 flex-col gap-1.25">
                   <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
                     Room code

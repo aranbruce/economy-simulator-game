@@ -216,7 +216,7 @@ export default function RealmStats({
 
   return (
     <aside
-      className="realm-card pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-[720px]:top-auto max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:max-h-[min(48dvh,calc(100dvh-200px))] max-[720px]:w-auto max-[720px]:px-3.5 max-[720px]:py-3 max-[540px]:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-[540px]:max-h-[min(42dvh,calc(100dvh-190px))]"
+      className="realm-card pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:top-auto max-md:right-[max(6px,env(safe-area-inset-right))] max-md:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:max-h-[min(48dvh,calc(100dvh-200px))] max-md:w-auto max-md:px-3.5 max-md:py-3 max-sm:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-sm:max-h-[min(42dvh,calc(100dvh-190px))]"
       role="dialog"
       aria-label={snap.name}
     >
@@ -237,7 +237,7 @@ export default function RealmStats({
             <div className="text-[10px] font-bold tracking-widest text-[#8a6420] uppercase">
               {snap.us ? "Home" : "Partner realm"}
             </div>
-            <h2 className="mt-0.5 mb-0 font-display text-[21px] font-normal tracking-[-.02em] text-[#1a1814] max-[720px]:text-lg">
+            <h2 className="mt-0.5 mb-0 font-display text-[21px] font-normal tracking-[-.02em] text-[#1a1814] max-md:text-lg">
               {snap.name}
             </h2>
           </div>
@@ -256,7 +256,7 @@ export default function RealmStats({
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
-      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-[720px]:gap-x-3.5 max-[720px]:gap-y-2.5">
+      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-md:gap-x-3.5 max-md:gap-y-2.5">
         <Stat
           label="GDP"
           value={fmtGdpBn(snap.gdpBn, ccy, G)}

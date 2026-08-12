@@ -126,7 +126,7 @@ export default function CountryPicker({
 
       <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">
               <div className="flex items-center gap-3">
                 <span
@@ -145,7 +145,7 @@ export default function CountryPicker({
               <em>{realm.blurb}</em>
             </div>
             <div
-              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-[560px]:max-w-none max-[560px]:items-start"
+              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-sm:max-w-none max-sm:items-start"
               role="group"
               aria-label="Game mode"
             >
@@ -171,13 +171,13 @@ export default function CountryPicker({
                   Sandbox
                 </button>
               </div>
-              <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-[560px]:text-left">
+              <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-sm:text-left">
                 {modeHint(sandbox, meta)}
               </p>
             </div>
           </div>
           <div
-            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-[560px]:grid-cols-2"
+            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-sm:grid-cols-2"
             aria-label={`Opening books for ${realm.name}`}
           >
             <SetupStat label="Polity" value={meta.label} />
@@ -192,7 +192,7 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 max-[560px]:flex-col max-[560px]:items-stretch">
+        <div className="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col max-sm:items-stretch">
           <SetupGoButton
             onClick={() =>
               onStart({

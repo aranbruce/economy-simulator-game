@@ -75,7 +75,7 @@ export function TopBarStats() {
 
   return (
     <div
-      className="hud-surface ml-auto flex scrollbar-none items-stretch overflow-x-auto p-1 max-[720px]:ml-0 max-[720px]:w-full max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-stretch max-[720px]:overflow-x-visible"
+      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:w-full max-md:flex-[1_1_100%] max-md:flex-wrap md:justify-stretch md:overflow-x-visible"
       id="tbStats"
     >
       {chips.map((c) => (
@@ -94,7 +94,7 @@ export function TopBarTerm() {
   return (
     <small
       id="tbTerm"
-      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-ink-faint uppercase max-[720px]:text-[9px] max-[540px]:max-w-[38vw] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap"
+      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-ink-faint uppercase max-md:text-[9px] max-sm:max-w-[38vw] max-sm:overflow-hidden max-sm:text-ellipsis max-sm:whitespace-nowrap"
     >
       {termLabel} term · {qLabel(G, G.q)}
     </small>

@@ -45,7 +45,7 @@ export function BriefingBody({
   return (
     <div className="mb-4 grid gap-3">
       {hasImpact && impact && (
-        <div className="grid grid-cols-1 gap-2.5 min-[520px]:grid-cols-2">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           {impact.quiet ? (
             <div className={`col-span-full rounded-md border px-3.5 py-3 ${goldBox}`}>
               <div

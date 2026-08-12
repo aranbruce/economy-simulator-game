@@ -24,9 +24,9 @@ const REGION_ORDER = [
 ];
 
 const OPTS_WRAP =
-  "grid grid-cols-2 gap-2 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4";
+  "grid grid-cols-2 gap-2 px-5 pt-1.5 pb-5 max-md:gap-1.5 max-md:px-3.5 max-md:pt-1 max-md:pb-4";
 const OPT_BASE =
-  "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 max-[720px]:min-h-11 max-[720px]:p-3";
+  "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 max-md:min-h-11 max-md:p-3";
 const OPT_SIMPLE = `${OPT_BASE} flex min-h-11 items-center justify-center text-center`;
 const OPT_LEFT = `${OPT_BASE} text-left`;
 
@@ -55,7 +55,7 @@ export function BlocFoundModalBody() {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <div className="mb-3">
@@ -150,7 +150,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <Hint>

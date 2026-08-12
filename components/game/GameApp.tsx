@@ -1070,7 +1070,7 @@ export default function GameApp() {
 
             {mpRoom && (
               <div
-                className="mp-hud hud-frame hud-surface pointer-events-none fixed top-[calc(10px+env(safe-area-inset-top,0px)+88px)] left-1/2 z-15 flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-xs tabular-nums max-[720px]:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
+                className="mp-hud hud-frame hud-surface pointer-events-none fixed top-[calc(10px+env(safe-area-inset-top,0px)+88px)] left-1/2 z-15 flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-xs tabular-nums max-md:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
                 aria-live="polite"
               >
                 <span className="font-bold tracking-[.06em]">

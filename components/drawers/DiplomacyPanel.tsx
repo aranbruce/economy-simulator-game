@@ -481,7 +481,7 @@ export function DiplomacyPanel() {
       <Eyebrow className="mt-5">
         {(COUNTRY_REGIONS as any)[region] || region}
       </Eyebrow>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 max-[720px]:grid-cols-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-2.5 max-md:grid-cols-1">
         {list.map((p: Country) => (
           <PartnerDiploCard key={p.id} p={p} G={G} />
         ))}

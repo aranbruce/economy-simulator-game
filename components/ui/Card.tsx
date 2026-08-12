@@ -44,7 +44,7 @@ export function CardGrid({
 }) {
   return (
     <div
-      className={`grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2 max-[720px]:grid-cols-1 max-[720px]:gap-1.75 ${className}`.trim()}
+      className={`grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2 max-md:grid-cols-1 max-md:gap-1.75 ${className}`.trim()}
     >
       {children}
     </div>
