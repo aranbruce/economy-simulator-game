@@ -4,6 +4,7 @@ import {
   balanceOf,
   billClauses,
   bump,
+  capitalOutlook,
   capitalShortfallHint,
   fmt,
   impactPanelData,
@@ -150,6 +151,7 @@ export function BillDrawer() {
   const dr = balanceOf(G.draft, G.econ);
   const cur = balanceOf(G.law, G.econ);
   const delta = dr.balance - cur.balance;
+  const capOutlook = capitalOutlook();
 
   return (
     <>
@@ -223,20 +225,28 @@ export function BillDrawer() {
             {sgn(delta, 1)} points versus current law
           </div>
         ) : null}
-        {cl.length > 0 ? (
+        {capOutlook ? (
           <>
             <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
-              <span>Political capital</span>
+              <span>Political capital next quarter</span>
               <span
-                className={`ml-auto ${G.capital - cost >= 0 ? "text-white" : "text-red-lt"}`}
+                className={`ml-auto ${capOutlook.nextQuarter >= capOutlook.current ? "text-green-lt" : "text-red-lt"}`}
               >
-                {Math.round(G.capital - cost)}
+                {Math.round(capOutlook.nextQuarter)}
               </span>
             </div>
             <div className="pt-1.25 text-[11px] text-ink-faint">
-              {cost > 0 ? `−${cost}` : "No change"} for this bill ·{" "}
-              {Math.round(G.capital)} today
+              {Math.round(capOutlook.current)} today
+              {capOutlook.cost > 0 ? ` · −${capOutlook.cost} for this bill` : ""}{" "}
+              · {capOutlook.gain >= 0 ? "+" : ""}
+              {capOutlook.gain.toFixed(1)} regen
             </div>
+            <Hint className="mt-1">
+              Capital regenerates every quarter, faster the more popular you
+              are — currently {Math.round(capOutlook.approval)}% approval.
+              Below about {Math.round(capOutlook.breakeven)}% it goes into
+              reverse and capital falls instead of growing.
+            </Hint>
           </>
         ) : null}
       </div>

@@ -199,13 +199,3 @@ export function boardMetricColour(
   return METRIC_MISSING;
 }
 
-export function boardMetricCaption(metric: string, G: GameState = getG()) {
-  const m = BOARD_METRICS.find((x) => x.id === metric);
-  if (!m || !G) return "";
-  if (metric === "countries") return "Each country in its own colour";
-  if (metric === "blocs") return "Coloured by trade bloc membership";
-  if (metric === "relations") return "Coloured by how they stand with you";
-  if (metric === "growth") return "Annualised growth across the board";
-  if (metric === "deficit") return "Borrowing as a share of GDP";
-  return m.name;
-}

@@ -10059,6 +10059,34 @@ function billClauses() {
 }
 const billCost = () =>
   billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
+/** Next-quarter capital preview for the Programme drawer — same regen
+ *  formula `step()` applies every quarter (base 3.2, ±0.1 per point of
+ *  approval either side of the 45 neutral point, scaled by polity/state-form
+ *  regen), evaluated against the draft law and today's approval rather than
+ *  a full simulate() pass, so it's cheap enough to show unconditionally (not
+ *  gated to sandbox like the 4-quarter impact figures). Approval itself only
+ *  partly reflects a staged bill's faction effects each quarter (the 0.2
+ *  damping in the regen step), so today's approval is a reasonable stand-in
+ *  for next quarter's without needing a forward simulation. */
+function capitalOutlook() {
+  if (!G) return null;
+  const cost = billCost();
+  const approval = approvalOf(G.fac);
+  const regen =
+    polityOf(G.homeRole).capitalRegen * stateFormCapitalRegenMult(G.draft);
+  const gain = (3.2 + (approval - 45) * 0.1) * regen;
+  const breakeven = 45 - 3.2 / 0.1;
+  const afterBill = clamp(G.capital - cost, 0, 100);
+  return {
+    cost,
+    current: G.capital,
+    afterBill,
+    gain,
+    nextQuarter: clamp(afterBill + gain, 0, 100),
+    approval,
+    breakeven,
+  };
+}
 /* ==================================================================
    7. RENDERING
    ================================================================== */
@@ -16782,6 +16810,7 @@ export {
   project,
   simulate,
   billClauses,
+  capitalOutlook,
   billShock,
   projectionWarnings,
   impactOf,
