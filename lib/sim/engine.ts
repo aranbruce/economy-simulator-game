@@ -4900,7 +4900,7 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
   getG().brief = [];
   getG().press = [];
-  clearAllPressFades();
+  resetPressUi();
   tab = null;
   mirrorPlayerToWorld(getG());
   /* mirror rebuilds the player bag — keep the log we just mounted. */
@@ -6389,7 +6389,7 @@ function newGame(opts?: any) {
   G.over = false;
   G.press = [];
   G.briefImpact = null;
-  clearAllPressFades();
+  resetPressUi();
   tab = null;
   render();
   /* Opening morning note is first-class, not buried in the Budget drawer. */ if (
@@ -15406,7 +15406,7 @@ function composePress(input: any) {
 }
 let _pressExpanded: string | null = null;
 let _newsOpen = false;
-function clearAllPressFades() {
+function resetPressUi() {
   _pressExpanded = null;
   _newsOpen = false;
 }
@@ -15447,15 +15447,6 @@ function expandPress(id: any) {
   clip.seen = true;
   _pressExpanded = id;
   _newsOpen = true;
-  bump();
-  return true;
-}
-function dismissPress(id: any) {
-  if (!G || !G.press) return false;
-  const i = G.press.findIndex((c: any) => c.id === id);
-  if (i < 0) return false;
-  if (_pressExpanded === id) _pressExpanded = null;
-  G.press.splice(i, 1);
   bump();
   return true;
 }
@@ -16874,7 +16865,6 @@ export {
   qualEffectsData,
   composePress,
   pushPress,
-  dismissPress,
   dismissNewestPress,
   expandPress,
   getPressExpanded,

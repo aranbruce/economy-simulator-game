@@ -150,8 +150,12 @@ export function DespatchModal() {
                     </em>
                   ) : null}
                   {o.hint ? <SafeHtml html={o.hint} /> : null}
-                  {o.chips ? <ImpactChips chips={o.chips} /> : null}
-                  {o.factions ? <ImpactFactions factions={o.factions} /> : null}
+                  {o.chips ? (
+                    <ImpactChips chips={o.chips} paper={isBriefing} />
+                  ) : null}
+                  {o.factions ? (
+                    <ImpactFactions factions={o.factions} paper={isBriefing} />
+                  ) : null}
                 </button>
               ))}
             </div>
