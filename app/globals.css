@@ -454,8 +454,12 @@ button:disabled {
 }
 
 @media (max-height: 700px) and (min-width: 721px) {
+  /* #pressLayer centres itself with top:50%/-translate-y-1/2 and caps at
+     60vh, which already scales down on short viewports on its own — a
+     bottom offset here would fight that transform (both a top and a
+     bottom constraint with no explicit height, then shifted again by the
+     translate) rather than compose with it. */
   #pressLayer {
-    bottom: 92px;
     max-width: min(240px, 40vw);
     gap: 8px;
   }

@@ -16,11 +16,6 @@ const FX_UIP = 0.03;
 const FX_RISK = 0.055;
 const FX_ADJ = 0.38;
 const FX_CA = 0.15; // fractional appreciation per point of net-exports/potential
-/* The current account is a multi-year phenomenon in practice — it's a small
-   share of daily FX turnover next to capital flows — so it acts on a slow
-   accumulator rather than the raw quarterly trade balance, the same
-   partial-adjustment idiom FX_ADJ/T_ADJ already use elsewhere. Half-life
-   ~11 quarters. */ const CA_ADJ = 0.06;
 const WORLD_RATE_USD = 2.6; // fallback proxy only if no USD-area seat is present
 
 /** Group seat ids by ISO currency code. */

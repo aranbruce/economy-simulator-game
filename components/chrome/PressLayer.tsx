@@ -50,7 +50,7 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-1/2 right-14 z-40 max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col justify-center gap-3 space-y-2 overflow-scroll px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col justify-center gap-3 overflow-y-auto px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {ordered.length === 0 ? (

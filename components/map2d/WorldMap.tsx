@@ -985,6 +985,11 @@ export default function WorldMap({
       ctx.fillRect(0, 0, W, H);
       ctx.restore();
     }
+    // tick isn't read in the body above; it's a cache-busting signal so
+    // paint's identity changes on every game tick, which re-fires the
+    // [ready, paint] effect below and forces a repaint. Removing it would
+    // leave the map stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
   useEffect(() => {

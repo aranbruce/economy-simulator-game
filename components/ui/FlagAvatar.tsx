@@ -29,7 +29,7 @@ export function FlagAvatar({
       aria-hidden="true"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={flagSrc(role)} alt="" className="h-full w-full object-cover" />
+      <img src={flagSrc(role)} alt="" className="size-full object-cover" />
     </span>
   );
 }

@@ -73,7 +73,7 @@ export function DrawerShell() {
   return (
     <div
       id="drawer"
-      className={`hud-frame hud-surface-lg fixed right-2.5 bottom-22 left-2.5 z-15 flex max-h-[min(64vh,640px)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden max-md:top-(--drawer-top,160px) max-md:right-[max(6px,env(safe-area-inset-right))] max-md:bottom-(--drawer-bottom,128px) max-md:left-[max(6px,env(safe-area-inset-left))] max-md:h-auto max-md:max-h-none max-sm:bottom-(--drawer-bottom,118px) lg:top-20.5 lg:right-(--rail-clear) lg:bottom-22 lg:left-auto lg:max-h-none lg:w-[min(560px,46vw)] ${wide ? "lg:w-[min(900px,64vw)]" : ""}`}
+      className={`hud-frame hud-surface-lg fixed inset-x-2.5 bottom-22 z-15 flex max-h-[min(64vh,640px)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden max-md:top-(--drawer-top,160px) max-md:right-[max(6px,env(safe-area-inset-right))] max-md:bottom-(--drawer-bottom,128px) max-md:left-[max(6px,env(safe-area-inset-left))] max-md:h-auto max-md:max-h-none max-sm:bottom-(--drawer-bottom,118px) lg:top-20.5 lg:right-(--rail-clear) lg:bottom-22 lg:left-auto lg:max-h-none lg:w-[min(560px,46vw)] ${wide ? "lg:w-[min(900px,64vw)]" : ""}`}
       role="dialog"
       aria-label="Policy panel"
       title={overspent ? capitalShortfallHint(cost, G.capital) : undefined}
