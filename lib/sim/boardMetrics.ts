@@ -27,46 +27,46 @@ export const BOARD_METRICS = [
  *  A warm ochre/terracotta/olive family (aged-atlas palette), not the cool
  *  blue-grey set this used to be — no blues or purples in the roster. */
 export const REALM_FILL: Record<string, string> = {
-  home: "#dcc390",
-  kingdom: "#dcc390",
-  germany: "#cca786",
-  france: "#bfb287",
-  italy: "#d2aa87",
-  spain: "#bda782",
-  netherlands: "#b0b28f",
-  poland: "#c6b88a",
-  united_states: "#c9b38f",
-  canada: "#b5b78f",
-  china: "#d0b28a",
-  russia: "#bdaa92",
-  india: "#d8af7f",
-  brazil: "#c59f85",
-  mexico: "#bda787",
-  argentina: "#ccae8a",
-  japan: "#d0a78f",
-  korea: "#c5af87",
-  australia: "#b5ba92",
-  indonesia: "#bdbf8f",
-  vietnam: "#adb78d",
-  turkey: "#cbaa87",
-  saudi: "#d8ba8a",
-  uae: "#e0c292",
-  nigeria: "#bdc292",
-  south_africa: "#c5c29a",
-  egypt: "#d0bf8f",
-  kenya: "#b5bf8a",
+  home: "#c9a25c",
+  kingdom: "#c9a25c",
+  germany: "#a86a48",
+  france: "#8f8049",
+  italy: "#b5714a",
+  spain: "#8b6b3f",
+  netherlands: "#71805a",
+  poland: "#9c8c4f",
+  united_states: "#a2825a",
+  canada: "#7a8a5a",
+  china: "#b08050",
+  russia: "#8a7060",
+  india: "#c07a3a",
+  brazil: "#9a5a45",
+  mexico: "#8a6a4a",
+  argentina: "#a87850",
+  japan: "#b06a5a",
+  korea: "#9a7a4a",
+  australia: "#7a9060",
+  indonesia: "#8a9a5a",
+  vietnam: "#6a8a55",
+  turkey: "#a6704a",
+  saudi: "#c09050",
+  uae: "#d0a060",
+  nigeria: "#8aa060",
+  south_africa: "#9aa070",
+  egypt: "#b09a5a",
+  kenya: "#7a9a50",
 };
 const HOME_MARK = "#D4AF69";
-const NO_BLOC_FILL = "#9c8e76";
-const CUSTOM_BLOC_FILL = "#bcae8f";
+const NO_BLOC_FILL = "#4a3a28";
+const CUSTOM_BLOC_FILL = "#8a7a5a";
 
 /** Distinct bloc hues — members of the same bloc share a fill. */
 const BLOC_FILL: Record<string, string> = {
-  continental_union: "#ccaa82",
-  pacific_accord: "#a5b78f",
-  gulf_council: "#d8ba8a",
-  andes_pact: "#c5a787",
-  asean_circle: "#adb78f",
+  continental_union: "#a8703f",
+  pacific_accord: "#5a8a5a",
+  gulf_council: "#c09050",
+  andes_pact: "#9a6b4a",
+  asean_circle: "#6a8a5a",
 };
 
 function roleCountryId(role: string, G: GameState) {
@@ -170,7 +170,7 @@ export function boardMetricColour(
   if (!G) return METRIC_MISSING;
   if (metric === "countries") {
     if (role === "home") return HOME_MARK;
-    return REALM_FILL[role] || "#c2b896";
+    return REALM_FILL[role] || "#6a7a94";
   }
   if (metric === "blocs") {
     if (role === "home" && !roleBlocId(role, G)) return HOME_MARK;

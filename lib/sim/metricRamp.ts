@@ -38,4 +38,4 @@ export function metricRampCss(t: number) {
 }
 
 /** Neutral fill when a scalar metric has no value — not blue. */
-export const METRIC_MISSING = "#c9bd9c";
+export const METRIC_MISSING = "#3a3a36";

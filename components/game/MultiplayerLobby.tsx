@@ -169,7 +169,7 @@ export default function MultiplayerLobby({
         role="dialog"
         aria-modal="true"
       >
-        <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+        <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
           <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
             Cabinet
           </div>
@@ -182,7 +182,7 @@ export default function MultiplayerLobby({
               : "You’re in. The host starts when everyone is ready — quarters only advance when every human has Delivered."}
           </p>
         </HudFrame>
-        <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+        <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
           <div className="flex w-full flex-col gap-3.5">
             <div className="flex flex-col gap-1.5">
               <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
@@ -305,7 +305,7 @@ export default function MultiplayerLobby({
       aria-modal="true"
       aria-labelledby="mpLobbyTitle"
     >
-      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
         <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
           Cabinet
         </div>
@@ -320,7 +320,7 @@ export default function MultiplayerLobby({
           lobby or join with a friend’s code.
         </p>
       </HudFrame>
-      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex w-full flex-col gap-3.5">
           <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-[720px]:grid-cols-1">
             <div className="flex min-w-0 flex-1 flex-col gap-0">

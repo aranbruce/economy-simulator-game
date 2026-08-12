@@ -58,8 +58,8 @@ export function DespatchModal() {
       <div
         className={
           isBriefing
-            ? "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
-            : "despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+            ? "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+            : "despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
         }
         role="dialog"
         aria-modal="true"

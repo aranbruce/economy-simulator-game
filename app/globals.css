@@ -221,9 +221,9 @@ button {
   padding: 78px 12px 86px;
   background: radial-gradient(
     ellipse at 50% 45%,
-    #c7d6c3 0%,
-    #a9c1b0 58%,
-    #7c8a72 100%
+    #1b130c 0%,
+    #120c07 58%,
+    #080503 100%
   );
 }
 #vignette {
@@ -233,9 +233,9 @@ button {
   pointer-events: none;
   background: radial-gradient(
     ellipse at 50% 46%,
-    transparent 50%,
-    rgba(70, 52, 28, 0.22) 82%,
-    rgba(55, 40, 20, 0.38) 100%
+    transparent 46%,
+    rgba(2, 4, 10, 0.55) 80%,
+    rgba(2, 4, 10, 0.85) 100%
   );
 }
 

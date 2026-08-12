@@ -127,7 +127,7 @@ export default function CountryPicker({
       aria-modal="true"
       aria-labelledby="setupTitle"
     >
-      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
         <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
           Commission
         </div>
@@ -144,7 +144,7 @@ export default function CountryPicker({
         </p>
       </HudFrame>
 
-      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
           <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">
