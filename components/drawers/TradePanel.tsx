@@ -142,7 +142,7 @@ export function AccessionPipeline({
               className={`flex min-w-12 flex-col items-center gap-0.75 ${done || active ? "opacity-100" : "opacity-42"}`}
             >
               <span
-                className={`flex size-5.5 items-center justify-center rounded-full border-[1.5px] border-edge text-xs leading-none font-bold ${dotTone}`}
+                className={`flex size-5.5 items-center justify-center rounded-full border-2 border-edge text-xs leading-none font-bold ${dotTone}`}
               >
                 {done ? "✓" : i + 1}
               </span>
@@ -181,7 +181,7 @@ export function ApprovalTable({
           className="my-0.75 grid grid-cols-[90px_1fr_36px] items-center gap-2 text-xs"
         >
           <span className="text-xs">{a.name}</span>
-          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+          <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
             <i
               className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${a.ok ? "bg-green" : "bg-red"}`}
               style={{ width: `${a.rel.toFixed(0)}%` }}
@@ -920,7 +920,7 @@ function PartnerTradeCard({
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">{p.blurb}</p>
       <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-xs">
         <span className="text-xs">Relations</span>
-        <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+        <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
           <i
             className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${rel > 60 ? "bg-green" : rel < 38 ? "bg-red" : "bg-ink-soft"}`}
             style={{ width: `${rel.toFixed(0)}%` }}

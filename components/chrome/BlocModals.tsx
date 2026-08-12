@@ -81,7 +81,7 @@ export function BlocFoundModalBody() {
                 key={t.id}
                 type="button"
                 onClick={() => pick(t.id)}
-                className={`cursor-pointer rounded-[10px] border-2 px-3.5 py-2.5 text-left font-sans text-inherit ${sel ? "border-accent bg-blue/10" : "border-ink-faint bg-transparent"}`}
+                className={`cursor-pointer rounded-lg border-2 px-3.5 py-2.5 text-left font-sans text-inherit ${sel ? "border-accent bg-blue/10" : "border-ink-faint bg-transparent"}`}
               >
                 <div className="text-sm font-semibold">
                   {t.name}{" "}
@@ -180,12 +180,12 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                     key={p.id}
                     type="button"
                     onClick={() => setSelectedId(p.id)}
-                    className={`mt-1.5 block w-full cursor-pointer rounded-[10px] border-2 px-3 py-2.25 text-left font-sans text-inherit ${sel ? "border-blue bg-blue/8" : "border-edge bg-transparent hover:border-ink-soft"}`}
+                    className={`mt-1.5 block w-full cursor-pointer rounded-lg border-2 px-3 py-2.25 text-left font-sans text-inherit ${sel ? "border-blue bg-blue/8" : "border-edge bg-transparent hover:border-ink-soft"}`}
                   >
                     <div className="flex items-center justify-between gap-2.5">
                       <span className="text-sm font-semibold">{p.name}</span>
                       <span className="flex flex-none items-center gap-1.5">
-                        <span className="h-1.25 w-14 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                        <span className="h-1.25 w-14 overflow-hidden rounded-xs border border-edge bg-g-1">
                           <i
                             className={`block h-full rounded-none ${c.rel > 60 ? "bg-green" : c.rel < 38 ? "bg-red" : "bg-ink-soft"}`}
                             style={{ width: `${c.rel.toFixed(0)}%` }}

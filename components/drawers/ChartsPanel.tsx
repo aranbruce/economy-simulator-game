@@ -73,7 +73,7 @@ export function ChartsPanel() {
                   {Math.round(f.w * 100)}%
                 </span>
               </span>
-              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+              <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
                 <i
                   className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${cls ? FBAR_TONE[cls] : "bg-ink-soft"}`}
                   style={{ width: `${v.toFixed(0)}%` }}
@@ -87,7 +87,7 @@ export function ChartsPanel() {
         })}
         <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-xs">
           <span className="font-semibold">Approval</span>
-          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+          <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
             <i
               className="block h-full rounded-none bg-red transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)]"
               style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
@@ -117,7 +117,7 @@ export function ChartsPanel() {
               className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-xs"
             >
               <span>{n}</span>
-              <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+              <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
                 <i
                   className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${tone}`}
                   style={{ width: `${clamp(v, 0, 100).toFixed(0)}%` }}

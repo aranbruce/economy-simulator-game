@@ -401,7 +401,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
       <div className="grid gap-1 px-3 pb-2">
         <div className="grid grid-cols-[78px_1fr_30px] items-center gap-2 text-xs">
           <span>Relations</span>
-          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+          <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
             <i
               className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${REL_FILL_TONE[tone]}`}
               style={{ width: `${rel.toFixed(0)}%` }}

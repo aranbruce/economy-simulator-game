@@ -57,7 +57,7 @@ export function CoachPanel() {
                 role="checkbox"
               >
                 <span
-                  className={`mt-px inline-flex size-4 flex-none items-center justify-center rounded text-xs leading-none text-white ${s.done ? "border-green bg-green text-[#04140a]" : "border-edge bg-g-2"} border-[1.5px]`}
+                  className={`mt-px inline-flex size-4 flex-none items-center justify-center rounded text-xs leading-none text-white ${s.done ? "border-green bg-green text-[#04140a]" : "border-edge bg-g-2"} border-2`}
                   aria-hidden="true"
                 >
                   {s.done ? "✓" : ""}

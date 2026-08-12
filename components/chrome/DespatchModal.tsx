@@ -88,7 +88,7 @@ export function DespatchModal() {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-[rgba(2,4,10,.72)] p-4 backdrop-blur-[10px] max-md:px-2.5 max-md:pt-[max(12px,env(safe-area-inset-top))] max-md:pb-[max(12px,env(safe-area-inset-bottom))]"
+      className="fixed inset-0 z-50 grid place-items-center bg-[rgba(2,4,10,.72)] p-4 backdrop-blur-md max-md:px-2.5 max-md:pt-[max(12px,env(safe-area-inset-top))] max-md:pb-[max(12px,env(safe-area-inset-bottom))]"
       id="scrim"
     >
       <div
