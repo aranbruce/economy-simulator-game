@@ -86,19 +86,20 @@ export function Dock({
       className="hud-surface fixed bottom-2.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 p-1.5 max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[max(6px,env(safe-area-inset-bottom))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:w-auto max-[720px]:translate-x-0 max-[720px]:flex-wrap max-[720px]:gap-1.5"
     >
       <div
-        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-x-auto max-[720px]:order-1 max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-center max-[720px]:gap-1 max-[720px]:overflow-x-visible max-[720px]:pb-0 max-[540px]:justify-center max-[540px]:gap-0.5"
+        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-visible overflow-x-auto py-1.5 max-[720px]:order-1 max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-center max-[720px]:gap-1 max-[720px]:overflow-x-visible max-[720px]:pb-0 max-[540px]:justify-center max-[540px]:gap-0.5"
         id="dockTabs"
       >
         {DOCK_TABS.map((t) => {
+          const active = t.id === tab;
           const pip = clausesIn(t.id, cl) ? <span className={pipBase} /> : null;
           return (
             <button
               key={t.id}
               type="button"
-              className="relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-md border-0 bg-transparent px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] text-ink-soft uppercase transition-[background,color,transform,box-shadow] duration-180 ease-[cubic-bezier(.2,.9,.3,1)] hover:-translate-y-px hover:bg-g-1 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94] aria-expanded:bg-accent-dim aria-expanded:text-accent-lt max-[720px]:min-h-11 max-[720px]:min-w-11 max-[720px]:justify-center max-[720px]:px-2.5 max-[720px]:py-1.5 max-[720px]:text-[9px] max-[540px]:relative max-[540px]:min-w-10.5 max-[540px]:px-2.25 max-[540px]:py-2"
+              className={`dock-dome relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-lg px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] uppercase transition-colors duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-[720px]:min-h-11 max-[720px]:min-w-11 max-[720px]:justify-center max-[720px]:px-2.5 max-[720px]:py-1.5 max-[720px]:text-[9px] max-[540px]:relative max-[540px]:min-w-10.5 max-[540px]:px-2.25 max-[540px]:py-2 ${active ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
               data-tab={t.id}
               aria-label={t.name}
-              aria-expanded={t.id === tab}
+              aria-expanded={active}
               onClick={() => setTab(tab === t.id ? null : t.id)}
             >
               <TabIcon name={t.icon as any} />
@@ -111,7 +112,7 @@ export function Dock({
       <div className="flex flex-none items-stretch gap-1.5 max-[720px]:order-2 max-[720px]:grid max-[720px]:flex-[1_1_100%] max-[720px]:grid-cols-[1fr_1.15fr] max-[720px]:gap-1.5">
         <button
           type="button"
-          className="flex flex-col justify-center gap-px rounded-md border border-edge bg-g-1 px-3 py-1.5 text-right text-[9.5px] font-semibold tracking-[.04em] whitespace-nowrap text-ink-soft uppercase shadow-spec transition-[background,color,border-color] duration-180 hover:border-frame hover:bg-g-3 aria-expanded:border-frame aria-expanded:bg-accent-dim aria-expanded:text-accent-lt max-[720px]:px-2.5 max-[720px]:py-2 max-[720px]:text-left max-[540px]:px-2 max-[540px]:py-1.75 max-[540px]:text-[8.5px]"
+          className={`dock-dome flex flex-col justify-center gap-px rounded-md px-3 py-1.5 text-right text-[9.5px] font-semibold tracking-[.04em] whitespace-nowrap uppercase transition-colors duration-180 max-[720px]:px-2.5 max-[720px]:py-2 max-[720px]:text-left max-[540px]:px-2 max-[540px]:py-1.75 max-[540px]:text-[8.5px] ${tab === "bill" ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
           id="billBtn"
           aria-expanded={tab === "bill"}
           onClick={() => setTab(tab === "bill" ? null : "bill")}

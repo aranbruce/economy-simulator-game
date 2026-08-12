@@ -387,8 +387,18 @@ function polysForRole(
   hIso: string | null,
   setupMode: boolean,
 ): Polys | null {
-  const realm = realmByRole(role);
-  const anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
+  /* "home" means the UK in setup (the fixed reference territory on the
+     picker) but the actual player's country once a game is running —
+     realmByRole("home") only knows the former, so resolve via hIso here
+     instead, or a same-role UK label/marker ends up drawn over whichever
+     country the player is actually playing. */
+  let anchorIso: string | null;
+  if (role === "home" && !setupMode) {
+    anchorIso = hIso ? String(hIso).padStart(3, "0") : null;
+  } else {
+    const realm = realmByRole(role);
+    anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
+  }
   if (anchorIso) {
     const anchor = countries.find((c) => c.iso === anchorIso);
     if (anchor && anchor.polys.length) return anchor.polys;
@@ -864,22 +874,46 @@ export default function WorldMap({
             : boardMetricMapLabel(role, mapMetric ?? null, name, G);
         }
         const hot = isSelected(role) || hoverRole === role;
-        return { nx, ny, text, hot };
+        /* Placement priority is separate from hot's bold/gold styling — the
+           player's own realm should keep its label even when neither
+           selected nor hovered. */
+        const priority = hot || role === "home" ? 1 : 0;
+        return { nx, ny, text: text.toUpperCase(), hot, priority };
       })
-      .filter((x): x is NonNullable<typeof x> => x != null);
+      .filter((x): x is NonNullable<typeof x> => x != null)
+      /* Stable sort: priority labels claim their space first, so a crowded
+         cluster (real-world geography packs some realms tightly) drops the
+         lower-priority overlaps instead of drawing them on top of each
+         other illegibly. */
+      .sort((a, b) => b.priority - a.priority);
 
     ctx.save();
     ctx.shadowColor = "rgba(15,11,6,.85)";
     ctx.shadowBlur = 4;
     for (const dx of offsets) {
+      const placed: { x0: number; y0: number; x1: number; y1: number }[] = [];
       for (const { nx, ny, text, hot } of labelRows) {
         const [x, y] = toScreen(nx, ny, dx);
         ctx.font = hot
           ? '700 12px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif'
           : '600 11px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif';
+        const w = ctx.measureText(text).width;
+        const h = hot ? 15 : 14;
+        const pad = 3;
+        const box = {
+          x0: x - w / 2 - pad,
+          y0: y - h / 2 - pad,
+          x1: x + w / 2 + pad,
+          y1: y + h / 2 + pad,
+        };
+        const collides = placed.some(
+          (b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0,
+        );
+        if (collides) continue;
+        placed.push(box);
         ctx.shadowOffsetY = hot ? 1 : 0.5;
         ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
-        ctx.fillText(text.toUpperCase(), x, y);
+        ctx.fillText(text, x, y);
       }
     }
     ctx.restore();
