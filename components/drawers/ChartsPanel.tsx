@@ -166,7 +166,7 @@ export function ChartsPanel() {
     <>
       <ChartBox
         title="Output against potential"
-        caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend (top bar) is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
+        caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
       >
         <LineChartSvg
           spec={lineChartSpec([

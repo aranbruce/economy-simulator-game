@@ -40,27 +40,27 @@
 }
 
 :root {
-  /* Grand-strategy command HUD over a dark planet. Dense slate panels,
-     brass authority accent, light frost — map stays readable underneath. */
-  --g-1: rgba(255, 255, 255, 0.045);
-  --g-2: rgba(14, 20, 32, 0.88);
-  --g-3: rgba(255, 255, 255, 0.1);
-  --g-4: rgba(255, 255, 255, 0.16);
-  --panel: rgba(10, 15, 24, 0.92);
-  --panel-hi: rgba(18, 26, 40, 0.94);
-  --edge: rgba(180, 200, 230, 0.14);
+  /* Warm leather-and-gilt command HUD over a dark planet. Umber panels,
+     brass authority accent, warm cream text — map stays readable underneath. */
+  --g-1: rgba(255, 224, 160, 0.05);
+  --g-2: rgba(26, 18, 10, 0.88);
+  --g-3: rgba(255, 224, 160, 0.09);
+  --g-4: rgba(255, 224, 160, 0.14);
+  --panel: rgba(22, 16, 9, 0.92);
+  --panel-hi: rgba(30, 21, 12, 0.94);
+  --edge: rgba(190, 155, 100, 0.18);
   --edge-hi: rgba(212, 175, 105, 0.45);
   --frame: rgba(212, 175, 105, 0.28);
   --rule: var(--edge);
   --doc-3: var(--edge);
   --spec:
-    inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.25);
+    inset 0 1px 0 rgba(255, 224, 160, 0.12), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
   --blur: blur(18px) saturate(140%);
   --blur-lt: blur(12px) saturate(130%);
 
-  --ink: #f4f6fa;
-  --ink-soft: rgba(220, 228, 240, 0.68);
-  --ink-faint: rgba(180, 195, 215, 0.42);
+  --ink: #f6f0e2;
+  --ink-soft: rgba(238, 226, 202, 0.72);
+  --ink-faint: rgba(210, 190, 155, 0.48);
 
   --accent: #d4af69;
   --accent-dim: rgba(212, 175, 105, 0.22);
@@ -107,7 +107,7 @@ body {
   font-size: 14.5px;
   line-height: 1.45;
   color: var(--ink);
-  background: #04060b;
+  background: #0a0704;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-variant-numeric: tabular-nums;
@@ -168,6 +168,46 @@ button {
   }
 }
 
+/* ================= icon rail ================= */
+.rail-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(10, 7, 4, 0.72),
+    rgba(10, 7, 4, 0.52) 50%,
+    rgba(10, 7, 4, 0.72)
+  );
+  border-left: 1px solid var(--edge);
+  border-top-left-radius: 22px;
+  border-bottom-left-radius: 22px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.06),
+    -10px 0 26px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+}
+.rail-dome {
+  background: radial-gradient(
+    circle at 35% 28%,
+    #46331b 0%,
+    #241a0f 55%,
+    #120d07 100%
+  );
+  border: 2px solid #0c0805;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.2),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(180, 145, 90, 0.16),
+    0 10px 22px rgba(0, 0, 0, 0.55);
+}
+.rail-dome.active {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.2),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 2px var(--accent),
+    0 0 18px rgba(212, 175, 105, 0.4),
+    0 10px 22px rgba(0, 0, 0, 0.55);
+}
+
 /* ================= map layer ================= */
 #mapLayer {
   position: fixed;
@@ -181,9 +221,9 @@ button {
   padding: 78px 12px 86px;
   background: radial-gradient(
     ellipse at 50% 45%,
-    #0c1628 0%,
-    #070c16 58%,
-    #03050a 100%
+    #1b130c 0%,
+    #120c07 58%,
+    #080503 100%
   );
 }
 #vignette {

@@ -60,6 +60,9 @@ export function DrawerShell() {
   } else if (tab === "diplomacy") {
     name = "Diplomacy";
     sub = "Envoys · missions · relations";
+  } else if (tab === "overview") {
+    name = "Overview";
+    sub = "Faction approval · situations";
   } else {
     name = (TABS.find((t) => t.id === tab) || {}).name || tab;
   }
@@ -70,7 +73,7 @@ export function DrawerShell() {
   return (
     <div
       id="drawer"
-      className={`hud-frame hud-surface-lg fixed right-2.5 bottom-22 left-2.5 z-15 flex max-h-[min(64vh,640px)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden max-[720px]:top-(--drawer-top,160px) max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-(--drawer-bottom,128px) max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:h-auto max-[720px]:max-h-none max-[540px]:bottom-(--drawer-bottom,118px) min-[920px]:top-20.5 min-[920px]:right-2.5 min-[920px]:bottom-22 min-[920px]:left-auto min-[920px]:max-h-none min-[920px]:w-[min(560px,46vw)] ${wide ? "min-[920px]:w-[min(900px,64vw)]" : ""}`}
+      className={`hud-frame hud-surface-lg fixed right-2.5 bottom-22 left-2.5 z-15 flex max-h-[min(64vh,640px)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col overflow-hidden max-[720px]:top-(--drawer-top,160px) max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-(--drawer-bottom,128px) max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:h-auto max-[720px]:max-h-none max-[540px]:bottom-(--drawer-bottom,118px) min-[920px]:top-20.5 min-[920px]:right-15 min-[920px]:bottom-22 min-[920px]:left-auto min-[920px]:max-h-none min-[920px]:w-[min(560px,46vw)] ${wide ? "min-[920px]:w-[min(900px,64vw)]" : ""}`}
       role="dialog"
       aria-label="Policy panel"
       title={overspent ? capitalShortfallHint(cost, G.capital) : undefined}

@@ -2,11 +2,13 @@
 
 import type { CSSProperties } from "react";
 import {
-  dismissPress,
+  closeFocusedPress,
   expandPress,
+  getNewsOpen,
   getPressExpanded,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { CloseIcon } from "../../lib/ui/icons.tsx";
 
 function ClipBody({ c }: { c: any }) {
   return (
@@ -29,46 +31,70 @@ function ClipBody({ c }: { c: any }) {
 
 export function PressLayer() {
   const G = useGame();
+  const open = getNewsOpen();
+  if (!open) return null;
+
   const clips = G?.press || [];
   const expandedId = getPressExpanded();
   const focused = expandedId && clips.find((c: any) => c.id === expandedId);
+  const ordered = clips.slice().reverse();
 
   return (
-    <div
-      id="pressLayer"
-      className={`pointer-events-none fixed bottom-25 left-3.5 flex max-w-[min(280px,46vw)] flex-col items-start gap-3 max-[720px]:bottom-[calc(128px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(8px,env(safe-area-inset-left))] max-[720px]:max-w-[min(200px,42vw)] max-[720px]:gap-2 max-[540px]:bottom-[calc(116px+env(safe-area-inset-bottom,0px))] max-[540px]:max-w-[min(160px,38vw)] ${focused ? "is-focusing z-48" : "z-8"}`}
-      aria-live="polite"
-    >
-      {clips.map((c: any, i: number) => {
-        if (focused && c.id === focused.id) return null;
-        const rot = (c.rot != null ? c.rot : 0).toFixed(2);
-        const delay = (i * 0.05).toFixed(2);
-        return (
-          <article
-            key={c.id}
-            className="clipping"
-            data-id={c.id}
-            style={
-              {
-                "--clip-rot": `${rot}deg`,
-                "--clip-delay": `${delay}s`,
-              } as CSSProperties
-            }
-            role="button"
-            tabIndex={0}
-            aria-label="Open clipping"
-            onClick={() => expandPress(c.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                expandPress(c.id);
-              }
-            }}
-          >
-            <ClipBody c={c} />
-          </article>
-        );
-      })}
+    <>
+      {/* No backdrop, no card — clippings float directly over the map, same
+          as before they were gated behind News, just shown on demand now.
+          Anchored beside the rail's News dome (top-[calc(50%-96px)] lines
+          up with that button's vertical centre) rather than the bottom
+          corner. Hidden outright while a clip is focused, rather than just
+          relying on the focused view's backdrop, since the list sits
+          outside the focused view's z-index stack and would otherwise show
+          through beside it. */}
+      {!focused && (
+        <div
+          id="pressLayer"
+          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-[720px]:right-12 max-[720px]:max-w-[min(220px,44vw)]"
+          aria-live="polite"
+        >
+          {ordered.length === 0 ? (
+            <p className="m-0 text-[13px] text-ink-soft [text-shadow:0_1px_4px_rgba(0,0,0,.8)]">
+              Nothing yet this term.
+            </p>
+          ) : (
+            ordered.map((c: any, i: number) => (
+              <article
+                key={c.id}
+                className="clipping relative"
+                data-id={c.id}
+                style={
+                  {
+                    "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
+                    "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
+                    marginLeft: 0,
+                  } as CSSProperties
+                }
+                role="button"
+                tabIndex={0}
+                aria-label="Open clipping"
+                onClick={() => expandPress(c.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    expandPress(c.id);
+                  }
+                }}
+              >
+                {!c.seen ? (
+                  <span
+                    className="absolute top-2.5 right-2.5 size-2 rounded-full bg-[#a4392b]"
+                    aria-hidden="true"
+                  />
+                ) : null}
+                <ClipBody c={c} />
+              </article>
+            ))
+          )}
+        </div>
+      )}
       {focused ? (
         <div
           className="press-focus"
@@ -76,31 +102,32 @@ export function PressLayer() {
           aria-modal="true"
           aria-label="Newspaper clipping"
           onClick={(e) => {
-            if (e.target === e.currentTarget) dismissPress(focused.id);
+            if (e.target === e.currentTarget) closeFocusedPress();
           }}
         >
           <article
-            className="clipping clipping-focus"
+            className="clipping clipping-focus relative"
             style={
               {
                 "--clip-rot": `${(focused.rot != null ? focused.rot : -1).toFixed(2)}deg`,
               } as CSSProperties
             }
           >
-            <ClipBody c={focused} />
             <button
               type="button"
-              className="mt-4.5 block w-full cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.08)] px-3.5 py-2.5 font-sans text-[13px] font-semibold tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.14)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.985]"
+              aria-label="Close"
+              className="absolute top-2.5 right-2.5 grid size-7 cursor-pointer place-items-center rounded-full border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] text-[#6b5c3e] transition duration-160 hover:bg-[rgba(40,32,18,.14)] hover:text-[#1a1814] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]"
               onClick={(e) => {
                 e.stopPropagation();
-                dismissPress(focused.id);
+                closeFocusedPress();
               }}
             >
-              Dismiss
+              <CloseIcon />
             </button>
+            <ClipBody c={focused} />
           </article>
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

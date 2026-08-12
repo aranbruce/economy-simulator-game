@@ -42,8 +42,8 @@ interface CountryFeature {
   strokeChains: Ring[][][];
 }
 
-const OCEAN = "#080e1c";
-const SCENERY_FILL = "#1c2433";
+const OCEAN = "#3c4a3f";
+const SCENERY_FILL = "#3a3226";
 const HOVER_LIFT = 1.18;
 const MIN_ZOOM = 0.85;
 const MAX_ZOOM = 8;
@@ -53,13 +53,6 @@ const LAT_MIN = -56;
 const SKIP_ISO = new Set(["010"]); // Antarctica — not on the board
 
 const SETUP_SELECTED = "#D4AF69";
-
-const DIPLO_EMOJI: Record<string, string> = {
-  envoy: "💼",
-  summit: "🤝",
-  summit_staged: "📅",
-  ultimatum: "⚠️",
-};
 
 const DIPLO_MARKER_ORDER = ["envoy", "summit", "summit_staged", "ultimatum"];
 const DIPLO_MARKER_SIZE = 18;
@@ -379,23 +372,6 @@ function polysCentroid(polys: Polys): Point {
   return best ? ringCentroid(best) : [0.5, 0.5];
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 function roleForFeature(
   iso: string,
   homeRole?: string | null,
@@ -426,39 +402,111 @@ function polysForRole(
   return polys.length ? polys : null;
 }
 
-function diploEmojiFont(size: number) {
-  return `${size}px -apple-system, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+/** Every diplomacy marker is the same size, so "measuring" it is just its
+ *  own diameter — unlike the emoji it replaces, which needed font metrics. */
+function diploMarkerWidth(size: number) {
+  return size;
 }
 
-function measureDiploEmoji(
+/** Small vector glyph per marker kind, drawn in the badge's ring colour. */
+function drawDiploMarkerGlyph(
   ctx: CanvasRenderingContext2D,
-  emoji: string,
+  kind: string,
+  cx: number,
+  cy: number,
   size: number,
 ) {
-  ctx.save();
-  ctx.font = diploEmojiFont(size);
-  const w = ctx.measureText(emoji).width;
-  ctx.restore();
-  return w;
+  const g = size * 0.21;
+  ctx.strokeStyle = "#1a1408";
+  ctx.lineWidth = Math.max(1, size * 0.09);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (kind === "envoy") {
+    /* Briefcase: body plus a handle arc. */
+    ctx.rect(cx - g, cy - g * 0.5, g * 2, g * 1.3);
+    ctx.moveTo(cx - g * 0.45, cy - g * 0.5);
+    ctx.arc(cx, cy - g * 0.7, g * 0.45, Math.PI, 0);
+  } else if (kind === "summit") {
+    /* Two linked rings. */
+    ctx.arc(cx - g * 0.5, cy, g * 0.55, 0, Math.PI * 2);
+    ctx.moveTo(cx + g * 1.05, cy);
+    ctx.arc(cx + g * 0.5, cy, g * 0.55, 0, Math.PI * 2);
+  } else if (kind === "summit_staged") {
+    /* Calendar: body plus a top rule. */
+    ctx.rect(cx - g, cy - g * 0.8, g * 2, g * 1.7);
+    ctx.moveTo(cx - g, cy - g * 0.2);
+    ctx.lineTo(cx + g, cy - g * 0.2);
+  } else if (kind === "ultimatum") {
+    /* Warning triangle. */
+    ctx.moveTo(cx, cy - g);
+    ctx.lineTo(cx + g * 0.95, cy + g * 0.75);
+    ctx.lineTo(cx - g * 0.95, cy + g * 0.75);
+    ctx.closePath();
+  }
+  ctx.stroke();
+  if (kind === "ultimatum") {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - g * 0.15);
+    ctx.lineTo(cx, cy + g * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy + g * 0.58, size * 0.045, 0, Math.PI * 2);
+    ctx.fillStyle = "#1a1408";
+    ctx.fill();
+  }
 }
 
-function drawDiploEmoji(
+/** Gold-ringed dark badge with a small vector glyph — matches the icon
+ *  rail's language instead of raw platform emoji. */
+function drawDiploMarker(
   ctx: CanvasRenderingContext2D,
-  emoji: string,
+  kind: string,
   cx: number,
   cy: number,
   size: number,
   alpha = 1,
 ) {
   ctx.save();
-  ctx.font = diploEmojiFont(size);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
   ctx.globalAlpha = alpha;
   ctx.shadowColor = "rgba(0,0,0,0.55)";
   ctx.shadowBlur = 4;
-  ctx.fillText(emoji, cx, cy);
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#17110a";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.strokeStyle = "#d4af69";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  drawDiploMarkerGlyph(ctx, kind, cx, cy, size);
   ctx.restore();
+}
+
+/** A small warm-tinted noise tile, generated once and reused across every
+ *  paint() call (and every WorldMap instance) — cheap to composite as a
+ *  repeating pattern, expensive to regenerate every frame. */
+let _grainTile: HTMLCanvasElement | null = null;
+function grainTile(): HTMLCanvasElement | null {
+  if (_grainTile) return _grainTile;
+  if (typeof document === "undefined") return null;
+  const size = 64;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const tctx = c.getContext("2d");
+  if (!tctx) return null;
+  const img = tctx.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 20 + Math.floor(Math.random() * 20);
+    img.data[i] = v;
+    img.data[i + 1] = Math.round(v * 0.85);
+    img.data[i + 2] = Math.round(v * 0.6);
+    img.data[i + 3] = Math.floor(Math.random() * 70);
+  }
+  tctx.putImageData(img, 0, 0);
+  _grainTile = c;
+  return _grainTile;
 }
 
 /**
@@ -536,6 +584,11 @@ export default function WorldMap({
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+    /* Sepia/contrast color-grade over the terrain only (not markers, labels
+       or legend text below, which stay at full clarity for readability). */
+    ctx.save();
+    ctx.filter = "sepia(0.14) saturate(0.82) contrast(1.07) brightness(1.02)";
+
     ctx.fillStyle = OCEAN;
     ctx.fillRect(0, 0, W, H);
 
@@ -547,8 +600,8 @@ export default function WorldMap({
       H * 0.5,
       W * 0.7,
     );
-    glow.addColorStop(0, "rgba(15,28,51,.55)");
-    glow.addColorStop(1, "rgba(4,6,12,0)");
+    glow.addColorStop(0, "rgba(70,51,27,.5)");
+    glow.addColorStop(1, "rgba(8,5,3,0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
@@ -644,15 +697,16 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        ctx.strokeStyle = hot ? "rgba(255,255,255,.5)" : "rgba(8,14,28,.55)";
+        ctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
         ctx.lineWidth = hot ? 1.15 : 0.7;
         ctx.stroke();
       } else {
-        ctx.strokeStyle = "rgba(8,14,28,.35)";
+        ctx.strokeStyle = "rgba(24,18,10,.35)";
         ctx.lineWidth = 0.4;
         ctx.stroke();
       }
     }
+    ctx.restore();
 
     /* Trade lines from home to partners (play only). */
     if (!setupMode && G) {
@@ -726,9 +780,7 @@ export default function WorldMap({
               (a: string, b: string) =>
                 DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
             );
-          const widths = kinds.map((kind) =>
-            measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE),
-          );
+          const widths = kinds.map(() => diploMarkerWidth(DIPLO_MARKER_SIZE));
           const rowW =
             widths.reduce((sum, w) => sum + w, 0) +
             DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
@@ -744,9 +796,9 @@ export default function WorldMap({
             const sx = cursor + widths[i] / 2;
             cursor += widths[i] + DIPLO_MARKER_PAD;
             const sy = y - DIPLO_MARKER_OFFSET;
-            drawDiploEmoji(
+            drawDiploMarker(
               ctx,
-              DIPLO_EMOJI[kind],
+              kind,
               sx,
               sy,
               DIPLO_MARKER_SIZE,
@@ -761,14 +813,14 @@ export default function WorldMap({
         const legendY = H - 36;
         let lx = 14;
         ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-        ctx.fillStyle = "rgba(255,255,255,.55)";
+        ctx.fillStyle = "rgba(246,240,226,.6)";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         for (const kind of DIPLO_MARKER_ORDER) {
           if (!kindsPresent.has(kind)) continue;
-          drawDiploEmoji(
+          drawDiploMarker(
             ctx,
-            DIPLO_EMOJI[kind],
+            kind,
             lx + 8,
             legendY,
             DIPLO_LEGEND_SIZE,
@@ -781,8 +833,9 @@ export default function WorldMap({
       }
     }
 
-    /* Labels: one per realm still on the board. */
-    ctx.font = "600 12px -apple-system, system-ui, sans-serif";
+    /* Labels: one per realm still on the board. Set directly on the terrain
+       in an italic atlas serif, no pill background — legibility comes from a
+       soft drop shadow rather than a solid box. */
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -810,25 +863,29 @@ export default function WorldMap({
             ? name
             : boardMetricMapLabel(role, mapMetric ?? null, name, G);
         }
-        const tw = ctx.measureText(text).width;
         const hot = isSelected(role) || hoverRole === role;
-        return { nx, ny, text, tw, hot };
+        return { nx, ny, text, hot };
       })
       .filter((x): x is NonNullable<typeof x> => x != null);
 
+    ctx.save();
+    ctx.shadowColor = "rgba(15,11,6,.85)";
+    ctx.shadowBlur = 4;
     for (const dx of offsets) {
-      for (const { nx, ny, text, tw, hot } of labelRows) {
+      for (const { nx, ny, text, hot } of labelRows) {
         const [x, y] = toScreen(nx, ny, dx);
-        ctx.fillStyle = `rgba(8,14,28,${hot ? 0.9 : 0.72})`;
-        roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
-        ctx.fill();
-        ctx.fillStyle = "#fff";
+        ctx.font = hot
+          ? '700 13px "Instrument Serif", Georgia, "Times New Roman", serif'
+          : 'italic 500 12.5px "Instrument Serif", Georgia, "Times New Roman", serif';
+        ctx.shadowOffsetY = hot ? 1 : 0.5;
+        ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
         ctx.fillText(text, x, y);
       }
     }
+    ctx.restore();
 
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,.28)";
+    ctx.fillStyle = "rgba(246,240,226,.3)";
     ctx.textAlign = "left";
     ctx.fillText(
       setupMode
@@ -837,6 +894,22 @@ export default function WorldMap({
       14,
       H - 14,
     );
+
+    /* Paper-grain texture, composited last so it sits over terrain, trade
+       lines, markers and labels alike — an aged-atlas finish, not just a
+       terrain effect. */
+    const tile = grainTile();
+    if (tile) {
+      const pattern = ctx.createPattern(tile, "repeat");
+      if (pattern) {
+        ctx.save();
+        ctx.globalCompositeOperation = "multiply";
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = pattern;
+        ctx.fillRect(0, 0, W, H);
+        ctx.restore();
+      }
+    }
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
   useEffect(() => {
@@ -1168,7 +1241,7 @@ export default function WorldMap({
     <div
       id="worldMapLayer"
       ref={wrapRef}
-      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#0f1c33_0%,#080e1c_58%,#04060c_100%)]"
+      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#57685a_0%,#3c4a3f_58%,#1b130c_100%)]"
     >
       {!ready && (
         <div className="absolute inset-0 grid place-items-center text-[13px] text-white/40">

@@ -10,8 +10,9 @@ const ICONS = {
       stroke="currentColor"
       strokeWidth="1.3"
     >
-      <circle cx="8" cy="8" r="6" />
-      <path d="M8 4.6v6.8M6.2 6.2h3.1a1.4 1.4 0 010 2.8H6.6h3.2" />
+      <rect x="1.8" y="4.5" width="12.4" height="7" rx="1.3" />
+      <circle cx="8" cy="8" r="1.6" />
+      <path d="M3.6 5.8v4.4M12.4 5.8v4.4" />
     </svg>
   ),
   percent: (
@@ -79,6 +80,21 @@ const ICONS = {
     >
       <path d="M2.5 13.5h11" />
       <path d="M4 11V7.5M7 11V4M10 11V8.5M13 11V6" />
+    </svg>
+  ),
+  institution: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <path d="M1.5 5.5L8 1.5l6.5 4" />
+      <path d="M2.5 5.5h11" />
+      <path d="M3.5 7v6M6.5 7v6M9.5 7v6M12.5 7v6" />
+      <path d="M2 13h12" />
     </svg>
   ),
   gavel: (

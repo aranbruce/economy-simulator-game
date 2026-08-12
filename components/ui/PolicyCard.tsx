@@ -49,7 +49,7 @@ export function PolicyCard({ p }: { p: Policy }) {
   ) : null;
 
   return (
-    <Card on={isLaw} staged={staged !== isLaw}>
+    <Card staged={staged !== isLaw} hoverable={false}>
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {p.name}
       </h4>

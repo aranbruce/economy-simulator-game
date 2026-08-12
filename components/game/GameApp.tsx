@@ -64,6 +64,7 @@ import { DespatchModal } from "../chrome/DespatchModal.tsx";
 import { DiploHud } from "../chrome/DiploHud.tsx";
 import { PressLayer } from "../chrome/PressLayer.tsx";
 import { MapChrome } from "../chrome/MapChrome.tsx";
+import { IconRail } from "../chrome/IconRail.tsx";
 import { GameTickContext } from "../../lib/ui/GameTickContext.tsx";
 
 function errMessage(err: unknown, fallback: string): string {
@@ -1119,6 +1120,7 @@ export default function GameApp() {
 
             <TopBar />
             <DiploHud />
+            <IconRail />
             <DrawerShell />
             <Dock onDeliver={handleDeliver} waiting={waiting} />
             <DespatchModal />

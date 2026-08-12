@@ -48,6 +48,7 @@ export function DespatchModal() {
     : blocModal!.kind === "found"
       ? "Foreign & Commonwealth"
       : (blocByIdOrCustom(blocModal!.bid)?.name ?? "Trade bloc");
+  const isBriefing = open?.kind === "briefing";
 
   return (
     <div
@@ -55,21 +56,47 @@ export function DespatchModal() {
       id="scrim"
     >
       <div
-        className="despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+        className={
+          isBriefing
+            ? "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+            : "despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto max-[720px]:max-h-[min(90dvh,calc(100dvh-24px))] max-[720px]:rounded-md"
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="dpTitle"
       >
-        <header className="border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-5 pt-4 pb-3 max-[720px]:px-3.5 max-[720px]:pt-3.5 max-[720px]:pb-2.5">
+        <header
+          className={
+            isBriefing
+              ? "border-b border-[rgba(40,32,18,.22)] px-5 pt-4 pb-3 max-[720px]:px-3.5 max-[720px]:pt-3.5 max-[720px]:pb-2.5"
+              : "border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-5 pt-4 pb-3 max-[720px]:px-3.5 max-[720px]:pt-3.5 max-[720px]:pb-2.5"
+          }
+        >
           <div
-            className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase"
+            className={
+              isBriefing
+                ? "text-[10px] font-bold tracking-[.14em] text-[#8a6420] uppercase"
+                : "text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase"
+            }
             id="dpStamp"
           >
             {stamp}
           </div>
+          <div
+            className={
+              isBriefing
+                ? "mt-2 h-px w-16 bg-[linear-gradient(90deg,#8a6420,transparent)]"
+                : "mt-2 h-px w-16 bg-[linear-gradient(90deg,var(--accent),transparent)]"
+            }
+            aria-hidden="true"
+          />
           <h3
             id="dpTitle"
-            className="mt-1.5 mb-0 font-display text-[26px] leading-[1.12] font-normal tracking-tight max-[720px]:text-[22px]"
+            className={
+              isBriefing
+                ? "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight text-[#1a1814] max-[720px]:text-[26px]"
+                : "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight max-[720px]:text-[26px]"
+            }
           >
             {title}
           </h3>
@@ -77,11 +104,15 @@ export function DespatchModal() {
         {open ? (
           <>
             <div
-              className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+              className={
+                isBriefing
+                  ? "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] text-[#1a1814] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+                  : "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+              }
               id="dpBody"
             >
               {open.kind === "briefing" ? (
-                <BriefingBody data={open.data} />
+                <BriefingBody data={open.data} paper />
               ) : open.kind === "verdict" ? (
                 <VerdictBody data={open.data} />
               ) : (
@@ -96,7 +127,11 @@ export function DespatchModal() {
                 <button
                   key={i}
                   type="button"
-                  className="cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 text-left font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.99] max-[720px]:min-h-11 max-[720px]:p-3"
+                  className={
+                    isBriefing
+                      ? "cursor-pointer rounded-md border border-l-3 border-[rgba(40,32,18,.22)] border-l-[rgba(40,32,18,.35)] bg-[rgba(40,32,18,.045)] px-3.25 py-2.75 text-left font-sans text-sm text-[#1a1814] transition duration-160 hover:border-l-[#8a6420] hover:bg-[rgba(40,32,18,.09)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.99] max-[720px]:min-h-11 max-[720px]:p-3"
+                      : "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 text-left font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.99] max-[720px]:min-h-11 max-[720px]:p-3"
+                  }
                   onClick={() => {
                     closeDespatch();
                     o.f();
@@ -104,7 +139,13 @@ export function DespatchModal() {
                 >
                   <b className="block font-[650] tracking-[-.02em]">{T(o.b)}</b>
                   {o.e ? (
-                    <em className="mt-0.75 block text-xs text-ink-soft not-italic">
+                    <em
+                      className={
+                        isBriefing
+                          ? "mt-0.75 block text-xs text-[#3a3428] not-italic"
+                          : "mt-0.75 block text-xs text-ink-soft not-italic"
+                      }
+                    >
                       {T(o.e)}
                     </em>
                   ) : null}

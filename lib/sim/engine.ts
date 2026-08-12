@@ -384,14 +384,14 @@ function reviewStamp(meta: any) {
 function careerHint(meta: any, sandbox: any) {
   const m = meta || polityOf();
   if (sandbox)
-    return "Sandbox is on: you cannot be removed from office. Switch to Career any time from the top bar.";
+    return "Sandbox is on: you cannot be removed from office. Switch to Career any time from the Programme drawer.";
   if (m.kind === "congress") {
-    return "Career mode: survive the party congress, keep the apparatus loyal, or the bond market ends you. Political capital recovers slowly. Sandbox is one click away in the top bar.";
+    return "Career mode: survive the party congress, keep the apparatus loyal, or the bond market ends you. Political capital recovers slowly. Sandbox is one click away in the Programme drawer.";
   }
   if (m.kind === "managed") {
-    return "Career mode: managed ballots still matter, as does your party — or the bond market ends you. Sandbox is one click away in the top bar.";
+    return "Career mode: managed ballots still matter, as does your party — or the bond market ends you. Sandbox is one click away in the Programme drawer.";
   }
-  return "Career mode: lose an election, a party coup, or the bond market and it is over. Sandbox is one click away in the top bar.";
+  return "Career mode: lose an election, a party coup, or the bond market and it is over. Sandbox is one click away in the Programme drawer.";
 }
 function polityShiftAge() {
   const g = getG();
@@ -9763,30 +9763,34 @@ function billClauses() {
       });
     }
     for (const bid in D.tariffSchedule.bloc) {
-      const a = L.tariffSchedule.bloc[bid],
-        b = D.tariffSchedule.bloc[bid];
+      const raw = L.tariffSchedule.bloc[bid];
+      const a = raw != null ? raw : L.tariffSchedule.default;
+      const b = D.tariffSchedule.bloc[bid];
       if (a !== b) {
         const bloc = blocById(bid);
         out.push({
           label: (bloc ? bloc.name : bid) + " tariff " + a + "% to " + b + "%",
           pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
           undo: () => {
-            D.tariffSchedule.bloc[bid] = a;
+            if (raw == null) delete D.tariffSchedule.bloc[bid];
+            else D.tariffSchedule.bloc[bid] = raw;
             syncTariffHeadline(D);
           },
         });
       }
     }
     for (const cid in D.tariffSchedule.country) {
-      const a = L.tariffSchedule.country[cid],
-        b = D.tariffSchedule.country[cid];
+      const raw = L.tariffSchedule.country[cid];
+      const a = raw != null ? raw : L.tariffSchedule.default;
+      const b = D.tariffSchedule.country[cid];
       if (a !== b) {
         const c = partnerById(cid);
         out.push({
           label: (c ? c.name : cid) + " tariff " + a + "% to " + b + "%",
           pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
           undo: () => {
-            D.tariffSchedule.country[cid] = a;
+            if (raw == null) delete D.tariffSchedule.country[cid];
+            else D.tariffSchedule.country[cid] = raw;
             syncTariffHeadline(D);
           },
         });
@@ -15121,12 +15125,10 @@ function showMpPendingEvent(opts: any) {
   Promise.resolve(announceQuarterAdvance()).then(present);
   return true;
 }
-/* ---- Floating press clippings ----
-   Non-blocking scraps over the map after Deliver. Templates only — no LLM.
-   G.press is display state; keep it out of MUTABLE / simulate(). */ const PRESS_MAX = 3;
-const PRESS_FADE_MS = 12000;
+/* ---- Press clippings: a persistent news inbox, hidden until opened ----
+   Templates only — no LLM. G.press is display state; keep it out of
+   MUTABLE / simulate(). */ const PRESS_MAX = 20;
 let _pressSeq = 0;
-const _pressFade = new Map();
 function partnerName(id: any) {
   const p = PARTNERS.find((x) => x.id === id);
   return p ? p.name : id;
@@ -15402,32 +15404,11 @@ function composePress(input: any) {
   }
   return clips;
 }
-function clearPressFade(id: any) {
-  const t = _pressFade.get(id);
-  if (t) {
-    clearTimeout(t);
-    _pressFade.delete(id);
-  }
-}
 let _pressExpanded: string | null = null;
+let _newsOpen = false;
 function clearAllPressFades() {
-  _pressFade.forEach((t) => clearTimeout(t));
-  _pressFade.clear();
   _pressExpanded = null;
-}
-function schedulePressFade(id: any) {
-  clearPressFade(id);
-  if (typeof setTimeout !== "function") return;
-  if (_pressExpanded === id) return;
-  const host =
-    (typeof document !== "undefined" &&
-      document.getElementById("pressLayer")) ||
-    $("pressLayer");
-  if (!host) return;
-  const t = setTimeout(() => {
-    dismissPress(id);
-  }, PRESS_FADE_MS);
-  _pressFade.set(id, t);
+  _newsOpen = false;
 }
 function pushPress(clips: any) {
   if (!G) return;
@@ -15445,24 +15426,27 @@ function pushPress(clips: any) {
       lede: raw.lede || "",
       kicker: raw.kicker || "",
       rot: Math.random() * 10 - 5,
+      seen: false,
     };
     G.press.push(clip);
-    schedulePressFade(id);
   });
   while (G.press.length > PRESS_MAX) {
     const dropped = G.press.shift();
-    if (dropped) {
-      clearPressFade(dropped.id);
-      if (_pressExpanded === dropped.id) _pressExpanded = null;
-    }
+    if (dropped && _pressExpanded === dropped.id) _pressExpanded = null;
   }
   bump();
 }
+/* Marks a clip read and focused, and — since callers only reach for this
+   when something needs to surface right now (an ultimatum outcome, say) —
+   opens the inbox too, so an important clip still auto-pops the way it
+   always has even though ordinary clips now wait to be opened. */
 function expandPress(id: any) {
   if (!G || !G.press) return false;
-  if (!G.press.some((c: any) => c.id === id)) return false;
-  clearPressFade(id);
+  const clip = G.press.find((c: any) => c.id === id);
+  if (!clip) return false;
+  clip.seen = true;
   _pressExpanded = id;
+  _newsOpen = true;
   bump();
   return true;
 }
@@ -15470,7 +15454,6 @@ function dismissPress(id: any) {
   if (!G || !G.press) return false;
   const i = G.press.findIndex((c: any) => c.id === id);
   if (i < 0) return false;
-  clearPressFade(id);
   if (_pressExpanded === id) _pressExpanded = null;
   G.press.splice(i, 1);
   bump();
@@ -15479,10 +15462,39 @@ function dismissPress(id: any) {
 function getPressExpanded() {
   return _pressExpanded;
 }
+/* Closes the focused reading view without deleting the clip — a persistent
+   inbox should let you back out to the list, unlike the old ephemeral
+   clippings where "dismiss" and "close" were the same action. */
+function closeFocusedPress() {
+  if (!_pressExpanded) return false;
+  _pressExpanded = null;
+  bump();
+  return true;
+}
+function getNewsOpen() {
+  return _newsOpen;
+}
+function toggleNewsOpen() {
+  _newsOpen = !_newsOpen;
+  /* Opening the inbox closes whatever drawer is open — they'd otherwise
+     dock to the same side and fight for space. */
+  if (_newsOpen) tab = null;
+  bump();
+  return _newsOpen;
+}
+function newsUnreadCount() {
+  if (!G || !G.press) return 0;
+  return G.press.filter((c: any) => !c.seen).length;
+}
+/* Escape-key dismiss: only acts while the inbox is actually open, so it
+   never silently touches anything the player can't see. Closes the
+   focused clip first (back to the list), then the inbox itself. */
 function dismissNewestPress() {
-  if (_pressExpanded) return dismissPress(_pressExpanded);
-  if (!G || !G.press || !G.press.length) return false;
-  return dismissPress(G.press[G.press.length - 1].id);
+  if (!_newsOpen) return false;
+  if (_pressExpanded) return closeFocusedPress();
+  _newsOpen = false;
+  bump();
+  return true;
 }
 function checkCrises(_res: any) {
   const e = G.econ;
@@ -16493,6 +16505,10 @@ function setOnTabChange(fn: any) {
 function setTab(t: any, scrollPartner?: any) {
   const prev = tab;
   tab = t;
+  /* Opening a drawer closes the news inbox — mirrors toggleNewsOpen()
+     closing whatever drawer is open, so the two never fight for the same
+     side of the screen. */
+  if (t) _newsOpen = false;
   /* A partner scroll target has to land on the pill that actually shows
      that partner's card, or queueDrawerPartnerScroll() retries for ~1.5s
      and silently gives up — the card is never in the DOM to find. Mutated
@@ -16862,6 +16878,10 @@ export {
   dismissNewestPress,
   expandPress,
   getPressExpanded,
+  closeFocusedPress,
+  getNewsOpen,
+  toggleNewsOpen,
+  newsUnreadCount,
   dealBlockers,
   fullEffectsData,
   impactStripData,

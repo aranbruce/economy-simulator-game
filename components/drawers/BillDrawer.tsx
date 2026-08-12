@@ -15,7 +15,11 @@ import {
   MANUAL_RATE_MIN,
   clamp,
 } from "../../lib/sim/engine.ts";
-import { setManualRate, setRateManual } from "../../lib/ui/actions.ts";
+import {
+  setManualRate,
+  setRateManual,
+  setSandboxMode,
+} from "../../lib/ui/actions.ts";
 import { CloseIcon } from "../../lib/ui/icons.tsx";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
@@ -265,6 +269,27 @@ export function BillDrawer() {
             <RateImpact />
           </>
         ) : null}
+      </Panel>
+      <Panel padded className="mt-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="min-w-35 flex-1">
+            <div className="text-[13.5px] font-semibold">Game mode</div>
+            <Hint className="mt-0.5">
+              {G.sandbox
+                ? "Sandbox — every removal-from-office path is suppressed. You keep the job regardless."
+                : "Career — lose an election, a coup, or the bond market and it's over."}
+            </Hint>
+          </div>
+          <SegControl
+            mini
+            value={G.sandbox ? "sandbox" : "career"}
+            options={[
+              ["career", "Career"],
+              ["sandbox", "Sandbox"],
+            ]}
+            onChange={(v) => setSandboxMode(v === "sandbox")}
+          />
+        </div>
       </Panel>
       <button
         type="button"

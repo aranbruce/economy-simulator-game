@@ -1370,11 +1370,16 @@ assert(
   "pushed clip keeps headline",
 );
 
-/* Cap at three visible scraps */
+/* Well under the cap — the inbox is persistent now, not a three-item ticker */
 pushPress(billClips);
 pushPress(billClips);
 pushPress(eventClips);
-assert(G.press.length <= 3, "press layer caps at three scraps");
+assert(G.press.length === 4, "press inbox holds every clip below the cap");
+
+/* Push well past the cap (20 — see PRESS_MAX in engine.ts) and confirm it
+   still trims from the oldest end rather than growing unbounded */
+for (let i = 0; i < 25; i++) pushPress(billClips);
+assert(G.press.length === 20, "press inbox caps at twenty clips");
 
 /* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
 {

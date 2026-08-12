@@ -14,22 +14,13 @@ interface ChipProps {
   title?: string;
 }
 
-const STATE_BG: Record<string, string> = {
-  alert: "bg-[rgba(255,90,78,.12)] border-l-red",
-  good: "bg-[rgba(61,220,132,.10)] border-l-green",
-};
-
-const KIND_BG: Record<string, string> = {
-  bank: "bg-[rgba(184,148,240,.10)] border-l-purple",
-};
-
 const STATE_VALUE_COLOR: Record<string, string> = {
   alert: "text-red-lt",
   good: "text-green-lt",
 };
 
 const KIND_VALUE_COLOR: Record<string, string> = {
-  bank: "text-[#d4b8f8]",
+  bank: "text-accent-lt",
 };
 
 export function Chip({
@@ -47,24 +38,22 @@ export function Chip({
     if (invert) deltaCls = delta < 0 ? "text-green-lt" : "text-red-lt";
     else deltaCls = delta > 0 ? "text-green-lt" : "text-red-lt";
   }
-  const bgCls =
-    STATE_BG[state] || KIND_BG[kind] || "bg-g-1 border-l-transparent";
   const valueCls = STATE_VALUE_COLOR[state] || KIND_VALUE_COLOR[kind] || "";
 
   return (
     <div
-      className={`flex min-w-16.5 flex-none flex-col justify-center rounded-sm border-l-2 py-1 pr-2.5 pl-2.25 text-right ${bgCls}`}
+      className="flex min-w-16.5 flex-none flex-col justify-center border-r border-edge px-2.75 py-1 text-right last:border-r-0"
       title={title || undefined}
     >
-      <div className="text-[8.5px] font-semibold tracking-[.08em] whitespace-nowrap text-ink-faint uppercase">
+      <div className="text-[8px] font-semibold tracking-[.07em] whitespace-nowrap text-ink-faint uppercase">
         {label}
       </div>
       <div
-        className={`text-[15px] leading-[1.2] font-[650] tracking-[-.03em] whitespace-nowrap ${valueCls}`}
+        className={`font-display text-[17px] leading-[1.15] font-normal tracking-[-.01em] whitespace-nowrap ${valueCls}`}
       >
         {value}
         {unit ? (
-          <small className="ml-px text-[9.5px] font-medium text-ink-faint">
+          <small className="ml-0.5 font-sans text-[9.5px] font-medium text-ink-faint">
             {unit}
           </small>
         ) : null}
