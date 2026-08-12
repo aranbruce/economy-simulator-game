@@ -83,10 +83,10 @@ export function Dock({
     <nav
       id="dock"
       aria-label="Government"
-      className="hud-surface fixed bottom-2.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 p-1.5 max-md:right-[max(6px,env(safe-area-inset-right))] max-md:bottom-[max(6px,env(safe-area-inset-bottom))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:w-auto max-md:translate-x-0 max-md:flex-wrap max-md:gap-1.5"
+      className="hud-surface fixed bottom-2.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 p-1.5 max-sm:right-[max(6px,env(safe-area-inset-right))] max-sm:bottom-[max(6px,env(safe-area-inset-bottom))] max-sm:left-[max(6px,env(safe-area-inset-left))] max-sm:w-auto max-sm:translate-x-0 max-sm:flex-wrap max-sm:gap-1.5"
     >
       <div
-        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-visible overflow-x-auto py-1.5 max-md:order-1 max-md:flex-[1_1_100%] max-md:flex-wrap max-md:justify-center max-md:gap-1 max-md:overflow-x-visible max-md:pb-0 max-sm:flex-nowrap max-sm:gap-1"
+        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-visible overflow-x-auto py-1.5 max-sm:order-1 max-sm:flex-[1_1_100%] max-sm:flex-nowrap max-sm:gap-1 max-sm:overflow-x-visible max-sm:pb-0"
         id="dockTabs"
       >
         {DOCK_TABS.map((t) => {
@@ -109,10 +109,10 @@ export function Dock({
           );
         })}
       </div>
-      <div className="flex flex-none items-stretch gap-1.5 max-md:order-2 max-md:grid max-md:flex-[1_1_100%] max-md:grid-cols-[1fr_1.15fr] max-md:gap-1.5">
+      <div className="flex flex-none items-stretch gap-1.5 max-sm:order-2 max-sm:grid max-sm:flex-[1_1_100%] max-sm:grid-cols-[1fr_1.15fr] max-sm:gap-1.5">
         <button
           type="button"
-          className={`dock-dome flex flex-col justify-center gap-px rounded-md px-3 py-1.5 text-right text-[9.5px] font-semibold tracking-[.04em] whitespace-nowrap uppercase transition-colors duration-180 max-md:px-2.5 max-md:py-2 max-md:text-left max-sm:px-2 max-sm:py-1.75 max-sm:text-[8.5px] ${tab === "bill" ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
+          className={`dock-dome flex flex-col justify-center gap-px rounded-md px-3 py-1.5 text-right text-[9.5px] font-semibold tracking-[.04em] whitespace-nowrap uppercase transition-colors duration-180 max-md:px-2.5 max-md:py-2 max-sm:px-2 max-sm:py-1.75 max-sm:text-left max-sm:text-[8.5px] ${tab === "bill" ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
           id="billBtn"
           aria-expanded={tab === "bill"}
           onClick={() => setTab(tab === "bill" ? null : "bill")}
@@ -127,7 +127,7 @@ export function Dock({
         </button>
         <button
           type="button"
-          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-[13px] font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:bg-none disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-md:min-h-11 max-md:w-full max-md:min-w-0 max-md:px-3 max-md:py-2.5 max-md:text-xs max-sm:w-full max-sm:min-w-0 max-sm:p-2.5 max-sm:text-[11.5px] max-sm:tracking-normal"
+          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-[13px] font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:bg-none disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-md:min-h-11 max-md:px-3 max-md:py-2.5 max-md:text-xs max-sm:w-full max-sm:min-w-0 max-sm:p-2.5 max-sm:text-[11.5px] max-sm:tracking-normal"
           id="deliverBtn"
           disabled={resolvedDisabled ?? undefined}
           title={resolvedTitle || undefined}
