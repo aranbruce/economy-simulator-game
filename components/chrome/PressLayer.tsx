@@ -43,18 +43,14 @@ export function PressLayer() {
     <>
       {/* No backdrop, no card — clippings float directly over the map, same
           as before they were gated behind News, just shown on demand now.
-          Anchored beside the rail's News dome: IconRail is centred with
-          top-1/2, its 4 buttons (size-11 + gap-1.5, py-5 top padding) run
-          234px tall, so the first (News) button's top edge sits at
-          calc(50% - 117px + 20px) = calc(50% - 97px) — top-[calc(50%-96px)]
-          below lines up with it. Rather than the bottom corner. Hidden
+          Vertically centred on the screen, beside the icon rail. Hidden
           outright while a clip is focused, rather than just relying on the
           focused view's backdrop, since the list sits outside the focused
           view's z-index stack and would otherwise show through beside it. */}
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-visible p-4 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-1/2 right-14 z-40 max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col justify-center gap-3 space-y-2 overflow-scroll px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {ordered.length === 0 ? (
