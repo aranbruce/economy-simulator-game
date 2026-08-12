@@ -82,7 +82,6 @@ export default function GameApp() {
   const [realmId, setRealmId] = useState(DEFAULT_REALM_ID);
   const [homeIso, setHomeIso] = useState<string | null>(null);
   const [homeRole, setHomeRole] = useState("home");
-  const [tutorialLock, setTutorialLock] = useState(false);
   const [setupRole, setSetupRole] = useState(
     () => realmById(DEFAULT_REALM_ID).role,
   );
@@ -120,7 +119,6 @@ export default function GameApp() {
     mpSessionRef.current = null;
     setMpRoom(null);
     setWaiting(false);
-    setTutorialLock(false);
     setPhase("setup");
     if (notice) {
       /* Defer so setup chrome is mounted; use alert for reliability outside play shell. */
@@ -819,7 +817,6 @@ export default function GameApp() {
       setMpRoom(null);
       setWaiting(false);
       clearMpSession();
-      setTutorialLock(false);
       setPhase("setup");
     });
 
@@ -977,17 +974,13 @@ export default function GameApp() {
   const onSelect = useCallback(
     (role: string | null) => {
       if (phase === "setup" || phase === "lobby") {
-        if (tutorialLock) {
-          setSetupRole("home");
-          return;
-        }
         if (role) setSetupRole(role);
         return;
       }
       if (role) setTab(null);
       setSelectedRole(role);
     },
-    [phase, tutorialLock],
+    [phase],
   );
 
   const openPartnerPanel = useCallback((panel: string, role: string) => {
@@ -1045,10 +1038,6 @@ export default function GameApp() {
             onStart={beginGame}
             onMultiplayer={() => setPhase("lobby")}
             onResume={loadMpSession() ? handleResume : undefined}
-            onTutorialChange={(on) => {
-              setTutorialLock(!!on);
-              if (on) setSetupRole("home");
-            }}
           />
         )}
 
@@ -1059,7 +1048,6 @@ export default function GameApp() {
             onConsumedInitial={() => setLobbyBootstrap(null)}
             onBack={() => {
               setLobbyBootstrap(null);
-              setTutorialLock(false);
               setPhase("setup");
             }}
             onHostStart={handleHostStart}
