@@ -43,7 +43,7 @@ export function PressLayer() {
     <>
       {/* No backdrop, no card — clippings float directly over the map, same
           as before they were gated behind News, just shown on demand now.
-          Anchored beside the rail's News dome (top-[calc(50%-96px)] lines
+          Anchored beside the rail's News dome (top-[calc(25%-96px)] lines
           up with that button's vertical centre) rather than the bottom
           corner. Hidden outright while a clip is focused, rather than just
           relying on the focused view's backdrop, since the list sits
@@ -52,7 +52,7 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-[720px]:right-12 max-[720px]:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-[calc(25%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-[720px]:right-12 max-[720px]:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {ordered.length === 0 ? (
