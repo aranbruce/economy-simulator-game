@@ -94,7 +94,7 @@ export function TopBarTerm() {
   return (
     <small
       id="tbTerm"
-      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-ink-faint uppercase max-[720px]:text-[9px] max-[540px]:max-w-[38vw] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap"
+      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-[rgba(36,26,12,.7)] [text-shadow:0_1px_2px_rgba(255,251,238,.7)] uppercase max-[720px]:text-[9px] max-[540px]:max-w-[38vw] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap"
     >
       {termLabel} term · {qLabel(G, G.q)}
     </small>

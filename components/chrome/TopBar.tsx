@@ -37,7 +37,7 @@ export function TopBar() {
             className="h-full w-full object-cover"
           />
         </span>
-        <span className="[text-shadow:0_1px_5px_rgba(0,0,0,.75)] text-[16px] leading-[1.1] font-semibold tracking-[-.02em] whitespace-nowrap max-[720px]:min-w-0 max-[720px]:text-sm max-[540px]:text-[13px]">
+        <span className="text-[#241a0c] [text-shadow:0_1px_3px_rgba(255,251,238,.8),0_0_10px_rgba(255,251,238,.5)] text-[16px] leading-[1.1] font-semibold tracking-[-.02em] whitespace-nowrap max-[720px]:min-w-0 max-[720px]:text-sm max-[540px]:text-[13px]">
           {editing ? (
             <input
               type="text"

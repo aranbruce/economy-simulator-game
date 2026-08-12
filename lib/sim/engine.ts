@@ -16169,6 +16169,10 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
 }
 function enact() {
   if (G.over) return;
+  /* Close any open drawer/news inbox immediately, before the quarter-flash
+     animation, rather than leaving it open over the new quarter. */
+  tab = null;
+  _newsOpen = false;
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
   const cl = billClauses(),

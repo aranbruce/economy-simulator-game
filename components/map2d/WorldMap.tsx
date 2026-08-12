@@ -42,8 +42,8 @@ interface CountryFeature {
   strokeChains: Ring[][][];
 }
 
-const OCEAN = "#3c4a3f";
-const SCENERY_FILL = "#3a3226";
+const OCEAN = "#a9c1b0";
+const SCENERY_FILL = "#ddd09e";
 const HOVER_LIFT = 1.18;
 const MIN_ZOOM = 0.85;
 const MAX_ZOOM = 8;
@@ -498,11 +498,11 @@ function grainTile(): HTMLCanvasElement | null {
   if (!tctx) return null;
   const img = tctx.createImageData(size, size);
   for (let i = 0; i < img.data.length; i += 4) {
-    const v = 20 + Math.floor(Math.random() * 20);
+    const v = 70 + Math.floor(Math.random() * 60);
     img.data[i] = v;
     img.data[i + 1] = Math.round(v * 0.85);
     img.data[i + 2] = Math.round(v * 0.6);
-    img.data[i + 3] = Math.floor(Math.random() * 70);
+    img.data[i + 3] = Math.floor(Math.random() * 55);
   }
   tctx.putImageData(img, 0, 0);
   _grainTile = c;
@@ -587,21 +587,23 @@ export default function WorldMap({
     /* Sepia/contrast color-grade over the terrain only (not markers, labels
        or legend text below, which stay at full clarity for readability). */
     ctx.save();
-    ctx.filter = "sepia(0.14) saturate(0.82) contrast(1.07) brightness(1.02)";
+    ctx.filter = "sepia(0.28) saturate(0.7) contrast(0.94) brightness(1.04)";
 
     ctx.fillStyle = OCEAN;
     ctx.fillRect(0, 0, W, H);
 
+    /* Aged-atlas vignette: the sheet darkens toward its edges rather than
+       glowing at the centre, the way a light parchment sheet would. */
     const glow = ctx.createRadialGradient(
       W * 0.5,
       H * 0.48,
-      W * 0.08,
+      W * 0.35,
       W * 0.5,
       H * 0.5,
-      W * 0.7,
+      W * 0.75,
     );
-    glow.addColorStop(0, "rgba(70,51,27,.5)");
-    glow.addColorStop(1, "rgba(8,5,3,0)");
+    glow.addColorStop(0, "rgba(90,70,38,0)");
+    glow.addColorStop(1, "rgba(70,52,28,.4)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
@@ -697,11 +699,11 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        ctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
-        ctx.lineWidth = hot ? 1.15 : 0.7;
+        ctx.strokeStyle = hot ? "rgba(38,26,12,.9)" : "rgba(56,42,22,.55)";
+        ctx.lineWidth = hot ? 1.25 : 0.7;
         ctx.stroke();
       } else {
-        ctx.strokeStyle = "rgba(24,18,10,.35)";
+        ctx.strokeStyle = "rgba(56,42,22,.35)";
         ctx.lineWidth = 0.4;
         ctx.stroke();
       }
@@ -813,7 +815,7 @@ export default function WorldMap({
         const legendY = H - 36;
         let lx = 14;
         ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-        ctx.fillStyle = "rgba(246,240,226,.6)";
+        ctx.fillStyle = "rgba(36,27,14,.7)";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         for (const kind of DIPLO_MARKER_ORDER) {
@@ -869,23 +871,25 @@ export default function WorldMap({
       .filter((x): x is NonNullable<typeof x> => x != null);
 
     ctx.save();
-    ctx.shadowColor = "rgba(15,11,6,.85)";
-    ctx.shadowBlur = 4;
+    ctx.shadowColor = "rgba(255,251,235,.8)";
+    ctx.shadowBlur = 3;
     for (const dx of offsets) {
       for (const { nx, ny, text, hot } of labelRows) {
         const [x, y] = toScreen(nx, ny, dx);
         ctx.font = hot
-          ? '700 13px "Instrument Serif", Georgia, "Times New Roman", serif'
-          : 'italic 500 12.5px "Instrument Serif", Georgia, "Times New Roman", serif';
-        ctx.shadowOffsetY = hot ? 1 : 0.5;
-        ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
-        ctx.fillText(text, x, y);
+          ? '700 12.5px "Instrument Serif", Georgia, "Times New Roman", serif'
+          : '700 11.5px "Instrument Serif", Georgia, "Times New Roman", serif';
+        (ctx as any).letterSpacing = hot ? "1.6px" : "1.1px";
+        ctx.shadowOffsetY = hot ? 0.5 : 0.5;
+        ctx.fillStyle = hot ? "#1e1608" : "rgba(36,27,14,.85)";
+        ctx.fillText(text.toUpperCase(), x, y);
       }
     }
+    (ctx as any).letterSpacing = "0px";
     ctx.restore();
 
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-    ctx.fillStyle = "rgba(246,240,226,.3)";
+    ctx.fillStyle = "rgba(36,27,14,.45)";
     ctx.textAlign = "left";
     ctx.fillText(
       setupMode
@@ -904,7 +908,7 @@ export default function WorldMap({
       if (pattern) {
         ctx.save();
         ctx.globalCompositeOperation = "multiply";
-        ctx.globalAlpha = 0.5;
+        ctx.globalAlpha = 0.22;
         ctx.fillStyle = pattern;
         ctx.fillRect(0, 0, W, H);
         ctx.restore();
@@ -1241,7 +1245,7 @@ export default function WorldMap({
     <div
       id="worldMapLayer"
       ref={wrapRef}
-      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#57685a_0%,#3c4a3f_58%,#1b130c_100%)]"
+      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#c7d6c3_0%,#a9c1b0_58%,#7c8a72_100%)]"
     >
       {!ready && (
         <div className="absolute inset-0 grid place-items-center text-[13px] text-white/40">
