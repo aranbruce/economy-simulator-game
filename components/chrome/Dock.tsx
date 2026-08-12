@@ -35,7 +35,7 @@ export function Dock({
   const G = useGame();
   const tab = getTab();
   const cl = billClauses();
-  const cost = billCost();
+  const cost = billCost(cl);
   const afford = cost <= G.capital;
   const shortBy = Math.max(0, cost - Math.round(G.capital));
 

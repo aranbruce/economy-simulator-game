@@ -46,7 +46,7 @@ const OCEAN = "#3c4a3f";
 const SCENERY_FILL = "#3a3226";
 const HOVER_LIFT = 1.18;
 const MIN_ZOOM = 0.85;
-const MAX_ZOOM = 8;
+const MAX_ZOOM = 16;
 /** Crop Antarctica and empty polar ocean so the playable world fills the frame. */
 const LAT_MAX = 84;
 const LAT_MIN = -56;
@@ -953,8 +953,8 @@ export default function WorldMap({
         ctx.font = font;
         ctx.shadowOffsetY = hot ? 1 : 0.5;
         ctx.lineJoin = "round";
-        ctx.lineWidth = hot ? 3 : 2.5;
-        ctx.strokeStyle = "rgba(15,11,6,.2)";
+        ctx.lineWidth = hot ? 1 : 0.5;
+        ctx.strokeStyle = "rgba(15,11,6,.3)";
         ctx.strokeText(text, x, y);
         ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
         ctx.fillText(text, x, y);
@@ -1330,7 +1330,7 @@ export default function WorldMap({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
-        className="absolute inset-0 block h-full w-full cursor-grab"
+        className="absolute inset-0 block size-full cursor-grab"
         aria-label={
           setupMode ? "Choose your country on the world map" : "World map"
         }

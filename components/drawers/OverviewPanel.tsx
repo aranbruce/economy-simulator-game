@@ -75,9 +75,7 @@ export function OverviewPanel() {
                 className="rounded-md border border-edge bg-g-1 px-3 py-2.25"
               >
                 <div className="text-xs font-[650]">{s.label}</div>
-                <div className="mt-0.5 text-xs text-ink-faint">
-                  {s.sub}
-                </div>
+                <div className="mt-0.5 text-xs text-ink-faint">{s.sub}</div>
               </div>
             ))}
           </div>
@@ -102,9 +100,7 @@ export function OverviewPanel() {
           <div className="text-xs font-[650]">
             {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
           </div>
-          <div className="mt-0.5 text-xs text-ink-faint">
-            {electionDetail}
-          </div>
+          <div className="mt-0.5 text-xs text-ink-faint">{electionDetail}</div>
         </div>
       )}
 
@@ -115,8 +111,8 @@ export function OverviewPanel() {
           return (
             <div key={f.id}>
               <div className="flex items-baseline gap-2 text-xs">
-                <span className="font-[600]">{f.name}</span>
-                <span className="ml-auto font-[650] tabular-nums text-accent-lt">
+                <span className="font-semibold">{f.name}</span>
+                <span className="ml-auto font-[650] text-accent-lt tabular-nums">
                   {v.toFixed(0)}%
                 </span>
               </div>

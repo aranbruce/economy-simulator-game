@@ -4303,7 +4303,7 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
     const cl = billClauses();
     return {
       ok: true,
-      cost: billCost(),
+      cost: billCost(cl),
       clauses: cl.map((c) => ({
         label: c.label,
         pc: c.sunk ? 0 : c.pc,
@@ -10067,8 +10067,11 @@ function billClauses() {
   }
   return out;
 }
-const billCost = () =>
-  billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
+const billCost = (cl?: any): number =>
+  (cl || billClauses()).reduce(
+    (a: number, c: any) => a + (c.sunk ? 0 : c.pc),
+    0,
+  );
 /** Next-quarter capital preview for the Programme drawer — same regen
  *  formula `step()` applies every quarter (base 3.2, ±0.1 per point of
  *  approval either side of the 45 neutral point, scaled by polity/state-form
@@ -16009,7 +16012,7 @@ function impactStripData() {
     return {
       career: true,
       count: cl.length,
-      cost: billCost(),
+      cost: billCost(cl),
       bits: cl.slice(0, 6).map((c) => c.label),
       chips: null,
       factions: null,
@@ -16024,7 +16027,7 @@ function impactStripData() {
   return {
     career: false,
     count: cl.length,
-    cost: billCost(),
+    cost: billCost(cl),
     bits: null,
     chips: impactChipsData(im),
     factions: impactFactionsData(im),
@@ -16047,7 +16050,7 @@ function impactPanelData(cl: any) {
   if (cl.length > 1) {
     const im = impactOf(clone(G.draft), base, 4);
     whole = {
-      cost: billCost(),
+      cost: billCost(cl),
       chips: impactChipsData(im),
       factions: impactFactionsData(im),
     };
@@ -16064,7 +16067,7 @@ function showBlocInviteModal(bid: any) {
 function projectionModal(onConfirm?: any) {
   syncServiceHolds(G.draft, G.econ);
   const cl = billClauses(),
-    cost = billCost();
+    cost = billCost(cl);
   const truth = project(4);
   const p = withForecastError(truth);
   const warn = projectionWarnings(truth);
@@ -16211,7 +16214,7 @@ function enact() {
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
   const cl = billClauses(),
-    cost = billCost();
+    cost = billCost(cl);
   if (cost > G.capital) return;
   if (
     G.draft.blocAccession &&
