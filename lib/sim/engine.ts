@@ -10702,6 +10702,46 @@ function hasDiploAttention(g: any) {
   );
 }
 
+/** Active state visits plus the current major-world episode, if any — the
+ *  Overview drawer's "Ongoing situations" list and the rail's Overview
+ *  badge count both read off this same list, so they can never disagree. */
+function ongoingSituations(g?: any) {
+  const state = g || getG();
+  if (!state) return [];
+  const out: {
+    id: string;
+    kind: "visit" | "episode";
+    label: string;
+    sub: string;
+    left: number;
+  }[] = [];
+  for (const id of Object.keys(state.activeVisits || {})) {
+    const left = visitQuartersLeft(state, id);
+    if (left <= 0) continue;
+    const p = partnerById(id);
+    out.push({
+      id: "visit:" + id,
+      kind: "visit",
+      label: "State visit — " + (p ? p.name : id),
+      sub: `${left} quarter${left === 1 ? "" : "s"} left`,
+      left,
+    });
+  }
+  if (state.episode) {
+    const left = Math.max(0, state.episode.endsQ - state.q);
+    out.push({
+      id: "episode:" + state.episode.id,
+      kind: "episode",
+      label: state.episode.title || "Ongoing episode",
+      sub: `${left} quarter${left === 1 ? "" : "s"} left`,
+      left,
+    });
+  }
+  return out;
+}
+
+/** Ultimatums only — state visits/summits are "ongoing situations" now,
+ *  shown in the Overview drawer instead of a persistent floating pill. */
 function diploHudChips(g: any) {
   const state = g || getG();
   if (!state) return [];
@@ -10716,18 +10756,6 @@ function diploHudChips(g: any) {
       title: "Ultimatum — opens Diplomacy",
       name: p ? p.name : id,
       label,
-      left,
-    });
-  }
-  for (const id of Object.keys(state.activeVisits || {})) {
-    const left = visitQuartersLeft(state, id);
-    if (left <= 0) continue;
-    const p = partnerById(id);
-    chips.push({
-      kind: "visit",
-      title: "State visit — opens Diplomacy",
-      name: p ? p.name : id,
-      label: null,
       left,
     });
   }
@@ -16772,6 +16800,7 @@ export {
   ultimatumWaitingCopy,
   hasDiploAttention,
   diploHudChips,
+  ongoingSituations,
   gdp0ForSeat,
   realmGdpBn,
   fmtGdpBn,

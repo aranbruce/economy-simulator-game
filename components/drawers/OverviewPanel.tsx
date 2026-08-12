@@ -5,6 +5,7 @@ import {
   approvalOf,
   electionQuartersLeft,
   electionThermometer,
+  ongoingSituations,
   polityOf,
   reviewNoun,
 } from "../../lib/sim/engine.ts";
@@ -20,6 +21,7 @@ interface Flag {
 export function OverviewPanel() {
   const G = useGame();
   const e = G.econ;
+  const situations = ongoingSituations(G);
   const appr = approvalOf(G.fac);
   const left = electionQuartersLeft();
   const therm = electionThermometer();
@@ -61,6 +63,25 @@ export function OverviewPanel() {
 
   return (
     <>
+      {situations.length > 0 ? (
+        <>
+          <Eyebrow>Ongoing situations</Eyebrow>
+          <div className="mb-4 flex flex-col gap-1.5">
+            {situations.map((s) => (
+              <div
+                key={s.id}
+                className="rounded-md border border-edge bg-g-1 px-3 py-2.25"
+              >
+                <div className="text-[12.5px] font-[650]">{s.label}</div>
+                <div className="mt-0.5 text-[11px] text-ink-faint">
+                  {s.sub}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
       <Eyebrow>Faction approval</Eyebrow>
       <div className="mb-4 flex flex-col gap-2">
         {FACTIONS.map((f: any) => {

@@ -225,31 +225,50 @@ export function BillDrawer() {
             {sgn(delta, 1)} points versus current law
           </div>
         ) : null}
-        {capOutlook ? (
-          <>
-            <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
-              <span>Political capital next quarter</span>
-              <span
-                className={`ml-auto ${capOutlook.nextQuarter >= capOutlook.current ? "text-green-lt" : "text-red-lt"}`}
-              >
-                {Math.round(capOutlook.nextQuarter)}
+      </div>
+      {capOutlook ? (
+        <div className="mt-3 border-t border-edge pt-2.5 text-[13px]">
+          <div className="mb-1 text-[10.5px] font-bold tracking-[.06em] text-ink-faint uppercase">
+            Political capital
+          </div>
+          <div className="flex py-0.75 text-ink-soft">
+            <span>Capital at start of turn</span>
+            <span className="ml-auto font-[650] text-white">
+              {Math.round(capOutlook.current)}
+            </span>
+          </div>
+          {capOutlook.cost > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>For this bill</span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.cost}
               </span>
             </div>
-            <div className="pt-1.25 text-[11px] text-ink-faint">
-              {Math.round(capOutlook.current)} today
-              {capOutlook.cost > 0 ? ` · −${capOutlook.cost} for this bill` : ""}{" "}
-              · {capOutlook.gain >= 0 ? "+" : ""}
-              {capOutlook.gain.toFixed(1)} regen
-            </div>
-            <Hint className="mt-1">
-              Capital regenerates every quarter, faster the more popular you
-              are — currently {Math.round(capOutlook.approval)}% approval.
-              Below about {Math.round(capOutlook.breakeven)}% it goes into
-              reverse and capital falls instead of growing.
-            </Hint>
-          </>
-        ) : null}
-      </div>
+          ) : null}
+          <div className="flex py-0.75 text-ink-soft">
+            <span>From popularity ({Math.round(capOutlook.approval)}% approval)</span>
+            <span
+              className={`ml-auto font-[650] ${capOutlook.gain >= 0 ? "text-green-lt" : "text-red-lt"}`}
+            >
+              {capOutlook.gain >= 0 ? "+" : ""}
+              {capOutlook.gain.toFixed(1)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
+            <span>Next turn</span>
+            <span
+              className={`ml-auto ${capOutlook.nextQuarter >= capOutlook.current ? "text-green-lt" : "text-red-lt"}`}
+            >
+              {Math.round(capOutlook.nextQuarter)}
+            </span>
+          </div>
+          <Hint className="mt-1.5">
+            Capital regenerates every quarter, faster the more popular you
+            are. Below about {Math.round(capOutlook.breakeven)}% approval it
+            goes into reverse and capital falls instead of growing.
+          </Hint>
+        </div>
+      ) : null}
       {G.sandbox ? <ImpactPanel cl={cl} /> : null}
       <Eyebrow className="mt-5">Rules</Eyebrow>
       <Panel padded className="mt-0">

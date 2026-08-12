@@ -164,6 +164,7 @@ import {
   isVisitActive,
   diploMapMarkers,
   diploHudChips,
+  ongoingSituations,
   hasFormalProtest,
 } from "../lib/sim/engine.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
@@ -4769,8 +4770,8 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   };
   const chips = diploHudChips(G);
   assert(
-    chips.some((c) => c.kind === "visit" && /japan/i.test(c.name)),
-    "hud shows active visit",
+    !chips.some((c) => c.kind === "visit"),
+    "hud no longer shows active visits — they're an Overview situation instead",
   );
   assert(
     chips.some(
@@ -4784,6 +4785,11 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(
     diploHudChips({ ...G, activeVisits: {}, ultimatums: {} }).length === 0,
     "empty hud when nothing active",
+  );
+  const situations = ongoingSituations(G);
+  assert(
+    situations.some((s) => s.kind === "visit" && /japan/i.test(s.label)),
+    "ongoing situations lists the active visit",
   );
 }
 
