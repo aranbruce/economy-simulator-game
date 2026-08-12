@@ -55,7 +55,7 @@ export function BlocFoundModalBody() {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <div className="mb-3">
@@ -70,7 +70,7 @@ export function BlocFoundModalBody() {
               setNameTouched(true);
             }}
             aria-label="Name of your trade bloc"
-            className="w-full rounded-md border border-ink-faint bg-white/6 px-3 py-2 font-sans text-[15px] text-white"
+            className="w-full rounded-md border border-ink-faint bg-white/6 px-3 py-2 font-sans text-base text-white"
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -150,7 +150,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <Hint>
@@ -191,13 +191,13 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                             style={{ width: `${c.rel.toFixed(0)}%` }}
                           />
                         </span>
-                        <span className="min-w-5.5 text-right text-[11.5px] text-ink-soft">
+                        <span className="min-w-5.5 text-right text-xs text-ink-soft">
                           {c.rel.toFixed(0)}
                         </span>
                       </span>
                     </div>
                     <div
-                      className={`mt-0.75 text-[11.5px] leading-[1.35] ${statusCls}`}
+                      className={`mt-0.75 text-xs leading-[1.35] ${statusCls}`}
                     >
                       {status}
                     </div>
@@ -219,7 +219,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                 {blocInviteBlockers(bid, selected.partner.id).join(" · ")}
               </Callout>
             ) : (
-              <div className="mt-1.5 block text-[11px] text-green">
+              <div className="mt-1.5 block text-xs text-green">
                 Ready to propose — every member approves.
               </div>
             )}

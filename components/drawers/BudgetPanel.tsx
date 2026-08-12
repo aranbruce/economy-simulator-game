@@ -29,13 +29,13 @@ function budgetModeOptions(): ["share" | "real" | "service", string][] {
 function LedgerTable() {
   const rows: any[] = ledgerRows();
   const TH =
-    "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
+    "first:text-left border-b border-edge px-2.5 py-2 text-right text-xs font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
   const TD =
     "first:text-left first:text-ink-soft border-b border-white/5 px-2.5 py-1.5 text-right";
   if (!rows.length) {
     return (
       <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
-        <div className="p-4 text-[12.5px] text-ink-faint">
+        <div className="p-4 text-xs text-ink-faint">
           No quarters recorded. Set out a bill and deliver it.
         </div>
       </div>
@@ -45,7 +45,7 @@ function LedgerTable() {
     v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "";
   return (
     <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
-      <table className="w-full min-w-160 border-collapse text-[12.5px] tabular-nums">
+      <table className="w-full min-w-160 border-collapse text-xs tabular-nums">
         <thead>
           <tr>
             <th className={TH}>Quarter</th>

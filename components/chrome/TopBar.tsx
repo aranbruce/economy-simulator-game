@@ -27,7 +27,7 @@ export function TopBar() {
           only the stat card (TopBarStats, below) keeps a panel background. */}
       <div className="flex flex-none items-center gap-2.25 max-md:min-w-0 max-md:flex-[1_1_auto] max-md:justify-center">
         <FlagAvatar role={realmId} size="size-9" className="max-md:size-7" />
-        <span className="text-[16px] leading-[1.1] font-semibold tracking-[-.02em] whitespace-nowrap [text-shadow:0_1px_5px_rgba(0,0,0,.75)] max-md:min-w-0 max-md:text-sm max-sm:text-[13px]">
+        <span className="text-base leading-[1.1] font-semibold tracking-[-.02em] whitespace-nowrap [text-shadow:0_1px_5px_rgba(0,0,0,.75)] max-md:min-w-0 max-md:text-sm max-sm:text-sm">
           {editing ? (
             <input
               type="text"

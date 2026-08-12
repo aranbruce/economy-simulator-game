@@ -33,8 +33,8 @@ export function Button({
   const size = customSize
     ? ""
     : tiny
-      ? "px-2.25 py-0.75 text-[10.5px]"
-      : "px-3.25 py-1.5 text-[11.5px]";
+      ? "px-2.25 py-0.75 text-xs"
+      : "px-3.25 py-1.5 text-xs";
   return (
     <button
       type="button"

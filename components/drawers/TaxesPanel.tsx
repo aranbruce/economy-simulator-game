@@ -78,7 +78,7 @@ function CompositionBar() {
           />
         ))}
       </svg>
-      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
+      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-xs text-ink-soft">
         {legend.map((l) => (
           <span key={l.key}>
             <i
@@ -119,11 +119,11 @@ function CtrlRow({
   onCommit: (v: number) => void;
 }) {
   return (
-    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-sm last:border-b-0">
       <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
         <span className="ml-auto tracking-[-.02em]">{disp}</span>
-        <span className="w-10.5 text-right text-[11px] font-semibold text-ink-faint" />
+        <span className="w-10.5 text-right text-xs font-semibold text-ink-faint" />
       </div>
       <input
         type="range"
@@ -137,7 +137,7 @@ function CtrlRow({
         onKeyUp={(e) => onCommit(parseFloat(e.currentTarget.value))}
       />
       {note ? (
-        <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
+        <div className="mt-0.5 text-xs text-ink-faint">{note}</div>
       ) : null}
     </div>
   );
@@ -163,10 +163,10 @@ function CapitalRateRow({
 }) {
   const on = value > 0;
   return (
-    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-sm last:border-b-0">
       <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+        <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
           {on ? `${value}%` : "abolished"}
         </span>
         <Button
@@ -191,7 +191,7 @@ function CapitalRateRow({
           onKeyUp={(e) => onSet(parseFloat(e.currentTarget.value))}
         />
       ) : null}
-      <div className="mt-0.5 text-[11px] text-ink-faint">
+      <div className="mt-0.5 text-xs text-ink-faint">
         {on ? note : "Scrapped. Set a rate again to reintroduce it."}
       </div>
     </div>
@@ -205,13 +205,13 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   if (!avail) {
     return (
       <div className="border-b border-edge px-3 py-2 opacity-50 last:border-b-0">
-        <div className="flex items-baseline gap-2 text-[13px]">
+        <div className="flex items-baseline gap-2 text-sm">
           <span>{t.name}</span>
-          <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
+          <span className="ml-auto text-sm font-[650] tracking-[-.02em] text-ink-faint">
             unavailable
           </span>
         </div>
-        <div className="mt-0.5 text-[11px] text-ink-faint">
+        <div className="mt-0.5 text-xs text-ink-faint">
           Requires a change to the law on{" "}
           {VICE_BY_ID[t.req![0] as ViceId].name.toLowerCase()}.
         </div>
@@ -221,16 +221,16 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   if (!s.on) {
     return (
       <div className="border-b border-edge px-3 py-2 last:border-b-0">
-        <div className="flex items-baseline gap-2 text-[13px]">
+        <div className="flex items-baseline gap-2 text-sm">
           <span className="text-ink-soft">{t.name}</span>
-          <span className="ml-auto text-[13px] font-[650] tracking-[-.02em] text-ink-faint">
+          <span className="ml-auto text-sm font-[650] tracking-[-.02em] text-ink-faint">
             not levied
           </span>
           <Button className="ml-2" onClick={() => introduceTax(t.id)}>
             Introduce
           </Button>
         </div>
-        <div className="mt-0.5 text-[11px] text-ink-faint">
+        <div className="mt-0.5 text-xs text-ink-faint">
           Introducing it costs {t.pc || 6} political capital.
         </div>
       </div>
@@ -243,9 +243,9 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
       className="border-b border-edge px-3 py-2 last:border-b-0"
       data-lever={t.id}
     >
-      <div className="flex items-baseline gap-2 text-[13px]">
+      <div className="flex items-baseline gap-2 text-sm">
         <span className="font-[550]">{t.name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+        <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
           {s.rate.toFixed(decimals)}%
         </span>
         <Button danger tiny className="ml-2" onClick={() => abolishTax(t.id)}>
@@ -263,7 +263,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
           setDraftTaxRate(t.id, parseFloat(e.currentTarget.value))
         }
       />
-      <div className="mt-0.5 text-[11px] text-ink-faint">
+      <div className="mt-0.5 text-xs text-ink-faint">
         raises {y.toFixed(2)}% of GDP
         {t.grp === "vice" ? ` · black market ${E.blackLevel.toFixed(0)}%` : ""}
       </div>
@@ -395,27 +395,27 @@ function IncomeNiPanel({ G }: { G: any }) {
                 onCommit={(v) => setIncomeField("taperStart", v)}
               />
             )}
-            <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-[13px] last:border-b-0">
+            <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-sm last:border-b-0">
               <div className="flex w-full items-baseline gap-2">
                 <span className="font-[550]">Threshold policy</span>
                 <span className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                   <button
                     aria-pressed={!!I.uprate}
-                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                     onClick={() => setIncomeUprate(true)}
                   >
                     Uprate
                   </button>
                   <button
                     aria-pressed={!I.uprate}
-                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                    className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                     onClick={() => setIncomeUprate(false)}
                   >
                     Freeze
                   </button>
                 </span>
               </div>
-              <div className="mt-0.5 text-[11px] text-ink-faint">
+              <div className="mt-0.5 text-xs text-ink-faint">
                 Freezing thresholds raises real receipts every year without
                 announcing anything. Voters work it out eventually.
               </div>
@@ -431,7 +431,7 @@ function IncomeNiPanel({ G }: { G: any }) {
                   key={i}
                   className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25"
                 >
-                  <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
+                  <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
                     <b>{nm}</b>
                     <span className="font-normal text-ink-soft">
                       {isLast
@@ -465,7 +465,7 @@ function IncomeNiPanel({ G }: { G: any }) {
                     onInput={(v) => setIncomeBandField(i, "rate", v)}
                     onCommit={(v) => setIncomeBandField(i, "rate", v)}
                   />
-                  <div className="mt-0.5 text-[11px] text-ink-faint">
+                  <div className="mt-0.5 text-xs text-ink-faint">
                     raises {(bandRev[i] || 0).toFixed(2)}% of GDP
                   </div>
                   {i > 0 ? (
@@ -538,7 +538,7 @@ function IncomeNiPanel({ G }: { G: any }) {
         <div
           className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.empOn ? "" : "opacity-50"}`}
         >
-          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
+          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
             <b>Employee</b>
             <span>
               {N.empOn ? `${y.employee.toFixed(2)}% of GDP` : "abolished"}
@@ -567,7 +567,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("empRate", v)}
             />
           ) : (
-            <div className="mt-0.5 text-[12.5px] leading-[1.4] text-ink-soft">
+            <div className="mt-0.5 text-xs leading-[1.4] text-ink-soft">
               Scrapped. About{" "}
               {incomeYield(
                 withNi(G.draft, "empOn", true),
@@ -581,7 +581,7 @@ function IncomeNiPanel({ G }: { G: any }) {
         <div
           className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.erOn ? "" : "opacity-50"}`}
         >
-          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650]">
+          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
             <b>Employer</b>
             <span>
               {N.erOn ? `${y.employer.toFixed(2)}% of GDP` : "abolished"}
@@ -608,7 +608,7 @@ function IncomeNiPanel({ G }: { G: any }) {
               onCommit={(v) => setNiRate("erRate", v)}
             />
           ) : (
-            <div className="mt-0.5 text-[12.5px] leading-[1.4] text-ink-soft">
+            <div className="mt-0.5 text-xs leading-[1.4] text-ink-soft">
               Scrapped. About{" "}
               {incomeYield(
                 withNi(G.draft, "erOn", true),

@@ -74,8 +74,8 @@ export function OverviewPanel() {
                 key={s.id}
                 className="rounded-md border border-edge bg-g-1 px-3 py-2.25"
               >
-                <div className="text-[12.5px] font-[650]">{s.label}</div>
-                <div className="mt-0.5 text-[11px] text-ink-faint">
+                <div className="text-xs font-[650]">{s.label}</div>
+                <div className="mt-0.5 text-xs text-ink-faint">
                   {s.sub}
                 </div>
               </div>
@@ -87,22 +87,22 @@ export function OverviewPanel() {
       <Eyebrow>{nounLabel}</Eyebrow>
       {risk.atRisk ? (
         <Callout tone="red" className="mb-4">
-          <div className="flex items-baseline gap-2 text-[12.5px] font-[650]">
+          <div className="flex items-baseline gap-2 text-xs font-[650]">
             <span>
               {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
             </span>
-            <span className="ml-auto text-[10px] font-bold tracking-[.04em] uppercase">
+            <span className="ml-auto text-xs font-bold tracking-[.04em] uppercase">
               At risk
             </span>
           </div>
-          <div className="mt-0.5 text-[11px]">{electionDetail}</div>
+          <div className="mt-0.5 text-xs">{electionDetail}</div>
         </Callout>
       ) : (
         <div className="mb-4 rounded-md border border-edge bg-g-1 px-3 py-2.25">
-          <div className="text-[12.5px] font-[650]">
+          <div className="text-xs font-[650]">
             {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
           </div>
-          <div className="mt-0.5 text-[11px] text-ink-faint">
+          <div className="mt-0.5 text-xs text-ink-faint">
             {electionDetail}
           </div>
         </div>
@@ -114,7 +114,7 @@ export function OverviewPanel() {
           const v = Math.max(0, Math.min(100, G.fac[f.id] ?? 0));
           return (
             <div key={f.id}>
-              <div className="flex items-baseline gap-2 text-[12.5px]">
+              <div className="flex items-baseline gap-2 text-xs">
                 <span className="font-[600]">{f.name}</span>
                 <span className="ml-auto font-[650] tabular-nums text-accent-lt">
                   {v.toFixed(0)}%
@@ -139,11 +139,11 @@ export function OverviewPanel() {
             key={f.label}
             className="flex items-center gap-2.5 rounded-md border border-edge bg-g-1 px-3 py-2.25"
           >
-            <span className="min-w-18.5 flex-none text-[12.5px] font-[650]">
+            <span className="min-w-18.5 flex-none text-xs font-[650]">
               {f.label}
             </span>
             <span
-              className={`text-[12px] ${STATE_VALUE_COLOR[f.state] || "text-ink-soft"}`}
+              className={`text-xs ${STATE_VALUE_COLOR[f.state] || "text-ink-soft"}`}
             >
               {f.detail}
             </span>

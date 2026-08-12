@@ -65,11 +65,11 @@ export function ChartsPanel() {
           return (
             <div
               key={f.id}
-              className="mb-1 grid grid-cols-[110px_1fr_34px] items-center gap-2 text-[12.5px]"
+              className="mb-1 grid grid-cols-[110px_1fr_34px] items-center gap-2 text-xs"
             >
               <span>
                 {f.name}{" "}
-                <span className="text-[10px] text-ink-faint">
+                <span className="text-xs text-ink-faint">
                   {Math.round(f.w * 100)}%
                 </span>
               </span>
@@ -79,13 +79,13 @@ export function ChartsPanel() {
                   style={{ width: `${v.toFixed(0)}%` }}
                 />
               </span>
-              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+              <span className="text-right text-xs font-[650] text-ink-soft">
                 {v.toFixed(0)}
               </span>
             </div>
           );
         })}
-        <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-[12.5px]">
+        <div className="mt-0.75 grid grid-cols-[110px_1fr_34px] items-center gap-2 border-t border-(--rule) pt-1.25 text-xs">
           <span className="font-semibold">Approval</span>
           <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
@@ -93,7 +93,7 @@ export function ChartsPanel() {
               style={{ width: `${approvalOf(G.fac).toFixed(0)}%` }}
             />
           </span>
-          <span className="text-right text-[11.5px] font-semibold text-ink-soft">
+          <span className="text-right text-xs font-semibold text-ink-soft">
             {approvalOf(G.fac).toFixed(0)}
           </span>
         </div>
@@ -114,7 +114,7 @@ export function ChartsPanel() {
           return (
             <div
               key={k}
-              className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-[12.5px]"
+              className="mb-1 grid grid-cols-[150px_1fr_34px] items-center gap-2 text-xs"
             >
               <span>{n}</span>
               <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
@@ -123,7 +123,7 @@ export function ChartsPanel() {
                   style={{ width: `${clamp(v, 0, 100).toFixed(0)}%` }}
                 />
               </span>
-              <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+              <span className="text-right text-xs font-[650] text-ink-soft">
                 {v.toFixed(0)}
               </span>
             </div>
@@ -145,7 +145,7 @@ export function ChartsPanel() {
   const facColors = [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink];
 
   const noData = (
-    <div className="p-4 text-[12.5px] text-ink-faint">
+    <div className="p-4 text-xs text-ink-faint">
       Deliver a bill or two. The charts need at least two quarters of data.
     </div>
   );

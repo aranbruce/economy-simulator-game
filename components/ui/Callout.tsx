@@ -22,7 +22,7 @@ export function Callout({
 }) {
   return (
     <div
-      className={`rounded-md border p-2 text-[11px] ${TONE[tone]} ${className}`.trim()}
+      className={`rounded-md border p-2 text-xs ${TONE[tone]} ${className}`.trim()}
     >
       {children}
     </div>

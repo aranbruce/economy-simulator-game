@@ -79,13 +79,13 @@ export function Lever({
       className="border-b border-edge px-3 py-2 last:border-b-0"
       data-lever={id}
     >
-      <div className="flex items-baseline gap-2 text-[13px]">
+      <div className="flex items-baseline gap-2 text-sm">
         <span className="font-[550]">{name}</span>
-        <span className="ml-auto text-[13px] font-[650] tracking-[-.02em]">
+        <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
           {displayText}
         </span>
         <span
-          className={`w-10.5 text-right text-[11px] font-semibold ${chgColor || "text-ink-faint"}`}
+          className={`w-10.5 text-right text-xs font-semibold ${chgColor || "text-ink-faint"}`}
         >
           {delta}
         </span>
@@ -121,7 +121,7 @@ export function Lever({
         }}
       />
       {note ? (
-        <div className="mt-0.5 text-[11px] text-ink-faint">{note}</div>
+        <div className="mt-0.5 text-xs text-ink-faint">{note}</div>
       ) : null}
     </div>
   );

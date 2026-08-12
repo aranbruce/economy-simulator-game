@@ -731,9 +731,7 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        tctx.strokeStyle = hot
-          ? "rgba(246,240,226,.55)"
-          : "rgba(24,18,10,.55)";
+        tctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
         tctx.lineWidth = hot ? 1.15 : 0.7;
         tctx.stroke();
       } else {
@@ -947,12 +945,17 @@ export default function WorldMap({
           y1: y + h / 2 + pad,
         };
         const collides = placed.some(
-          (b) => box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0,
+          (b) =>
+            box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0,
         );
         if (collides) continue;
         placed.push(box);
         ctx.font = font;
         ctx.shadowOffsetY = hot ? 1 : 0.5;
+        ctx.lineJoin = "round";
+        ctx.lineWidth = hot ? 3 : 2.5;
+        ctx.strokeStyle = "rgba(15,11,6,.2)";
+        ctx.strokeText(text, x, y);
         ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
         ctx.fillText(text, x, y);
       }
@@ -1316,7 +1319,7 @@ export default function WorldMap({
       className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#57685a_0%,#3c4a3f_58%,#1b130c_100%)]"
     >
       {!ready && (
-        <div className="absolute inset-0 grid place-items-center text-[13px] text-white/40">
+        <div className="absolute inset-0 grid place-items-center text-sm text-white/40">
           Loading…
         </div>
       )}

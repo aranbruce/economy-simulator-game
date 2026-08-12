@@ -62,7 +62,7 @@ export function CardTitle({ children }: { children: ReactNode }) {
 
 export function CardCat({ children }: { children: ReactNode }) {
   return (
-    <span className="ml-auto text-[9.5px] font-bold tracking-[.06em] text-ink-faint uppercase">
+    <span className="ml-auto text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
       {children}
     </span>
   );
@@ -77,6 +77,6 @@ export function CardFoot({ children }: { children: ReactNode }) {
 
 export function CardPrice({ children }: { children: ReactNode }) {
   return (
-    <span className="text-[11px] font-medium text-ink-faint">{children}</span>
+    <span className="text-xs font-medium text-ink-faint">{children}</span>
   );
 }

@@ -11,7 +11,7 @@ interface SetupGoButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const BASE =
   "flex-none cursor-pointer rounded-md border-none font-sans font-bold tracking-[-.01em] transition duration-160 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-accent-lt focus-visible:outline-offset-3";
 
-const SIZE = "max-sm:w-full px-5.5 py-3 text-[14.5px]";
+const SIZE = "max-sm:w-full px-5.5 py-3 text-sm";
 
 const PRIMARY =
   "bg-linear-to-b from-accent-lt to-accent text-[#1a1408] shadow-[var(--spec),0_8px_20px_rgba(0,0,0,.35)] hover:brightness-[1.06]";

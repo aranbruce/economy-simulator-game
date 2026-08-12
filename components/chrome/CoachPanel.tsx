@@ -21,12 +21,12 @@ export function CoachPanel() {
       aria-label="Tutorial"
     >
       <div className="flex items-center justify-between gap-2.5">
-        <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+        <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
           Tutorial {panel.step}/{panel.total}
         </span>
         <button
           type="button"
-          className="flex-none cursor-pointer rounded-sm border border-edge bg-g-2 px-2.5 py-1.5 text-[11.5px] font-semibold text-ink-soft hover:bg-g-3 hover:text-white"
+          className="flex-none cursor-pointer rounded-sm border border-edge bg-g-2 px-2.5 py-1.5 text-xs font-semibold text-ink-soft hover:bg-g-3 hover:text-white"
           onClick={() => skipCoach()}
         >
           Skip
@@ -36,13 +36,13 @@ export function CoachPanel() {
         {panel.title}
       </h3>
       {panel.body ? (
-        <div className="text-[12.5px] leading-[1.4] text-ink-soft [&_p]:mb-2 [&_p:last-child]:mb-0">
+        <div className="text-xs leading-[1.4] text-ink-soft [&_p]:mb-2 [&_p:last-child]:mb-0">
           <SafeHtml html={panel.body} />
         </div>
       ) : null}
       {panel.subtasks && panel.subtasks.length ? (
         <div className="flex flex-col gap-2">
-          <div className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+          <div className="text-xs font-bold tracking-widest text-ink-faint uppercase">
             Your tasks
           </div>
           <ul
@@ -52,12 +52,12 @@ export function CoachPanel() {
             {panel.subtasks.map((s: any) => (
               <li
                 key={s.id}
-                className={`m-0 flex items-start gap-2 text-[12.5px] leading-[1.35] font-[550] ${s.done ? "font-[650] text-ink" : "text-ink-soft"}`}
+                className={`m-0 flex items-start gap-2 text-xs leading-[1.35] font-[550] ${s.done ? "font-[650] text-ink" : "text-ink-soft"}`}
                 aria-checked={s.done}
                 role="checkbox"
               >
                 <span
-                  className={`mt-px inline-flex size-4 flex-none items-center justify-center rounded text-[11px] leading-none text-white ${s.done ? "border-green bg-green text-[#04140a]" : "border-edge bg-g-2"} border-[1.5px]`}
+                  className={`mt-px inline-flex size-4 flex-none items-center justify-center rounded text-xs leading-none text-white ${s.done ? "border-green bg-green text-[#04140a]" : "border-edge bg-g-2"} border-[1.5px]`}
                   aria-hidden="true"
                 >
                   {s.done ? "✓" : ""}
@@ -69,10 +69,10 @@ export function CoachPanel() {
         </div>
       ) : panel.task ? (
         <div className="flex flex-col gap-2">
-          <div className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+          <div className="text-xs font-bold tracking-widest text-ink-faint uppercase">
             Your tasks
           </div>
-          <p className="m-0 text-[13px] leading-[1.35] font-[650] text-ink">
+          <p className="m-0 text-sm leading-[1.35] font-[650] text-ink">
             {panel.task}
           </p>
         </div>
@@ -80,7 +80,7 @@ export function CoachPanel() {
       {panel.canContinue ? (
         <button
           type="button"
-          className={`cursor-pointer self-stretch rounded-sm border-none bg-blue px-3 py-2.5 text-[13px] font-[650] text-white hover:brightness-[1.06] ${panel.subtasks?.length || panel.task ? "mt-3.5" : "mt-1.5"}`}
+          className={`cursor-pointer self-stretch rounded-sm border-none bg-blue px-3 py-2.5 text-sm font-[650] text-white hover:brightness-[1.06] ${panel.subtasks?.length || panel.task ? "mt-3.5" : "mt-1.5"}`}
           onClick={() => continueCoach()}
         >
           {panel.continueLabel || "Continue"}

@@ -93,7 +93,7 @@ export function Dock({
             <button
               key={t.id}
               type="button"
-              className={`dock-dome relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-lg px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] uppercase transition-colors duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:min-h-11 max-md:min-w-11 max-md:justify-center max-md:px-2.5 max-md:py-1.5 max-md:text-[9px] max-sm:min-w-0 max-sm:flex-1 max-sm:px-1.5 max-sm:py-2 ${active ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
+              className={`dock-dome relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-lg px-3 py-1.75 text-xs font-semibold tracking-[.02em] uppercase transition-colors duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:min-h-11 max-md:min-w-11 max-md:justify-center max-md:px-2.5 max-md:py-1.5 max-md:text-xs max-sm:min-w-0 max-sm:flex-1 max-sm:px-1.5 max-sm:py-2 ${active ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
               data-tab={t.id}
               aria-label={t.name}
               aria-expanded={active}
@@ -109,7 +109,7 @@ export function Dock({
       <div className="flex flex-none items-stretch gap-1.5 max-sm:order-2 max-sm:grid max-sm:flex-[1_1_100%] max-sm:grid-cols-[1fr_1.15fr] max-sm:gap-1.5">
         <button
           type="button"
-          className={`dock-dome flex flex-col justify-center gap-px rounded-md px-3 py-1.5 text-right text-[9.5px] font-semibold tracking-[.04em] whitespace-nowrap uppercase transition-colors duration-180 max-md:px-2.5 max-md:py-2 max-sm:px-2 max-sm:py-1.75 max-sm:text-left max-sm:text-[8.5px] ${tab === "bill" ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
+          className={`dock-dome flex flex-col justify-center gap-px rounded-md px-3 py-1.5 text-right text-xs font-semibold tracking-[.04em] whitespace-nowrap uppercase transition-colors duration-180 max-md:px-2.5 max-md:py-2 max-sm:px-2 max-sm:py-1.75 max-sm:text-left max-sm:text-xs ${tab === "bill" ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
           id="billBtn"
           aria-expanded={tab === "bill"}
           onClick={() => setTab(tab === "bill" ? null : "bill")}
@@ -117,14 +117,14 @@ export function Dock({
           <span id="billLabel">Programme</span>
           <b
             id="billCost"
-            className={`text-[12.5px] font-[650] tracking-[-.02em] normal-case max-md:text-xs ${tab === "bill" ? "text-accent-lt" : "text-white"}`}
+            className={`text-xs font-[650] tracking-[-.02em] normal-case max-md:text-xs ${tab === "bill" ? "text-accent-lt" : "text-white"}`}
           >
             {cl.length ? `${cl.length} · ${cost} cap` : "Empty"}
           </b>
         </button>
         <button
           type="button"
-          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-[13px] font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:bg-none disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-md:min-h-11 max-md:px-3 max-md:py-2.5 max-md:text-xs max-sm:w-full max-sm:min-w-0 max-sm:p-2.5 max-sm:text-[11.5px] max-sm:tracking-normal"
+          className="box-border w-42 min-w-42 flex-none cursor-pointer rounded-md border-0 bg-[linear-gradient(180deg,#e8c988,#c9a05a)] px-4.5 py-2.5 text-center text-sm font-bold tracking-[.02em] whitespace-nowrap text-[#1a1408] uppercase shadow-[var(--spec),0_4px_16px_rgba(212,175,105,.4)] transition-[filter,transform] duration-180 hover:brightness-[1.08] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-lt active:scale-[0.96] disabled:cursor-not-allowed disabled:bg-g-1 disabled:bg-none disabled:text-ink-faint disabled:shadow-none disabled:filter-none disabled:active:scale-100 max-md:min-h-11 max-md:px-3 max-md:py-2.5 max-md:text-xs max-sm:w-full max-sm:min-w-0 max-sm:p-2.5 max-sm:text-xs max-sm:tracking-normal"
           id="deliverBtn"
           disabled={resolvedDisabled ?? undefined}
           title={resolvedTitle || undefined}

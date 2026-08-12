@@ -74,13 +74,13 @@ function interestTone(interest: number) {
 }
 
 const DIPLO_SLOT_BASE =
-  "rounded-sm border border-edge bg-g-2 px-2.5 py-1.25 text-[11.5px] font-semibold";
+  "rounded-sm border border-edge bg-g-2 px-2.5 py-1.25 text-xs font-semibold";
 
 function EnvoySummary({ G }: { G: any }) {
   if (!G.envoys) G.envoys = emptyEnvoys();
   return (
     <div className="mb-1 overflow-hidden rounded-md border border-edge bg-g-1 px-3.25 py-2.75">
-      <div className="mb-2 text-[11px] font-bold tracking-[.06em] text-ink-faint uppercase">
+      <div className="mb-2 text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
         Your envoys
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -105,7 +105,7 @@ function EnvoySummary({ G }: { G: any }) {
           );
         })}
       </div>
-      <div className="mt-1.5 text-[12.5px] leading-[1.4] text-ink-soft">
+      <div className="mt-1.5 text-xs leading-[1.4] text-ink-soft">
         Assign costs {ENVOY_ASSIGN_PC} capital · missions go into the bill ·
         ultimatums spend capital immediately
       </div>
@@ -114,7 +114,7 @@ function EnvoySummary({ G }: { G: any }) {
 }
 
 const DIPLO_MOD_BASE =
-  "max-w-full overflow-hidden rounded-pill border border-edge bg-g-2 px-1.75 py-0.75 text-[10px] font-semibold text-ink-soft text-ellipsis whitespace-nowrap";
+  "max-w-full overflow-hidden rounded-pill border border-edge bg-g-2 px-1.75 py-0.75 text-xs font-semibold text-ink-soft text-ellipsis whitespace-nowrap";
 const DIPLO_MOD_TONE: Record<string, string> = {
   up: "[&>b]:text-green-lt",
   dn: "[&>b]:text-red-lt",
@@ -188,7 +188,7 @@ function MissionButton({ m, p, G }: { m: Mission; p: Country; G: any }) {
   return (
     <button
       type="button"
-      className={`flex w-full cursor-pointer items-center justify-between gap-1.5 rounded-sm border border-edge bg-g-2 px-2.25 py-1.75 text-[11px] font-[650] text-white shadow-spec transition duration-160 hover:border-frame hover:bg-g-3 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 ${on ? "border-blue/45 bg-accent-dim text-accent-lt" : ""}`}
+      className={`flex w-full cursor-pointer items-center justify-between gap-1.5 rounded-sm border border-edge bg-g-2 px-2.25 py-1.75 text-xs font-[650] text-white shadow-spec transition duration-160 hover:border-frame hover:bg-g-3 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45 disabled:active:scale-100 ${on ? "border-blue/45 bg-accent-dim text-accent-lt" : ""}`}
       disabled={blocked}
       title={tip}
       onClick={() => toggleMission(p.id, m.id)}
@@ -198,7 +198,7 @@ function MissionButton({ m, p, G }: { m: Mission; p: Country; G: any }) {
         {missionShortLabel(m)}
       </span>
       <span
-        className={`flex-none text-[10px] font-bold ${on ? "text-accent-lt" : "text-ink-faint"}`}
+        className={`flex-none text-xs font-bold ${on ? "text-accent-lt" : "text-ink-faint"}`}
       >
         {m.pc}
       </span>
@@ -254,13 +254,13 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
       concedeP(p.id, u.demand, G, diploDeps(), false, ultMeta) * 100,
     );
     return (
-      <div className="flex flex-col gap-1 rounded-sm border border-red/24 bg-red/10 px-2.75 py-2.5 text-[11.5px] leading-[1.35]">
+      <div className="flex flex-col gap-1 rounded-sm border border-red/24 bg-red/10 px-2.75 py-2.5 text-xs leading-[1.35]">
         <strong className="font-[650] text-white">Ultimatum issued</strong>
-        <span className="text-[12px] font-[650] text-red-lt">{ultLabel}</span>
-        <span className="text-[12px] leading-[1.4] text-ink-soft">
+        <span className="text-xs font-[650] text-red-lt">{ultLabel}</span>
+        <span className="text-xs leading-[1.4] text-ink-soft">
           {ultimatumWaitingCopy(ultLeft)}
         </span>
-        <span className="text-[11px] text-ink-faint">
+        <span className="text-xs text-ink-faint">
           Estimated ~{ultOdds}% chance they concede
         </span>
       </div>
@@ -279,7 +279,7 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
           <span>Cooldown {ultCd}Q</span>
         </div>
         {ultCheck.reasons.length ? (
-          <div className="text-[11px] leading-[1.4] text-ink-faint">
+          <div className="text-xs leading-[1.4] text-ink-faint">
             {ultCheck.reasons.join(" · ")}
           </div>
         ) : null}
@@ -296,7 +296,7 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
             <button
               key={d.id}
               type="button"
-              className="flex w-full cursor-pointer items-center justify-between gap-2.5 rounded-sm border border-edge bg-g-2 px-2.5 py-2 text-left text-[11.5px] text-white shadow-spec transition duration-160 hover:border-frame hover:bg-g-3"
+              className="flex w-full cursor-pointer items-center justify-between gap-2.5 rounded-sm border border-edge bg-g-2 px-2.5 py-2 text-left text-xs text-white shadow-spec transition duration-160 hover:border-frame hover:bg-g-3"
               title={`Spend ${ULTIMATUM_PC} capital immediately`}
               onClick={() => issueUltimatumAction(p.id, d.id)}
             >
@@ -304,12 +304,12 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
                 {d.label}
               </span>
               <span className="flex flex-none items-center gap-1.5">
-                <span className="text-[10.5px] font-bold text-amber tabular-nums">
+                <span className="text-xs font-bold text-amber tabular-nums">
                   ~{pct}%
                 </span>
                 {G.sandbox ? (
                   <span
-                    className={`rounded-pill px-1.5 py-0.5 text-[9.5px] font-bold tracking-[.03em] whitespace-nowrap uppercase ${DEMAND_TAG_TONE[interestTone(d.interest)]}`}
+                    className={`rounded-pill px-1.5 py-0.5 text-xs font-bold tracking-[.03em] whitespace-nowrap uppercase ${DEMAND_TAG_TONE[interestTone(d.interest)]}`}
                   >
                     {d.interestLabel}
                   </span>
@@ -322,7 +322,7 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
     );
   }
   return (
-    <div className="text-[11px] leading-[1.4] text-ink-faint">
+    <div className="text-xs leading-[1.4] text-ink-faint">
       {ultCheck.reasons.join(" · ")}
     </div>
   );
@@ -358,7 +358,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
       data-partner-card={p.id}
     >
       {ultPending ? (
-        <div className="flex items-center gap-2 border-b border-red/35 bg-linear-to-b from-[rgba(255,90,78,.92)] to-[rgba(220,55,45,.88)] px-3 py-2 text-[11px] font-[650] tracking-[.02em] text-white">
+        <div className="flex items-center gap-2 border-b border-red/35 bg-linear-to-b from-[rgba(255,90,78,.92)] to-[rgba(220,55,45,.88)] px-3 py-2 text-xs font-[650] tracking-[.02em] text-white">
           <span className="diplo-ult-pulse" />
           Ultimatum live ·{" "}
           {G.ultimatums[p.id].label ||
@@ -370,7 +370,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         </div>
       ) : null}
       {visitActive ? (
-        <div className="flex items-center gap-2 border-b border-accent-lt/35 bg-linear-to-b from-[rgba(232,201,136,.95)] to-[rgba(201,160,90,.88)] px-3 py-2 text-[11px] font-[650] tracking-[.02em] text-[#1a1408]">
+        <div className="flex items-center gap-2 border-b border-accent-lt/35 bg-linear-to-b from-[rgba(232,201,136,.95)] to-[rgba(201,160,90,.88)] px-3 py-2 text-xs font-[650] tracking-[.02em] text-[#1a1408]">
           <span className="diplo-visit-pulse" />
           State visit underway · {visitLeft} quarter{visitLeft === 1 ? "" : "s"}{" "}
           left
@@ -378,15 +378,15 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
       ) : null}
       <div className="flex items-start justify-between gap-2.5 px-3 pt-3 pb-2">
         <div className="min-w-0 flex-1">
-          <h4 className="m-0 text-[15px] leading-[1.2] font-[650] tracking-[-.02em]">
+          <h4 className="m-0 text-base leading-[1.2] font-[650] tracking-[-.02em]">
             {p.name}
           </h4>
-          <span className="mt-0.75 block text-[9.5px] font-bold tracking-[.06em] text-ink-faint uppercase">
+          <span className="mt-0.75 block text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
             {T(shareLabel(G.homeRole, p.id, p.tradeShare))}
           </span>
         </div>
         <div
-          className={`min-w-10.5 flex-none rounded-sm bg-(--rel-col,var(--ink-soft)) px-2 py-1.5 text-center text-[15px] leading-none font-bold text-white ${REL_BADGE_SHADOW[tone]}`}
+          className={`min-w-10.5 flex-none rounded-sm bg-(--rel-col,var(--ink-soft)) px-2 py-1.5 text-center text-base leading-none font-bold text-white ${REL_BADGE_SHADOW[tone]}`}
           style={{ ["--rel-col" as any]: relCol }}
           title={`Relations with ${p.name}`}
         >
@@ -394,12 +394,12 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         </div>
       </div>
       {bloc ? (
-        <div className="px-3 pb-1.5 text-[10.5px] font-semibold tracking-[.03em] text-ink-faint uppercase">
+        <div className="px-3 pb-1.5 text-xs font-semibold tracking-[.03em] text-ink-faint uppercase">
           {bloc.name}
         </div>
       ) : null}
       <div className="grid gap-1 px-3 pb-2">
-        <div className="grid grid-cols-[78px_1fr_30px] items-center gap-2 text-[11.5px]">
+        <div className="grid grid-cols-[78px_1fr_30px] items-center gap-2 text-xs">
           <span>Relations</span>
           <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
             <i
@@ -407,20 +407,20 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
               style={{ width: `${rel.toFixed(0)}%` }}
             />
           </span>
-          <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+          <span className="text-right text-xs font-[650] text-ink-soft">
             {rel.toFixed(0)}
           </span>
         </div>
-        <div className="text-[10.5px] text-ink-faint">
+        <div className="text-xs text-ink-faint">
           Equilibrium{" "}
           <b className="font-[650] text-ink-soft">{target.toFixed(0)}</b>
         </div>
       </div>
       <RelationModifiers partnerId={p.id} />
       <div className="border-t border-edge bg-black/8 px-3 py-2.5">
-        <div className="mb-2 flex items-baseline justify-between gap-2 text-[10.5px] font-bold tracking-wider text-ink-soft uppercase">
+        <div className="mb-2 flex items-baseline justify-between gap-2 text-xs font-bold tracking-wider text-ink-soft uppercase">
           Missions
-          <span className="text-[10px] font-medium tracking-normal text-ink-faint normal-case">
+          <span className="text-xs font-medium tracking-normal text-ink-faint normal-case">
             Stage into bill
           </span>
         </div>
@@ -431,9 +431,9 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         </div>
       </div>
       <div className="border-t border-edge bg-black/8 px-3 py-2.5">
-        <div className="mb-2 flex items-baseline justify-between gap-2 text-[10.5px] font-bold tracking-wider text-ink-soft uppercase">
+        <div className="mb-2 flex items-baseline justify-between gap-2 text-xs font-bold tracking-wider text-ink-soft uppercase">
           Envoy
-          <span className="text-[10px] font-medium tracking-normal text-ink-faint normal-case">
+          <span className="text-xs font-medium tracking-normal text-ink-faint normal-case">
             +{ENVOY_TARGET}/Q while posted
           </span>
         </div>
@@ -447,10 +447,10 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         }
       >
         <div
-          className={`mb-2 flex items-baseline justify-between gap-2 text-[10.5px] font-bold tracking-wider uppercase ${ultPending ? "text-red-lt" : "text-ink-soft"}`}
+          className={`mb-2 flex items-baseline justify-between gap-2 text-xs font-bold tracking-wider uppercase ${ultPending ? "text-red-lt" : "text-ink-soft"}`}
         >
           Ultimatum
-          <span className="text-[10px] font-medium tracking-normal text-ink-faint normal-case">
+          <span className="text-xs font-medium tracking-normal text-ink-faint normal-case">
             {ultPending
               ? "Response pending"
               : `${ULTIMATUM_PC} cap · immediate`}

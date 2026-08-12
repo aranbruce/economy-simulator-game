@@ -57,10 +57,10 @@ function modeHint(sandbox: boolean, meta: any) {
 function SetupStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-px">
-      <span className="text-[9px] font-bold tracking-[.08em] text-ink-faint uppercase">
+      <span className="text-xs font-bold tracking-[.08em] text-ink-faint uppercase">
         {label}
       </span>
-      <span className="text-[13px] font-semibold tracking-[-.02em] text-ink tabular-nums">
+      <span className="text-sm font-semibold tracking-[-.02em] text-ink tabular-nums">
         {value}
       </span>
     </div>
@@ -109,7 +109,7 @@ export default function CountryPicker({
       aria-labelledby="setupTitle"
     >
       <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
-        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+        <div className="text-xs font-bold tracking-[.14em] text-accent-lt uppercase">
           Commission
         </div>
         <h1
@@ -118,7 +118,7 @@ export default function CountryPicker({
         >
           Choose your country
         </h1>
-        <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
+        <p className="m-0 text-sm leading-[1.45] text-ink-soft">
           Ten realms on a real map. Click any country in a bloc to take that
           seat — the books open to that realm’s inheritance.
         </p>
@@ -130,7 +130,7 @@ export default function CountryPicker({
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">
               <div className="flex items-center gap-3">
                 <FlagAvatar role={playerCountryId(realm.role)} size="size-12" />
-                <strong className="text-[19px]">{realm.name}</strong>
+                <strong className="text-xl">{realm.name}</strong>
               </div>
               <em>{realm.blurb}</em>
             </div>
@@ -139,14 +139,14 @@ export default function CountryPicker({
               role="group"
               aria-label="Game mode"
             >
-              <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+              <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
                 Mode
               </span>
               <div className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                 <button
                   type="button"
                   aria-pressed={!sandbox}
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                   onClick={() => setSandbox(false)}
                 >
                   Career
@@ -156,12 +156,12 @@ export default function CountryPicker({
                   aria-pressed={sandbox}
                   onClick={() => setSandbox(true)}
                   title="Cannot be removed from office"
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                 >
                   Sandbox
                 </button>
               </div>
-              <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-sm:text-left">
+              <p className="m-0 text-right text-xs leading-[1.35] text-ink-soft max-sm:text-left">
                 {modeHint(sandbox, meta)}
               </p>
             </div>

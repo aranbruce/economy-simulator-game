@@ -11,7 +11,7 @@ export function VerdictBody({ data }: { data: VerdictData }) {
   return (
     <div className="text-center">
       {grade && (
-        <div className="font-display text-[68px] leading-none font-normal tracking-[-.03em] text-accent-lt">
+        <div className="font-display text-7xl leading-none font-normal tracking-[-.03em] text-accent-lt">
           {grade}
         </div>
       )}
@@ -23,7 +23,7 @@ export function VerdictBody({ data }: { data: VerdictData }) {
         ))}
       </div>
       {rows && rows.length > 0 && (
-        <table className="w-full border-collapse text-left text-[12.5px]">
+        <table className="w-full border-collapse text-left text-xs">
           <tbody>
             {rows.map(([label, value], i) => (
               <tr key={i}>

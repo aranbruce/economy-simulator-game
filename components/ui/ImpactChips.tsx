@@ -37,7 +37,7 @@ export function ImpactChips({
         .map((c, i) => (
           <span
             key={i}
-            className={`rounded-sm px-1.75 py-0.75 text-[10.5px] font-[650] whitespace-nowrap ${c.up ? upCls : downCls}`}
+            className={`rounded-sm px-1.75 py-0.75 text-xs font-[650] whitespace-nowrap ${c.up ? upCls : downCls}`}
           >
             {c.name} {sgn(c.value, c.dp)}
           </span>
@@ -58,13 +58,13 @@ export function ImpactFactions({
   const down = paper ? "text-paper-red" : "text-red-lt";
   if (!factions || factions.empty) {
     return (
-      <div className={`mt-1.25 flex flex-wrap gap-2.25 text-[11px] ${faint}`}>
+      <div className={`mt-1.25 flex flex-wrap gap-2.25 text-xs ${faint}`}>
         No faction moves enough to notice.
       </div>
     );
   }
   return (
-    <div className={`mt-1.25 flex flex-wrap gap-2.25 text-[11px] ${faint}`}>
+    <div className={`mt-1.25 flex flex-wrap gap-2.25 text-xs ${faint}`}>
       {factions.best && (
         <span className={up}>
           {factions.best.name} {sgn(factions.best.value, 1)}

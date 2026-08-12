@@ -11,9 +11,9 @@ interface SegControlProps<T extends string> {
 }
 
 const BTN_BASE =
-  "flex-1 bg-transparent border-0 rounded py-1.5 px-1.25 cursor-pointer text-[11px] font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2";
+  "flex-1 bg-transparent border-0 rounded py-1.5 px-1.25 cursor-pointer text-xs font-semibold text-ink-soft tracking-[.01em] transition-colors duration-150 hover:text-white aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:outline-2 focus-visible:outline-accent focus-visible:-outline-offset-2";
 const BTN_MINI =
-  "py-1.25 px-1 text-[10px] max-md:py-2 max-md:px-1.5 max-md:text-[11px]";
+  "py-1.25 px-1 text-xs max-md:py-2 max-md:px-1.5 max-md:text-xs";
 
 export function SegControl<T extends string>({
   options,

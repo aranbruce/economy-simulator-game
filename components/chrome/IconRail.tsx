@@ -129,7 +129,7 @@ export function IconRail() {
             <TabIcon name={b.icon} />
           </span>
           {b.badge?.kind === "count" ? (
-            <span className="absolute -top-1 -right-1 grid h-4.5 min-w-4.5 place-items-center rounded-full border-2 border-[#0c0805] bg-red px-0.75 text-[9px] leading-none font-bold text-white">
+            <span className="absolute -top-1 -right-1 grid h-4.5 min-w-4.5 place-items-center rounded-full border-2 border-[#0c0805] bg-red px-0.75 text-xs leading-none font-bold text-white">
               {b.badge.value > 99 ? "99+" : b.badge.value}
             </span>
           ) : b.badge?.kind === "pip" ? (

@@ -13,16 +13,16 @@ import { CloseIcon } from "../../lib/ui/icons.tsx";
 function ClipBody({ c }: { c: any }) {
   return (
     <>
-      <div className="clip-mast mb-0.5 text-[9.5px] font-bold tracking-[.14em] text-paper-ink-faint uppercase">
+      <div className="clip-mast mb-0.5 text-xs font-bold tracking-[.14em] text-paper-ink-faint uppercase">
         {c.masthead}
       </div>
-      <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-[10px] text-[#8a7a5a]">
+      <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-xs text-[#8a7a5a]">
         {c.kicker}
       </div>
       <h4 className="clip-hed mb-1.5 font-display text-base leading-[1.2] font-normal tracking-[-.01em] text-[#14120e]">
         {c.headline}
       </h4>
-      <p className="clip-lede m-0 text-[11.5px] leading-[1.4] text-paper-ink-soft">
+      <p className="clip-lede m-0 text-xs leading-[1.4] text-paper-ink-soft">
         {c.lede}
       </p>
     </>
@@ -58,7 +58,7 @@ export function PressLayer() {
           aria-live="polite"
         >
           {ordered.length === 0 ? (
-            <p className="m-0 text-[13px] text-ink-soft [text-shadow:0_1px_4px_rgba(0,0,0,.8)]">
+            <p className="m-0 text-sm text-ink-soft [text-shadow:0_1px_4px_rgba(0,0,0,.8)]">
               Nothing yet this term.
             </p>
           ) : (

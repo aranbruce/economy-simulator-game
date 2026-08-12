@@ -11,7 +11,7 @@ interface EffectsData {
 export function EffectsBlock({ data }: { data: EffectsData }) {
   return (
     <>
-      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-soft">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-xs text-ink-soft">
         {data.bits.map((b, i) => (
           <Fragment key={i}>
             {i > 0 ? " · " : ""}
@@ -24,7 +24,7 @@ export function EffectsBlock({ data }: { data: EffectsData }) {
         ))}
       </div>
       {data.facText ? (
-        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-faint">
+        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-xs text-ink-faint">
           {data.facText}
         </div>
       ) : null}

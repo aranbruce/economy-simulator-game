@@ -28,11 +28,11 @@ const PAPER_SKIN = {
     "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
   header:
     "border-b border-paper-border/22 px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
-  stamp: "text-[10px] font-bold tracking-[.14em] text-paper-accent uppercase",
+  stamp: "text-xs font-bold tracking-[.14em] text-paper-accent uppercase",
   rule: "mt-2 h-px w-16 bg-[linear-gradient(90deg,var(--paper-accent),transparent)]",
   title:
-    "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight text-paper-ink max-md:text-[26px]",
-  body: "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] text-paper-ink max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3",
+    "mt-2.5 mb-0 font-display text-3xl leading-[1.1] font-normal tracking-tight text-paper-ink max-md:text-2xl",
+  body: "px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] text-paper-ink max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3",
   option:
     "cursor-pointer rounded-md border border-l-3 border-paper-border/22 border-l-paper-border/35 bg-paper-border/4.5 px-3.25 py-2.75 text-left font-sans text-sm text-paper-ink transition duration-160 hover:border-l-paper-accent hover:bg-paper-border/9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3",
   optionSub: "mt-0.75 block text-xs text-paper-ink-soft not-italic",
@@ -43,11 +43,11 @@ const HUD_SKIN = {
     "despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
   header:
     "border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
-  stamp: "text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase",
+  stamp: "text-xs font-bold tracking-[.14em] text-accent-lt uppercase",
   rule: "mt-2 h-px w-16 bg-[linear-gradient(90deg,var(--accent),transparent)]",
   title:
-    "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight max-md:text-[26px]",
-  body: "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3",
+    "mt-2.5 mb-0 font-display text-3xl leading-[1.1] font-normal tracking-tight max-md:text-2xl",
+  body: "px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3",
   option:
     "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 text-left font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3",
   optionSub: "mt-0.75 block text-xs text-ink-soft not-italic",

@@ -62,7 +62,7 @@ export function MapChrome({
       {labelContent && (
         <div
           id="mapLabel"
-          className="pointer-events-none flex max-w-[94vw] flex-none flex-col items-center gap-px rounded-md border border-edge bg-panel px-3.5 py-1.5 text-center shadow-spec backdrop-blur-md backdrop-saturate-130 max-md:max-w-[calc(100vw-16px)] max-md:px-2.5 max-md:py-1.25 [&_b]:font-display [&_b]:text-[15px] [&_b]:font-normal [&_b]:tracking-[-.01em] max-md:[&_b]:text-[13px] [&_span]:text-[11px] [&_span]:tracking-[.02em] [&_span]:text-ink-soft max-md:[&_span]:line-clamp-2 max-md:[&_span]:text-[10px]"
+          className="pointer-events-none flex max-w-[94vw] flex-none flex-col items-center gap-px rounded-md border border-edge bg-panel px-3.5 py-1.5 text-center shadow-spec backdrop-blur-md backdrop-saturate-130 max-md:max-w-[calc(100vw-16px)] max-md:px-2.5 max-md:py-1.25 [&_b]:font-display [&_b]:text-base [&_b]:font-normal [&_b]:tracking-[-.01em] max-md:[&_b]:text-sm [&_span]:text-xs [&_span]:tracking-[.02em] [&_span]:text-ink-soft max-md:[&_span]:line-clamp-2 max-md:[&_span]:text-xs"
         >
           {labelContent}
         </div>

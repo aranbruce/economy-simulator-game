@@ -81,12 +81,12 @@ export function DrawerShell() {
       <div className="flex flex-none items-center gap-2.5 border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-4 pt-3 pb-2.5 max-md:flex-wrap max-md:gap-2 max-md:px-3 max-md:pt-2.5 max-md:pb-2.25">
         <h2
           id="dwTitle"
-          className="m-0 font-display text-[22px] font-normal tracking-[-.02em] max-md:min-w-0 max-md:flex-[1_1_auto] max-md:text-lg"
+          className="m-0 font-display text-2xl font-normal tracking-[-.02em] max-md:min-w-0 max-md:flex-[1_1_auto] max-md:text-lg"
         >
           {name}
         </h2>
         <span
-          className={`text-[11px] font-semibold tracking-[.04em] uppercase max-md:order-3 max-md:flex-[1_1_100%] max-md:text-[10px] ${overspent ? "text-red" : "text-ink-soft"}`}
+          className={`text-xs font-semibold tracking-[.04em] uppercase max-md:order-3 max-md:flex-[1_1_100%] max-md:text-xs ${overspent ? "text-red" : "text-ink-soft"}`}
           id="dwSub"
         >
           {sub}

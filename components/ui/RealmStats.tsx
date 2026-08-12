@@ -143,16 +143,16 @@ function Stat({ label, value, note, tone }: StatProps) {
         : "";
   return (
     <div className="min-w-[30%]">
-      <div className="text-[9.5px] font-bold tracking-[.08em] text-paper-ink-faint uppercase">
+      <div className="text-xs font-bold tracking-[.08em] text-paper-ink-faint uppercase">
         {label}
       </div>
       <div
-        className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-paper-ink ${toneCls}`}
+        className={`mt-0.5 text-lg font-[650] tracking-[-.03em] text-paper-ink ${toneCls}`}
       >
         {value}
       </div>
       {note ? (
-        <div className="mt-px text-[11px] text-paper-ink-soft">{note}</div>
+        <div className="mt-px text-xs text-paper-ink-soft">{note}</div>
       ) : null}
     </div>
   );
@@ -228,10 +228,10 @@ export default function RealmStats({
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
           <FlagAvatar role={flagRole} size="size-11" paper />
           <div className="min-w-0">
-            <div className="text-[10px] font-bold tracking-widest text-paper-accent uppercase">
+            <div className="text-xs font-bold tracking-widest text-paper-accent uppercase">
               {snap.us ? "Home" : "Partner realm"}
             </div>
-            <h2 className="mt-0.5 mb-0 font-display text-[21px] font-normal tracking-[-.02em] text-paper-ink max-md:text-lg">
+            <h2 className="mt-0.5 mb-0 font-display text-xl font-normal tracking-[-.02em] text-paper-ink max-md:text-lg">
               {snap.name}
             </h2>
           </div>
@@ -246,7 +246,7 @@ export default function RealmStats({
         </button>
       </div>
 
-      <p className="mb-3.5 text-[13px] leading-[1.4] text-paper-ink-soft">
+      <p className="mb-3.5 text-sm leading-[1.4] text-paper-ink-soft">
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
