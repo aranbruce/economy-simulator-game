@@ -387,11 +387,6 @@ button:disabled {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .clipping:nth-child(even),
-  .clipping:nth-child(3n) {
-    margin-left: 0;
-  }
-
   /* When a panel is open, keep the press layer out of the way */
   body:has(#drawer:not([hidden])) #pressLayer {
     opacity: 0;
@@ -666,12 +661,6 @@ input[type="range"]:focus-visible {
 .clipping:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 3px;
-}
-.clipping:nth-child(even) {
-  margin-left: 10px;
-}
-.clipping:nth-child(3n) {
-  margin-left: 4px;
 }
 @keyframes clipIn {
   from {

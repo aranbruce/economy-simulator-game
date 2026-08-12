@@ -412,12 +412,6 @@ function polysForRole(
   return polys.length ? polys : null;
 }
 
-/** Every diplomacy marker is the same size, so "measuring" it is just its
- *  own diameter — unlike the emoji it replaces, which needed font metrics. */
-function diploMarkerWidth(size: number) {
-  return size;
-}
-
 /** Small vector glyph per marker kind, drawn in the badge's ring colour. */
 function drawDiploMarkerGlyph(
   ctx: CanvasRenderingContext2D,
@@ -555,6 +549,11 @@ export default function WorldMap({
 }: WorldMapProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** Offscreen buffer the terrain (ocean + every country fill/stroke) is
+   *  drawn to unfiltered, so the sepia/contrast color-grade below composites
+   *  once via drawImage() instead of running the canvas filter pipeline on
+   *  ~180 individual fill()/stroke() calls per paint(). */
+  const terrainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const countriesRef = useRef<CountryFeature[]>([]);
   const viewRef = useRef({ scale: 1.15, tx: 0, ty: 0 });
   const dragRef = useRef<{
@@ -594,15 +593,28 @@ export default function WorldMap({
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    /* Sepia/contrast color-grade over the terrain only (not markers, labels
-       or legend text below, which stay at full clarity for readability). */
-    ctx.save();
-    ctx.filter = "sepia(0.14) saturate(0.82) contrast(1.07) brightness(1.02)";
+    /* Terrain (ocean + every country fill/stroke) draws unfiltered to this
+       offscreen buffer; the sepia/contrast color-grade composites it onto
+       the main canvas in one drawImage() below instead of running the
+       canvas filter pipeline on every individual fill()/stroke() call. */
+    let terrain = terrainCanvasRef.current;
+    if (!terrain) {
+      terrain = document.createElement("canvas");
+      terrainCanvasRef.current = terrain;
+    }
+    if (terrain.width !== W * dpr || terrain.height !== H * dpr) {
+      terrain.width = W * dpr;
+      terrain.height = H * dpr;
+    }
+    const tctx = terrain.getContext("2d");
+    if (!tctx) return;
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, W, H);
 
-    ctx.fillStyle = OCEAN;
-    ctx.fillRect(0, 0, W, H);
+    tctx.fillStyle = OCEAN;
+    tctx.fillRect(0, 0, W, H);
 
-    const glow = ctx.createRadialGradient(
+    const glow = tctx.createRadialGradient(
       W * 0.5,
       H * 0.48,
       W * 0.08,
@@ -612,8 +624,8 @@ export default function WorldMap({
     );
     glow.addColorStop(0, "rgba(70,51,27,.5)");
     glow.addColorStop(1, "rgba(8,5,3,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+    tctx.fillStyle = glow;
+    tctx.fillRect(0, 0, W, H);
 
     const { scale, tx, ty } = viewRef.current;
     const { plateW, plateH, ox, oy } = computePlateLayout(W, H);
@@ -671,34 +683,34 @@ export default function WorldMap({
        which matters once wrap makes two tiled copies of a country (e.g. the
        two antimeridian-split pieces of Russia) sit edge-to-edge. */
     for (const { c, role, fill, strokeChains } of renderList) {
-      ctx.beginPath();
+      tctx.beginPath();
       for (const dx of offsets) {
         for (const rings of c.polys) {
           for (const ring of rings) {
             ring.forEach(([nx, ny], i) => {
               const [x, y] = toScreen(nx, ny, dx);
-              if (i === 0) ctx.moveTo(x, y);
-              else ctx.lineTo(x, y);
+              if (i === 0) tctx.moveTo(x, y);
+              else tctx.lineTo(x, y);
             });
-            ctx.closePath();
+            tctx.closePath();
           }
         }
       }
-      ctx.fillStyle = fill;
-      ctx.fill("evenodd");
+      tctx.fillStyle = fill;
+      tctx.fill("evenodd");
       /* Always stroke land so adjoining realms (Russia / China) stay
          distinct even when fills are close. Stroked separately from the
          fill path, and broken at antimeridian-cut edges, so a split
          country's two pieces don't draw a seam line through themselves. */
-      ctx.beginPath();
+      tctx.beginPath();
       for (const dx of offsets) {
         for (const group of strokeChains) {
           for (const ringChains of group) {
             for (const chain of ringChains) {
               chain.forEach(([nx, ny], i) => {
                 const [x, y] = toScreen(nx, ny, dx);
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                if (i === 0) tctx.moveTo(x, y);
+                else tctx.lineTo(x, y);
               });
             }
           }
@@ -707,15 +719,24 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        ctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
-        ctx.lineWidth = hot ? 1.15 : 0.7;
-        ctx.stroke();
+        tctx.strokeStyle = hot
+          ? "rgba(246,240,226,.55)"
+          : "rgba(24,18,10,.55)";
+        tctx.lineWidth = hot ? 1.15 : 0.7;
+        tctx.stroke();
       } else {
-        ctx.strokeStyle = "rgba(24,18,10,.35)";
-        ctx.lineWidth = 0.4;
-        ctx.stroke();
+        tctx.strokeStyle = "rgba(24,18,10,.35)";
+        tctx.lineWidth = 0.4;
+        tctx.stroke();
       }
     }
+
+    /* Composite the unfiltered terrain buffer through the sepia/contrast
+       color-grade in one drawImage() call, rather than running the canvas
+       filter pipeline on every fill()/stroke() above. */
+    ctx.save();
+    ctx.filter = "sepia(0.14) saturate(0.82) contrast(1.07) brightness(1.02)";
+    ctx.drawImage(terrain, 0, 0, W, H);
     ctx.restore();
 
     /* Trade lines from home to partners (play only). */
@@ -790,21 +811,22 @@ export default function WorldMap({
               (a: string, b: string) =>
                 DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
             );
-          const widths = kinds.map(() => diploMarkerWidth(DIPLO_MARKER_SIZE));
+          /* Every diplomacy marker is the same size, so the row width is
+             just kinds.length copies of it plus the gaps between them. */
           const rowW =
-            widths.reduce((sum, w) => sum + w, 0) +
+            kinds.length * DIPLO_MARKER_SIZE +
             DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
-          return { nx, ny, kinds, widths, rowW };
+          return { nx, ny, kinds, rowW };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
 
       for (const dx of offsets) {
-        for (const { nx, ny, kinds, widths, rowW } of partnerMarkerRows) {
+        for (const { nx, ny, kinds, rowW } of partnerMarkerRows) {
           const [x, y] = toScreen(nx, ny, dx);
           let cursor = x - rowW / 2;
-          kinds.forEach((kind, i) => {
-            const sx = cursor + widths[i] / 2;
-            cursor += widths[i] + DIPLO_MARKER_PAD;
+          kinds.forEach((kind) => {
+            const sx = cursor + DIPLO_MARKER_SIZE / 2;
+            cursor += DIPLO_MARKER_SIZE + DIPLO_MARKER_PAD;
             const sy = y - DIPLO_MARKER_OFFSET;
             drawDiploMarker(
               ctx,

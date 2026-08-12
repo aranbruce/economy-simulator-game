@@ -14,7 +14,7 @@ interface ChipProps {
   title?: string;
 }
 
-const STATE_VALUE_COLOR: Record<string, string> = {
+export const STATE_VALUE_COLOR: Record<string, string> = {
   alert: "text-red-lt",
   good: "text-green-lt",
 };

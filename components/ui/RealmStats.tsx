@@ -24,6 +24,7 @@ import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { flagSrc } from "../../lib/ui/flags.ts";
 import { CloseIcon } from "../../lib/ui/icons.tsx";
+import { Button } from "./Button.tsx";
 
 function ensureNations(e: GameState) {
   if (e.nations) {
@@ -332,22 +333,22 @@ export default function RealmStats({
       {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
         <div className="mt-0.5 flex flex-wrap gap-2">
           {onOpenDiplomacy && (
-            <button
-              type="button"
-              className="min-w-0 flex-1 cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] px-3.25 py-1.5 text-[11.5px] font-[650] tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.96]"
+            <Button
+              paper
+              className="min-w-0 flex-1"
               onClick={() => onOpenDiplomacy(role)}
             >
               Open diplomacy
-            </button>
+            </Button>
           )}
           {onOpenTrade && (
-            <button
-              type="button"
-              className="min-w-0 flex-1 cursor-pointer rounded-sm border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] px-3.25 py-1.5 text-[11.5px] font-[650] tracking-[.02em] text-[#1a1814] transition duration-160 hover:bg-[rgba(40,32,18,.12)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.96]"
+            <Button
+              paper
+              className="min-w-0 flex-1"
               onClick={() => onOpenTrade(role)}
             >
               Open trade talks
-            </button>
+            </Button>
           )}
         </div>
       )}

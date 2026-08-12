@@ -198,22 +198,6 @@ export default function CountryPicker({
               <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-[560px]:text-left">
                 {modeHint(sandbox, meta)}
               </p>
-              <label className="mt-0.5 flex max-w-full cursor-pointer items-start gap-2 text-left max-[560px]:max-w-none">
-                <input
-                  type="checkbox"
-                  checked={tutorial}
-                  onChange={(e) => setTutorialOn(e.target.checked)}
-                  className="mt-0.75 flex-none accent-blue"
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <strong className="text-xs font-[650] text-ink">
-                    Tutorial
-                  </strong>
-                  <em className="text-[11px] leading-[1.35] text-ink-soft not-italic">
-                    Sandbox walkthrough as the United Kingdom.
-                  </em>
-                </span>
-              </label>
             </div>
           </div>
           <div
@@ -257,6 +241,15 @@ export default function CountryPicker({
             }
           >
             Get started
+          </SetupGoButton>
+          <SetupGoButton
+            secondary
+            aria-pressed={tutorial}
+            onClick={() => setTutorialOn(!tutorial)}
+            className="aria-pressed:bg-accent-dim aria-pressed:text-accent-lt aria-pressed:shadow-[var(--spec),inset_0_0_0_1px_var(--accent)]"
+            title="Sandbox walkthrough as the United Kingdom"
+          >
+            Tutorial
           </SetupGoButton>
           {typeof onMultiplayer === "function" && (
             <SetupGoButton

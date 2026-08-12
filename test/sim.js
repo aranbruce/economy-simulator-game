@@ -171,6 +171,8 @@ import { sharedCamp } from "../lib/sim/diplomacy.ts";
 import { COUNTRIES } from "../lib/sim/countries.ts";
 import { REALM_LAW } from "../lib/sim/realmLaws.ts";
 import { partnerForIso } from "../lib/sim/partners.ts";
+import { PLAYABLE_REALMS } from "../lib/sim/realms.ts";
+import { FLAG_CODE } from "../lib/ui/flags.ts";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -5331,6 +5333,18 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   continueCoach();
   G = getG();
   assert(G.coachDone === true && G.coach == null, "Finish clears coach");
+}
+
+/* FLAG_CODE (lib/ui/flags.ts) is a hand-synced realm-id -> ISO alpha-2 table,
+   independent of PLAYABLE_REALMS (lib/sim/realms.ts). flagSrc() falls back
+   to the UK flag on a miss rather than erroring, so a realm added without a
+   matching entry would silently render the wrong flag instead of failing
+   loudly — this test is what makes that failure loud instead. */
+for (const realm of PLAYABLE_REALMS) {
+  assert(
+    Object.prototype.hasOwnProperty.call(FLAG_CODE, realm.id),
+    `FLAG_CODE has an entry for realm "${realm.id}"`,
+  );
 }
 
 if (failed) {

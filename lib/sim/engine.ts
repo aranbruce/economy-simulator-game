@@ -10078,9 +10078,9 @@ const billCost = () =>
  *  partly reflects a staged bill's faction effects each quarter (the 0.2
  *  damping in the regen step), so today's approval is a reasonable stand-in
  *  for next quarter's without needing a forward simulation. */
-function capitalOutlook() {
+function capitalOutlook(cost?: number) {
   if (!G) return null;
-  const cost = billCost();
+  if (cost == null) cost = billCost();
   const approval = approvalOf(G.fac);
   const regen =
     polityOf(G.homeRole).capitalRegen * stateFormCapitalRegenMult(G.draft);

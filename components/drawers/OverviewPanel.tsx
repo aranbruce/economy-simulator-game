@@ -11,6 +11,7 @@ import {
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
+import { STATE_VALUE_COLOR } from "../ui/Chip.tsx";
 
 interface Flag {
   label: string;
@@ -34,11 +35,12 @@ export function OverviewPanel() {
       ? `Score ~${therm.toFixed(0)} — ${electionAtRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
       : "Too early to score — the threshold only starts mattering in the final 4 quarters";
 
+  const inflationOff = e.inflation > 4 || e.inflation < 0;
   const flags: Flag[] = [
     {
       label: "Inflation",
-      detail: `${e.inflation.toFixed(1)}% — ${e.inflation > 4 || e.inflation < 0 ? "off target" : "within target"}`,
-      state: e.inflation > 4 || e.inflation < 0 ? "alert" : "",
+      detail: `${e.inflation.toFixed(1)}% — ${inflationOff ? "off target" : "within target"}`,
+      state: inflationOff ? "alert" : "",
     },
     {
       label: "Debt",
@@ -136,13 +138,7 @@ export function OverviewPanel() {
               {f.label}
             </span>
             <span
-              className={`text-[12px] ${
-                f.state === "alert"
-                  ? "text-red-lt"
-                  : f.state === "good"
-                    ? "text-green-lt"
-                    : "text-ink-soft"
-              }`}
+              className={`text-[12px] ${STATE_VALUE_COLOR[f.state] || "text-ink-soft"}`}
             >
               {f.detail}
             </span>

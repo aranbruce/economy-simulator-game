@@ -152,7 +152,7 @@ export function BillDrawer() {
   const dr = balanceOf(G.draft, G.econ);
   const cur = balanceOf(G.law, G.econ);
   const delta = dr.balance - cur.balance;
-  const capOutlook = capitalOutlook();
+  const capOutlook = capitalOutlook(cost);
 
   return (
     <>

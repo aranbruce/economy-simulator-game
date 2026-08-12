@@ -69,7 +69,6 @@ export function PressLayer() {
                   {
                     "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
                     "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
-                    marginLeft: 0,
                   } as CSSProperties
                 }
                 role="button"
