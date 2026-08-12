@@ -417,7 +417,7 @@ function drawDiploMarkerGlyph(
   size: number,
 ) {
   const g = size * 0.21;
-  ctx.strokeStyle = "#1a1408";
+  ctx.strokeStyle = "#f2e6c8";
   ctx.lineWidth = Math.max(1, size * 0.09);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
@@ -452,7 +452,7 @@ function drawDiploMarkerGlyph(
     ctx.stroke();
     ctx.beginPath();
     ctx.arc(cx, cy + g * 0.58, size * 0.045, 0, Math.PI * 2);
-    ctx.fillStyle = "#1a1408";
+    ctx.fillStyle = "#f2e6c8";
     ctx.fill();
   }
 }

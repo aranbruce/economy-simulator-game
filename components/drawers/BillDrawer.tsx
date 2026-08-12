@@ -223,6 +223,22 @@ export function BillDrawer() {
             {sgn(delta, 1)} points versus current law
           </div>
         ) : null}
+        {cl.length > 0 ? (
+          <>
+            <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
+              <span>Political capital</span>
+              <span
+                className={`ml-auto ${G.capital - cost >= 0 ? "text-white" : "text-red-lt"}`}
+              >
+                {Math.round(G.capital - cost)}
+              </span>
+            </div>
+            <div className="pt-1.25 text-[11px] text-ink-faint">
+              {cost > 0 ? `−${cost}` : "No change"} for this bill ·{" "}
+              {Math.round(G.capital)} today
+            </div>
+          </>
+        ) : null}
       </div>
       {G.sandbox ? <ImpactPanel cl={cl} /> : null}
       <Eyebrow className="mt-5">Rules</Eyebrow>
