@@ -111,6 +111,33 @@ const ICONS = {
       <path d="M2 14.5h6" />
     </svg>
   ),
+  clock: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5v4l2.5 2.5" />
+    </svg>
+  ),
+  newspaper: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <rect x="1.8" y="3.2" width="12.4" height="9.6" rx="1" />
+      <path d="M8 3.2v9.6" />
+      <path d="M3.6 5.6h2.8M3.6 7.6h2.8M3.6 9.6h2.8M9.6 5.6h2.8M9.6 7.6h2.8M9.6 9.6h2.8" />
+    </svg>
+  ),
   close: (
     <svg
       width="10"

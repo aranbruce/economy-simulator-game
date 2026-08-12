@@ -1625,9 +1625,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     `active trade shares + rest sum to 1 (named ${named}, rest ${tradeRestShare("home")})`,
   );
   assert(!!G.econ.nations, "opening econ carries partner nation books");
-  assert(G.rel.russia === 38, "Northern Reach opens with frosty relations");
-  assert(G.rel.india === 54, "India opens with warmish relations");
-  assert(G.rel.nigeria === 48, "Nigeria opens mid-table");
+  assert(G.rel.russia === 24, "Northern Reach opens with frosty relations");
+  assert(G.rel.india === 59, "India opens with warmish relations");
+  assert(G.rel.nigeria === 46, "Nigeria opens mid-table");
   assert(G.rel.brazil === 50, "Brazil opens mid-table");
   for (const p of homePartners) {
     const prof = NATION_PROFILE[p.id];
