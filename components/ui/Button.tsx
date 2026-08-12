@@ -15,11 +15,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const BTN_BASE =
   "cursor-pointer rounded-sm border border-edge bg-g-3 font-[650] tracking-[.02em] text-white shadow-spec transition duration-160 hover:border-frame hover:bg-g-4 active:scale-[0.96] disabled:cursor-not-allowed disabled:border-transparent disabled:bg-g-1 disabled:text-ink-faint disabled:active:scale-100 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2";
 
+/* !text-* here isn't decorative — BTN_BASE's text-white and this are the
+   same Tailwind utility layer/specificity, so which one wins is decided by
+   generation order in the compiled stylesheet, not by this string's order.
+   Confirmed via computed style that plain text-paper-ink lost to
+   BTN_BASE's text-white without it. */
 const BTN_DANGER =
-  "border-red/35 bg-red/20 text-red-lt hover:bg-red/35 hover:text-white";
+  "border-red/35 bg-red/20 !text-red-lt hover:bg-red/35 hover:!text-white";
 
 const BTN_PAPER =
-  "shadow-none border-paper-accent/45 bg-paper-accent/12 text-paper-ink hover:border-paper-accent/65 hover:bg-paper-accent/20 focus-visible:outline-paper-accent disabled:border-transparent disabled:bg-paper-border/4 disabled:text-[rgba(26,20,14,.35)]";
+  "shadow-none border-paper-accent/45 bg-paper-accent/12 !text-paper-ink hover:border-paper-accent/65 hover:bg-paper-accent/20 focus-visible:outline-paper-accent disabled:border-transparent disabled:bg-paper-border/4 disabled:!text-[rgba(26,20,14,.35)]";
 
 /** The `.btn` primitive, with `.danger`, `.paper` and `.tiny` modifiers. */
 export function Button({

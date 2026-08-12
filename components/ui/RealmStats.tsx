@@ -220,7 +220,7 @@ export default function RealmStats({
 
   return (
     <aside
-      className="realm-card pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:top-(--drawer-top,160px) max-md:right-[calc(var(--rail-clear)+env(safe-area-inset-right))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:h-auto max-md:max-h-[calc(100dvh-var(--drawer-top,160px)-var(--drawer-bottom,128px))] max-md:w-auto max-md:px-3.5 max-md:py-3 max-sm:max-h-[calc(100dvh-var(--drawer-top,160px)-var(--drawer-bottom,118px))]"
+      className="realm-card pointer-events-auto fixed top-(--drawer-top,72px) left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:right-[calc(var(--rail-clear)+env(safe-area-inset-right))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:size-auto max-md:max-h-[calc(100dvh-var(--drawer-top,160px)-var(--drawer-bottom,128px))] max-md:px-3.5 max-md:py-3 max-sm:max-h-[calc(100dvh-var(--drawer-top,160px)-var(--drawer-bottom,118px))]"
       role="dialog"
       aria-label={snap.name}
     >
@@ -259,7 +259,6 @@ export default function RealmStats({
               ? `${displayCcy} at market rate`
               : vsHomeGdpNote(snap.vsHomeGdp, homeName)
           }
-          tone={snap.us ? null : toneOf(snap.vsHomeGdp - 1, false)}
         />
         <Stat
           label="GDP index"
