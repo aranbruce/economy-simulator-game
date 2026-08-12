@@ -3,6 +3,7 @@
 import {
   TABS,
   billClauses,
+  billCost,
   clausesIn,
   capitalShortfallHint,
   getTab,
@@ -15,10 +16,6 @@ import { useGame } from "../../lib/ui/useGame.ts";
 /* Diplomacy and Charts moved to the right icon rail — see IconRail.tsx,
    which owns their pip/attention-dot logic too. */
 const DOCK_TABS = TABS.filter((t) => t.id !== "diplomacy" && t.id !== "charts");
-
-function billCost() {
-  return billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
-}
 
 interface DockProps {
   onDeliver: () => void;

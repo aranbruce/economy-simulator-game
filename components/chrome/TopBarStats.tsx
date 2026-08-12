@@ -75,7 +75,7 @@ export function TopBarStats() {
 
   return (
     <div
-      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:w-full max-md:flex-[1_1_100%] max-md:flex-wrap md:justify-stretch md:overflow-x-visible"
+      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:grid max-md:w-full max-md:flex-[1_1_100%] max-md:grid-cols-2 max-md:overflow-x-visible max-md:[&>*:nth-child(even)]:border-r-0 md:justify-stretch md:overflow-x-visible"
       id="tbStats"
     >
       {chips.map((c) => (

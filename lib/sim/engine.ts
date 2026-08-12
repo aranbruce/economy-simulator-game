@@ -16916,6 +16916,7 @@ export {
   project,
   simulate,
   billClauses,
+  billCost,
   capitalOutlook,
   billShock,
   projectionWarnings,

@@ -17,7 +17,7 @@ export function Eyebrow({ children, className = "" }: TextProps) {
 }
 
 const HINT_BASE = "text-[12.5px] text-ink-soft leading-[1.4]";
-const HINT_MARGIN_DEFAULT = "-mt-[3px] mb-3";
+const HINT_MARGIN_DEFAULT = "-mt-0.75 mb-3";
 
 export function Hint({ children, className = "" }: TextProps) {
   return (
