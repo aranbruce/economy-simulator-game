@@ -86,7 +86,7 @@ export function Dock({
       className="hud-surface fixed bottom-2.5 left-1/2 z-20 flex -translate-x-1/2 items-center gap-4 p-1.5 max-md:right-[max(6px,env(safe-area-inset-right))] max-md:bottom-[max(6px,env(safe-area-inset-bottom))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:w-auto max-md:translate-x-0 max-md:flex-wrap max-md:gap-1.5"
     >
       <div
-        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-visible overflow-x-auto py-1.5 max-md:order-1 max-md:flex-[1_1_100%] max-md:flex-wrap max-md:justify-center max-md:gap-1 max-md:overflow-x-visible max-md:pb-0 max-sm:justify-center max-sm:gap-0.5"
+        className="flex min-w-0 flex-1 scrollbar-none gap-0.75 overflow-visible overflow-x-auto py-1.5 max-md:order-1 max-md:flex-[1_1_100%] max-md:flex-wrap max-md:justify-center max-md:gap-1 max-md:overflow-x-visible max-md:pb-0 max-sm:flex-nowrap max-sm:gap-1"
         id="dockTabs"
       >
         {DOCK_TABS.map((t) => {
@@ -96,14 +96,14 @@ export function Dock({
             <button
               key={t.id}
               type="button"
-              className={`dock-dome relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-lg px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] uppercase transition-colors duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:min-h-11 max-md:min-w-11 max-md:justify-center max-md:px-2.5 max-md:py-1.5 max-md:text-[9px] max-sm:relative max-sm:min-w-10.5 max-sm:px-2.25 max-sm:py-2 ${active ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
+              className={`dock-dome relative flex min-w-14.5 flex-none flex-col items-center gap-0.5 rounded-lg px-3 py-1.75 text-[10px] font-semibold tracking-[.02em] uppercase transition-colors duration-180 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent max-md:min-h-11 max-md:min-w-11 max-md:justify-center max-md:px-2.5 max-md:py-1.5 max-md:text-[9px] max-sm:min-w-0 max-sm:flex-1 max-sm:px-1.5 max-sm:py-2 ${active ? "active text-accent-lt" : "text-ink-soft hover:text-white"}`}
               data-tab={t.id}
               aria-label={t.name}
               aria-expanded={active}
               onClick={() => setTab(tab === t.id ? null : t.id)}
             >
               <TabIcon name={t.icon as any} />
-              <span className="max-sm:sr-only">{t.name}</span>
+              <span>{t.name}</span>
               {pip}
             </button>
           );

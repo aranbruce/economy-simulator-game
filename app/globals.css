@@ -27,6 +27,14 @@
   --color-purple: var(--purple);
   --color-pink: var(--pink);
   --color-teal: var(--teal);
+  --color-paper-bg: var(--paper-bg);
+  --color-paper-ink: var(--paper-ink);
+  --color-paper-ink-soft: var(--paper-ink-soft);
+  --color-paper-ink-faint: var(--paper-ink-faint);
+  --color-paper-accent: var(--paper-accent);
+  --color-paper-border: var(--paper-border);
+  --color-paper-green: var(--paper-green);
+  --color-paper-red: var(--paper-red);
   --radius-lg: var(--r-lg);
   --radius-md: var(--r-md);
   --radius-sm: var(--r-sm);
@@ -84,12 +92,38 @@
   /* Screen-edge inset for topbar/dock; drawer keeps the same gap above the dock. */
   --chrome-inset: 10px;
   --drawer-above-dock: 88px; /* inset + dock ≈58px + matching 10px gap */
+  /* How far the desktop drawer (DrawerShell.tsx, lg: tier) sits from the
+     right edge to clear IconRail.tsx's button column — hand-tuned to the
+     rail's size-11 (44px) buttons plus breathing room, not derived
+     automatically. Update this if the rail's button size changes. */
+  --rail-clear: 60px;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(0, 0, 0, 0.25);
 
   --sans: "Plus Jakarta Sans", system-ui, "Segoe UI", sans-serif;
   --display: "Instrument Serif", Georgia, "Times New Roman", serif;
   --mono: var(--sans);
+
+  /* Cream newspaper-clipping skin — despatches/briefings/press copy and the
+     paper-styled controls on realm cards. A separate palette from the dark
+     HUD tokens above, not a light-mode variant of them, so it's kept as its
+     own token set rather than swapped in per theme. Border/bg tints use
+     Tailwind's opacity modifier (border-paper-border/22, bg-paper-border/6,
+     …) against the one --paper-border token instead of a token per alpha. */
+  --paper-bg: #f4efe4;
+  --paper-ink: #1a1814;
+  --paper-ink-soft: #3a3428;
+  --paper-ink-faint: #6b5c3e;
+  --paper-accent: #8a6420;
+  --paper-border: #281e12;
+  --paper-green: #2e6b2e;
+  --paper-red: #a4392b;
+  --paper-gradient: linear-gradient(
+    165deg,
+    #f4efe4 0%,
+    #ebe4d4 55%,
+    #e4dcc8 100%
+  );
 }
 * {
   box-sizing: border-box;

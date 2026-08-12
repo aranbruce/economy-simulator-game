@@ -25,10 +25,10 @@ export function ImpactChips({
 }) {
   if (!chips || !chips.length) return null;
   const upCls = paper
-    ? "bg-[rgba(46,125,50,.12)] text-[#2e6b2e]"
+    ? "bg-paper-green/12 text-paper-green"
     : "bg-green/16 text-green-lt";
   const downCls = paper
-    ? "bg-[rgba(164,57,43,.12)] text-[#a4392b]"
+    ? "bg-paper-red/12 text-paper-red"
     : "bg-red/16 text-red-lt";
   return (
     <div className="flex flex-wrap gap-1">
@@ -53,9 +53,9 @@ export function ImpactFactions({
   factions: ImpactFactionsData | null;
   paper?: boolean;
 }) {
-  const faint = paper ? "text-[#6b5c3e]" : "text-ink-faint";
-  const up = paper ? "text-[#2e6b2e]" : "text-green-lt";
-  const down = paper ? "text-[#a4392b]" : "text-red-lt";
+  const faint = paper ? "text-paper-ink-faint" : "text-ink-faint";
+  const up = paper ? "text-paper-green" : "text-green-lt";
+  const down = paper ? "text-paper-red" : "text-red-lt";
   if (!factions || factions.empty) {
     return (
       <div className={`mt-1.25 flex flex-wrap gap-2.25 text-[11px] ${faint}`}>

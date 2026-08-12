@@ -10440,6 +10440,16 @@ const ICONS = {
 /** Rough running score the termReview() formula will use — for the thermometer. */ function electionThermometer() {
   return termReviewScore();
 }
+/** Single source of truth for "is the term review going badly enough to
+ *  matter" — the last 4 quarters before the review, scored below the
+ *  polity's loseAt threshold. Used by OverviewPanel's warning box,
+ *  ongoingSituations() (so it surfaces on the rail's Overview badge too),
+ *  and the pre-election news story below. */
+function electionAtRisk() {
+  const left = electionQuartersLeft();
+  const therm = electionThermometer();
+  return { left, therm, atRisk: left <= 4 && therm <= polityOf().loseAt };
+}
 function termReviewScore() {
   const e = G.econ;
   const meta = polityOf(G.homeRole);
@@ -10724,7 +10734,7 @@ function ongoingSituations(g?: any) {
   if (!state) return [];
   const out: {
     id: string;
-    kind: "visit" | "episode";
+    kind: "visit" | "episode" | "election";
     label: string;
     sub: string;
     left: number;
@@ -10749,6 +10759,21 @@ function ongoingSituations(g?: any) {
       label: state.episode.title || "Ongoing episode",
       sub: `${left} quarter${left === 1 ? "" : "s"} left`,
       left,
+    });
+  }
+  /* electionAtRisk() reads the live G directly rather than `state` — fine
+     while this function's only two callers (IconRail, OverviewPanel) both
+     pass the live G; would need threading through if ongoingSituations()
+     ever gains a preview/simulate call site. */
+  const risk = electionAtRisk();
+  if (risk.atRisk) {
+    const noun = reviewNoun();
+    out.push({
+      id: "election-risk",
+      kind: "election",
+      label: `${noun.charAt(0).toUpperCase() + noun.slice(1)} at risk`,
+      sub: `${risk.left} quarter${risk.left === 1 ? "" : "s"} to go — score ~${risk.therm.toFixed(0)}`,
+      left: risk.left,
     });
   }
   return out;
@@ -16308,6 +16333,25 @@ function enact() {
       q: Math.max(0, G.q - 1),
       brief: G.brief,
     });
+    /* A one-off warning story exactly two quarters out — electionAtRisk()
+       only reads true right at that boundary once per term, so this can't
+       double-fire without another full step() (i.e. another Deliver). */
+    const risk = electionAtRisk();
+    if (risk.atRisk && risk.left === 2) {
+      const noun = reviewNoun();
+      const isCoup = polityOf(G.homeRole).kind === "congress";
+      clips.push({
+        kind: "election-risk",
+        masthead: isCoup ? "Party Bulletin" : "The Fiscal Gazette",
+        headline: isCoup
+          ? "Whispers of a reshuffle in the ranks"
+          : `Two quarters from the ${noun} — and it shows`,
+        lede: isCoup
+          ? "Patriot sentiment inside the apparatus is running cold. Allies and rivals alike are watching the numbers."
+          : `The score is running behind where it needs to be. Unless it turns, the ${noun} looks lost.`,
+        kicker: qLabel(G, Math.max(0, G.q - 1)),
+      });
+    }
     render();
     _quarterFlashLock = true;
     const _db = $("deliverBtn");
@@ -16954,6 +16998,7 @@ export {
   careerHint,
   electionQuartersLeft,
   electionThermometer,
+  electionAtRisk,
   termReviewScore,
   termReviewDue,
   termReview,

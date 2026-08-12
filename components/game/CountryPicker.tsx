@@ -16,9 +16,9 @@ import {
   playerCountryId,
   polityOf,
 } from "../../lib/sim/engine.ts";
-import { flagSrc } from "../../lib/ui/flags.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
+import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role: string) {
@@ -129,17 +129,7 @@ export default function CountryPicker({
           <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">
               <div className="flex items-center gap-3">
-                <span
-                  className="grid size-12 flex-none place-items-center overflow-hidden rounded-full border-2 border-accent shadow-[0_3px_10px_rgba(0,0,0,.5)]"
-                  aria-hidden="true"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={flagSrc(playerCountryId(realm.role))}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </span>
+                <FlagAvatar role={playerCountryId(realm.role)} size="size-12" />
                 <strong className="text-[19px]">{realm.name}</strong>
               </div>
               <em>{realm.blurb}</em>

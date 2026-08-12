@@ -25,17 +25,17 @@ type BlocModalState =
  *  isBriefing ternary repeated at every styled node below. */
 const PAPER_SKIN = {
   shell:
-    "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-[rgba(40,32,18,.28)] bg-[linear-gradient(165deg,#f4efe4_0%,#ebe4d4_55%,#e4dcc8_100%)] shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
+    "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
   header:
-    "border-b border-[rgba(40,32,18,.22)] px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
-  stamp: "text-[10px] font-bold tracking-[.14em] text-[#8a6420] uppercase",
-  rule: "mt-2 h-px w-16 bg-[linear-gradient(90deg,#8a6420,transparent)]",
+    "border-b border-paper-border/22 px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
+  stamp: "text-[10px] font-bold tracking-[.14em] text-paper-accent uppercase",
+  rule: "mt-2 h-px w-16 bg-[linear-gradient(90deg,var(--paper-accent),transparent)]",
   title:
-    "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight text-[#1a1814] max-md:text-[26px]",
-  body: "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] text-[#1a1814] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3",
+    "mt-2.5 mb-0 font-display text-[32px] leading-[1.1] font-normal tracking-tight text-paper-ink max-md:text-[26px]",
+  body: "px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] text-paper-ink max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-[14px] [&_p]:mt-0 [&_p]:mb-3",
   option:
-    "cursor-pointer rounded-md border border-l-3 border-[rgba(40,32,18,.22)] border-l-[rgba(40,32,18,.35)] bg-[rgba(40,32,18,.045)] px-3.25 py-2.75 text-left font-sans text-sm text-[#1a1814] transition duration-160 hover:border-l-[#8a6420] hover:bg-[rgba(40,32,18,.09)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8a6420] active:scale-[0.99] max-md:min-h-11 max-md:p-3",
-  optionSub: "mt-0.75 block text-xs text-[#3a3428] not-italic",
+    "cursor-pointer rounded-md border border-l-3 border-paper-border/22 border-l-paper-border/35 bg-paper-border/4.5 px-3.25 py-2.75 text-left font-sans text-sm text-paper-ink transition duration-160 hover:border-l-paper-accent hover:bg-paper-border/9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3",
+  optionSub: "mt-0.75 block text-xs text-paper-ink-soft not-italic",
 };
 
 const HUD_SKIN = {

@@ -28,19 +28,19 @@ export function BriefingBody({
   );
 
   const goldBox = paper
-    ? "border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.05)] shadow-none"
+    ? "border-paper-border/22 bg-paper-border/5 shadow-none"
     : "border-accent/22 bg-accent/9 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
   const amberBox = paper
-    ? "border-[rgba(138,100,32,.32)] bg-[rgba(138,100,32,.08)] shadow-none"
+    ? "border-paper-accent/32 bg-paper-accent/8 shadow-none"
     : "border-amber/24 bg-amber/8 shadow-[inset_0_1px_0_rgba(255,255,255,.06)]";
-  const eyebrowGold = paper ? "text-[#8a6420]" : "text-accent-lt";
-  const eyebrowAmber = paper ? "text-[#8a5a20]" : "text-amber";
-  const faint = paper ? "text-[#6b5c3e]" : "text-ink-faint";
-  const body = paper ? "text-[#1a1814]" : "text-white";
-  const soft = paper ? "text-[#3a3428]" : "text-ink-soft";
-  const ink = paper ? "text-[#1a1814]" : "text-ink";
-  const edge = paper ? "border-[rgba(40,32,18,.22)]" : "border-edge";
-  const accentEdge = paper ? "border-[#8a6420]" : "border-accent";
+  const eyebrowGold = paper ? "text-paper-accent" : "text-accent-lt";
+  const eyebrowAmber = paper ? "text-paper-accent" : "text-amber";
+  const faint = paper ? "text-paper-ink-faint" : "text-ink-faint";
+  const body = paper ? "text-paper-ink" : "text-white";
+  const soft = paper ? "text-paper-ink-soft" : "text-ink-soft";
+  const ink = paper ? "text-paper-ink" : "text-ink";
+  const edge = paper ? "border-paper-border/22" : "border-edge";
+  const accentEdge = paper ? "border-paper-accent" : "border-accent";
 
   return (
     <div className="mb-4 grid gap-3">

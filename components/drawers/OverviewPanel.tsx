@@ -3,15 +3,14 @@
 import {
   FACTIONS,
   approvalOf,
-  electionQuartersLeft,
-  electionThermometer,
+  electionAtRisk,
   ongoingSituations,
-  polityOf,
   reviewNoun,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { STATE_VALUE_COLOR } from "../ui/Chip.tsx";
+import { Callout } from "../ui/Callout.tsx";
 
 interface Flag {
   label: string;
@@ -24,15 +23,13 @@ export function OverviewPanel() {
   const e = G.econ;
   const situations = ongoingSituations(G);
   const appr = approvalOf(G.fac);
-  const left = electionQuartersLeft();
-  const therm = electionThermometer();
+  const risk = electionAtRisk();
   const noun = reviewNoun();
   const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
 
-  const electionAtRisk = left <= 4 && therm <= polityOf().loseAt;
   const electionDetail =
-    left <= 4
-      ? `Score ~${therm.toFixed(0)} — ${electionAtRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
+    risk.left <= 4
+      ? `Score ~${risk.therm.toFixed(0)} — ${risk.atRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
       : "Too early to score — the threshold only starts mattering in the final 4 quarters";
 
   const inflationOff = e.inflation > 4 || e.inflation < 0;
@@ -61,13 +58,18 @@ export function OverviewPanel() {
     },
   ];
 
+  /* The election-risk entry ongoingSituations() adds is what feeds the
+     rail's Overview badge — shown here as its own richer section below
+     instead of a second time in this list. */
+  const otherSituations = situations.filter((s) => s.kind !== "election");
+
   return (
     <>
-      {situations.length > 0 ? (
+      {otherSituations.length > 0 ? (
         <>
           <Eyebrow>Ongoing situations</Eyebrow>
           <div className="mb-4 flex flex-col gap-1.5">
-            {situations.map((s) => (
+            {otherSituations.map((s) => (
               <div
                 key={s.id}
                 className="rounded-md border border-edge bg-g-1 px-3 py-2.25"
@@ -83,25 +85,28 @@ export function OverviewPanel() {
       ) : null}
 
       <Eyebrow>{nounLabel}</Eyebrow>
-      <div
-        className={`mb-4 rounded-md border px-3 py-2.25 ${electionAtRisk ? "border-red/35 bg-red/8" : "border-edge bg-g-1"}`}
-      >
-        <div className="flex items-baseline gap-2 text-[12.5px] font-[650]">
-          <span>
-            {left} quarter{left === 1 ? "" : "s"} to go
-          </span>
-          {electionAtRisk ? (
-            <span className="ml-auto text-[10px] font-bold tracking-[.04em] text-red-lt uppercase">
+      {risk.atRisk ? (
+        <Callout tone="red" className="mb-4">
+          <div className="flex items-baseline gap-2 text-[12.5px] font-[650]">
+            <span>
+              {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
+            </span>
+            <span className="ml-auto text-[10px] font-bold tracking-[.04em] uppercase">
               At risk
             </span>
-          ) : null}
+          </div>
+          <div className="mt-0.5 text-[11px]">{electionDetail}</div>
+        </Callout>
+      ) : (
+        <div className="mb-4 rounded-md border border-edge bg-g-1 px-3 py-2.25">
+          <div className="text-[12.5px] font-[650]">
+            {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
+          </div>
+          <div className="mt-0.5 text-[11px] text-ink-faint">
+            {electionDetail}
+          </div>
         </div>
-        <div
-          className={`mt-0.5 text-[11px] ${electionAtRisk ? "text-red-lt" : "text-ink-faint"}`}
-        >
-          {electionDetail}
-        </div>
-      </div>
+      )}
 
       <Eyebrow>Faction approval</Eyebrow>
       <div className="mb-4 flex flex-col gap-2">

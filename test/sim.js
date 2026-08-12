@@ -173,6 +173,7 @@ import { REALM_LAW } from "../lib/sim/realmLaws.ts";
 import { partnerForIso } from "../lib/sim/partners.ts";
 import { PLAYABLE_REALMS } from "../lib/sim/realms.ts";
 import { FLAG_CODE } from "../lib/ui/flags.ts";
+import { REALM_FILL } from "../lib/sim/boardMetrics.ts";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -5344,6 +5345,18 @@ for (const realm of PLAYABLE_REALMS) {
   assert(
     Object.prototype.hasOwnProperty.call(FLAG_CODE, realm.id),
     `FLAG_CODE has an entry for realm "${realm.id}"`,
+  );
+}
+
+/* REALM_FILL (lib/sim/boardMetrics.ts) is a second hand-synced table keyed
+   off the same country ids COUNTRIES (lib/sim/countries.ts) already
+   enumerates. A country added to COUNTRIES without a matching REALM_FILL
+   entry doesn't error either — fillFor() falls back to a generic grey — so
+   this closes the same silent-drift gap the FLAG_CODE check above does. */
+for (const c of COUNTRIES) {
+  assert(
+    Object.prototype.hasOwnProperty.call(REALM_FILL, c.id),
+    `REALM_FILL has an entry for country "${c.id}"`,
   );
 }
 

@@ -119,7 +119,12 @@ function boardMetricValue(
   if (!G) return null;
   if (metric === "countries" || metric === "blocs") return null;
   if (role === "home") {
-    if (metric === "relations") return 100;
+    /* A country has no relation score with itself — null suppresses the
+       figure everywhere boardMetricValueLabel() feeds (the map label, the
+       MapChrome caption), rather than showing a meaningless "100". The
+       map fill still resolves to HOME_MARK regardless, in
+       boardMetricColour(). */
+    if (metric === "relations") return null;
     if (metric === "growth") return homeGrowth(G);
     if (metric === "deficit") return homeDeficit(G);
     return null;

@@ -13,16 +13,16 @@ import { CloseIcon } from "../../lib/ui/icons.tsx";
 function ClipBody({ c }: { c: any }) {
   return (
     <>
-      <div className="clip-mast mb-0.5 text-[9.5px] font-bold tracking-[.14em] text-[#6b5c3e] uppercase">
+      <div className="clip-mast mb-0.5 text-[9.5px] font-bold tracking-[.14em] text-paper-ink-faint uppercase">
         {c.masthead}
       </div>
-      <div className="clip-kick mb-1.75 border-b border-[rgba(40,32,18,.18)] pb-1.25 text-[10px] text-[#8a7a5a]">
+      <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-[10px] text-[#8a7a5a]">
         {c.kicker}
       </div>
       <h4 className="clip-hed mb-1.5 font-display text-base leading-[1.2] font-normal tracking-[-.01em] text-[#14120e]">
         {c.headline}
       </h4>
-      <p className="clip-lede m-0 text-[11.5px] leading-[1.4] text-[#3a3428]">
+      <p className="clip-lede m-0 text-[11.5px] leading-[1.4] text-paper-ink-soft">
         {c.lede}
       </p>
     </>
@@ -43,16 +43,18 @@ export function PressLayer() {
     <>
       {/* No backdrop, no card — clippings float directly over the map, same
           as before they were gated behind News, just shown on demand now.
-          Anchored beside the rail's News dome (top-[calc(25%-96px)] lines
-          up with that button's vertical centre) rather than the bottom
-          corner. Hidden outright while a clip is focused, rather than just
-          relying on the focused view's backdrop, since the list sits
-          outside the focused view's z-index stack and would otherwise show
-          through beside it. */}
+          Anchored beside the rail's News dome: IconRail is centred with
+          top-1/2, its 4 buttons (size-11 + gap-1.5, py-5 top padding) run
+          234px tall, so the first (News) button's top edge sits at
+          calc(50% - 117px + 20px) = calc(50% - 97px) — top-[calc(50%-96px)]
+          below lines up with it. Rather than the bottom corner. Hidden
+          outright while a clip is focused, rather than just relying on the
+          focused view's backdrop, since the list sits outside the focused
+          view's z-index stack and would otherwise show through beside it. */}
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-[calc(25%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-[calc(50%-96px)] right-14 z-40 flex max-h-[70vh] w-[min(280px,46vw)] flex-col gap-3 overflow-y-auto p-4 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {ordered.length === 0 ? (
@@ -84,7 +86,7 @@ export function PressLayer() {
               >
                 {!c.seen ? (
                   <span
-                    className="absolute top-2.5 right-2.5 size-2 rounded-full bg-[#a4392b]"
+                    className="absolute top-2.5 right-2.5 size-2 rounded-full bg-paper-red"
                     aria-hidden="true"
                   />
                 ) : null}
@@ -115,7 +117,7 @@ export function PressLayer() {
             <button
               type="button"
               aria-label="Close"
-              className="absolute top-2.5 right-2.5 grid size-7 cursor-pointer place-items-center rounded-full border border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] text-[#6b5c3e] transition duration-160 hover:bg-[rgba(40,32,18,.14)] hover:text-[#1a1814] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]"
+              className="absolute top-2.5 right-2.5 grid size-7 cursor-pointer place-items-center rounded-full border border-paper-border/22 bg-paper-border/6 text-paper-ink-faint transition duration-160 hover:bg-paper-border/14 hover:text-paper-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]"
               onClick={(e) => {
                 e.stopPropagation();
                 closeFocusedPress();

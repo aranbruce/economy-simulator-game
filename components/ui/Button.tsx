@@ -19,7 +19,7 @@ const BTN_DANGER =
   "border-red/35 bg-red/20 text-red-lt hover:bg-red/35 hover:text-white";
 
 const BTN_PAPER =
-  "shadow-none border-[rgba(40,32,18,.22)] bg-[rgba(40,32,18,.06)] text-[#1a1814] hover:border-[rgba(40,32,18,.22)] hover:bg-[rgba(40,32,18,.12)] focus-visible:outline-[#8a6420] disabled:border-transparent disabled:bg-[rgba(40,32,18,.04)] disabled:text-[rgba(26,20,14,.35)]";
+  "shadow-none border-paper-border/22 bg-paper-border/6 text-paper-ink hover:border-paper-border/22 hover:bg-paper-border/12 focus-visible:outline-paper-accent disabled:border-transparent disabled:bg-paper-border/4 disabled:text-[rgba(26,20,14,.35)]";
 
 /** The `.btn` primitive, with `.danger`, `.paper` and `.tiny` modifiers. */
 export function Button({

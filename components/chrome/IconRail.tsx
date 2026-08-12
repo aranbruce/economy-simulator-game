@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  TABS,
   getNewsOpen,
   getTab,
   hasDiploAttention,
@@ -17,6 +18,13 @@ import { useGame } from "../../lib/ui/useGame.ts";
  *  stays identical across News/Overview/Diplomacy/Charts. */
 const POPOVER_CLS =
   "pointer-events-none absolute right-full mr-3 rounded-md border border-accent bg-panel px-2.5 py-1.5 text-xs font-bold whitespace-nowrap text-accent-lt opacity-0 shadow-spec transition-opacity duration-150 group-hover:opacity-100";
+
+/* TABS (engine.ts) is the one place tab name/icon metadata is authored —
+   Dock.tsx already filters it down to render its own half; the rail reads
+   its two entries back out rather than re-declaring "Diplomacy"/"seal" and
+   "Charts"/"chart" a second time. */
+const diploTab = TABS.find((t) => t.id === "diplomacy")!;
+const chartsTab = TABS.find((t) => t.id === "charts")!;
 
 type RailIcon = Parameters<typeof TabIcon>[0]["name"];
 /** The News/Overview badges show a live count; Diplomacy/Charts show a
@@ -73,10 +81,10 @@ export function IconRail() {
     },
     {
       id: "diplomacy",
-      name: "Diplomacy",
-      icon: "seal",
+      name: diploTab.name,
+      icon: diploTab.icon as RailIcon,
       active: tab === "diplomacy",
-      ariaLabel: "Diplomacy",
+      ariaLabel: diploTab.name,
       badge: diploAttn
         ? { kind: "pip", color: diploUlt ? "red" : "amber" }
         : null,
@@ -84,10 +92,10 @@ export function IconRail() {
     },
     {
       id: "charts",
-      name: "Charts",
-      icon: "chart",
+      name: chartsTab.name,
+      icon: chartsTab.icon as RailIcon,
       active: tab === "charts",
-      ariaLabel: "Charts",
+      ariaLabel: chartsTab.name,
       /* No clause is ever tagged tab: "charts" (nothing in Charts is
          staged/enacted through the bill — it's read-only), so this button
          never has a pip to show. Avoids running billClauses()'s full
