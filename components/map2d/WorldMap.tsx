@@ -858,27 +858,37 @@ export default function WorldMap({
         const polys = polysForRole(role, countries, hRole, hIso, setupMode);
         if (!polys) return null;
         const [nx, ny] = polysCentroid(polys);
-        let text;
+        let rawText;
         if (role === "home") {
           const homeName = setupMode
             ? realmByRole("home").name
             : (G && G.country) || realmByRole(hRole).name;
-          text = setupMode
+          rawText = setupMode
             ? homeName
             : boardMetricMapLabel("home", mapMetric ?? null, homeName, G);
         } else {
           const p = PARTNERS.find((x) => x.id === role);
           const name = p ? p.name : role;
-          text = setupMode
+          rawText = setupMode
             ? name
             : boardMetricMapLabel(role, mapMetric ?? null, name, G);
         }
+        const text = rawText.toUpperCase();
         const hot = isSelected(role) || hoverRole === role;
         /* Placement priority is separate from hot's bold/gold styling — the
            player's own realm should keep its label even when neither
            selected nor hovered. */
         const priority = hot || role === "home" ? 1 : 0;
-        return { nx, ny, text: text.toUpperCase(), hot, priority };
+        const font = hot
+          ? '700 12px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif'
+          : '600 11px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif';
+        /* Font/width only depend on the label itself, not which wrapped
+           copy of the world it's drawn at — compute once here rather than
+           inside the offsets loop below, which redoes it 2-3x per label
+           on every paint(). */
+        ctx.font = font;
+        const w = ctx.measureText(text).width;
+        return { nx, ny, text, hot, priority, font, w };
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
       /* Stable sort: priority labels claim their space first, so a crowded
@@ -892,12 +902,8 @@ export default function WorldMap({
     ctx.shadowBlur = 4;
     for (const dx of offsets) {
       const placed: { x0: number; y0: number; x1: number; y1: number }[] = [];
-      for (const { nx, ny, text, hot } of labelRows) {
+      for (const { nx, ny, text, hot, font, w } of labelRows) {
         const [x, y] = toScreen(nx, ny, dx);
-        ctx.font = hot
-          ? '700 12px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif'
-          : '600 11px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif';
-        const w = ctx.measureText(text).width;
         const h = hot ? 15 : 14;
         const pad = 3;
         const box = {
@@ -911,6 +917,7 @@ export default function WorldMap({
         );
         if (collides) continue;
         placed.push(box);
+        ctx.font = font;
         ctx.shadowOffsetY = hot ? 1 : 0.5;
         ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
         ctx.fillText(text, x, y);
