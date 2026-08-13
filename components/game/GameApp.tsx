@@ -451,14 +451,31 @@ export default function GameApp() {
   }, [waiting, mpRoom]);
 
   /* Mobile drawer: pin between the live topbar and dock so a wrapped stats
-   row never covers the panel title. */
+   row never covers the panel title. At lg+ the drawer docks beside the map
+   as a right-hand card instead of stacking above the dock, so its bottom
+   edge also has to clear the map's metric filter row, which stays centred
+   and doesn't move out of the way itself at that width (below lg, MapChrome
+   already pins itself above the drawer via this same --drawer-bottom var,
+   so folding its rect into this calc there would be circular). worldOk is
+   a dependency though never read in the body below — MapChrome (and
+   #mapMetrics with it) unmounts when the map fails to load, and since
+   MapChrome is position: fixed, that unmount doesn't itself resize
+   anything this effect's ResizeObserver watches, so without worldOk here
+   a mid-session map failure would leave --drawer-bottom stuck at its
+   stale, mapMetrics-inflated value until an unrelated resize happened to
+   trigger a resync. */
   useEffect(() => {
     if (phase !== "play") return undefined;
     const root = document.documentElement;
     const gap = 10;
+    /* Distance from a given top offset to the viewport's bottom edge, plus
+     *  gap — shared by the dock and the lg+ map-metrics clearance below. */
+    const clearanceFromBottom = (top: number) =>
+      Math.ceil(window.innerHeight - top) + gap;
     const sync = () => {
       const topbar = document.getElementById("topbar");
       const dock = document.getElementById("dock");
+      const mapMetrics = document.getElementById("mapMetrics");
       const mpHud = document.querySelector(".mp-hud");
       let top = gap;
       if (topbar) {
@@ -469,10 +486,18 @@ export default function GameApp() {
         if (r.height > 0) top = Math.max(top, Math.ceil(r.bottom) + gap);
       }
       let bottom = 128;
-      if (dock) {
-        bottom =
-          Math.ceil(window.innerHeight - dock.getBoundingClientRect().top) +
-          gap;
+      if (dock) bottom = clearanceFromBottom(dock.getBoundingClientRect().top);
+      /* 64rem, not a hardcoded 1024px — Tailwind's lg:/max-lg: breakpoint
+       *  (the CSS this gate is meant to mirror) is set in rem, so it scales
+       *  with the root font-size. A px-only check would drift out of step
+       *  with the CSS at a non-default root size (e.g. a browser "larger
+       *  text" setting) and reopen the circular dependency the comment
+       *  above this effect describes. */
+      if (mapMetrics && window.matchMedia("(min-width: 64rem)").matches) {
+        const r = mapMetrics.getBoundingClientRect();
+        if (r.height > 0) {
+          bottom = Math.max(bottom, clearanceFromBottom(r.top));
+        }
       }
       root.style.setProperty("--drawer-top", `${top}px`);
       root.style.setProperty("--drawer-bottom", `${bottom}px`);
@@ -482,10 +507,12 @@ export default function GameApp() {
       typeof ResizeObserver === "function" ? new ResizeObserver(sync) : null;
     const topbar = document.getElementById("topbar");
     const dock = document.getElementById("dock");
+    const mapMetrics = document.getElementById("mapMetrics");
     const stats = document.getElementById("tbStats");
     if (ro) {
       if (topbar) ro.observe(topbar);
       if (dock) ro.observe(dock);
+      if (mapMetrics) ro.observe(mapMetrics);
       if (stats) ro.observe(stats);
     }
     const mo =
@@ -506,7 +533,7 @@ export default function GameApp() {
       root.style.removeProperty("--drawer-top");
       root.style.removeProperty("--drawer-bottom");
     };
-  }, [phase, mpRoom]);
+  }, [phase, mpRoom, worldOk]);
 
   const bootstrapPlay = useCallback(
     (opts: any) => {
