@@ -198,7 +198,7 @@ export const LAW_GROUPS: LawGroup[] = [
   {
     id: "assemblyRights",
     name: "Freedom of association & assembly",
-    menu: "state",
+    menu: "rights",
     cat: "Civil Liberties",
     options: [
       {
@@ -233,7 +233,7 @@ export const LAW_GROUPS: LawGroup[] = [
   {
     id: "strikeLegality",
     name: "Legality of strikes",
-    menu: "state",
+    menu: "rights",
     cat: "Civil Liberties",
     options: [
       {
