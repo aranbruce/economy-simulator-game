@@ -29,6 +29,13 @@ export interface Country {
   tradeShare: number;
   blurb: string;
   deals: CountryDeal[];
+  /** Real-world capital lat/lng, for the 3D map layer's capital-city markers.
+   *  `iso` is a real ISO-3166 numeric code plotted on the unmodified Natural
+   *  Earth topojson (see WorldMap.tsx) — countries sit at their real
+   *  geographic position on this board (only the politics are fictional), so
+   *  real capital coordinates land correctly; do not swap these for invented
+   *  positions. */
+  capital: { lat: number; lng: number };
 }
 
 export const COUNTRY_REGIONS: Record<string, string> = {
@@ -66,6 +73,7 @@ export const COUNTRIES: Country[] = [
     name: "Germany",
     region: "europe",
     iso: "276",
+    capital: { lat: 52.52, lng: 13.405 }, // Berlin
     tradeShare: 0.12,
     blurb:
       "Industrial heartland. Rules-minded, export-heavy, allergic to fiscal chaos elsewhere.",
@@ -101,6 +109,7 @@ export const COUNTRIES: Country[] = [
     name: "France",
     region: "europe",
     iso: "250",
+    capital: { lat: 48.8566, lng: 2.3522 }, // Paris
     tradeShare: 0.07,
     blurb:
       "Wine, strikes, and institutions that outlast whichever government is nominally in charge.",
@@ -139,6 +148,7 @@ export const COUNTRIES: Country[] = [
     name: "Italy",
     region: "europe",
     iso: "380",
+    capital: { lat: 41.9028, lng: 12.4964 }, // Rome
     tradeShare: 0.04,
     blurb:
       "Design, food, and a debt stock that makes every budget conversation longer.",
@@ -161,6 +171,7 @@ export const COUNTRIES: Country[] = [
     name: "Spain",
     region: "europe",
     iso: "724",
+    capital: { lat: 40.4168, lng: -3.7038 }, // Madrid
     tradeShare: 0.035,
     blurb: "Tourism, agriculture, and a bridge to the southern Atlantic.",
     deals: [
@@ -182,6 +193,7 @@ export const COUNTRIES: Country[] = [
     name: "Netherlands",
     region: "europe",
     iso: "528",
+    capital: { lat: 52.3676, lng: 4.9041 }, // Amsterdam
     tradeShare: 0.06,
     blurb:
       "Ports, logistics, and a very direct view of whether your customs policy works.",
@@ -204,6 +216,7 @@ export const COUNTRIES: Country[] = [
     name: "United States",
     region: "americas",
     iso: "840",
+    capital: { lat: 38.9072, lng: -77.0369 }, // Washington, D.C.
     tradeShare: 0.175,
     blurb:
       "Enormous, litigious, and extremely interested in your digital services tax.",
@@ -253,6 +266,7 @@ export const COUNTRIES: Country[] = [
     name: "China",
     region: "asia",
     iso: "156",
+    capital: { lat: 39.9042, lng: 116.4074 }, // Beijing
     tradeShare: 0.11,
     blurb:
       "Cheap inputs, deep pockets, and a foreign policy your backbenchers hate.",
@@ -296,6 +310,7 @@ export const COUNTRIES: Country[] = [
     name: "Russia",
     region: "europe",
     iso: "643",
+    capital: { lat: 55.7558, lng: 37.6173 }, // Moscow
     tradeShare: 0.03,
     blurb:
       "Energy, commodities, and a long border with the continent. Cheap barrels, expensive politics.",
@@ -330,6 +345,7 @@ export const COUNTRIES: Country[] = [
     name: "India",
     region: "asia",
     iso: "356",
+    capital: { lat: 28.6139, lng: 77.209 }, // New Delhi
     tradeShare: 0.035,
     blurb:
       "Fast growth, deep labour markets, and a services trade your firms already depend on.",
@@ -364,6 +380,7 @@ export const COUNTRIES: Country[] = [
     name: "Brazil",
     region: "americas",
     iso: "076",
+    capital: { lat: -15.7939, lng: -47.8828 }, // Brasília
     tradeShare: 0.015,
     blurb:
       "Commodity exports, deep cities, and a soft-power rivalry with the United States.",
@@ -385,6 +402,7 @@ export const COUNTRIES: Country[] = [
     name: "Mexico",
     region: "americas",
     iso: "484",
+    capital: { lat: 19.4326, lng: -99.1332 }, // Mexico City
     tradeShare: 0.01,
     blurb:
       "Manufacturing bridge to the north. Trade policy follows whoever has the louder capital.",
@@ -406,6 +424,7 @@ export const COUNTRIES: Country[] = [
     name: "Japan",
     region: "asia",
     iso: "392",
+    capital: { lat: 35.6762, lng: 139.6503 }, // Tokyo
     tradeShare: 0.025,
     blurb:
       "Precision industry, ageing demography, and capital that travels quietly.",
@@ -430,6 +449,7 @@ export const COUNTRIES: Country[] = [
     name: "Australia",
     region: "oceania",
     iso: "036",
+    capital: { lat: -35.2809, lng: 149.13 }, // Canberra
     tradeShare: 0.015,
     blurb: "Warm words, modest volumes, and a great deal of shared paperwork.",
     deals: [
@@ -462,6 +482,7 @@ export const COUNTRIES: Country[] = [
     name: "Saudi Arabia",
     region: "gulf",
     iso: "682",
+    capital: { lat: 24.7136, lng: 46.6753 }, // Riyadh
     tradeShare: 0.03,
     blurb: "Patient capital with opinions about who you criticise.",
     deals: [
@@ -495,6 +516,7 @@ export const COUNTRIES: Country[] = [
     name: "United Arab Emirates",
     region: "gulf",
     iso: "784",
+    capital: { lat: 24.4539, lng: 54.3773 }, // Abu Dhabi
     tradeShare: 0.015,
     blurb:
       "Hub economy. Logistics, finance, and a view of every trade lane that matters.",
@@ -515,6 +537,7 @@ export const COUNTRIES: Country[] = [
     name: "Nigeria",
     region: "africa",
     iso: "566",
+    capital: { lat: 9.0765, lng: 7.3986 }, // Abuja
     tradeShare: 0.015,
     blurb:
       "Young population, commodity cycles, and a migration question your parties cannot ignore.",
@@ -546,6 +569,7 @@ export const COUNTRIES: Country[] = [
     name: "South Africa",
     region: "africa",
     iso: "710",
+    capital: { lat: -25.7479, lng: 28.2293 }, // Pretoria
     tradeShare: 0.01,
     blurb:
       "Industrial base of the continent. Power cuts at home, platinum abroad.",
@@ -567,6 +591,7 @@ export const COUNTRIES: Country[] = [
     name: "Canada",
     region: "americas",
     iso: "124",
+    capital: { lat: 45.4215, lng: -75.6972 }, // Ottawa
     tradeShare: 0.04,
     blurb:
       "Commodity wealth, deep capital markets, and a long border with the United States.",
@@ -600,6 +625,7 @@ export const COUNTRIES: Country[] = [
     name: "South Korea",
     region: "asia",
     iso: "410",
+    capital: { lat: 37.5665, lng: 126.978 }, // Seoul
     tradeShare: 0.02,
     blurb:
       "Export machine and semiconductor power. Ageing at home, restless abroad.",
@@ -636,6 +662,7 @@ export const COUNTRIES: Country[] = [
     name: "Indonesia",
     region: "asia",
     iso: "360",
+    capital: { lat: -6.2088, lng: 106.8456 }, // Jakarta
     tradeShare: 0.015,
     blurb:
       "Archipelago giant. Young demography, commodity cycles, and a manufacturing climb.",
@@ -670,6 +697,7 @@ export const COUNTRIES: Country[] = [
     name: "Turkey",
     region: "europe",
     iso: "792",
+    capital: { lat: 39.9334, lng: 32.8597 }, // Ankara
     tradeShare: 0.015,
     blurb:
       "Bridge between the continent and the warm seas. Soft lira, hard politics.",
@@ -703,6 +731,7 @@ export const COUNTRIES: Country[] = [
     name: "Argentina",
     region: "americas",
     iso: "032",
+    capital: { lat: -34.6037, lng: -58.3816 }, // Buenos Aires
     tradeShare: 0.01,
     blurb:
       "Grain, beef, and a bond market that never quite settles. Soft growth, loud prices.",
@@ -735,6 +764,7 @@ export const COUNTRIES: Country[] = [
     name: "Vietnam",
     region: "asia",
     iso: "704",
+    capital: { lat: 21.0285, lng: 105.8542 }, // Hanoi
     tradeShare: 0.01,
     blurb:
       "Factory floor of the China-plus-one shift. Fast growth, thin capital markets.",
@@ -768,6 +798,7 @@ export const COUNTRIES: Country[] = [
     name: "Poland",
     region: "europe",
     iso: "616",
+    capital: { lat: 52.2297, lng: 21.0122 }, // Warsaw
     tradeShare: 0.025,
     blurb:
       "Manufacturing heartland of the east. Growing fast, watching the northern border.",
@@ -806,6 +837,7 @@ export const COUNTRIES: Country[] = [
     name: "Egypt",
     region: "africa",
     iso: "818",
+    capital: { lat: 30.0444, lng: 31.2357 }, // Cairo
     tradeShare: 0.01,
     blurb: "Demography, canals, and a fiscal squeeze that never quite ends.",
     deals: [
@@ -837,6 +869,7 @@ export const COUNTRIES: Country[] = [
     name: "Kenya",
     region: "africa",
     iso: "404",
+    capital: { lat: -1.2921, lng: 36.8219 }, // Nairobi
     tradeShare: 0.005,
     blurb:
       "East African hub. Young workforce, thin fiscal space, and a view of every trade lane south of Suez.",
@@ -868,6 +901,7 @@ export const COUNTRIES: Country[] = [
     name: "United Kingdom",
     region: "europe",
     iso: "826",
+    capital: { lat: 51.5074, lng: -0.1278 }, // London
     tradeShare: 0.05,
     blurb:
       "An island treasury. Thin growth, hot prices, and a bond market that still sets the weather.",

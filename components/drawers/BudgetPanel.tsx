@@ -34,7 +34,7 @@ function LedgerTable() {
     "first:text-left first:text-ink-soft border-b border-white/5 px-2.5 py-1.5 text-right";
   if (!rows.length) {
     return (
-      <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+      <div className="table-scroll overflow-x-auto rounded-md border border-edge bg-g-1">
         <div className="p-4 text-xs text-ink-faint">
           No quarters recorded. Set out a bill and deliver it.
         </div>
@@ -44,7 +44,7 @@ function LedgerTable() {
   const signCls = (v: number) =>
     v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "";
   return (
-    <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+    <div className="table-scroll overflow-x-auto rounded-md border border-edge bg-g-1">
       <table className="w-full min-w-160 border-collapse text-xs tabular-nums">
         <thead>
           <tr>

@@ -17,7 +17,7 @@ export function CatPills<T extends string>({
   onChange,
 }: CatPillsProps<T>) {
   return (
-    <div className="flex scrollbar-none gap-1.5 overflow-x-auto">
+    <div className="flex scrollbar-none gap-1.5 overflow-x-auto px-3.5 max-md:px-3">
       {options.map(([id, label]) => (
         <button
           key={id}

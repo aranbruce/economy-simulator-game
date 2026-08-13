@@ -398,6 +398,31 @@ button:disabled {
   background: var(--g-3);
   border-radius: var(--r-pill);
 }
+
+/* Horizontally-scrolling data tables (nation comparison, budget ledger) get
+   the same thin-pill treatment as the drawer's own vertical scrollbar,
+   instead of falling back to the browser default. */
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--g-3);
+  border-radius: var(--r-pill);
+}
+
+/* Same thin-pill scrollbar for any other scroll container, on whichever
+   axis it scrolls (country overview card, despatch/verdict/event modals,
+   the coach panel, the bloc-invite candidate list, ...). One shared class
+   rather than a `.dw-body`-per-surface copy, since none of these need the
+   drawer's other structural rules, just its scrollbar look. */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--g-3);
+  border-radius: var(--r-pill);
+}
 /* ================= mobile / narrow ================= */
 @media (max-width: 720px) {
   /* Sit above the live dock (same gap as the drawer), not a fixed guess —
@@ -804,4 +829,32 @@ input[type="range"]:focus-visible {
 }
 .mission-hint {
   margin-top: 6px;
+}
+/* missionOptionHint() in engine.ts builds this as a raw HTML string (a
+   mission/summit event option's relation/faction/access deltas), not JSX,
+   so it can't take Tailwind utility classes the way ImpactChips.tsx (the
+   same kind of chip, built from simulated preview data instead) does. Colour
+   and chip shape are kept in step with that component by hand. Lost its
+   styling in the Tailwind migration since nothing here matched a className
+   string the sweep could grep for — spans rendered with zero separation and
+   no colour as a result. */
+.impfac {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.impfac span {
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.impfac .up {
+  color: var(--green-lt);
+  background: rgb(61 220 132 / 0.16);
+}
+.impfac .dn {
+  color: var(--red-lt);
+  background: rgb(255 90 78 / 0.16);
 }

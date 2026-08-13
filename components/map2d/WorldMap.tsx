@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -25,8 +27,17 @@ import {
   REALM_FILL,
 } from "../../lib/sim/boardMetrics.ts";
 import { realmByRole } from "../../lib/sim/realms.ts";
+import {
+  project,
+  clampViewport,
+  computePlateLayout,
+  repeatOffsets,
+  toScreen as projectToScreen,
+  wrapDelta,
+  type MapViewport,
+  type Point,
+} from "../../lib/map/projection.ts";
 
-type Point = [number, number];
 type Ring = Point[];
 /** [outer, ...holes] */
 type Rings = Ring[];
@@ -45,14 +56,15 @@ interface CountryFeature {
 const OCEAN = "#3c4a3f";
 const SCENERY_FILL = "#3a3226";
 const HOVER_LIFT = 1.18;
-const MIN_ZOOM = 0.85;
+const MIN_ZOOM = 1.15;
 const MAX_ZOOM = 16;
-/** Crop Antarctica and empty polar ocean so the playable world fills the frame. */
-const LAT_MAX = 84;
-const LAT_MIN = -56;
 const SKIP_ISO = new Set(["010"]); // Antarctica — not on the board
 
 const SETUP_SELECTED = "#D4AF69";
+/** Trade-line stroke — a single fixed colour/opacity, not relation-tiered. */
+const TRADE_LINE_STROKE = "rgba(100,210,255,.18)";
+
+const CAPITAL_MARKER_SIZE = 15;
 
 const DIPLO_MARKER_ORDER = ["envoy", "summit", "summit_staged", "ultimatum"];
 const DIPLO_MARKER_SIZE = 18;
@@ -103,53 +115,6 @@ function roleColour(
 
 function clonePoint(p: Point): Point {
   return [p[0], p[1]];
-}
-
-/** Equirectangular → normalised board coords in [0,1]². */
-function project(lng: number, lat: number): Point {
-  const x = (lng + 180) / 360;
-  const y = (LAT_MAX - lat) / (LAT_MAX - LAT_MIN);
-  return [x, y];
-}
-
-/** Viewport size, floored so the plate never fits into a degenerate frame —
- *  paint() and plateLayout() (used by hit-testing/zoom-anchoring) must agree
- *  on this or a click/hover can target a different point than what's drawn. */
-function clampViewport(cssW: number, cssH: number) {
-  return {
-    W: Math.max(320, Math.floor(cssW)),
-    H: Math.max(240, Math.floor(cssH)),
-  };
-}
-
-/** Fit the equirectangular plate into the viewport, letterboxed. */
-function computePlateLayout(W: number, H: number) {
-  const fit = Math.min(W, H * (360 / (LAT_MAX - LAT_MIN)));
-  const plateW = fit;
-  const plateH = fit * ((LAT_MAX - LAT_MIN) / 360);
-  return { plateW, plateH, ox: (W - plateW) / 2, oy: (H - plateH) / 2 };
-}
-
-/** Horizontal pixel offsets at which the plate must be redrawn so a tiled
- *  copy covers every point of the viewport — the board wraps east/west, so
- *  panning past one edge should reveal the far side instead of bare ocean. */
-function repeatOffsets(
-  originX: number,
-  period: number,
-  viewportW: number,
-  /* Safety bound, not a real budget: even an extreme W:H window ratio at
-   * MIN_ZOOM needs well under this many tiled copies to fully cover the
-   * viewport. It only exists to stop a runaway loop if `period` is ever
-   * pathologically small; it must not silently truncate real coverage. */
-  maxCopies = 64,
-): number[] {
-  if (!(period > 0)) return [0];
-  const kMin = Math.floor(-originX / period) - 1;
-  const kMax = Math.ceil((viewportW - originX) / period) + 1;
-  const out: number[] = [];
-  for (let k = kMin; k <= kMax && out.length < maxCopies; k++)
-    out.push(k * period);
-  return out.length ? out : [0];
 }
 
 /**
@@ -407,6 +372,90 @@ function polysForRole(
   return polys.length ? polys : null;
 }
 
+/** Capital-marker icon (5-point star in a circle outline, public/icons/
+ *  capital-marker.svg) — loaded once and shared across every WorldMap
+ *  instance, same lazy-singleton shape as grainTile()/grainPattern() below.
+ *  SVG decode is async, so CAPITAL_MARKER_READY_EVENT fires once it's
+ *  usable; the component listens and requests a repaint, since drawImage()
+ *  on an incomplete image silently no-ops rather than erroring — without
+ *  that nudge the marker just wouldn't appear until some other repaint. */
+const CAPITAL_MARKER_READY_EVENT = "capital-marker-ready";
+let _capitalMarkerImg: HTMLImageElement | null = null;
+function capitalMarkerImage(): HTMLImageElement | null {
+  if (_capitalMarkerImg) return _capitalMarkerImg;
+  if (typeof Image === "undefined") return null;
+  const img = new Image();
+  img.onload = () => {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(CAPITAL_MARKER_READY_EVENT));
+    }
+  };
+  img.src = "/icons/capital-marker.svg";
+  _capitalMarkerImg = img;
+  return img;
+}
+
+/** Matches Map3DOverlay's MODEL_TILT_X — foreshorten the flat SVG so it
+ *  reads at the same lean as the boats without moving into the 3D layer. */
+const CAPITAL_MARKER_TILT = 0.85; // ~49° — keep in sync with MODEL_TILT_X
+const CAPITAL_MARKER_SHEAR = 0.12;
+
+/** Scratch canvas for tinting the capital SVG (source-in must not run on
+ *  the live map — destination already has the whole terrain). */
+let _capitalTintBuf: HTMLCanvasElement | null = null;
+function capitalTintBuffer(): HTMLCanvasElement | null {
+  if (_capitalTintBuf) return _capitalTintBuf;
+  if (typeof document === "undefined") return null;
+  _capitalTintBuf = document.createElement("canvas");
+  return _capitalTintBuf;
+}
+
+/** `size` is the caller's responsibility — unlike diplo markers (fixed
+ *  screen-pixel UI chrome), capital markers scale with the map's own zoom
+ *  (caller multiplies by viewRef.current.scale) so they read as map content
+ *  sitting on the parchment, not a constant-size overlay floating above
+ *  it. `fill` is the country-border ink (dark brown / cream when hot). */
+function drawCapitalMarker(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  fill: string,
+) {
+  const img = capitalMarkerImage();
+  if (!img || !img.complete || !img.naturalWidth) return;
+  const buf = capitalTintBuffer();
+  if (!buf) return;
+  const px = Math.max(1, Math.ceil(size));
+  if (buf.width !== px || buf.height !== px) {
+    buf.width = px;
+    buf.height = px;
+  }
+  const bctx = buf.getContext("2d");
+  if (!bctx) return;
+  bctx.clearRect(0, 0, px, px);
+  bctx.drawImage(img, 0, 0, px, px);
+  bctx.globalCompositeOperation = "source-in";
+  bctx.fillStyle = fill;
+  bctx.fillRect(0, 0, px, px);
+  bctx.globalCompositeOperation = "source-over";
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  /* Affine stand-in for the boats' local-X tilt: Y foreshortening + a light
+     horizontal shear so the glyph doesn't sit perfectly flat on the map. */
+  ctx.transform(
+    1,
+    0,
+    CAPITAL_MARKER_SHEAR,
+    Math.cos(CAPITAL_MARKER_TILT),
+    0,
+    0,
+  );
+  ctx.drawImage(buf, -size / 2, -size / 2, size, size);
+  ctx.restore();
+}
+
 /** Small vector glyph per marker kind, drawn in the badge's ring colour. */
 function drawDiploMarkerGlyph(
   ctx: CanvasRenderingContext2D,
@@ -543,17 +592,27 @@ interface WorldMapProps {
   setupMode?: boolean;
 }
 
-export default function WorldMap({
-  tick,
-  mapMetric,
-  selectedRole,
-  onSelect,
-  onHover,
-  onFail,
-  homeIso,
-  homeRole = "home",
-  setupMode = false,
-}: WorldMapProps) {
+/** Read-only handle for layers that must stay in pixel-perfect sync with the
+ *  map's own pan/zoom (e.g. the 3D overlay) without owning any view state
+ *  themselves — see components/map3d/Map3DOverlay.tsx. */
+export interface WorldMapHandle {
+  getViewport: () => MapViewport | null;
+}
+
+const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
+  {
+    tick,
+    mapMetric,
+    selectedRole,
+    onSelect,
+    onHover,
+    onFail,
+    homeIso,
+    homeRole = "home",
+    setupMode = false,
+  }: WorldMapProps,
+  ref,
+) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   /** Offscreen buffer the terrain (ocean + every country fill/stroke) is
@@ -639,10 +698,9 @@ export default function WorldMap({
     /* The board wraps east/west: draw the plate at every horizontal offset
        needed to tile the current viewport instead of once. */
     const offsets = repeatOffsets(ox + tx, plateW * scale, W);
-    const toScreen = (nx: number, ny: number, dx: number): Point => [
-      ox + nx * plateW * scale + tx + dx,
-      oy + ny * plateH * scale + ty,
-    ];
+    const screenLayout = { ox, oy, plateW, plateH, scale, tx, ty };
+    const toScreen = (nx: number, ny: number, dx: number): Point =>
+      projectToScreen(nx, ny, dx, screenLayout);
 
     const G = getG();
     const hRole = homeRole || G?.homeRole || "home";
@@ -727,12 +785,63 @@ export default function WorldMap({
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
         tctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
-        tctx.lineWidth = hot ? 1.15 : 0.7;
+        tctx.lineWidth = 2;
         tctx.stroke();
       } else {
         tctx.strokeStyle = "rgba(24,18,10,.35)";
-        tctx.lineWidth = 0.4;
+        tctx.lineWidth = 2;
         tctx.stroke();
+      }
+    }
+
+    /* Capital-city compass markers — same capital coordinates as the trade
+     *  lines below, not a polygon centroid. Drawn into the terrain buffer
+     *  so the border-ink tint picks up the same sepia grade as the strokes.
+     *  Shown during country selection too (every realm, since there's no
+     *  committed home yet to filter against). */
+    {
+      const capitalEntries = setupMode
+        ? PARTNERS.filter((c) => c.capital).map((c) => ({
+            cap: c.capital,
+            role: c.id,
+            iso: c.iso,
+          }))
+        : (() => {
+            const home = PARTNERS.find((c) => c.iso === (hIso || HOME_ISO));
+            return [
+              ...(home?.capital
+                ? [{ cap: home.capital, role: "home", iso: home.iso }]
+                : []),
+              ...activePartners(hRole)
+                .filter((p) => p.capital)
+                .map((p) => ({
+                  cap: p.capital,
+                  role: p.id,
+                  iso: p.iso,
+                })),
+            ];
+          })();
+      const capitalScreenPoints = capitalEntries.map(({ cap, role, iso }) => {
+        const hot =
+          isSelected(role) || isHovered(role, iso) || role === "home";
+        /* Same ink as the country stroke above — cream when hot, dark
+           brown otherwise — so the pin reads as part of the border. */
+        return {
+          pt: project(cap.lng, cap.lat),
+          fill: hot ? "rgba(246,240,226,0.95)" : "rgba(24,18,10,0.85)",
+        };
+      });
+      for (const dx of offsets) {
+        for (const { pt, fill } of capitalScreenPoints) {
+          const [x, y] = toScreen(pt[0], pt[1], dx);
+          drawCapitalMarker(
+            tctx,
+            x,
+            y,
+            CAPITAL_MARKER_SIZE * scale * 0.3,
+            fill,
+          );
+        }
       }
     }
 
@@ -744,30 +853,29 @@ export default function WorldMap({
     ctx.drawImage(terrain, 0, 0, W, H);
     ctx.restore();
 
-    /* Trade lines from home to partners (play only). */
+    /* Trade lines from home to partners (play only). Anchored at capitals —
+     *  the same points the 3D marker/boat layer uses — rather than each
+     *  country's polygon centroid, so the dashed line and the boats agree
+     *  on where a route actually starts and ends. */
     if (!setupMode && G) {
-      const homePolys = countries
-        .filter((c) => roleForFeature(c.iso, hRole, hIso) === "home")
-        .flatMap((c) => c.polys);
-      if (homePolys.length) {
-        const [hx, hy] = polysCentroid(homePolys);
+      const home = PARTNERS.find((c) => c.iso === (hIso || HOME_ISO));
+      if (home?.capital) {
+        const [hx, hy] = project(home.capital.lng, home.capital.lat);
         const partnerLines = activePartners(hRole)
+          .filter((p) => p.capital)
           .map((p) => {
-            const pPolys = countries
-              .filter((c) => roleForFeature(c.iso, hRole, hIso) === p.id)
-              .flatMap((c) => c.polys);
-            if (!pPolys.length) return null;
-            const [px, py] = polysCentroid(pPolys);
-            const rel = G.rel[p.id] ?? 50;
-            const stroke =
-              rel > 62
-                ? "rgba(48,209,88,.22)"
-                : rel > 45
-                  ? "rgba(100,210,255,.18)"
-                  : "rgba(255,69,58,.16)";
-            return { px, py, stroke, lineWidth: selectedRole === p.id ? 2 : 1 };
-          })
-          .filter((x): x is NonNullable<typeof x> => x != null);
+            const [rawPx, py] = project(p.capital.lng, p.capital.lat);
+            // Shortest way round the wrap, not straight across the whole
+            // plate — otherwise e.g. US↔Japan draws through Europe/Asia
+            // instead of the shorter Pacific crossing.
+            const px = hx + wrapDelta(hx, rawPx);
+            return {
+              px,
+              py,
+              stroke: TRADE_LINE_STROKE,
+              lineWidth: selectedRole === p.id ? 2 : 1,
+            };
+          });
 
         for (const dx of offsets) {
           const [hsx, hsy] = toScreen(hx, hy, dx);
@@ -960,13 +1068,6 @@ export default function WorldMap({
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
     ctx.fillStyle = "rgba(246,240,226,.3)";
     ctx.textAlign = "left";
-    ctx.fillText(
-      setupMode
-        ? "Click a country · pinch or scroll to zoom · drag to pan"
-        : "Pinch or scroll to zoom · drag to pan",
-      14,
-      H - 14,
-    );
 
     /* Paper-grain texture, composited last so it sits over terrain, trade
        lines, markers and labels alike — an aged-atlas finish, not just a
@@ -1002,6 +1103,16 @@ export default function WorldMap({
       paint();
     });
   }, [paint]);
+
+  /* The capital-marker SVG decodes asynchronously (capitalMarkerImage()) —
+   *  without this, markers wouldn't appear until some unrelated repaint
+   *  happened to fire after the image finished loading. */
+  useEffect(() => {
+    const onReady = () => requestPaint();
+    window.addEventListener(CAPITAL_MARKER_READY_EVENT, onReady);
+    return () =>
+      window.removeEventListener(CAPITAL_MARKER_READY_EVENT, onReady);
+  }, [requestPaint]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1065,6 +1176,24 @@ export default function WorldMap({
     const { W, H } = clampViewport(cssW, cssH);
     return { W, H, ...computePlateLayout(W, H) };
   }, []);
+
+  /** Read-only viewport snapshot for the 3D overlay — reuses the exact same
+   *  plateLayout()/viewRef/repeatOffsets a paint() would, so the two layers
+   *  can never drift out of sync. */
+  useImperativeHandle(
+    ref,
+    (): WorldMapHandle => ({
+      getViewport: () => {
+        const layout = plateLayout();
+        if (!layout) return null;
+        const { W, H, plateW, plateH, ox, oy } = layout;
+        const { scale, tx, ty } = viewRef.current;
+        const offsets = repeatOffsets(ox + tx, plateW * scale, W);
+        return { W, H, ox, oy, plateW, plateH, scale, tx, ty, offsets };
+      },
+    }),
+    [plateLayout],
+  );
 
   /** Zoom toward a canvas-local point (or the plate centre). */
   const zoomAt = useCallback(
@@ -1359,4 +1488,6 @@ export default function WorldMap({
       />
     </div>
   );
-}
+});
+
+export default WorldMap;

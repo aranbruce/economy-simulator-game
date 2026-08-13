@@ -10,6 +10,9 @@ interface ChipProps {
   delta?: number | null;
   state?: string;
   invert?: boolean;
+  /** Rate/level chips (e.g. Base rate) where neither direction is good or
+   *  bad — show the change without the green/red judgement. */
+  neutralDelta?: boolean;
   kind?: string;
   title?: string;
 }
@@ -30,12 +33,14 @@ export function Chip({
   delta = null,
   state = "",
   invert = false,
+  neutralDelta = false,
   kind = "",
   title = "",
 }: ChipProps) {
   let deltaCls = "";
   if (delta != null) {
-    if (invert) deltaCls = delta < 0 ? "text-green-lt" : "text-red-lt";
+    if (neutralDelta) deltaCls = "text-ink-faint";
+    else if (invert) deltaCls = delta < 0 ? "text-green-lt" : "text-red-lt";
     else deltaCls = delta > 0 ? "text-green-lt" : "text-red-lt";
   }
   const valueCls = STATE_VALUE_COLOR[state] || KIND_VALUE_COLOR[kind] || "";
