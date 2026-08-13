@@ -1088,9 +1088,15 @@ export default function WorldMap({
         tx: (1 - k) * (mx - ox) + k * v.tx,
         ty: (1 - k) * (my - oy) + k * v.ty,
       };
-      paint();
+      /* requestPaint(), not paint() directly — the pinch pointermove branch
+       *  mutates viewRef.current again for pan-during-pinch right after
+       *  calling zoomAt(), then schedules its own repaint; a synchronous
+       *  paint() here would render the zoom-only intermediate state and
+       *  then immediately repaint again once requestPaint()'s scheduled
+       *  call fires, doubling the per-event cost this was meant to avoid. */
+      requestPaint();
     },
-    [paint, plateLayout],
+    [requestPaint, plateLayout],
   );
 
   useEffect(() => {
