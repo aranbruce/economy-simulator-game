@@ -451,7 +451,12 @@ export default function GameApp() {
   }, [waiting, mpRoom]);
 
   /* Mobile drawer: pin between the live topbar and dock so a wrapped stats
-   row never covers the panel title. */
+   row never covers the panel title. At lg+ the drawer docks beside the map
+   as a right-hand card instead of stacking above the dock, so its bottom
+   edge also has to clear the map's metric filter row, which stays centred
+   and doesn't move out of the way itself at that width (below lg, MapChrome
+   already pins itself above the drawer via this same --drawer-bottom var,
+   so folding its rect into this calc there would be circular). */
   useEffect(() => {
     if (phase !== "play") return undefined;
     const root = document.documentElement;
@@ -459,6 +464,7 @@ export default function GameApp() {
     const sync = () => {
       const topbar = document.getElementById("topbar");
       const dock = document.getElementById("dock");
+      const mapMetrics = document.getElementById("mapMetrics");
       const mpHud = document.querySelector(".mp-hud");
       let top = gap;
       if (topbar) {
@@ -474,6 +480,15 @@ export default function GameApp() {
           Math.ceil(window.innerHeight - dock.getBoundingClientRect().top) +
           gap;
       }
+      if (mapMetrics && window.matchMedia("(min-width: 1024px)").matches) {
+        const r = mapMetrics.getBoundingClientRect();
+        if (r.height > 0) {
+          bottom = Math.max(
+            bottom,
+            Math.ceil(window.innerHeight - r.top) + gap,
+          );
+        }
+      }
       root.style.setProperty("--drawer-top", `${top}px`);
       root.style.setProperty("--drawer-bottom", `${bottom}px`);
     };
@@ -482,10 +497,12 @@ export default function GameApp() {
       typeof ResizeObserver === "function" ? new ResizeObserver(sync) : null;
     const topbar = document.getElementById("topbar");
     const dock = document.getElementById("dock");
+    const mapMetrics = document.getElementById("mapMetrics");
     const stats = document.getElementById("tbStats");
     if (ro) {
       if (topbar) ro.observe(topbar);
       if (dock) ro.observe(dock);
+      if (mapMetrics) ro.observe(mapMetrics);
       if (stats) ro.observe(stats);
     }
     const mo =
