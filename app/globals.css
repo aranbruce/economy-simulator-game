@@ -398,6 +398,17 @@ button:disabled {
   background: var(--g-3);
   border-radius: var(--r-pill);
 }
+
+/* Horizontally-scrolling data tables (nation comparison, budget ledger) get
+   the same thin-pill treatment as the drawer's own vertical scrollbar,
+   instead of falling back to the browser default. */
+.table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: var(--g-3);
+  border-radius: var(--r-pill);
+}
 /* ================= mobile / narrow ================= */
 @media (max-width: 720px) {
   /* Sit above the live dock (same gap as the drawer), not a fixed guess —

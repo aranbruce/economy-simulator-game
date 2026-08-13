@@ -765,7 +765,7 @@ function NationTable() {
   const signCls = (v: number) =>
     v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "";
   return (
-    <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
+    <div className="table-scroll overflow-x-auto rounded-md border border-edge bg-g-1">
       <table className="w-full min-w-160 border-collapse text-xs tabular-nums">
         <thead>
           <tr>
