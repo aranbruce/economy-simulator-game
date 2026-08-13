@@ -96,7 +96,7 @@
      right edge to clear IconRail.tsx's button column — hand-tuned to the
      rail's size-11 (44px) buttons plus breathing room, not derived
      automatically. Update this if the rail's button size changes. */
-  --rail-clear: 60px;
+  --rail-clear: 50px;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.2);
   --shadow-lg: 0 18px 48px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(0, 0, 0, 0.25);
 
