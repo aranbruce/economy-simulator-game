@@ -16,9 +16,9 @@ import {
   fmtFxRate,
   CURRENCY_META,
   shareLabel,
-  playerCountryId,
   T,
 } from "../../lib/sim/engine.ts";
+import { roleCountryId } from "../../lib/sim/boardMetrics.ts";
 import type { GameState } from "../../lib/sim/types.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
@@ -216,7 +216,7 @@ export default function RealmStats({
   })();
 
   const homeName = G?.country || "United Kingdom";
-  const flagRole = snap.us ? playerCountryId(G?.homeRole) : role;
+  const flagRole = roleCountryId(role, G);
 
   return (
     <aside

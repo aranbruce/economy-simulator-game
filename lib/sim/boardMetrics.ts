@@ -69,7 +69,7 @@ const BLOC_FILL: Record<string, string> = {
   asean_circle: "#6a8a5a",
 };
 
-function roleCountryId(role: string, G: GameState) {
+export function roleCountryId(role: string, G: GameState) {
   return role === "home" ? playerCountryId(G.homeRole) : role;
 }
 

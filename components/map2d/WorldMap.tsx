@@ -392,13 +392,8 @@ function polysForRole(
      realmByRole("home") only knows the former, so resolve via hIso here
      instead, or a same-role UK label/marker ends up drawn over whichever
      country the player is actually playing. */
-  let anchorIso: string | null;
-  if (role === "home" && !setupMode) {
-    anchorIso = hIso ? String(hIso).padStart(3, "0") : null;
-  } else {
-    const realm = realmByRole(role);
-    anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
-  }
+  const rawIso = role === "home" && !setupMode ? hIso : realmByRole(role).iso;
+  const anchorIso = rawIso ? String(rawIso).padStart(3, "0") : null;
   if (anchorIso) {
     const anchor = countries.find((c) => c.iso === anchorIso);
     if (anchor && anchor.polys.length) return anchor.polys;

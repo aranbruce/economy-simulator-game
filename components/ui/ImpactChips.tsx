@@ -16,6 +16,17 @@ export interface ImpactFactionsData {
   gini: { value: number; up: boolean } | null;
 }
 
+/** The up/down/faint text-colour tokens, dark-HUD or paper-skin — the one
+ *  place both ImpactChips and ImpactFactions read them from, so a palette
+ *  change (a renamed paper-green, a new tone) only needs editing once. */
+function toneTokens(paper: boolean) {
+  return {
+    up: paper ? "text-paper-green" : "text-green-lt",
+    down: paper ? "text-paper-red" : "text-red-lt",
+    faint: paper ? "text-paper-ink-faint" : "text-ink-faint",
+  };
+}
+
 export function ImpactChips({
   chips,
   paper = false,
@@ -24,12 +35,9 @@ export function ImpactChips({
   paper?: boolean;
 }) {
   if (!chips || !chips.length) return null;
-  const upCls = paper
-    ? "bg-paper-green/12 text-paper-green"
-    : "bg-green/16 text-green-lt";
-  const downCls = paper
-    ? "bg-paper-red/12 text-paper-red"
-    : "bg-red/16 text-red-lt";
+  const { up, down } = toneTokens(paper);
+  const upCls = `${paper ? "bg-paper-green/12" : "bg-green/16"} ${up}`;
+  const downCls = `${paper ? "bg-paper-red/12" : "bg-red/16"} ${down}`;
   return (
     <div className="flex flex-wrap gap-1">
       {chips
@@ -53,9 +61,7 @@ export function ImpactFactions({
   factions: ImpactFactionsData | null;
   paper?: boolean;
 }) {
-  const faint = paper ? "text-paper-ink-faint" : "text-ink-faint";
-  const up = paper ? "text-paper-green" : "text-green-lt";
-  const down = paper ? "text-paper-red" : "text-red-lt";
+  const { up, down, faint } = toneTokens(paper);
   if (!factions || factions.empty) {
     return (
       <div className={`mt-1.25 flex flex-wrap gap-2.25 text-xs ${faint}`}>
