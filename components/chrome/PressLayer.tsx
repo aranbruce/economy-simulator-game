@@ -16,10 +16,10 @@ function ClipBody({ c }: { c: any }) {
       <div className="clip-mast mb-0.5 text-xs font-bold tracking-[.14em] text-paper-ink-faint uppercase">
         {c.masthead}
       </div>
-      <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-xs text-[#8a7a5a]">
+      <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-xs text-paper-ink-faint">
         {c.kicker}
       </div>
-      <h4 className="clip-hed mb-1.5 font-display text-base leading-[1.2] font-normal tracking-[-.01em] text-[#14120e]">
+      <h4 className="clip-hed mb-1.5 font-display text-base leading-[1.2] font-normal tracking-[-.01em] text-paper-ink">
         {c.headline}
       </h4>
       <p className="clip-lede m-0 text-xs leading-[1.4] text-paper-ink-soft">

@@ -222,27 +222,7 @@ button:disabled {
     -10px 0 26px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(6px);
 }
-.rail-dome {
-  background: radial-gradient(
-    circle at 35% 28%,
-    #46331b 0%,
-    #241a0f 55%,
-    #120d07 100%
-  );
-  border: 2px solid #0c0805;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 224, 160, 0.2),
-    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(180, 145, 90, 0.16),
-    0 10px 22px rgba(0, 0, 0, 0.55);
-}
-.rail-dome.active {
-  border-color: var(--accent);
-}
-/* Same warm dome language as the rail, scaled down for the dock's tighter
-   vertical clearance — no outer halo ring (read as a second border on a
-   wide rectangular button) and a much smaller shadow/glow spread, so
-   nothing needs clipping inside the tab strip's scroll container. */
+.rail-dome,
 .dock-dome {
   background: radial-gradient(
     circle at 35% 28%,
@@ -251,10 +231,24 @@ button:disabled {
     #120d07 100%
   );
   border: 2px solid #0c0805;
+}
+.rail-dome {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 160, 0.2),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(180, 145, 90, 0.16),
+    0 10px 22px rgba(0, 0, 0, 0.55);
+}
+/* Same warm dome language as the rail, scaled down for the dock's tighter
+   vertical clearance — no outer halo ring (read as a second border on a
+   wide rectangular button) and a much smaller shadow/glow spread, so
+   nothing needs clipping inside the tab strip's scroll container. */
+.dock-dome {
   box-shadow:
     inset 0 1px 0 rgba(255, 224, 160, 0.2),
     inset 0 -2px 4px rgba(0, 0, 0, 0.5);
 }
+.rail-dome.active,
 .dock-dome.active {
   border-color: var(--accent);
 }

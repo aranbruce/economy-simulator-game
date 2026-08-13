@@ -10,6 +10,7 @@ import {
   setDrawerCat,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
+import { CloseIcon } from "../../lib/ui/icons.tsx";
 import { DrawerContent } from "./DrawerContent.tsx";
 import { CatPills } from "../ui/CatPills.tsx";
 import { MENUS as LAWS_MENUS } from "../drawers/LawsPanel.tsx";
@@ -95,10 +96,10 @@ export function DrawerShell() {
           id="dwClose"
           type="button"
           aria-label="Close panel"
-          className="ml-auto size-7 flex-none cursor-pointer rounded-sm border border-edge bg-g-3 text-xs leading-none text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white max-md:size-9"
+          className="ml-auto grid size-7 flex-none cursor-pointer place-items-center rounded-sm border border-edge bg-g-3 text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white max-md:size-9"
           onClick={() => setTab(null)}
         >
-          &#10005;
+          <CloseIcon />
         </button>
       </div>
       {pillConfig ? (

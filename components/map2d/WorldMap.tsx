@@ -992,6 +992,22 @@ export default function WorldMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
 
+  /* Drag/pinch/hover dispatch pointermove synchronously and can fire more
+   *  than once per display frame; each paint() now does a full-canvas
+   *  filtered composite (sepia/contrast terrain + grain overlay), so calling
+   *  it straight from the event handler risks doing that work more than
+   *  once per frame. requestPaint() coalesces any number of calls within a
+   *  frame into a single rAF-scheduled paint(). */
+  const paintScheduledRef = useRef(false);
+  const requestPaint = useCallback(() => {
+    if (paintScheduledRef.current) return;
+    paintScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      paintScheduledRef.current = false;
+      paint();
+    });
+  }, [paint]);
+
   useEffect(() => {
     let cancelled = false;
     fetch("/geo/countries-110m.json")
@@ -1215,7 +1231,7 @@ export default function WorldMap({
           tx: viewRef.current.tx + (midX - pinch.midX),
           ty: viewRef.current.ty + (midY - pinch.midY),
         };
-        paint();
+        requestPaint();
       }
       pinchRef.current = { dist, midX, midY };
       return;
@@ -1232,7 +1248,7 @@ export default function WorldMap({
           tx: drag.tx + dx,
           ty: drag.ty + dy,
         };
-        paint();
+        requestPaint();
         if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
         return;
       }
@@ -1248,7 +1264,7 @@ export default function WorldMap({
         const canPick = setupMode ? !!hit?.pickRole : !!hit?.role;
         canvasRef.current.style.cursor = canPick ? "pointer" : "grab";
       }
-      paint();
+      requestPaint();
       onHover?.(hit);
     }
   };

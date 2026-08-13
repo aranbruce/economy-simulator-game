@@ -11,6 +11,7 @@ import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { STATE_VALUE_COLOR } from "../ui/Chip.tsx";
 import { Callout } from "../ui/Callout.tsx";
+import { Card } from "../ui/Card.tsx";
 
 interface Flag {
   label: string;
@@ -70,39 +71,33 @@ export function OverviewPanel() {
           <Eyebrow>Ongoing situations</Eyebrow>
           <div className="mb-4 flex flex-col gap-1.5">
             {otherSituations.map((s) => (
-              <div
-                key={s.id}
-                className="rounded-md border border-edge bg-g-1 px-3 py-2.25"
-              >
+              <Card key={s.id} hoverable={false}>
                 <div className="text-xs font-[650]">{s.label}</div>
-                <div className="mt-0.5 text-xs text-ink-faint">{s.sub}</div>
-              </div>
+                <div className="text-xs text-ink-faint">{s.sub}</div>
+              </Card>
             ))}
           </div>
         </>
       ) : null}
 
       <Eyebrow>{nounLabel}</Eyebrow>
-      {risk.atRisk ? (
-        <Callout tone="red" className="mb-4">
-          <div className="flex items-baseline gap-2 text-xs font-[650]">
-            <span>
-              {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
-            </span>
+      <Callout tone={risk.atRisk ? "red" : "neutral"} className="mb-4">
+        <div className="flex items-baseline gap-2 text-xs font-[650]">
+          <span>
+            {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
+          </span>
+          {risk.atRisk ? (
             <span className="ml-auto text-xs font-bold tracking-[.04em] uppercase">
               At risk
             </span>
-          </div>
-          <div className="mt-0.5 text-xs">{electionDetail}</div>
-        </Callout>
-      ) : (
-        <div className="mb-4 rounded-md border border-edge bg-g-1 px-3 py-2.25">
-          <div className="text-xs font-[650]">
-            {risk.left} quarter{risk.left === 1 ? "" : "s"} to go
-          </div>
-          <div className="mt-0.5 text-xs text-ink-faint">{electionDetail}</div>
+          ) : null}
         </div>
-      )}
+        <div
+          className={`mt-0.5 text-xs ${risk.atRisk ? "" : "text-ink-faint"}`}
+        >
+          {electionDetail}
+        </div>
+      </Callout>
 
       <Eyebrow>Faction approval</Eyebrow>
       <div className="mb-4 flex flex-col gap-2">
@@ -131,9 +126,10 @@ export function OverviewPanel() {
       <Hint>Read-only — a snapshot of where things stand right now.</Hint>
       <div className="flex flex-col gap-1.5">
         {flags.map((f) => (
-          <div
+          <Card
             key={f.label}
-            className="flex items-center gap-2.5 rounded-md border border-edge bg-g-1 px-3 py-2.25"
+            hoverable={false}
+            className="flex-row! items-center gap-2.5!"
           >
             <span className="min-w-18.5 flex-none text-xs font-[650]">
               {f.label}
@@ -143,7 +139,7 @@ export function OverviewPanel() {
             >
               {f.detail}
             </span>
-          </div>
+          </Card>
         ))}
       </div>
     </>

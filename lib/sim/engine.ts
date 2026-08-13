@@ -8781,22 +8781,8 @@ function govDemandShares(law: any, econ: any) {
     );
   }
   const appr = approvalOf(g.fac);
-  /* Base regen plus a mild approval bonus. Tuned so a mid-term chancellor can
-     stage a few medium bills without living permanently at the capital floor.
-     Authoritarian seats recover capital more slowly — tenure is
-     cheaper than legislative pace. Suppressing parliament costs a little more
-     of it still — there is no legislature to lean on for legitimacy. */ const regen =
-    polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
-  /* Envoys are a standing commitment, not a one-off spend — each posted
-     envoy costs a little capital every quarter on top of the upfront
-     assignment fee. */
-  const envoyUpkeep =
-    (g.envoys || []).filter(Boolean).length * ENVOY_UPKEEP_PC;
-  g.capital = clamp(
-    g.capital + (3.2 + (appr - 45) * 0.1) * regen - envoyUpkeep,
-    0,
-    100,
-  );
+  const { gain, envoyUpkeep } = capitalRegenGain(g, law, appr);
+  g.capital = clamp(g.capital + gain - envoyUpkeep, 0, 100);
   if (law.policies.fiscalRule && deficit > 4) {
     g.ruleBreaches++;
     g.capital = clamp(g.capital - 3, 0, 100);
@@ -9470,6 +9456,32 @@ const rateCost = (t: any, d: any) =>
     });
   }
 }
+/** Per-partner/per-bloc tariff clauses — identical undo/fallback logic for
+ *  both scopes (an unset override falls back to the schedule default),
+ *  differing only in which sub-object is touched and how the id names. */
+function tariffScopeClauses(
+  out: any[],
+  D: any,
+  L: any,
+  scope: "bloc" | "country",
+  nameOf: (id: string) => string,
+) {
+  for (const id in D.tariffSchedule[scope]) {
+    const raw = L.tariffSchedule[scope][id];
+    const a = raw != null ? raw : L.tariffSchedule.default;
+    const b = D.tariffSchedule[scope][id];
+    if (a === b) continue;
+    out.push({
+      label: nameOf(id) + " tariff " + a + "% to " + b + "%",
+      pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
+      undo: () => {
+        if (raw == null) delete D.tariffSchedule[scope][id];
+        else D.tariffSchedule[scope][id] = raw;
+        syncTariffHeadline(D);
+      },
+    });
+  }
+}
 function billClauses() {
   pruneDraftBlocInvites();
   const L = G.law,
@@ -9772,40 +9784,14 @@ function billClauses() {
         },
       });
     }
-    for (const bid in D.tariffSchedule.bloc) {
-      const raw = L.tariffSchedule.bloc[bid];
-      const a = raw != null ? raw : L.tariffSchedule.default;
-      const b = D.tariffSchedule.bloc[bid];
-      if (a !== b) {
-        const bloc = blocById(bid);
-        out.push({
-          label: (bloc ? bloc.name : bid) + " tariff " + a + "% to " + b + "%",
-          pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
-          undo: () => {
-            if (raw == null) delete D.tariffSchedule.bloc[bid];
-            else D.tariffSchedule.bloc[bid] = raw;
-            syncTariffHeadline(D);
-          },
-        });
-      }
-    }
-    for (const cid in D.tariffSchedule.country) {
-      const raw = L.tariffSchedule.country[cid];
-      const a = raw != null ? raw : L.tariffSchedule.default;
-      const b = D.tariffSchedule.country[cid];
-      if (a !== b) {
-        const c = partnerById(cid);
-        out.push({
-          label: (c ? c.name : cid) + " tariff " + a + "% to " + b + "%",
-          pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
-          undo: () => {
-            if (raw == null) delete D.tariffSchedule.country[cid];
-            else D.tariffSchedule.country[cid] = raw;
-            syncTariffHeadline(D);
-          },
-        });
-      }
-    }
+    tariffScopeClauses(out, D, L, "bloc", (bid) => {
+      const bloc = blocById(bid);
+      return bloc ? bloc.name : bid;
+    });
+    tariffScopeClauses(out, D, L, "country", (cid) => {
+      const c = partnerById(cid);
+      return c ? c.name : cid;
+    });
     if (
       D.tariffSchedule.default !== L.tariffSchedule.default &&
       tLock.mode === "none"
@@ -10072,25 +10058,39 @@ const billCost = (cl?: any): number =>
     (a: number, c: any) => a + (c.sunk ? 0 : c.pc),
     0,
   );
-/** Next-quarter capital preview for the Programme drawer — same regen
- *  formula `step()` applies every quarter (base 3.2, ±0.1 per point of
- *  approval either side of the 45 neutral point, scaled by polity/state-form
- *  regen), evaluated against the draft law and today's approval rather than
- *  a full simulate() pass, so it's cheap enough to show unconditionally (not
- *  gated to sandbox like the 4-quarter impact figures). Approval itself only
- *  partly reflects a staged bill's faction effects each quarter (the 0.2
- *  damping in the regen step), so today's approval is a reasonable stand-in
- *  for next quarter's without needing a forward simulation. */
+/** Capital regen for one quarter — base 3.2, ±0.1 per point of approval
+ *  either side of the 45 neutral point, scaled by polity/state-form regen,
+ *  less envoy upkeep (a standing commitment: each posted envoy costs a
+ *  little capital every quarter on top of the upfront assignment fee).
+ *  Authoritarian seats recover capital more slowly — tenure is cheaper than
+ *  legislative pace. Suppressing parliament costs a little more still —
+ *  there is no legislature to lean on for legitimacy. Shared by step()'s
+ *  quarter-advance and capitalOutlook()'s preview so the two can't drift
+ *  out of sync. */
+function capitalRegenGain(g: any, law: any, approval: number) {
+  const regen =
+    polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
+  const gain = (3.2 + (approval - 45) * 0.1) * regen;
+  const envoyCount = (g.envoys || []).filter(Boolean).length;
+  const envoyUpkeep = envoyCount * ENVOY_UPKEEP_PC;
+  return { regen, gain, envoyCount, envoyUpkeep, breakeven: 45 - 3.2 / 0.1 };
+}
+/** Next-quarter capital preview for the Programme drawer, evaluated against
+ *  the draft law and today's approval rather than a full simulate() pass, so
+ *  it's cheap enough to show unconditionally (not gated to sandbox like the
+ *  4-quarter impact figures). Approval itself only partly reflects a staged
+ *  bill's faction effects each quarter (the 0.2 damping in the regen step),
+ *  so today's approval is a reasonable stand-in for next quarter's without
+ *  needing a forward simulation. */
 function capitalOutlook(cost?: number) {
   if (!G) return null;
   if (cost == null) cost = billCost();
   const approval = approvalOf(G.fac);
-  const regen =
-    polityOf(G.homeRole).capitalRegen * stateFormCapitalRegenMult(G.draft);
-  const gain = (3.2 + (approval - 45) * 0.1) * regen;
-  const breakeven = 45 - 3.2 / 0.1;
-  const envoyCount = (G.envoys || []).filter(Boolean).length;
-  const envoyUpkeep = envoyCount * ENVOY_UPKEEP_PC;
+  const { gain, envoyCount, envoyUpkeep, breakeven } = capitalRegenGain(
+    G,
+    G.draft,
+    approval,
+  );
   const afterBill = clamp(G.capital - cost, 0, 100);
   return {
     cost,
@@ -15504,9 +15504,15 @@ function composePress(input: any) {
 }
 let _pressExpanded: string | null = null;
 let _newsOpen = false;
-function resetPressUi() {
-  _pressExpanded = null;
+/** Closes the news inbox and any focused clip within it — shared by every
+ *  call site that needs the drawer and the inbox to never be open at once
+ *  (resetPressUi, enact()'s quarter advance, setTab() opening a drawer). */
+function closeNewsInbox() {
   _newsOpen = false;
+  _pressExpanded = null;
+}
+function resetPressUi() {
+  closeNewsInbox();
 }
 function pushPress(clips: any) {
   if (!G) return;
@@ -15568,16 +15574,16 @@ function getNewsOpen() {
   return _newsOpen;
 }
 function toggleNewsOpen() {
-  _newsOpen = !_newsOpen;
   if (_newsOpen) {
-    /* Opening the inbox closes whatever drawer is open — they'd otherwise
-       dock to the same side and fight for space. */
-    tab = null;
-  } else {
     /* Closing via the rail button (not the in-focus back/close control)
        should always return to the list next time, not resume whatever
        clip was last open. */
-    _pressExpanded = null;
+    closeNewsInbox();
+  } else {
+    _newsOpen = true;
+    /* Opening the inbox closes whatever drawer is open — they'd otherwise
+       dock to the same side and fight for space. */
+    tab = null;
   }
   bump();
   return _newsOpen;
@@ -16205,12 +16211,9 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
 function enact() {
   if (G.over) return;
   /* Close any open drawer/news inbox immediately, before the quarter-flash
-     animation, rather than leaving it open over the new quarter. Clearing
-     _pressExpanded too, not just _newsOpen, so a later reopen shows the
-     list rather than silently resuming whatever clip was last focused. */
+     animation, rather than leaving it open over the new quarter. */
   tab = null;
-  _newsOpen = false;
-  _pressExpanded = null;
+  closeNewsInbox();
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
   const cl = billClauses(),
@@ -16633,12 +16636,8 @@ function setTab(t: any, scrollPartner?: any) {
   tab = t;
   /* Opening a drawer closes the news inbox — mirrors toggleNewsOpen()
      closing whatever drawer is open, so the two never fight for the same
-     side of the screen. Clears _pressExpanded too, so reopening News later
-     shows the list rather than resuming a stale focused clip. */
-  if (t) {
-    _newsOpen = false;
-    _pressExpanded = null;
-  }
+     side of the screen. */
+  if (t) closeNewsInbox();
   /* A partner scroll target has to land on the pill that actually shows
      that partner's card, or queueDrawerPartnerScroll() retries for ~1.5s
      and silently gives up — the card is never in the DOM to find. Mutated
