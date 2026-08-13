@@ -21,6 +21,7 @@ export function PolicyCard({ p }: { p: Policy }) {
   const G = useGame();
   const isLaw = !!G.law.policies[p.id];
   const staged = !!G.draft.policies[p.id];
+  const pending = staged !== isLaw;
   const effectsData = G.sandbox
     ? fullEffectsData(p.imp, p.fac, p.cost, p.ch)
     : qualEffectsData(p.imp, p.fac, p.cost, p.ch);
@@ -49,7 +50,7 @@ export function PolicyCard({ p }: { p: Policy }) {
   ) : null;
 
   return (
-    <Card staged={staged !== isLaw} hoverable={false}>
+    <Card staged={pending} hoverable={false}>
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {p.name}
       </h4>
@@ -58,11 +59,7 @@ export function PolicyCard({ p }: { p: Policy }) {
       {killLine}
       <CardFoot>
         <CardPrice>
-          {staged === isLaw
-            ? isLaw
-              ? "In force"
-              : `${p.pc} capital`
-            : "staged"}
+          {pending ? "staged" : isLaw ? "In force" : `${p.pc} capital`}
         </CardPrice>
         <Button className="ml-auto" danger={staged} onClick={toggle}>
           {staged ? "Repeal" : "Enact"}
