@@ -39,6 +39,7 @@ export function TopBarStats() {
       value: e.rate.toFixed(2),
       unit: "%",
       delta: d("rate"),
+      neutralDelta: true,
       state: e.atBound ? "alert" : "",
       kind: "bank",
       title: G.rateManual
