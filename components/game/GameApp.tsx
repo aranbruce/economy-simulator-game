@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   newGame,
   getG,
@@ -52,7 +53,13 @@ import {
   clearMpSession,
 } from "../../lib/mp/session.ts";
 import { saveCurrencyPref } from "../../lib/ui/currencyPref.ts";
-import WorldMap from "../map2d/WorldMap";
+import WorldMap, { type WorldMapHandle } from "../map2d/WorldMap";
+
+/** three.js only loads for clients that actually reach the play phase, not
+ *  on setup/lobby screens — see CLAUDE.md's map3d architecture note. */
+const Map3DOverlay = dynamic(() => import("../map3d/Map3DOverlay"), {
+  ssr: false,
+});
 import RealmStats from "../ui/RealmStats";
 import CountryPicker from "./CountryPicker";
 import { CoachPanel } from "../chrome/CoachPanel.tsx";
@@ -87,6 +94,7 @@ export default function GameApp() {
   );
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
+  const worldMapRef = useRef<WorldMapHandle>(null);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [mapMetric, setMapMetric] = useState("countries");
   const [mpSession, setMpSession] = useState<any>(null);
@@ -1035,16 +1043,27 @@ export default function GameApp() {
         }
       >
         {worldOk ? (
-          <WorldMap
-            tick={tick}
-            mapMetric={mapMetric}
-            selectedRole={inSetup ? setupRole : selectedRole}
-            onSelect={onSelect}
-            onFail={onWorldFail}
-            homeIso={homeIso}
-            homeRole={homeRole}
-            setupMode={inSetup}
-          />
+          <>
+            <WorldMap
+              ref={worldMapRef}
+              tick={tick}
+              mapMetric={mapMetric}
+              selectedRole={inSetup ? setupRole : selectedRole}
+              onSelect={onSelect}
+              onFail={onWorldFail}
+              homeIso={homeIso}
+              homeRole={homeRole}
+              setupMode={inSetup}
+            />
+            {phase === "play" && (
+              <Map3DOverlay
+                worldMapRef={worldMapRef}
+                homeIso={homeIso}
+                homeRole={homeRole}
+                tick={tick}
+              />
+            )}
+          </>
         ) : (
           phase === "play" && (
             <div id="mapLayer" className="flat-fallback">

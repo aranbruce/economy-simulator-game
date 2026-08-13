@@ -103,7 +103,7 @@ export function DrawerShell() {
         </button>
       </div>
       {pillConfig ? (
-        <div className="flex-none border-b border-edge bg-panel px-3.5 py-2.25 max-md:px-3">
+        <div className="flex-none border-b border-edge bg-panel py-2.25">
           <CatPills
             options={pillConfig.options}
             value={getDrawerCat(tab, pillConfig.def)}

@@ -1,6 +1,11 @@
 import type { FactionId } from "./types.ts";
 import { REALM_LAW, applyRealmLawOverlay } from "./realmLaws.ts";
-import { TRADE_MATRIX, shareFor, shareLabel } from "./tradeMatrix.ts";
+import {
+  TRADE_MATRIX,
+  shareFor,
+  shareLabel,
+  partnerTradeSharePct,
+} from "./tradeMatrix.ts";
 import {
   COUNTRY_REGIONS,
   DEFAULT_BLOC_MEMBER,
@@ -16750,6 +16755,7 @@ export {
   dealsForPartner,
   shareFor,
   shareLabel,
+  partnerTradeSharePct,
   TRADE_MATRIX,
   hasDeal,
   dealsWith,

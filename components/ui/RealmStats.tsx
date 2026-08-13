@@ -15,8 +15,7 @@ import {
   liveRateBetween,
   fmtFxRate,
   CURRENCY_META,
-  shareLabel,
-  T,
+  partnerTradeSharePct,
 } from "../../lib/sim/engine.ts";
 import { roleCountryId } from "../../lib/sim/boardMetrics.ts";
 import type { GameState } from "../../lib/sim/types.ts";
@@ -76,6 +75,14 @@ export function realmSnapshot(role: string, G?: GameState) {
   const homeG = homeGrowth(state);
   const homeGdp = realmGdpBn("home", state);
 
+  /* Live share of home's actual export allocation, not the fixed gravity-
+     model weight shareLabel()/p.tradeShare draws on — that weight is a
+     structural input to the trade model, not an outcome of it, so it never
+     moves when you change tariffs. bilateralX does, once a tariff change is
+     enacted and a quarter has run. Denominator includes rest-of-world so
+     the figure is "% of trade", matching Trade > Partners. */
+  const bilat = e.bilateralX || {};
+
   if (role === "home") {
     const cur = currencyForSeat(state.homeRole || "home");
     return {
@@ -93,10 +100,15 @@ export function realmSnapshot(role: string, G?: GameState) {
       fx: fxDisplayIndex("home", state),
       currency: cur,
       relation: null,
-      tradeShare: null,
+      tradeSharePct: null,
       vsHomeGrowth: 0,
       vsHomeOutput: 100,
       vsHomeGdp: 1,
+      // Same ratio realmGdpBn() itself uses (opening GDP × index/100 × fx
+      // ratio) applied to X/M instead of the output index, so these land in
+      // the same currency-volume terms as GDP rather than raw index points.
+      exportsBn: homeGdp * (e.X / Math.max(homeY, 1e-6)),
+      importsBn: homeGdp * (e.M / Math.max(homeY, 1e-6)),
     };
   }
 
@@ -105,6 +117,12 @@ export function realmSnapshot(role: string, G?: GameState) {
   if (!p || !n) return null;
   const gdpBn = realmGdpBn(role, state);
   const cur = currencyForSeat(role);
+  /* worldTrade is keyed by real country ids (role already is one for a
+     partner — only "home" needs playerCountryId() resolution, done above
+     via e.X/e.M instead), from the same bilateral clearing that feeds the
+     3D trade-route layer. Not guaranteed to exist on the very first tick
+     before refreshWorldTrade() has run once. */
+  const wt = state.worldTrade?.totals?.[role];
   return {
     role,
     name: p.name,
@@ -120,10 +138,12 @@ export function realmSnapshot(role: string, G?: GameState) {
     fx: fxDisplayIndex(role, state),
     currency: cur,
     relation: state.rel[role] ?? 50,
-    tradeShare: T(shareLabel(state.homeRole, p.id, p.tradeShare)),
+    tradeSharePct: partnerTradeSharePct(bilat, role),
     vsHomeGrowth: n.growth - homeG,
     vsHomeOutput: (n.y / Math.max(homeY, 1e-6)) * 100,
     vsHomeGdp: gdpBn / Math.max(homeGdp, 1e-6),
+    exportsBn: wt ? gdpBn * (wt.X / Math.max(n.y, 1e-6)) : null,
+    importsBn: wt ? gdpBn * (wt.M / Math.max(n.y, 1e-6)) : null,
   };
 }
 
@@ -220,7 +240,7 @@ export default function RealmStats({
 
   return (
     <aside
-      className="realm-card pointer-events-auto fixed top-[calc(var(--drawer-top,72px)+12px)] left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-lg:right-[calc(var(--rail-clear)+env(safe-area-inset-right))] max-lg:left-[max(6px,env(safe-area-inset-left))] max-lg:size-auto max-lg:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,128px))] max-lg:px-3.5 max-lg:py-3 max-sm:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,118px))]"
+      className="realm-card pointer-events-auto fixed top-[calc(var(--drawer-top,72px)+12px)] left-3 z-18 max-h-[calc(100vh-170px)] w-[min(360px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-lg:right-[calc(var(--rail-clear)+env(safe-area-inset-right))] max-lg:left-[max(6px,env(safe-area-inset-left))] max-lg:size-auto max-lg:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,128px))] max-lg:px-3.5 max-lg:py-3 max-sm:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,118px))]"
       role="dialog"
       aria-label={snap.name}
     >
@@ -250,7 +270,7 @@ export default function RealmStats({
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
-      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-md:gap-x-3.5 max-md:gap-y-2.5">
+      <div className="mb-3 grid grid-cols-2 gap-x-4.5 gap-y-3.5 max-md:gap-x-3.5 max-md:gap-y-2.5">
         <Stat
           label="GDP"
           value={fmtGdpBn(snap.gdpBn, ccy, G)}
@@ -317,11 +337,20 @@ export default function RealmStats({
             }
           />
         )}
+        {snap.exportsBn != null && (
+          <Stat label="Exports" value={fmtGdpBn(snap.exportsBn, ccy, G)} />
+        )}
+        {snap.importsBn != null && (
+          <Stat label="Imports" value={fmtGdpBn(snap.importsBn, ccy, G)} />
+        )}
+        {snap.tradeSharePct != null && (
+          <Stat
+            label="Share of your trade"
+            value={snap.tradeSharePct.toFixed(0) + "%"}
+            note={`Of ${homeName}'s exports`}
+          />
+        )}
       </div>
-
-      {snap.tradeShare && (
-        <div className="mb-3 text-xs text-paper-ink-soft">{snap.tradeShare}</div>
-      )}
 
       {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
         <div className="mt-0.5 flex flex-wrap gap-2">

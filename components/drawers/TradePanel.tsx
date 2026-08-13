@@ -19,7 +19,7 @@ import {
   dealsForPartner,
   sphereRiskHint,
   effectiveTariff,
-  shareLabel,
+  partnerTradeSharePct,
   currencyForSeat,
   CURRENCY_META,
   ensureDiploStocks,
@@ -42,6 +42,8 @@ import {
   showBlocInviteModal,
   nationTableData,
   getDrawerCat,
+  COL,
+  lineChartSpec,
 } from "../../lib/sim/engine.ts";
 import {
   toggleDraftDeal,
@@ -57,9 +59,10 @@ import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { CurrencyComparisonChart } from "../ui/CurrencyChart.tsx";
+import { ChartBox, LineChartSvg } from "../ui/LineChart.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { Button } from "../ui/Button.tsx";
-import { Card, CardGrid, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
+import { Card, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
 import { Callout } from "../ui/Callout.tsx";
 import type { Country, CountryDeal } from "../../lib/sim/countries.ts";
 
@@ -73,7 +76,7 @@ const REGION_ORDER = [
 ];
 
 export type TradeCat =
-  "tariffs" | "currency" | "blocs" | "compare" | "partners";
+  "tariffs" | "currency" | "blocs" | "compare" | "partners" | "balance";
 /** Read by DrawerShell.tsx, which now owns the pill row itself. Tariffs
  *  leads as the default landing view; "partners" is also what setTab()
  *  in engine.ts selects when a map click scrolls to a specific partner,
@@ -84,6 +87,7 @@ export const CATS: [TradeCat, string][] = [
   ["blocs", "Trade blocs"],
   ["compare", "Comparison"],
   ["partners", "Partners"],
+  ["balance", "Net trade"],
 ];
 
 const CCY_CODES = Object.keys(CURRENCY_META).sort();
@@ -716,6 +720,41 @@ function TradeReadout({ G, Eagg }: { G: any; Eagg: any }) {
   );
 }
 
+function NetTradePanel({ G }: { G: any }) {
+  const hasLog = G.log.length >= 2;
+  if (!hasLog) {
+    return (
+      <div className="p-4 text-xs text-ink-faint">
+        Deliver a bill or two. The chart needs at least two quarters of
+        data.
+      </div>
+    );
+  }
+  const col = (k: string) => G.log.map((r: any) => r[k]);
+  return (
+    <ChartBox
+      title="Exports, imports and the net"
+      caption="Index points, same scale as the GDP index — not a currency amount or % of GDP. Competitiveness runs on underlying prices, so a VAT change does not move it on its own."
+    >
+      <LineChartSvg
+        spec={lineChartSpec(
+          [
+            { label: "Exports", color: COL.green, data: col("X") },
+            { label: "Imports", color: COL.ox, data: col("M") },
+            {
+              label: "Net trade",
+              color: COL.ink,
+              data: col("netTrade"),
+              wide: true,
+            },
+          ],
+          { zero: true },
+        )}
+      />
+    </ChartBox>
+  );
+}
+
 const NATION_TH =
   "first:text-left border-b border-edge px-2.5 py-2 text-right text-xs font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
 const NATION_TD =
@@ -827,16 +866,16 @@ function PartnerTradeCard({
   p,
   G,
   bilat,
-  bilatTotal,
 }: {
   p: Country;
   G: any;
   bilat: any;
-  bilatTotal: number;
 }) {
   const rel = G.rel[p.id];
   const Xi = bilat[p.id] || 0;
-  const sharePct = ((100 * Xi) / bilatTotal).toFixed(0);
+  const sharePct = partnerTradeSharePct(bilat, p.id);
+  const sharePctLabel =
+    sharePct != null ? Math.round(sharePct) + "% of {C}'s trade" : null;
   const stress = G.econ.dealStress[p.id] || 0;
   const bid = countryBlocId(p.id);
   const bloc = bid ? blocById(bid) || G.customBlocs[bid] : null;
@@ -912,7 +951,7 @@ function PartnerTradeCard({
     >
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {p.name}
-        <CardCat>{T(shareLabel(G.homeRole, p.id, p.tradeShare))}</CardCat>
+        {sharePctLabel ? <CardCat>{T(sharePctLabel)}</CardCat> : null}
       </h4>
       {bloc ? (
         <div className="text-xs text-ink-faint">{bloc.name}</div>
@@ -931,7 +970,8 @@ function PartnerTradeCard({
         </span>
       </div>
       <div className="my-1 block text-xs text-ink-soft">
-        Exports {Xi.toFixed(1)} ({sharePct}%) · tariff{" "}
+        Exports {Xi.toFixed(1)}
+        {sharePct != null ? ` (${Math.round(sharePct)}%)` : ""} · tariff{" "}
         {effectiveTariff(p.id, G.draft).toFixed(1)}%
       </div>
       {stress >= 1 ? (
@@ -946,11 +986,6 @@ function PartnerTradeCard({
 
 function PartnerCardsByRegion({ G }: { G: any }) {
   const bilat = G.econ.bilateralX || {};
-  const bilatTotal =
-    Object.keys(bilat).reduce(
-      (s: number, k: string) => s + (bilat[k] || 0),
-      0,
-    ) || 1;
   const byRegion: Record<string, any[]> = {};
   for (const p of activePartners()) {
     const r = p.region || "other";
@@ -967,17 +1002,11 @@ function PartnerCardsByRegion({ G }: { G: any }) {
             <Eyebrow className="mt-5">
               {(COUNTRY_REGIONS as any)[r] || r}
             </Eyebrow>
-            <CardGrid>
+            <div className="flex flex-col gap-2">
               {list.map((p: Country) => (
-                <PartnerTradeCard
-                  key={p.id}
-                  p={p}
-                  G={G}
-                  bilat={bilat}
-                  bilatTotal={bilatTotal}
-                />
+                <PartnerTradeCard key={p.id} p={p} G={G} bilat={bilat} />
               ))}
-            </CardGrid>
+            </div>
           </div>
         );
       })}
@@ -1006,6 +1035,13 @@ export function TradePanel() {
       <>
         <Eyebrow>Partners and agreements</Eyebrow>
         <PartnerCardsByRegion G={G} />
+      </>
+    );
+  if (cat === "balance")
+    return (
+      <>
+        <Eyebrow>Net trade</Eyebrow>
+        <NetTradePanel G={G} />
       </>
     );
   return (

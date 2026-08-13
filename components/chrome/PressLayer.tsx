@@ -50,46 +50,52 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col justify-center gap-3 overflow-y-auto px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col overflow-y-auto scrollbar-none px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
-          {ordered.length === 0 ? (
-            <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
-              Nothing yet this term.
-            </div>
-          ) : (
-            ordered.map((c: any, i: number) => (
-              <article
-                key={c.id}
-                className="clipping relative"
-                data-id={c.id}
-                style={
-                  {
-                    "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
-                    "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
-                  } as CSSProperties
-                }
-                role="button"
-                tabIndex={0}
-                aria-label="Open clipping"
-                onClick={() => expandPress(c.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    expandPress(c.id);
+          {/* my-auto centres a short stack; when the list overflows, the
+              margins collapse to 0 so scrollTop=0 reaches the first clip
+              (justify-center on the scroll container itself would clip
+              the top and make it unreachable). */}
+          <div className="my-auto flex flex-col gap-3">
+            {ordered.length === 0 ? (
+              <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
+                Nothing yet this term.
+              </div>
+            ) : (
+              ordered.map((c: any, i: number) => (
+                <article
+                  key={c.id}
+                  className="clipping relative"
+                  data-id={c.id}
+                  style={
+                    {
+                      "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
+                      "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
+                    } as CSSProperties
                   }
-                }}
-              >
-                {!c.seen ? (
-                  <span
-                    className="absolute top-2.5 right-2.5 size-2 rounded-full bg-paper-red"
-                    aria-hidden="true"
-                  />
-                ) : null}
-                <ClipBody c={c} />
-              </article>
-            ))
-          )}
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Open clipping"
+                  onClick={() => expandPress(c.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      expandPress(c.id);
+                    }
+                  }}
+                >
+                  {!c.seen ? (
+                    <span
+                      className="absolute top-2.5 right-2.5 size-2 rounded-full bg-paper-red"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                  <ClipBody c={c} />
+                </article>
+              ))
+            )}
+          </div>
         </div>
       )}
       {focused ? (

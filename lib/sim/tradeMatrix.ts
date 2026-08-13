@@ -814,3 +814,21 @@ export function shareLabel(
   const s = shareFor(homeRole, partnerId, fallback);
   return Math.round(s * 100) + "% of {C}'s trade";
 }
+
+/**
+ * Live share of home's export allocation going to `partnerId`, from
+ * `econ.bilateralX`. Denominator is the full allocation (named partners +
+ * rest-of-world), so the figure is "% of trade" — the same framing as
+ * `shareLabel`, but driven by the simulated outcome rather than the
+ * structural gravity weight.
+ */
+export function partnerTradeSharePct(
+  bilat: Record<string, number> | null | undefined,
+  partnerId: string,
+): number | null {
+  if (!bilat) return null;
+  let total = 0;
+  for (const k of Object.keys(bilat)) total += bilat[k] || 0;
+  if (!(total > 1e-9)) return null;
+  return (100 * (bilat[partnerId] || 0)) / total;
+}
