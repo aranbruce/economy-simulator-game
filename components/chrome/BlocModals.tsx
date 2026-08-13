@@ -158,7 +158,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
           invitation stages in your bill — use <b>Deliver</b> to send it (12
           capital).
         </Hint>
-        <div className="-mx-1 my-0 max-h-[min(42vh,320px)] overflow-y-auto px-1">
+        <div className="scroll-thin -mx-1 my-0 max-h-[min(42vh,320px)] overflow-y-auto px-1">
           {REGION_ORDER.filter((r) => byRegion[r]?.length).map((r) => (
             <div key={r} className="mt-2.5 first:mt-0">
               <Eyebrow>{COUNTRY_REGIONS[r] || r}</Eyebrow>

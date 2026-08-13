@@ -25,7 +25,7 @@ type BlocModalState =
  *  isBriefing ternary repeated at every styled node below. */
 const PAPER_SKIN = {
   shell:
-    "despatch relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
+    "despatch scroll-thin relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
   header:
     "border-b border-paper-border/22 px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
   stamp: "text-xs font-bold tracking-[.14em] text-paper-accent uppercase",
@@ -40,7 +40,7 @@ const PAPER_SKIN = {
 
 const HUD_SKIN = {
   shell:
-    "despatch hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
+    "despatch scroll-thin hud-frame hud-surface-lg relative max-h-[88vh] w-full max-w-150 animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto max-md:max-h-[min(90dvh,calc(100dvh-24px))] max-md:rounded-md",
   header:
     "border-b border-edge bg-[linear-gradient(180deg,var(--panel-hi),transparent)] px-5 pt-4 pb-3 max-md:px-3.5 max-md:pt-3.5 max-md:pb-2.5",
   stamp: "text-xs font-bold tracking-[.14em] text-accent-lt uppercase",

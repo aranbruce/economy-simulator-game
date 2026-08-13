@@ -409,6 +409,20 @@ button:disabled {
   background: var(--g-3);
   border-radius: var(--r-pill);
 }
+
+/* Same thin-pill scrollbar for any other scroll container, on whichever
+   axis it scrolls (country overview card, despatch/verdict/event modals,
+   the coach panel, the bloc-invite candidate list, ...). One shared class
+   rather than a `.dw-body`-per-surface copy, since none of these need the
+   drawer's other structural rules, just its scrollbar look. */
+.scroll-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--g-3);
+  border-radius: var(--r-pill);
+}
 /* ================= mobile / narrow ================= */
 @media (max-width: 720px) {
   /* Sit above the live dock (same gap as the drawer), not a fixed guess —

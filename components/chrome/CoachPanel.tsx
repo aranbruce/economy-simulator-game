@@ -16,7 +16,7 @@ export function CoachPanel() {
 
   return (
     <aside
-      className="coach-panel hud-frame hud-surface pointer-events-auto fixed top-[calc(max(24px,env(safe-area-inset-top,0px))+58px)] right-[max(12px,env(safe-area-inset-right,0px))] z-60 flex max-h-[min(70vh,calc(100dvh-140px))] w-[min(340px,calc(100vw-24px))] flex-col gap-2 overflow-auto px-3.5 pt-3 pb-3.5 max-md:inset-x-2 max-md:top-[calc(max(6px,env(safe-area-inset-top,0px))+120px)] max-md:max-h-[min(42vh,calc(100dvh-200px))] max-md:w-auto"
+      className="coach-panel scroll-thin hud-frame hud-surface pointer-events-auto fixed top-[calc(max(24px,env(safe-area-inset-top,0px))+58px)] right-[max(12px,env(safe-area-inset-right,0px))] z-60 flex max-h-[min(70vh,calc(100dvh-140px))] w-[min(340px,calc(100vw-24px))] flex-col gap-2 overflow-auto px-3.5 pt-3 pb-3.5 max-md:inset-x-2 max-md:top-[calc(max(6px,env(safe-area-inset-top,0px))+120px)] max-md:max-h-[min(42vh,calc(100dvh-200px))] max-md:w-auto"
       role="complementary"
       aria-label="Tutorial"
     >
