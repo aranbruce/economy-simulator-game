@@ -98,11 +98,11 @@ function CurrencyPanel({ G }: { G: any }) {
       <Eyebrow>Currency</Eyebrow>
       <CurrencyComparisonChart G={G} anchorCcy={anchorCcy} />
       <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-edge bg-g-1 px-3.5 py-2.5">
-        <label className="text-[10px] font-semibold tracking-[.06em] text-ink-faint uppercase">
+        <label className="text-xs font-semibold tracking-[.06em] text-ink-faint uppercase">
           Show amounts in
         </label>
         <select
-          className="rounded border border-edge bg-g-3 px-2 py-1 text-[12px] text-white"
+          className="rounded border border-edge bg-g-3 px-2 py-1 text-xs text-white"
           value={pref.display || fxCode}
           onChange={(e) =>
             setDisplay(e.target.value === fxCode ? null : e.target.value)
@@ -142,11 +142,11 @@ export function AccessionPipeline({
               className={`flex min-w-12 flex-col items-center gap-0.75 ${done || active ? "opacity-100" : "opacity-42"}`}
             >
               <span
-                className={`flex size-5.5 items-center justify-center rounded-full border-[1.5px] border-edge text-[10px] leading-none font-bold ${dotTone}`}
+                className={`flex size-5.5 items-center justify-center rounded-full border-2 border-edge text-xs leading-none font-bold ${dotTone}`}
               >
                 {done ? "✓" : i + 1}
               </span>
-              <span className="max-w-14 text-center text-[10px] leading-[1.2] text-ink-soft">
+              <span className="max-w-14 text-center text-xs leading-[1.2] text-ink-soft">
                 {label}
               </span>
             </div>
@@ -172,23 +172,23 @@ export function ApprovalTable({
   if (!approvals.length) return null;
   return (
     <>
-      <div className="mt-1.5 mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
+      <div className="mt-1.5 mb-2.25 flex items-center gap-2.25 text-xs font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
         {title}
       </div>
       {approvals.map((a) => (
         <div
           key={a.id}
-          className="my-0.75 grid grid-cols-[90px_1fr_36px] items-center gap-2 text-[12.5px]"
+          className="my-0.75 grid grid-cols-[90px_1fr_36px] items-center gap-2 text-xs"
         >
-          <span className="text-[11px]">{a.name}</span>
-          <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+          <span className="text-xs">{a.name}</span>
+          <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
             <i
               className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${a.ok ? "bg-green" : "bg-red"}`}
               style={{ width: `${a.rel.toFixed(0)}%` }}
             />
           </span>
           <span
-            className={`text-right text-[11.5px] font-[650] ${a.ok ? "text-green" : "text-red"}`}
+            className={`text-right text-xs font-[650] ${a.ok ? "text-green" : "text-red"}`}
           >
             {a.rel.toFixed(0)}
           </span>
@@ -327,7 +327,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
             {blockers.length ? (
               <Callout tone="red">{blockers[0]}</Callout>
             ) : (
-              <div className="block text-[11px] text-green">
+              <div className="block text-xs text-green">
                 Ready to deliver — every member approves.
               </div>
             )}
@@ -353,7 +353,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
       <div className="mt-3">
         <Button
           customSize
-          className="w-full px-4 py-2.5 text-[15px] font-semibold"
+          className="w-full px-4 py-2.5 text-base font-semibold"
           disabled={!candidates.length}
           title={
             candidates.length
@@ -380,7 +380,7 @@ function BlocAccessionTracker({ G, bid }: { G: any; bid: string }) {
   if (!cids.size) return null;
   return (
     <>
-      <div className="mt-2.5 mb-2.25 flex items-center gap-2.25 text-[10px] font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
+      <div className="mt-2.5 mb-2.25 flex items-center gap-2.25 text-xs font-bold tracking-widest text-ink-faint uppercase after:h-px after:flex-1 after:bg-edge after:content-['']">
         Accession pipeline
       </div>
       {Array.from(cids).map((cid) => {
@@ -517,7 +517,7 @@ function BlocNonMemberView({ G }: { G: any }) {
           <div className="mt-3">
             <Button
               customSize
-              className="w-full px-4 py-2.5 text-[15px] font-semibold"
+              className="w-full px-4 py-2.5 text-base font-semibold"
               onClick={() => {
                 if (playerJoiningBloc()) return;
                 showBlocFoundModal();
@@ -717,7 +717,7 @@ function TradeReadout({ G, Eagg }: { G: any; Eagg: any }) {
 }
 
 const NATION_TH =
-  "first:text-left border-b border-edge px-2.5 py-2 text-right text-[9.5px] font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
+  "first:text-left border-b border-edge px-2.5 py-2 text-right text-xs font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
 const NATION_TD =
   "first:text-left border-b border-white/5 px-2.5 py-1.5 text-right";
 
@@ -727,7 +727,7 @@ function NationTable() {
     v > 0 ? "text-green-lt" : v < 0 ? "text-red-lt" : "";
   return (
     <div className="overflow-x-auto rounded-md border border-edge bg-g-1">
-      <table className="w-full min-w-160 border-collapse text-[12.5px] tabular-nums">
+      <table className="w-full min-w-160 border-collapse text-xs tabular-nums">
         <thead>
           <tr>
             <th className={NATION_TH}>Country</th>
@@ -777,11 +777,11 @@ function PartnerDealRow({
 }) {
   return (
     <div className="mt-1 border-t border-edge pt-2">
-      <div className="text-[13px] font-semibold">
+      <div className="text-sm font-semibold">
         {d.name}
         {isBlocExternal ? <CardCat>bloc treaty</CardCat> : null}
       </div>
-      <div className="my-1.25 block text-[11px] text-ink-soft">
+      <div className="my-1.25 block text-xs text-ink-soft">
         {d.terms.map((t: string, i: number) => (
           <span key={i}>
             · {t}
@@ -848,7 +848,7 @@ function PartnerTradeCard({
   let dealsBody: ReactNode = null;
   if (playerInBloc && !founder) {
     dealsBody = (
-      <div className="mt-1.5 block text-[11px] text-ink-faint">
+      <div className="mt-1.5 block text-xs text-ink-faint">
         Bilateral deals unavailable while in a trade bloc.
       </div>
     );
@@ -890,14 +890,14 @@ function PartnerTradeCard({
             partnerId={p.id}
           />
           {hint ? (
-            <div className="block text-[11px] text-amber">{hint}</div>
+            <div className="block text-xs text-amber">{hint}</div>
           ) : null}
         </div>
       );
     });
   } else if (partnerInBloc) {
     dealsBody = (
-      <div className="mt-1.5 block text-[11px] text-ink-faint">
+      <div className="mt-1.5 block text-xs text-ink-faint">
         Partner trades through {bloc ? bloc.name : "their bloc"} — bilateral
         deals unavailable.
       </div>
@@ -915,22 +915,22 @@ function PartnerTradeCard({
         <CardCat>{T(shareLabel(G.homeRole, p.id, p.tradeShare))}</CardCat>
       </h4>
       {bloc ? (
-        <div className="text-[11px] text-ink-faint">{bloc.name}</div>
+        <div className="text-xs text-ink-faint">{bloc.name}</div>
       ) : null}
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">{p.blurb}</p>
-      <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-[11.5px]">
-        <span className="text-[11px]">Relations</span>
-        <span className="h-1.25 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+      <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-xs">
+        <span className="text-xs">Relations</span>
+        <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
           <i
             className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${rel > 60 ? "bg-green" : rel < 38 ? "bg-red" : "bg-ink-soft"}`}
             style={{ width: `${rel.toFixed(0)}%` }}
           />
         </span>
-        <span className="text-right text-[11.5px] font-[650] text-ink-soft">
+        <span className="text-right text-xs font-[650] text-ink-soft">
           {rel.toFixed(0)}
         </span>
       </div>
-      <div className="my-1 block text-[11px] text-ink-soft">
+      <div className="my-1 block text-xs text-ink-soft">
         Exports {Xi.toFixed(1)} ({sharePct}%) · tariff{" "}
         {effectiveTariff(p.id, G.draft).toFixed(1)}%
       </div>

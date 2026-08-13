@@ -14,7 +14,7 @@ export function ChartBox({ title, caption, children, noMargin }: ChartBoxProps) 
     <div
       className={`${noMargin ? "mb-0" : "mb-2"} rounded-md border border-edge bg-g-1 px-3.5 pt-3 pb-2`}
     >
-      <h3 className="m-0 mb-0.5 font-display text-[18px] font-normal tracking-[-.02em]">
+      <h3 className="m-0 mb-0.5 font-display text-lg font-normal tracking-[-.02em]">
         {title}
       </h3>
       <div className="mb-2 text-xs leading-[1.4] text-ink-soft">{caption}</div>
@@ -65,7 +65,7 @@ export function LineChartSvg({
 }) {
   if (!spec)
     return (
-      <div className="p-4 text-[12.5px] text-ink-faint">
+      <div className="p-4 text-xs text-ink-faint">
         Not enough quarters recorded yet.
       </div>
     );
@@ -149,7 +149,7 @@ export function LineChartSvg({
           </g>
         ))}
       </svg>
-      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-[11px] text-ink-soft">
+      <div className="mt-1.75 flex flex-wrap gap-x-3.25 gap-y-1.25 text-xs text-ink-soft">
         {series.map((s, i) => (
           <span key={i}>
             <i

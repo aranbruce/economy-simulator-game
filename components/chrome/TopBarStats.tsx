@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  approvalOf,
-  balanceOf,
-  electionQuartersLeft,
-  electionThermometer,
-  fmt,
-  polityOf,
-  qLabel,
-  reviewNoun,
-} from "../../lib/sim/engine.ts";
+import { approvalOf, balanceOf, fmt, qLabel } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Chip } from "../ui/Chip.tsx";
 
@@ -22,15 +13,11 @@ export function TopBarStats() {
   const e = G.econ;
   const appr = approvalOf(G.fac);
   const balShow = last ? last.balance : balanceOf(G.law, e).balance;
-  const left = electionQuartersLeft();
-  const therm = electionThermometer();
-  const reviewLabel =
-    polityOf().kind === "congress"
-      ? "Congress"
-      : polityOf().kind === "managed"
-        ? "Ballot"
-        : "Election";
   const gShow = last ? last.growth : e.trendGrowth;
+  /* Trend, Unemployment, Yield and the election countdown are dropped here
+     — the countdown already lives in the icon rail (IconRail.tsx), and the
+     other three were cut to keep this a compact resource strip rather than
+     a dense instrument panel. */
   const chips = [
     {
       label: "Growth",
@@ -38,14 +25,6 @@ export function TopBarStats() {
       unit: "%",
       delta: d("growth"),
       state: last && last.growth < 0 ? "alert" : "",
-    },
-    {
-      label: "Trend",
-      value: (e.trendGrowth != null ? e.trendGrowth : 0).toFixed(1),
-      unit: "%",
-      kind: "trend",
-      title:
-        "Annualised potential growth from TFP, capital and labour — not outturn GDP.",
     },
     {
       label: "Inflation",
@@ -67,14 +46,6 @@ export function TopBarStats() {
         : "Set by the Bank, not by you. It follows a Taylor rule: it rises when inflation is above target or output is above potential, and it is smoothed, so it moves in steps. Pin it yourself in the Bill panel.",
     },
     {
-      label: "Unemp.",
-      value: e.unemployment.toFixed(1),
-      unit: "%",
-      delta: d("unemployment"),
-      state: e.unemployment > 6 ? "alert" : "",
-      invert: true,
-    },
-    {
       label: "Balance",
       value: fmt(balShow, 1),
       unit: "%",
@@ -90,14 +61,6 @@ export function TopBarStats() {
       invert: true,
     },
     {
-      label: "Yield",
-      value: e.yield.toFixed(2),
-      unit: "%",
-      delta: d("yield"),
-      state: e.yield > 6.5 ? "alert" : "",
-      invert: true,
-    },
-    {
       label: "Approval",
       value: appr.toFixed(0),
       unit: "%",
@@ -108,17 +71,11 @@ export function TopBarStats() {
       value: String(Math.round(G.capital)),
       state: G.capital < 12 ? "alert" : "",
     },
-    {
-      label: reviewLabel,
-      value: String(left),
-      unit: "Q",
-      state: left <= 4 ? (therm <= polityOf().loseAt ? "alert" : "") : "",
-    },
   ];
 
   return (
     <div
-      className="ml-auto flex scrollbar-none items-stretch gap-0.75 overflow-x-auto max-[720px]:ml-0 max-[720px]:w-full max-[720px]:flex-[1_1_100%] max-[720px]:flex-wrap max-[720px]:justify-stretch max-[720px]:gap-1 max-[720px]:overflow-x-visible"
+      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:grid max-md:w-full max-md:flex-[1_1_100%] max-md:grid-cols-12 max-md:overflow-x-visible md:justify-stretch md:overflow-x-visible max-md:[&>*]:col-span-3 max-md:[&>*:nth-child(4)]:border-r-0 max-md:[&>*:nth-child(n+5)]:col-span-4 max-md:[&>*:nth-child(n+5)]:border-t max-md:[&>*:nth-child(n+5)]:border-edge"
       id="tbStats"
     >
       {chips.map((c) => (
@@ -130,13 +87,6 @@ export function TopBarStats() {
 
 export function TopBarTerm() {
   const G = useGame();
-  const left = electionQuartersLeft();
-  const therm = electionThermometer();
-  const noun = reviewNoun();
-  const electHint =
-    left <= 4
-      ? ` · ${noun} score ~${therm.toFixed(0)}${therm <= polityOf().loseAt ? " (at risk)" : ""}`
-      : "";
   const termLabel = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"][
     Math.min(G.term - 1, 5)
   ];
@@ -144,9 +94,9 @@ export function TopBarTerm() {
   return (
     <small
       id="tbTerm"
-      className="mt-0.5 block text-[10px] font-medium tracking-[.06em] text-ink-faint uppercase max-[720px]:text-[9px] max-[540px]:max-w-[38vw] max-[540px]:overflow-hidden max-[540px]:text-ellipsis max-[540px]:whitespace-nowrap"
+      className="mt-0.5 block text-xs font-medium tracking-[.06em] text-ink-faint uppercase max-md:text-xs max-sm:max-w-[38vw] max-sm:truncate"
     >
-      {termLabel} term · {qLabel(G, G.q)} · {noun} in {left}Q{electHint}
+      {termLabel} term · {qLabel(G, G.q)}
     </small>
   );
 }

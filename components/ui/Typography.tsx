@@ -8,7 +8,7 @@ interface TextProps {
 }
 
 const EYEBROW_BASE =
-  "flex items-center gap-2.25 mb-2.25 text-[10px] font-bold text-ink-faint tracking-widest uppercase after:content-[''] after:flex-1 after:h-px after:bg-edge";
+  "flex items-center gap-2.25 mb-2.25 text-xs font-bold text-ink-faint tracking-widest uppercase after:content-[''] after:flex-1 after:h-px after:bg-edge";
 
 export function Eyebrow({ children, className = "" }: TextProps) {
   return (
@@ -16,8 +16,8 @@ export function Eyebrow({ children, className = "" }: TextProps) {
   );
 }
 
-const HINT_BASE = "text-[12.5px] text-ink-soft leading-[1.4]";
-const HINT_MARGIN_DEFAULT = "-mt-[3px] mb-3";
+const HINT_BASE = "text-xs text-ink-soft leading-[1.4]";
+const HINT_MARGIN_DEFAULT = "-mt-0.75 mb-3";
 
 export function Hint({ children, className = "" }: TextProps) {
   return (

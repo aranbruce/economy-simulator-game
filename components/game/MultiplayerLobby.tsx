@@ -169,23 +169,23 @@ export default function MultiplayerLobby({
         role="dialog"
         aria-modal="true"
       >
-        <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
-          <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+        <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+          <div className="text-xs font-bold tracking-[.14em] text-accent-lt uppercase">
             Cabinet
           </div>
           <h1 className="my-1.5 font-display text-[clamp(24px,3.6vw,30px)] leading-[1.1] font-normal tracking-tight">
             Private room
           </h1>
-          <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
+          <p className="m-0 text-sm leading-[1.45] text-ink-soft">
             {mode === "host"
               ? "Share the code below. Friends pick a free country on the map, then join with that code."
               : "You’re in. The host starts when everyone is ready — quarters only advance when every human has Delivered."}
           </p>
         </HudFrame>
-        <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+        <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
           <div className="flex w-full flex-col gap-3.5">
             <div className="flex flex-col gap-1.5">
-              <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+              <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
                 Room code
               </span>
               <div className="flex flex-wrap items-center gap-2.5">
@@ -198,20 +198,20 @@ export default function MultiplayerLobby({
                 <SetupGoButton
                   secondary
                   customSize
-                  className="px-3.5 py-2 text-[13px]"
+                  className="px-3.5 py-2 text-sm"
                   onClick={() => copyRoomCode(room.code)}
                 >
                   {copied ? "Copied" : "Copy"}
                 </SetupGoButton>
               </div>
-              <p className="mt-1 text-left text-[11px] leading-[1.35] text-ink-soft">
+              <p className="mt-1 text-left text-xs leading-[1.35] text-ink-soft">
                 Unclaimed seats stay AI once the game starts.
               </p>
             </div>
 
             <div className="flex min-w-0 flex-1 flex-col gap-0">
               <div className="mb-1.5 flex items-baseline justify-between gap-3">
-                <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+                <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
                   Players
                 </span>
                 <strong>
@@ -224,7 +224,7 @@ export default function MultiplayerLobby({
                   return (
                     <li
                       key={p.seatId + p.name}
-                      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-[10px] border border-white/6 bg-white/4 px-2.5 py-2 text-[13px] leading-[1.3] text-ink max-[720px]:grid-cols-[1fr_auto] max-[720px]:gap-x-2 max-[720px]:gap-y-1"
+                      className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 rounded-lg border border-white/6 bg-white/4 px-2.5 py-2 text-sm leading-[1.3] text-ink max-md:grid-cols-[1fr_auto] max-md:gap-x-2 max-md:gap-y-1"
                     >
                       <span className="min-w-0 font-semibold">
                         {p.name}
@@ -235,15 +235,15 @@ export default function MultiplayerLobby({
                           </em>
                         ) : null}
                       </span>
-                      <span className="min-w-0 truncate text-xs text-ink-soft max-[720px]:col-span-full">
+                      <span className="min-w-0 truncate text-xs text-ink-soft max-md:col-span-full">
                         {seat.name}
                       </span>
                       {p.isHost ? (
-                        <span className="justify-self-end rounded-full bg-blue/12 px-1.75 py-0.75 text-[9.5px] font-bold tracking-[.08em] text-accent-lt uppercase">
+                        <span className="justify-self-end rounded-full bg-blue/12 px-1.75 py-0.75 text-xs font-bold tracking-[.08em] text-accent-lt uppercase">
                           Host
                         </span>
                       ) : (
-                        <span className="justify-self-end rounded-full bg-white/6 px-1.75 py-0.75 text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
+                        <span className="justify-self-end rounded-full bg-white/6 px-1.75 py-0.75 text-xs font-bold tracking-[.08em] text-ink-faint uppercase">
                           Guest
                         </span>
                       )}
@@ -251,7 +251,7 @@ export default function MultiplayerLobby({
                   );
                 })}
               </ul>
-              <p className="mt-1 text-left text-[11px] leading-[1.35] text-ink-soft">
+              <p className="mt-1 text-left text-xs leading-[1.35] text-ink-soft">
                 {mode === "host"
                   ? ready
                     ? "Everyone in? Start when ready."
@@ -305,8 +305,8 @@ export default function MultiplayerLobby({
       aria-modal="true"
       aria-labelledby="mpLobbyTitle"
     >
-      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
-        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+        <div className="text-xs font-bold tracking-[.14em] text-accent-lt uppercase">
           Cabinet
         </div>
         <h1
@@ -315,18 +315,18 @@ export default function MultiplayerLobby({
         >
           Multiplayer
         </h1>
-        <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
+        <p className="m-0 text-sm leading-[1.45] text-ink-soft">
           Private rooms over the same map. Pick your country first, then host a
           lobby or join with a friend’s code.
         </p>
       </HudFrame>
-      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex w-full flex-col gap-3.5">
-          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-[720px]:grid-cols-1">
+          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-md:grid-cols-1">
             <div className="flex min-w-0 flex-1 flex-col gap-0">
-              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
                 <div className="flex min-w-0 flex-1 flex-col gap-0.75">
-                  <span className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase">
+                  <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
                     Your seat
                   </span>
                   <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
@@ -340,7 +340,7 @@ export default function MultiplayerLobby({
               </div>
             </div>
             <label className="flex w-full min-w-35 flex-1 flex-col gap-1.25">
-              <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+              <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
                 Display name
               </span>
               <input
@@ -350,19 +350,19 @@ export default function MultiplayerLobby({
                 placeholder={realm.name}
                 onChange={(e) => setName(e.target.value)}
                 aria-label="Display name in the lobby"
-                className="w-full rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-[15px] font-semibold tracking-[-.02em] text-white placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
+                className="w-full rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-base font-semibold tracking-[-.02em] text-white placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
               />
             </label>
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5 max-[720px]:grid-cols-1">
+          <div className="grid grid-cols-2 gap-2.5 max-md:grid-cols-1">
             <section
               className="flex min-h-full flex-col justify-between gap-3 rounded-md border border-white/7 bg-white/4 px-3.25 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,.05)]"
               aria-labelledby="mpHostPath"
             >
               <div className="flex flex-col gap-1">
                 <span
-                  className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase"
+                  className="text-xs font-bold tracking-widest text-accent-lt uppercase"
                   id="mpHostPath"
                 >
                   Host
@@ -390,7 +390,7 @@ export default function MultiplayerLobby({
             >
               <div className="flex flex-col gap-1">
                 <span
-                  className="text-[9.5px] font-bold tracking-widest text-accent-lt uppercase"
+                  className="text-xs font-bold tracking-widest text-accent-lt uppercase"
                   id="mpJoinPath"
                 >
                   Join
@@ -403,9 +403,9 @@ export default function MultiplayerLobby({
                   be open.
                 </p>
               </div>
-              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-[560px]:grid-cols-1">
+              <div className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-end gap-2 max-sm:grid-cols-1">
                 <label className="flex w-auto min-w-0 flex-col gap-1.25">
-                  <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+                  <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
                     Room code
                   </span>
                   <input
@@ -421,13 +421,13 @@ export default function MultiplayerLobby({
                       if (e.key === "Enter" && canJoin && !busy) guestJoin();
                     }}
                     aria-label="Room code"
-                    className="w-full min-w-0 rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-[15px] font-semibold tracking-[.14em] text-white uppercase tabular-nums placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
+                    className="w-full min-w-0 rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-base font-semibold tracking-[.14em] text-white uppercase tabular-nums placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
                   />
                 </label>
                 <SetupGoButton
                   secondary
                   customSize
-                  className="h-fit w-auto flex-none self-end px-4.5 py-2.75 text-[14.5px] whitespace-nowrap"
+                  className="h-fit w-auto flex-none self-end px-4.5 py-2.75 text-sm whitespace-nowrap"
                   disabled={busy || !canJoin}
                   onClick={guestJoin}
                 >
@@ -446,7 +446,7 @@ export default function MultiplayerLobby({
         <div className="flex justify-center pt-0.5">
           <button
             type="button"
-            className="cursor-pointer border-none bg-transparent px-2.5 py-1.5 font-sans text-[12.5px] font-semibold text-ink-soft underline decoration-white/20 underline-offset-[3px] transition-[color,text-decoration-color] duration-160 hover:text-ink hover:decoration-white/45 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-lt"
+            className="cursor-pointer border-none bg-transparent px-2.5 py-1.5 font-sans text-xs font-semibold text-ink-soft underline decoration-white/20 underline-offset-4 transition-[color,text-decoration-color] duration-160 hover:text-ink hover:decoration-white/45 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-accent-lt"
             onClick={onBack}
           >
             Solo instead

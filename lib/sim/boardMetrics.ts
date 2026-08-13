@@ -23,51 +23,53 @@ export const BOARD_METRICS = [
   { id: "deficit", name: "Deficit" },
 ];
 
-/** Fixed fills so each country reads apart — used by Countries view and setup. */
+/** Fixed fills so each country reads apart — used by Countries view and setup.
+ *  A warm ochre/terracotta/olive family (aged-atlas palette), not the cool
+ *  blue-grey set this used to be — no blues or purples in the roster. */
 export const REALM_FILL: Record<string, string> = {
-  home: "#9aa8b8",
-  kingdom: "#9aa8b8",
-  germany: "#5b7d9a",
-  france: "#4a6d82",
-  italy: "#6a7a8c",
-  spain: "#8b7355",
-  netherlands: "#5a8a9a",
-  poland: "#6a8a7a",
-  united_states: "#4a6d82",
-  canada: "#5a7a6a",
-  china: "#8b7355",
-  russia: "#6a7a8c",
-  india: "#9a6b4a",
-  brazil: "#8a5a5a",
-  mexico: "#7a6a5a",
-  argentina: "#9a7a5a",
-  japan: "#5a7a8a",
-  korea: "#4a6a8a",
-  australia: "#3d7a6a",
-  indonesia: "#5a8a6a",
-  vietnam: "#4a7a5a",
-  turkey: "#8a6a5a",
-  saudi: "#a08050",
-  uae: "#b09060",
-  nigeria: "#6b8a5a",
-  south_africa: "#7a8a6a",
-  egypt: "#9a8a5a",
-  kenya: "#6a9a5a",
+  home: "#c9a25c",
+  kingdom: "#c9a25c",
+  germany: "#a86a48",
+  france: "#8f8049",
+  italy: "#b5714a",
+  spain: "#8b6b3f",
+  netherlands: "#71805a",
+  poland: "#9c8c4f",
+  united_states: "#a2825a",
+  canada: "#7a8a5a",
+  china: "#b08050",
+  russia: "#8a7060",
+  india: "#c07a3a",
+  brazil: "#9a5a45",
+  mexico: "#8a6a4a",
+  argentina: "#a87850",
+  japan: "#b06a5a",
+  korea: "#9a7a4a",
+  australia: "#7a9060",
+  indonesia: "#8a9a5a",
+  vietnam: "#6a8a55",
+  turkey: "#a6704a",
+  saudi: "#c09050",
+  uae: "#d0a060",
+  nigeria: "#8aa060",
+  south_africa: "#9aa070",
+  egypt: "#b09a5a",
+  kenya: "#7a9a50",
 };
 const HOME_MARK = "#D4AF69";
-const NO_BLOC_FILL = "#3a4558";
-const CUSTOM_BLOC_FILL = "#6a7a9a";
+const NO_BLOC_FILL = "#4a3a28";
+const CUSTOM_BLOC_FILL = "#8a7a5a";
 
 /** Distinct bloc hues — members of the same bloc share a fill. */
 const BLOC_FILL: Record<string, string> = {
-  continental_union: "#4a7ab8",
-  pacific_accord: "#3d8a7a",
-  gulf_council: "#b09050",
+  continental_union: "#a8703f",
+  pacific_accord: "#5a8a5a",
+  gulf_council: "#c09050",
   andes_pact: "#9a6b4a",
-  asean_circle: "#5a9a7a",
+  asean_circle: "#6a8a5a",
 };
 
-function roleCountryId(role: string, G: GameState) {
+export function roleCountryId(role: string, G: GameState) {
   return role === "home" ? playerCountryId(G.homeRole) : role;
 }
 
@@ -117,7 +119,12 @@ function boardMetricValue(
   if (!G) return null;
   if (metric === "countries" || metric === "blocs") return null;
   if (role === "home") {
-    if (metric === "relations") return 100;
+    /* A country has no relation score with itself — null suppresses the
+       figure everywhere boardMetricValueLabel() feeds (the map label, the
+       MapChrome caption), rather than showing a meaningless "100". The
+       map fill still resolves to HOME_MARK regardless, in
+       boardMetricColour(). */
+    if (metric === "relations") return null;
     if (metric === "growth") return homeGrowth(G);
     if (metric === "deficit") return homeDeficit(G);
     return null;
@@ -197,13 +204,3 @@ export function boardMetricColour(
   return METRIC_MISSING;
 }
 
-export function boardMetricCaption(metric: string, G: GameState = getG()) {
-  const m = BOARD_METRICS.find((x) => x.id === metric);
-  if (!m || !G) return "";
-  if (metric === "countries") return "Each country in its own colour";
-  if (metric === "blocs") return "Coloured by trade bloc membership";
-  if (metric === "relations") return "Coloured by how they stand with you";
-  if (metric === "growth") return "Annualised growth across the board";
-  if (metric === "deficit") return "Borrowing as a share of GDP";
-  return m.name;
-}

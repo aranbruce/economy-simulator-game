@@ -42,24 +42,17 @@ interface CountryFeature {
   strokeChains: Ring[][][];
 }
 
-const OCEAN = "#080e1c";
-const SCENERY_FILL = "#1c2433";
+const OCEAN = "#3c4a3f";
+const SCENERY_FILL = "#3a3226";
 const HOVER_LIFT = 1.18;
 const MIN_ZOOM = 0.85;
-const MAX_ZOOM = 8;
+const MAX_ZOOM = 16;
 /** Crop Antarctica and empty polar ocean so the playable world fills the frame. */
 const LAT_MAX = 84;
 const LAT_MIN = -56;
 const SKIP_ISO = new Set(["010"]); // Antarctica — not on the board
 
 const SETUP_SELECTED = "#D4AF69";
-
-const DIPLO_EMOJI: Record<string, string> = {
-  envoy: "💼",
-  summit: "🤝",
-  summit_staged: "📅",
-  ultimatum: "⚠️",
-};
 
 const DIPLO_MARKER_ORDER = ["envoy", "summit", "summit_staged", "ultimatum"];
 const DIPLO_MARKER_SIZE = 18;
@@ -379,23 +372,6 @@ function polysCentroid(polys: Polys): Point {
   return best ? ringCentroid(best) : [0.5, 0.5];
 }
 
-function roundRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
 function roleForFeature(
   iso: string,
   homeRole?: string | null,
@@ -411,8 +387,13 @@ function polysForRole(
   hIso: string | null,
   setupMode: boolean,
 ): Polys | null {
-  const realm = realmByRole(role);
-  const anchorIso = realm.iso ? String(realm.iso).padStart(3, "0") : null;
+  /* "home" means the UK in setup (the fixed reference territory on the
+     picker) but the actual player's country once a game is running —
+     realmByRole("home") only knows the former, so resolve via hIso here
+     instead, or a same-role UK label/marker ends up drawn over whichever
+     country the player is actually playing. */
+  const rawIso = role === "home" && !setupMode ? hIso : realmByRole(role).iso;
+  const anchorIso = rawIso ? String(rawIso).padStart(3, "0") : null;
   if (anchorIso) {
     const anchor = countries.find((c) => c.iso === anchorIso);
     if (anchor && anchor.polys.length) return anchor.polys;
@@ -426,39 +407,117 @@ function polysForRole(
   return polys.length ? polys : null;
 }
 
-function diploEmojiFont(size: number) {
-  return `${size}px -apple-system, "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-}
-
-function measureDiploEmoji(
+/** Small vector glyph per marker kind, drawn in the badge's ring colour. */
+function drawDiploMarkerGlyph(
   ctx: CanvasRenderingContext2D,
-  emoji: string,
+  kind: string,
+  cx: number,
+  cy: number,
   size: number,
 ) {
-  ctx.save();
-  ctx.font = diploEmojiFont(size);
-  const w = ctx.measureText(emoji).width;
-  ctx.restore();
-  return w;
+  const g = size * 0.21;
+  ctx.strokeStyle = "#f2e6c8";
+  ctx.lineWidth = Math.max(1, size * 0.09);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (kind === "envoy") {
+    /* Briefcase: body plus a handle arc. */
+    ctx.rect(cx - g, cy - g * 0.5, g * 2, g * 1.3);
+    ctx.moveTo(cx - g * 0.45, cy - g * 0.5);
+    ctx.arc(cx, cy - g * 0.7, g * 0.45, Math.PI, 0);
+  } else if (kind === "summit") {
+    /* Two linked rings. */
+    ctx.arc(cx - g * 0.5, cy, g * 0.55, 0, Math.PI * 2);
+    ctx.moveTo(cx + g * 1.05, cy);
+    ctx.arc(cx + g * 0.5, cy, g * 0.55, 0, Math.PI * 2);
+  } else if (kind === "summit_staged") {
+    /* Calendar: body plus a top rule. */
+    ctx.rect(cx - g, cy - g * 0.8, g * 2, g * 1.7);
+    ctx.moveTo(cx - g, cy - g * 0.2);
+    ctx.lineTo(cx + g, cy - g * 0.2);
+  } else if (kind === "ultimatum") {
+    /* Warning triangle. */
+    ctx.moveTo(cx, cy - g);
+    ctx.lineTo(cx + g * 0.95, cy + g * 0.75);
+    ctx.lineTo(cx - g * 0.95, cy + g * 0.75);
+    ctx.closePath();
+  }
+  ctx.stroke();
+  if (kind === "ultimatum") {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - g * 0.15);
+    ctx.lineTo(cx, cy + g * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy + g * 0.58, size * 0.045, 0, Math.PI * 2);
+    ctx.fillStyle = "#f2e6c8";
+    ctx.fill();
+  }
 }
 
-function drawDiploEmoji(
+/** Gold-ringed dark badge with a small vector glyph — matches the icon
+ *  rail's language instead of raw platform emoji. */
+function drawDiploMarker(
   ctx: CanvasRenderingContext2D,
-  emoji: string,
+  kind: string,
   cx: number,
   cy: number,
   size: number,
   alpha = 1,
 ) {
   ctx.save();
-  ctx.font = diploEmojiFont(size);
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
   ctx.globalAlpha = alpha;
   ctx.shadowColor = "rgba(0,0,0,0.55)";
   ctx.shadowBlur = 4;
-  ctx.fillText(emoji, cx, cy);
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.fillStyle = "#17110a";
+  ctx.fill();
+  ctx.lineWidth = Math.max(1, size * 0.08);
+  ctx.strokeStyle = "#d4af69";
+  ctx.stroke();
+  ctx.shadowBlur = 0;
+  drawDiploMarkerGlyph(ctx, kind, cx, cy, size);
   ctx.restore();
+}
+
+/** A small warm-tinted noise tile, generated once and reused across every
+ *  paint() call (and every WorldMap instance) — cheap to composite as a
+ *  repeating pattern, expensive to regenerate every frame. */
+let _grainTile: HTMLCanvasElement | null = null;
+function grainTile(): HTMLCanvasElement | null {
+  if (_grainTile) return _grainTile;
+  if (typeof document === "undefined") return null;
+  const size = 64;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const tctx = c.getContext("2d");
+  if (!tctx) return null;
+  const img = tctx.createImageData(size, size);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 20 + Math.floor(Math.random() * 20);
+    img.data[i] = v;
+    img.data[i + 1] = Math.round(v * 0.85);
+    img.data[i + 2] = Math.round(v * 0.6);
+    img.data[i + 3] = Math.floor(Math.random() * 70);
+  }
+  tctx.putImageData(img, 0, 0);
+  _grainTile = c;
+  return _grainTile;
+}
+/** createPattern() only needs to run once — a CanvasPattern isn't bound to
+ *  the context that created it, so the same object composites fine on any
+ *  2D context. Recreating it every paint() (unthrottled on drag/pinch) was
+ *  pure allocation churn for an unchanging texture. */
+let _grainPattern: CanvasPattern | null = null;
+function grainPattern(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (_grainPattern) return _grainPattern;
+  const tile = grainTile();
+  if (!tile) return null;
+  _grainPattern = ctx.createPattern(tile, "repeat");
+  return _grainPattern;
 }
 
 /**
@@ -497,6 +556,11 @@ export default function WorldMap({
 }: WorldMapProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  /** Offscreen buffer the terrain (ocean + every country fill/stroke) is
+   *  drawn to unfiltered, so the sepia/contrast color-grade below composites
+   *  once via drawImage() instead of running the canvas filter pipeline on
+   *  ~180 individual fill()/stroke() calls per paint(). */
+  const terrainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const countriesRef = useRef<CountryFeature[]>([]);
   const viewRef = useRef({ scale: 1.15, tx: 0, ty: 0 });
   const dragRef = useRef<{
@@ -536,10 +600,28 @@ export default function WorldMap({
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-    ctx.fillStyle = OCEAN;
-    ctx.fillRect(0, 0, W, H);
+    /* Terrain (ocean + every country fill/stroke) draws unfiltered to this
+       offscreen buffer; the sepia/contrast color-grade composites it onto
+       the main canvas in one drawImage() below instead of running the
+       canvas filter pipeline on every individual fill()/stroke() call. */
+    let terrain = terrainCanvasRef.current;
+    if (!terrain) {
+      terrain = document.createElement("canvas");
+      terrainCanvasRef.current = terrain;
+    }
+    if (terrain.width !== W * dpr || terrain.height !== H * dpr) {
+      terrain.width = W * dpr;
+      terrain.height = H * dpr;
+    }
+    const tctx = terrain.getContext("2d");
+    if (!tctx) return;
+    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    tctx.clearRect(0, 0, W, H);
 
-    const glow = ctx.createRadialGradient(
+    tctx.fillStyle = OCEAN;
+    tctx.fillRect(0, 0, W, H);
+
+    const glow = tctx.createRadialGradient(
       W * 0.5,
       H * 0.48,
       W * 0.08,
@@ -547,10 +629,10 @@ export default function WorldMap({
       H * 0.5,
       W * 0.7,
     );
-    glow.addColorStop(0, "rgba(15,28,51,.55)");
-    glow.addColorStop(1, "rgba(4,6,12,0)");
-    ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, W, H);
+    glow.addColorStop(0, "rgba(70,51,27,.5)");
+    glow.addColorStop(1, "rgba(8,5,3,0)");
+    tctx.fillStyle = glow;
+    tctx.fillRect(0, 0, W, H);
 
     const { scale, tx, ty } = viewRef.current;
     const { plateW, plateH, ox, oy } = computePlateLayout(W, H);
@@ -608,34 +690,34 @@ export default function WorldMap({
        which matters once wrap makes two tiled copies of a country (e.g. the
        two antimeridian-split pieces of Russia) sit edge-to-edge. */
     for (const { c, role, fill, strokeChains } of renderList) {
-      ctx.beginPath();
+      tctx.beginPath();
       for (const dx of offsets) {
         for (const rings of c.polys) {
           for (const ring of rings) {
             ring.forEach(([nx, ny], i) => {
               const [x, y] = toScreen(nx, ny, dx);
-              if (i === 0) ctx.moveTo(x, y);
-              else ctx.lineTo(x, y);
+              if (i === 0) tctx.moveTo(x, y);
+              else tctx.lineTo(x, y);
             });
-            ctx.closePath();
+            tctx.closePath();
           }
         }
       }
-      ctx.fillStyle = fill;
-      ctx.fill("evenodd");
+      tctx.fillStyle = fill;
+      tctx.fill("evenodd");
       /* Always stroke land so adjoining realms (Russia / China) stay
          distinct even when fills are close. Stroked separately from the
          fill path, and broken at antimeridian-cut edges, so a split
          country's two pieces don't draw a seam line through themselves. */
-      ctx.beginPath();
+      tctx.beginPath();
       for (const dx of offsets) {
         for (const group of strokeChains) {
           for (const ringChains of group) {
             for (const chain of ringChains) {
               chain.forEach(([nx, ny], i) => {
                 const [x, y] = toScreen(nx, ny, dx);
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                if (i === 0) tctx.moveTo(x, y);
+                else tctx.lineTo(x, y);
               });
             }
           }
@@ -644,15 +726,23 @@ export default function WorldMap({
       if (role) {
         const hot =
           isSelected(role) || isHovered(role, c.iso) || role === "home";
-        ctx.strokeStyle = hot ? "rgba(255,255,255,.5)" : "rgba(8,14,28,.55)";
-        ctx.lineWidth = hot ? 1.15 : 0.7;
-        ctx.stroke();
+        tctx.strokeStyle = hot ? "rgba(246,240,226,.55)" : "rgba(24,18,10,.55)";
+        tctx.lineWidth = hot ? 1.15 : 0.7;
+        tctx.stroke();
       } else {
-        ctx.strokeStyle = "rgba(8,14,28,.35)";
-        ctx.lineWidth = 0.4;
-        ctx.stroke();
+        tctx.strokeStyle = "rgba(24,18,10,.35)";
+        tctx.lineWidth = 0.4;
+        tctx.stroke();
       }
     }
+
+    /* Composite the unfiltered terrain buffer through the sepia/contrast
+       color-grade in one drawImage() call, rather than running the canvas
+       filter pipeline on every fill()/stroke() above. */
+    ctx.save();
+    ctx.filter = "sepia(0.14) saturate(0.82) contrast(1.07) brightness(1.02)";
+    ctx.drawImage(terrain, 0, 0, W, H);
+    ctx.restore();
 
     /* Trade lines from home to partners (play only). */
     if (!setupMode && G) {
@@ -726,27 +816,26 @@ export default function WorldMap({
               (a: string, b: string) =>
                 DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
             );
-          const widths = kinds.map((kind) =>
-            measureDiploEmoji(ctx, DIPLO_EMOJI[kind], DIPLO_MARKER_SIZE),
-          );
+          /* Every diplomacy marker is the same size, so the row width is
+             just kinds.length copies of it plus the gaps between them. */
           const rowW =
-            widths.reduce((sum, w) => sum + w, 0) +
+            kinds.length * DIPLO_MARKER_SIZE +
             DIPLO_MARKER_PAD * Math.max(0, kinds.length - 1);
-          return { nx, ny, kinds, widths, rowW };
+          return { nx, ny, kinds, rowW };
         })
         .filter((x): x is NonNullable<typeof x> => x != null);
 
       for (const dx of offsets) {
-        for (const { nx, ny, kinds, widths, rowW } of partnerMarkerRows) {
+        for (const { nx, ny, kinds, rowW } of partnerMarkerRows) {
           const [x, y] = toScreen(nx, ny, dx);
           let cursor = x - rowW / 2;
-          kinds.forEach((kind, i) => {
-            const sx = cursor + widths[i] / 2;
-            cursor += widths[i] + DIPLO_MARKER_PAD;
+          kinds.forEach((kind) => {
+            const sx = cursor + DIPLO_MARKER_SIZE / 2;
+            cursor += DIPLO_MARKER_SIZE + DIPLO_MARKER_PAD;
             const sy = y - DIPLO_MARKER_OFFSET;
-            drawDiploEmoji(
+            drawDiploMarker(
               ctx,
-              DIPLO_EMOJI[kind],
+              kind,
               sx,
               sy,
               DIPLO_MARKER_SIZE,
@@ -761,14 +850,14 @@ export default function WorldMap({
         const legendY = H - 36;
         let lx = 14;
         ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-        ctx.fillStyle = "rgba(255,255,255,.55)";
+        ctx.fillStyle = "rgba(246,240,226,.6)";
         ctx.textAlign = "left";
         ctx.textBaseline = "middle";
         for (const kind of DIPLO_MARKER_ORDER) {
           if (!kindsPresent.has(kind)) continue;
-          drawDiploEmoji(
+          drawDiploMarker(
             ctx,
-            DIPLO_EMOJI[kind],
+            kind,
             lx + 8,
             legendY,
             DIPLO_LEGEND_SIZE,
@@ -781,8 +870,9 @@ export default function WorldMap({
       }
     }
 
-    /* Labels: one per realm still on the board. */
-    ctx.font = "600 12px -apple-system, system-ui, sans-serif";
+    /* Labels: one per realm still on the board. Set directly on the terrain
+       in capitalised sans-serif, no pill background — legibility comes from
+       a soft drop shadow rather than a solid box. */
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
@@ -795,40 +885,80 @@ export default function WorldMap({
         const polys = polysForRole(role, countries, hRole, hIso, setupMode);
         if (!polys) return null;
         const [nx, ny] = polysCentroid(polys);
-        let text;
+        let rawText;
         if (role === "home") {
           const homeName = setupMode
             ? realmByRole("home").name
             : (G && G.country) || realmByRole(hRole).name;
-          text = setupMode
+          rawText = setupMode
             ? homeName
             : boardMetricMapLabel("home", mapMetric ?? null, homeName, G);
         } else {
           const p = PARTNERS.find((x) => x.id === role);
           const name = p ? p.name : role;
-          text = setupMode
+          rawText = setupMode
             ? name
             : boardMetricMapLabel(role, mapMetric ?? null, name, G);
         }
-        const tw = ctx.measureText(text).width;
+        const text = rawText.toUpperCase();
         const hot = isSelected(role) || hoverRole === role;
-        return { nx, ny, text, tw, hot };
+        /* Placement priority is separate from hot's bold/gold styling — the
+           player's own realm should keep its label even when neither
+           selected nor hovered. */
+        const priority = hot || role === "home" ? 1 : 0;
+        const font = hot
+          ? '700 12px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif'
+          : '600 11px "Plus Jakarta Sans", -apple-system, system-ui, sans-serif';
+        /* Font/width only depend on the label itself, not which wrapped
+           copy of the world it's drawn at — compute once here rather than
+           inside the offsets loop below, which redoes it 2-3x per label
+           on every paint(). */
+        ctx.font = font;
+        const w = ctx.measureText(text).width;
+        return { nx, ny, text, hot, priority, font, w };
       })
-      .filter((x): x is NonNullable<typeof x> => x != null);
+      .filter((x): x is NonNullable<typeof x> => x != null)
+      /* Stable sort: priority labels claim their space first, so a crowded
+         cluster (real-world geography packs some realms tightly) drops the
+         lower-priority overlaps instead of drawing them on top of each
+         other illegibly. */
+      .sort((a, b) => b.priority - a.priority);
 
+    ctx.save();
+    ctx.shadowColor = "rgba(15,11,6,.85)";
+    ctx.shadowBlur = 4;
     for (const dx of offsets) {
-      for (const { nx, ny, text, tw, hot } of labelRows) {
+      const placed: { x0: number; y0: number; x1: number; y1: number }[] = [];
+      for (const { nx, ny, text, hot, font, w } of labelRows) {
         const [x, y] = toScreen(nx, ny, dx);
-        ctx.fillStyle = `rgba(8,14,28,${hot ? 0.9 : 0.72})`;
-        roundRect(ctx, x - tw / 2 - 8, y - 10, tw + 16, 20, 8);
-        ctx.fill();
-        ctx.fillStyle = "#fff";
+        const h = hot ? 15 : 14;
+        const pad = 3;
+        const box = {
+          x0: x - w / 2 - pad,
+          y0: y - h / 2 - pad,
+          x1: x + w / 2 + pad,
+          y1: y + h / 2 + pad,
+        };
+        const collides = placed.some(
+          (b) =>
+            box.x0 < b.x1 && box.x1 > b.x0 && box.y0 < b.y1 && box.y1 > b.y0,
+        );
+        if (collides) continue;
+        placed.push(box);
+        ctx.font = font;
+        ctx.shadowOffsetY = hot ? 1 : 0.5;
+        ctx.lineJoin = "round";
+        ctx.lineWidth = hot ? 1 : 0.5;
+        ctx.strokeStyle = "rgba(15,11,6,.3)";
+        ctx.strokeText(text, x, y);
+        ctx.fillStyle = hot ? "#f2d9a0" : "rgba(246,240,226,.88)";
         ctx.fillText(text, x, y);
       }
     }
+    ctx.restore();
 
     ctx.font = "500 11px -apple-system, system-ui, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,.28)";
+    ctx.fillStyle = "rgba(246,240,226,.3)";
     ctx.textAlign = "left";
     ctx.fillText(
       setupMode
@@ -837,7 +967,41 @@ export default function WorldMap({
       14,
       H - 14,
     );
+
+    /* Paper-grain texture, composited last so it sits over terrain, trade
+       lines, markers and labels alike — an aged-atlas finish, not just a
+       terrain effect. */
+    const pattern = grainPattern(ctx);
+    if (pattern) {
+      ctx.save();
+      ctx.globalCompositeOperation = "multiply";
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = pattern;
+      ctx.fillRect(0, 0, W, H);
+      ctx.restore();
+    }
+    // tick isn't read in the body above; it's a cache-busting signal so
+    // paint's identity changes on every game tick, which re-fires the
+    // [ready, paint] effect below and forces a repaint. Removing it would
+    // leave the map stale.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mapMetric, selectedRole, tick, setupMode, homeRole, homeIso]);
+
+  /* Drag/pinch/hover dispatch pointermove synchronously and can fire more
+   *  than once per display frame; each paint() now does a full-canvas
+   *  filtered composite (sepia/contrast terrain + grain overlay), so calling
+   *  it straight from the event handler risks doing that work more than
+   *  once per frame. requestPaint() coalesces any number of calls within a
+   *  frame into a single rAF-scheduled paint(). */
+  const paintScheduledRef = useRef(false);
+  const requestPaint = useCallback(() => {
+    if (paintScheduledRef.current) return;
+    paintScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      paintScheduledRef.current = false;
+      paint();
+    });
+  }, [paint]);
 
   useEffect(() => {
     let cancelled = false;
@@ -919,9 +1083,15 @@ export default function WorldMap({
         tx: (1 - k) * (mx - ox) + k * v.tx,
         ty: (1 - k) * (my - oy) + k * v.ty,
       };
-      paint();
+      /* requestPaint(), not paint() directly — the pinch pointermove branch
+       *  mutates viewRef.current again for pan-during-pinch right after
+       *  calling zoomAt(), then schedules its own repaint; a synchronous
+       *  paint() here would render the zoom-only intermediate state and
+       *  then immediately repaint again once requestPaint()'s scheduled
+       *  call fires, doubling the per-event cost this was meant to avoid. */
+      requestPaint();
     },
-    [paint, plateLayout],
+    [requestPaint, plateLayout],
   );
 
   useEffect(() => {
@@ -1062,7 +1232,7 @@ export default function WorldMap({
           tx: viewRef.current.tx + (midX - pinch.midX),
           ty: viewRef.current.ty + (midY - pinch.midY),
         };
-        paint();
+        requestPaint();
       }
       pinchRef.current = { dist, midX, midY };
       return;
@@ -1079,7 +1249,7 @@ export default function WorldMap({
           tx: drag.tx + dx,
           ty: drag.ty + dy,
         };
-        paint();
+        requestPaint();
         if (canvasRef.current) canvasRef.current.style.cursor = "grabbing";
         return;
       }
@@ -1095,7 +1265,7 @@ export default function WorldMap({
         const canPick = setupMode ? !!hit?.pickRole : !!hit?.role;
         canvasRef.current.style.cursor = canPick ? "pointer" : "grab";
       }
-      paint();
+      requestPaint();
       onHover?.(hit);
     }
   };
@@ -1168,10 +1338,10 @@ export default function WorldMap({
     <div
       id="worldMapLayer"
       ref={wrapRef}
-      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#0f1c33_0%,#080e1c_58%,#04060c_100%)]"
+      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#57685a_0%,#3c4a3f_58%,#1b130c_100%)]"
     >
       {!ready && (
-        <div className="absolute inset-0 grid place-items-center text-[13px] text-white/40">
+        <div className="absolute inset-0 grid place-items-center text-sm text-white/40">
           Loading…
         </div>
       )}
@@ -1182,7 +1352,7 @@ export default function WorldMap({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
-        className="absolute inset-0 block h-full w-full cursor-grab"
+        className="absolute inset-0 block size-full cursor-grab"
         aria-label={
           setupMode ? "Choose your country on the world map" : "World map"
         }

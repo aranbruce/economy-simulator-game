@@ -18,10 +18,13 @@ import {
   shareLabel,
   T,
 } from "../../lib/sim/engine.ts";
+import { roleCountryId } from "../../lib/sim/boardMetrics.ts";
 import type { GameState } from "../../lib/sim/types.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
+import { CloseIcon } from "../../lib/ui/icons.tsx";
 import { Button } from "./Button.tsx";
+import { FlagAvatar } from "./FlagAvatar.tsx";
 
 function ensureNations(e: GameState) {
   if (e.nations) {
@@ -133,19 +136,23 @@ interface StatProps {
 
 function Stat({ label, value, note, tone }: StatProps) {
   const toneCls =
-    tone === "pos" ? "text-green-lt" : tone === "neg" ? "text-red-lt" : "";
+    tone === "pos"
+      ? "text-paper-green"
+      : tone === "neg"
+        ? "text-paper-red"
+        : "";
   return (
     <div className="min-w-[30%]">
-      <div className="text-[9.5px] font-bold tracking-[.08em] text-ink-faint uppercase">
+      <div className="text-xs font-bold tracking-[.08em] text-paper-ink-faint uppercase">
         {label}
       </div>
       <div
-        className={`mt-0.5 text-[17px] font-[650] tracking-[-.03em] text-white ${toneCls}`}
+        className={`mt-0.5 text-lg font-[650] tracking-[-.03em] text-paper-ink ${toneCls}`}
       >
         {value}
       </div>
       {note ? (
-        <div className="mt-px text-[11px] text-ink-soft">{note}</div>
+        <div className="mt-px text-xs text-paper-ink-soft">{note}</div>
       ) : null}
     </div>
   );
@@ -209,37 +216,41 @@ export default function RealmStats({
   })();
 
   const homeName = G?.country || "United Kingdom";
+  const flagRole = roleCountryId(role, G);
 
   return (
     <aside
-      className="realm-card hud-frame hud-surface-lg pointer-events-auto fixed top-18 left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] overflow-auto px-4 pt-3.5 pb-4 max-[720px]:top-auto max-[720px]:right-[max(6px,env(safe-area-inset-right))] max-[720px]:bottom-[calc(118px+env(safe-area-inset-bottom,0px))] max-[720px]:left-[max(6px,env(safe-area-inset-left))] max-[720px]:max-h-[min(48dvh,calc(100dvh-200px))] max-[720px]:w-auto max-[720px]:px-3.5 max-[720px]:py-3 max-[540px]:bottom-[calc(108px+env(safe-area-inset-bottom,0px))] max-[540px]:max-h-[min(42dvh,calc(100dvh-190px))]"
+      className="realm-card pointer-events-auto fixed top-[calc(var(--drawer-top,72px)+12px)] left-3 z-18 max-h-[calc(100vh-170px)] w-[min(340px,calc(100vw-24px))] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] overflow-auto rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-4 pt-3.5 pb-4 shadow-[0_22px_56px_rgba(0,0,0,.55),0_1px_0_rgba(255,255,255,.55)_inset] max-md:right-[calc(var(--rail-clear)+env(safe-area-inset-right))] max-md:left-[max(6px,env(safe-area-inset-left))] max-md:size-auto max-md:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,128px))] max-md:px-3.5 max-md:py-3 max-sm:max-h-[calc(100dvh-var(--drawer-top,160px)-12px-var(--drawer-bottom,118px))]"
       role="dialog"
       aria-label={snap.name}
     >
-      <div className="mb-2.5 flex items-start gap-2.5">
-        <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-bold tracking-widest text-accent-lt uppercase">
-            {snap.us ? "Home" : "Partner realm"}
+      <div className="mb-2.5 flex items-start justify-between gap-2.5">
+        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+          <FlagAvatar role={flagRole} size="size-11" paper />
+          <div className="min-w-0">
+            <div className="text-xs font-bold tracking-widest text-paper-accent uppercase">
+              {snap.us ? "Home" : "Partner realm"}
+            </div>
+            <h2 className="mt-0.5 mb-0 font-display text-xl font-normal tracking-[-.02em] text-paper-ink max-md:text-lg">
+              {snap.name}
+            </h2>
           </div>
-          <h2 className="mt-1 mb-0 font-display text-[22px] font-normal tracking-[-.02em] max-[720px]:text-lg">
-            {snap.name}
-          </h2>
         </div>
         <button
           type="button"
-          className="size-7 cursor-pointer rounded-sm border border-edge bg-g-3 text-xs leading-none text-ink-soft shadow-spec hover:border-frame hover:bg-g-4 hover:text-white"
+          className="grid size-7 flex-none cursor-pointer place-items-center rounded-full border border-paper-border/22 bg-paper-border/6 text-paper-ink-faint transition duration-160 hover:bg-paper-border/14 hover:text-paper-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.94]"
           aria-label="Close"
           onClick={onClose}
         >
-          ✕
+          <CloseIcon />
         </button>
       </div>
 
-      <p className="mb-3.5 text-[13px] leading-[1.4] text-ink-soft">
+      <p className="mb-3.5 text-sm leading-[1.4] text-paper-ink-soft">
         {String(snap.blurb).replace(/\{C\}/g, homeName)}
       </p>
 
-      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-[720px]:gap-x-3.5 max-[720px]:gap-y-2.5">
+      <div className="mb-3 flex flex-wrap gap-x-4.5 gap-y-3.5 max-md:gap-x-3.5 max-md:gap-y-2.5">
         <Stat
           label="GDP"
           value={fmtGdpBn(snap.gdpBn, ccy, G)}
@@ -248,7 +259,6 @@ export default function RealmStats({
               ? `${displayCcy} at market rate`
               : vsHomeGdpNote(snap.vsHomeGdp, homeName)
           }
-          tone={snap.us ? null : toneOf(snap.vsHomeGdp - 1, false)}
         />
         <Stat
           label="GDP index"
@@ -310,13 +320,14 @@ export default function RealmStats({
       </div>
 
       {snap.tradeShare && (
-        <div className="mb-3 text-xs text-ink-soft">{snap.tradeShare}</div>
+        <div className="mb-3 text-xs text-paper-ink-soft">{snap.tradeShare}</div>
       )}
 
       {!snap.us && (onOpenTrade || onOpenDiplomacy) && (
         <div className="mt-0.5 flex flex-wrap gap-2">
           {onOpenDiplomacy && (
             <Button
+              paper
               className="min-w-0 flex-1"
               onClick={() => onOpenDiplomacy(role)}
             >
@@ -325,6 +336,7 @@ export default function RealmStats({
           )}
           {onOpenTrade && (
             <Button
+              paper
               className="min-w-0 flex-1"
               onClick={() => onOpenTrade(role)}
             >

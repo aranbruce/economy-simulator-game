@@ -64,6 +64,7 @@ import { DespatchModal } from "../chrome/DespatchModal.tsx";
 import { DiploHud } from "../chrome/DiploHud.tsx";
 import { PressLayer } from "../chrome/PressLayer.tsx";
 import { MapChrome } from "../chrome/MapChrome.tsx";
+import { IconRail } from "../chrome/IconRail.tsx";
 import { GameTickContext } from "../../lib/ui/GameTickContext.tsx";
 
 function errMessage(err: unknown, fallback: string): string {
@@ -81,7 +82,6 @@ export default function GameApp() {
   const [realmId, setRealmId] = useState(DEFAULT_REALM_ID);
   const [homeIso, setHomeIso] = useState<string | null>(null);
   const [homeRole, setHomeRole] = useState("home");
-  const [tutorialLock, setTutorialLock] = useState(false);
   const [setupRole, setSetupRole] = useState(
     () => realmById(DEFAULT_REALM_ID).role,
   );
@@ -119,7 +119,6 @@ export default function GameApp() {
     mpSessionRef.current = null;
     setMpRoom(null);
     setWaiting(false);
-    setTutorialLock(false);
     setPhase("setup");
     if (notice) {
       /* Defer so setup chrome is mounted; use alert for reliability outside play shell. */
@@ -818,7 +817,6 @@ export default function GameApp() {
       setMpRoom(null);
       setWaiting(false);
       clearMpSession();
-      setTutorialLock(false);
       setPhase("setup");
     });
 
@@ -976,17 +974,13 @@ export default function GameApp() {
   const onSelect = useCallback(
     (role: string | null) => {
       if (phase === "setup" || phase === "lobby") {
-        if (tutorialLock) {
-          setSetupRole("home");
-          return;
-        }
         if (role) setSetupRole(role);
         return;
       }
       if (role) setTab(null);
       setSelectedRole(role);
     },
-    [phase, tutorialLock],
+    [phase],
   );
 
   const openPartnerPanel = useCallback((panel: string, role: string) => {
@@ -1044,10 +1038,6 @@ export default function GameApp() {
             onStart={beginGame}
             onMultiplayer={() => setPhase("lobby")}
             onResume={loadMpSession() ? handleResume : undefined}
-            onTutorialChange={(on) => {
-              setTutorialLock(!!on);
-              if (on) setSetupRole("home");
-            }}
           />
         )}
 
@@ -1058,7 +1048,6 @@ export default function GameApp() {
             onConsumedInitial={() => setLobbyBootstrap(null)}
             onBack={() => {
               setLobbyBootstrap(null);
-              setTutorialLock(false);
               setPhase("setup");
             }}
             onHostStart={handleHostStart}
@@ -1081,7 +1070,7 @@ export default function GameApp() {
 
             {mpRoom && (
               <div
-                className="mp-hud hud-frame hud-surface pointer-events-none fixed top-[calc(10px+env(safe-area-inset-top,0px)+88px)] left-1/2 z-15 flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-xs tabular-nums max-[720px]:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
+                className="mp-hud hud-frame hud-surface pointer-events-none fixed top-[calc(10px+env(safe-area-inset-top,0px)+88px)] left-1/2 z-15 flex -translate-x-1/2 items-center gap-3 px-3.5 py-2 text-xs tabular-nums max-md:top-[calc(max(6px,env(safe-area-inset-top,0px))+140px)]"
                 aria-live="polite"
               >
                 <span className="font-bold tracking-[.06em]">
@@ -1108,17 +1097,14 @@ export default function GameApp() {
             )}
 
             {worldOk && (
-              <MapChrome
-                mapMetric={mapMetric}
-                selectedRole={selectedRole}
-                onMetricChange={setMapMetric}
-              />
+              <MapChrome mapMetric={mapMetric} onMetricChange={setMapMetric} />
             )}
 
             <PressLayer />
 
             <TopBar />
             <DiploHud />
+            <IconRail />
             <DrawerShell />
             <Dock onDeliver={handleDeliver} waiting={waiting} />
             <DespatchModal />

@@ -247,7 +247,7 @@ function GroupCard({ grp }: { grp: LawGroup }) {
     ? fullEffectsData(current.imp, current.fac, 0, current.ch)
     : qualEffectsData(current.imp, current.fac, 0, current.ch);
   return (
-    <Card staged={draftId !== lawId}>
+    <Card staged={draftId !== lawId} hoverable={false}>
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {grp.name}
         <CardCat>{current.pc} capital</CardCat>
@@ -267,7 +267,7 @@ function GroupCard({ grp }: { grp: LawGroup }) {
                   ? undefined
                   : "Not available under the current political system"
               }
-              className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-35 aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
+              className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:opacity-35 aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
               onClick={() => allowed && setGroupOption(grp.id, o.id)}
             >
               {o.label}
@@ -289,13 +289,13 @@ function SliderSectionCard({ section }: { section: SliderSection }) {
   const law = G.law[section.groupKey] || {};
   return (
     <Panel padded className="mb-2">
-      <div className="mb-1 text-[11px] font-bold tracking-[.04em] text-ink-faint uppercase">
+      <div className="mb-1 text-xs font-bold tracking-[.04em] text-ink-faint uppercase">
         {section.title}
       </div>
       {section.toggles?.map((t) => (
         <div
           key={t.key}
-          className="mb-2 flex items-center justify-between gap-2 text-[12.5px]"
+          className="mb-2 flex items-center justify-between gap-2 text-xs"
         >
           <span>{t.name}</span>
           <SegControl
@@ -352,7 +352,7 @@ function ViceCardGrid() {
           ? fullEffectsData(st.imp, st.fac, 0)
           : qualEffectsData(st.imp, st.fac, 0);
         return (
-          <Card key={v.id} staged={cur !== inLaw}>
+          <Card key={v.id} staged={cur !== inLaw} hoverable={false}>
             <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {v.name}
               <CardCat>{v.pc} capital</CardCat>
@@ -365,7 +365,7 @@ function ViceCardGrid() {
                     key={s.id}
                     type="button"
                     aria-pressed={s.id === cur}
-                    className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-[11px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
+                    className={`flex-1 cursor-pointer rounded border-0 bg-transparent px-1.25 py-1.5 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec focus-visible:-outline-offset-2${staged ? "bg-accent! text-[#1a1408]!" : ""}`}
                     onClick={() => setVice(v.id, s.id)}
                   >
                     {s.label}
@@ -378,7 +378,7 @@ function ViceCardGrid() {
             </p>
             <EffectsBlock data={effectsData} />
             {v.tax ? (
-              <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-faint">
+              <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-xs text-ink-faint">
                 {taxAvailable(TAX_BY_ID[v.tax], G.draft)
                   ? "Duty available"
                   : "No duty can be levied in this state"}
@@ -416,7 +416,7 @@ function RegimeTypeBanner() {
   const G = useGame();
   const authoritarian = (G.draft.polity || "democracy") === "authoritarian";
   return (
-    <div className="mb-3 flex flex-col gap-1.5 rounded-md border border-edge bg-g-1 px-3.25 py-2.5 text-[12.5px]">
+    <div className="mb-3 flex flex-col gap-1.5 rounded-md border border-edge bg-g-1 px-3.25 py-2.5 text-xs">
       <div className="flex items-center justify-between gap-2">
         <span className="text-ink-soft">Regime type</span>
         <span className="font-[650] text-white">{regimeLabel(G.draft)}</span>
@@ -429,7 +429,7 @@ function RegimeTypeBanner() {
           {authoritarian ? "Authoritarian" : "Democracy"}
         </span>
       </div>
-      <p className="m-0 text-[11px] leading-[1.4] text-ink-faint">
+      <p className="m-0 text-xs leading-[1.4] text-ink-faint">
         Derived automatically from Political Parties, Parliament and Civil
         Liberties below — single-party rule, banned opposition, a suppressed
         parliament or banned assembly all tip the system authoritarian. Nothing

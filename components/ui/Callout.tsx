@@ -5,6 +5,10 @@ import type { ReactNode } from "react";
 const TONE = {
   red: "border-red/20 bg-red/10 text-red",
   amber: "border-amber/20 bg-amber/10 text-amber",
+  /** No forced text colour — children keep the page's default ink (and can
+   *  still opt into text-ink-faint etc. themselves), unlike red/amber where
+   *  every child is meant to read as the same warning colour. */
+  neutral: "border-edge bg-g-1",
 } as const;
 
 /** A bordered, tinted box for a blocker/warning line — e.g. "Blocked: …",
@@ -22,7 +26,7 @@ export function Callout({
 }) {
   return (
     <div
-      className={`rounded-md border p-2 text-[11px] ${TONE[tone]} ${className}`.trim()}
+      className={`rounded-md border p-2 text-xs ${TONE[tone]} ${className}`.trim()}
     >
       {children}
     </div>

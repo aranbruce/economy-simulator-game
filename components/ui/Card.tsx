@@ -3,29 +3,32 @@
 import type { HTMLAttributes, ReactNode } from "react";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  on?: boolean;
   staged?: boolean;
+  /** Set false to drop the lift/border hover — used by Laws, whose cards
+   *  already show hover state on their own buttons. */
+  hoverable?: boolean;
   children: ReactNode;
 }
 
 const CARD_BASE =
-  "flex flex-col gap-1.25 rounded-md border border-edge bg-g-1 px-3 py-2.75 transition duration-180 hover:-translate-y-px hover:border-[rgba(180,200,230,.22)] hover:bg-white/6";
+  "flex flex-col gap-1.25 rounded-md border border-edge bg-g-1 px-3 py-2.75 transition duration-180";
+const CARD_HOVER =
+  "hover:-translate-y-px hover:border-[rgba(180,200,230,.22)] hover:bg-white/6";
 
 /** The `.card` primitive — content tiles for policies, taxes, trade deals, diplomacy, etc. */
 export function Card({
-  on,
   staged,
+  hoverable = true,
   className = "",
   children,
   ...rest
 }: CardProps) {
-  const state = on
-    ? "border-green/38 bg-green/10"
-    : staged
-      ? "border-frame bg-accent-dim"
-      : "";
+  const state = staged ? "border-frame bg-accent-dim" : "";
   return (
-    <div className={`${CARD_BASE} ${state} ${className}`.trim()} {...rest}>
+    <div
+      className={`${CARD_BASE} ${hoverable ? CARD_HOVER : ""} ${state} ${className}`.trim()}
+      {...rest}
+    >
       {children}
     </div>
   );
@@ -41,7 +44,7 @@ export function CardGrid({
 }) {
   return (
     <div
-      className={`grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2 max-[720px]:grid-cols-1 max-[720px]:gap-1.75 ${className}`.trim()}
+      className={`grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2 max-md:grid-cols-1 max-md:gap-1.75 ${className}`.trim()}
     >
       {children}
     </div>
@@ -59,7 +62,7 @@ export function CardTitle({ children }: { children: ReactNode }) {
 
 export function CardCat({ children }: { children: ReactNode }) {
   return (
-    <span className="ml-auto text-[9.5px] font-bold tracking-[.06em] text-ink-faint uppercase">
+    <span className="ml-auto text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
       {children}
     </span>
   );
@@ -74,6 +77,6 @@ export function CardFoot({ children }: { children: ReactNode }) {
 
 export function CardPrice({ children }: { children: ReactNode }) {
   return (
-    <span className="text-[11px] font-medium text-ink-faint">{children}</span>
+    <span className="text-xs font-medium text-ink-faint">{children}</span>
   );
 }

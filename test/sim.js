@@ -164,12 +164,16 @@ import {
   isVisitActive,
   diploMapMarkers,
   diploHudChips,
+  ongoingSituations,
   hasFormalProtest,
 } from "../lib/sim/engine.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
 import { COUNTRIES } from "../lib/sim/countries.ts";
 import { REALM_LAW } from "../lib/sim/realmLaws.ts";
 import { partnerForIso } from "../lib/sim/partners.ts";
+import { PLAYABLE_REALMS } from "../lib/sim/realms.ts";
+import { FLAG_CODE } from "../lib/ui/flags.ts";
+import { REALM_FILL } from "../lib/sim/boardMetrics.ts";
 
 let failed = 0;
 function assert(cond, msg) {
@@ -1370,11 +1374,16 @@ assert(
   "pushed clip keeps headline",
 );
 
-/* Cap at three visible scraps */
+/* Well under the cap — the inbox is persistent now, not a three-item ticker */
 pushPress(billClips);
 pushPress(billClips);
 pushPress(eventClips);
-assert(G.press.length <= 3, "press layer caps at three scraps");
+assert(G.press.length === 4, "press inbox holds every clip below the cap");
+
+/* Push well past the cap (20 — see PRESS_MAX in engine.ts) and confirm it
+   still trims from the oldest end rather than growing unbounded */
+for (let i = 0; i < 25; i++) pushPress(billClips);
+assert(G.press.length === 20, "press inbox caps at twenty clips");
 
 /* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
 {
@@ -1620,9 +1629,9 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
     `active trade shares + rest sum to 1 (named ${named}, rest ${tradeRestShare("home")})`,
   );
   assert(!!G.econ.nations, "opening econ carries partner nation books");
-  assert(G.rel.russia === 38, "Northern Reach opens with frosty relations");
-  assert(G.rel.india === 54, "India opens with warmish relations");
-  assert(G.rel.nigeria === 48, "Nigeria opens mid-table");
+  assert(G.rel.russia === 24, "Northern Reach opens with frosty relations");
+  assert(G.rel.india === 59, "India opens with warmish relations");
+  assert(G.rel.nigeria === 46, "Nigeria opens mid-table");
   assert(G.rel.brazil === 50, "Brazil opens mid-table");
   for (const p of homePartners) {
     const prof = NATION_PROFILE[p.id];
@@ -4764,8 +4773,8 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   };
   const chips = diploHudChips(G);
   assert(
-    chips.some((c) => c.kind === "visit" && /japan/i.test(c.name)),
-    "hud shows active visit",
+    !chips.some((c) => c.kind === "visit"),
+    "hud no longer shows active visits — they're an Overview situation instead",
   );
   assert(
     chips.some(
@@ -4779,6 +4788,11 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   assert(
     diploHudChips({ ...G, activeVisits: {}, ultimatums: {} }).length === 0,
     "empty hud when nothing active",
+  );
+  const situations = ongoingSituations(G);
+  assert(
+    situations.some((s) => s.kind === "visit" && /japan/i.test(s.label)),
+    "ongoing situations lists the active visit",
   );
 }
 
@@ -5320,6 +5334,30 @@ assert(G.press.length <= 3, "press layer caps at three scraps");
   continueCoach();
   G = getG();
   assert(G.coachDone === true && G.coach == null, "Finish clears coach");
+}
+
+/* FLAG_CODE (lib/ui/flags.ts) is a hand-synced realm-id -> ISO alpha-2 table,
+   independent of PLAYABLE_REALMS (lib/sim/realms.ts). flagSrc() falls back
+   to the UK flag on a miss rather than erroring, so a realm added without a
+   matching entry would silently render the wrong flag instead of failing
+   loudly — this test is what makes that failure loud instead. */
+for (const realm of PLAYABLE_REALMS) {
+  assert(
+    Object.prototype.hasOwnProperty.call(FLAG_CODE, realm.id),
+    `FLAG_CODE has an entry for realm "${realm.id}"`,
+  );
+}
+
+/* REALM_FILL (lib/sim/boardMetrics.ts) is a second hand-synced table keyed
+   off the same country ids COUNTRIES (lib/sim/countries.ts) already
+   enumerates. A country added to COUNTRIES without a matching REALM_FILL
+   entry doesn't error either — fillFor() falls back to a generic grey — so
+   this closes the same silent-drift gap the FLAG_CODE check above does. */
+for (const c of COUNTRIES) {
+  assert(
+    Object.prototype.hasOwnProperty.call(REALM_FILL, c.id),
+    `REALM_FILL has an entry for country "${c.id}"`,
+  );
 }
 
 if (failed) {

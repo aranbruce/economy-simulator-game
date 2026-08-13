@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import {
   realmById,
   realmByRole,
@@ -13,10 +13,12 @@ import {
   gdp0ForSeat,
   fmtGdpBn,
   NATION_PROFILE,
+  playerCountryId,
   polityOf,
 } from "../../lib/sim/engine.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
+import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role: string) {
@@ -55,10 +57,10 @@ function modeHint(sandbox: boolean, meta: any) {
 function SetupStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-col gap-px">
-      <span className="text-[9px] font-bold tracking-[.08em] text-ink-faint uppercase">
+      <span className="text-xs font-bold tracking-[.08em] text-ink-faint uppercase">
         {label}
       </span>
-      <span className="text-[13px] font-semibold tracking-[-.02em] text-ink tabular-nums">
+      <span className="text-sm font-semibold tracking-[-.02em] text-ink tabular-nums">
         {value}
       </span>
     </div>
@@ -82,7 +84,6 @@ interface CountryPickerProps {
   }) => void;
   onResume?: () => void;
   initialId?: string | null;
-  onTutorialChange?: (on: boolean) => void;
 }
 
 /** Floating chrome over the world map during country select. */
@@ -92,31 +93,13 @@ export default function CountryPicker({
   onMultiplayer,
   onResume,
   initialId,
-  onTutorialChange,
 }: CountryPickerProps) {
   const initial = realmById(initialId || DEFAULT_REALM_ID);
-  const mapRealm = realmByRole(selectedRole || initial.role);
+  const realm = realmByRole(selectedRole || initial.role);
   const [sandbox, setSandbox] = useState(false);
-  const [tutorial, setTutorial] = useState(false);
-  /** Mode before Tutorial forced Sandbox — restored when Tutorial is unchecked. */
-  const sandboxBeforeTutorialRef = useRef(false);
-  const realm = tutorial ? realmById("home") : mapRealm;
   const books = openingBooks(realm.role);
   const meta = polityOf(realm.role);
   const name = realm.name.slice(0, 34);
-  const sandboxLocked = tutorial;
-
-  function setTutorialOn(on: boolean) {
-    if (on) {
-      sandboxBeforeTutorialRef.current = sandbox;
-      setSandbox(true);
-      setTutorial(true);
-    } else {
-      setTutorial(false);
-      setSandbox(sandboxBeforeTutorialRef.current);
-    }
-    if (typeof onTutorialChange === "function") onTutorialChange(on);
-  }
 
   return (
     <div
@@ -125,8 +108,8 @@ export default function CountryPicker({
       aria-modal="true"
       aria-labelledby="setupTitle"
     >
-      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
-        <div className="text-[10px] font-bold tracking-[.14em] text-accent-lt uppercase">
+      <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
+        <div className="text-xs font-bold tracking-[.14em] text-accent-lt uppercase">
           Commission
         </div>
         <h1
@@ -135,38 +118,36 @@ export default function CountryPicker({
         >
           Choose your country
         </h1>
-        <p className="m-0 text-[13px] leading-[1.45] text-ink-soft">
-          {tutorial
-            ? "Tutorial locks you into the United Kingdom — click Get started when you’re ready."
-            : "Ten realms on a real map. Click any country in a bloc to take that seat — the books open to that realm’s inheritance."}
+        <p className="m-0 text-sm leading-[1.45] text-ink-soft">
+          Ten realms on a real map. Click any country in a bloc to take that
+          seat — the books open to that realm’s inheritance.
         </p>
       </HudFrame>
 
-      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.34s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
+      <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-[560px]:flex-col max-[560px]:items-stretch">
+          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
             <div className="flex min-w-0 flex-1 flex-col gap-0.75">
-              <strong>{realm.name}</strong>
+              <div className="flex items-center gap-3">
+                <FlagAvatar role={playerCountryId(realm.role)} size="size-12" />
+                <strong className="text-xl">{realm.name}</strong>
+              </div>
               <em>{realm.blurb}</em>
             </div>
             <div
-              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-[560px]:max-w-none max-[560px]:items-start"
+              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-sm:max-w-none max-sm:items-start"
               role="group"
               aria-label="Game mode"
             >
-              <span className="text-[10px] font-bold tracking-widest text-ink-faint uppercase">
+              <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
                 Mode
               </span>
               <div className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
                 <button
                   type="button"
                   aria-pressed={!sandbox}
-                  disabled={sandboxLocked}
-                  title={sandboxLocked ? "Tutorial runs in Sandbox" : undefined}
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
-                  onClick={() => {
-                    if (!sandboxLocked) setSandbox(false);
-                  }}
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                  onClick={() => setSandbox(false)}
                 >
                   Career
                 </button>
@@ -175,34 +156,18 @@ export default function CountryPicker({
                   aria-pressed={sandbox}
                   onClick={() => setSandbox(true)}
                   title="Cannot be removed from office"
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-[10px] font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
+                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
                 >
                   Sandbox
                 </button>
               </div>
-              <p className="m-0 text-right text-[11px] leading-[1.35] text-ink-soft max-[560px]:text-left">
+              <p className="m-0 text-right text-xs leading-[1.35] text-ink-soft max-sm:text-left">
                 {modeHint(sandbox, meta)}
               </p>
-              <label className="mt-0.5 flex max-w-full cursor-pointer items-start gap-2 text-left max-[560px]:max-w-none">
-                <input
-                  type="checkbox"
-                  checked={tutorial}
-                  onChange={(e) => setTutorialOn(e.target.checked)}
-                  className="mt-0.75 flex-none accent-blue"
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <strong className="text-xs font-[650] text-ink">
-                    Tutorial
-                  </strong>
-                  <em className="text-[11px] leading-[1.35] text-ink-soft not-italic">
-                    Sandbox walkthrough as the United Kingdom.
-                  </em>
-                </span>
-              </label>
             </div>
           </div>
           <div
-            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-[560px]:grid-cols-2"
+            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-sm:grid-cols-2"
             aria-label={`Opening books for ${realm.name}`}
           >
             <SetupStat label="Polity" value={meta.label} />
@@ -217,40 +182,41 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 max-[560px]:flex-col max-[560px]:items-stretch">
+        <div className="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col max-sm:items-stretch">
           <SetupGoButton
             onClick={() =>
-              onStart(
-                tutorial
-                  ? {
-                      country: "United Kingdom",
-                      homeRole: "home",
-                      homeIso: DEFAULT_HOME_ISO,
-                      realmId: "home",
-                      sandbox: true,
-                      tutorial: true,
-                    }
-                  : {
-                      country: name,
-                      homeRole: realm.role,
-                      homeIso: homeIsoForRealm(realm),
-                      realmId: realm.id,
-                      sandbox,
-                      tutorial: false,
-                    },
-              )
+              onStart({
+                country: name,
+                homeRole: realm.role,
+                homeIso: homeIsoForRealm(realm),
+                realmId: realm.id,
+                sandbox,
+                tutorial: false,
+              })
             }
           >
             Get started
+          </SetupGoButton>
+          <SetupGoButton
+            secondary
+            onClick={() =>
+              onStart({
+                country: "United Kingdom",
+                homeRole: "home",
+                homeIso: DEFAULT_HOME_ISO,
+                realmId: "home",
+                sandbox: true,
+                tutorial: true,
+              })
+            }
+            title="Sandbox walkthrough as the United Kingdom"
+          >
+            Tutorial
           </SetupGoButton>
           {typeof onMultiplayer === "function" && (
             <SetupGoButton
               secondary
               onClick={() => onMultiplayer({ realm, name, sandbox })}
-              disabled={tutorial}
-              title={
-                tutorial ? "Leave the tutorial to open multiplayer" : undefined
-              }
             >
               Multiplayer lobby
             </SetupGoButton>

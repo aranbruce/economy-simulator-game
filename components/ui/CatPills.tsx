@@ -24,7 +24,7 @@ export function CatPills<T extends string>({
           type="button"
           aria-pressed={id === value}
           onClick={() => onChange(id)}
-          className="flex-none cursor-pointer rounded-full border border-edge bg-g-1 px-3 py-1.5 text-[11.5px] font-semibold whitespace-nowrap text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:border-frame aria-pressed:bg-accent-dim aria-pressed:text-accent-lt"
+          className="flex-none cursor-pointer rounded-full border border-edge bg-g-1 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:outline-accent aria-pressed:border-frame aria-pressed:bg-accent-dim aria-pressed:text-accent-lt"
         >
           {label}
         </button>

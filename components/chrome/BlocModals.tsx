@@ -24,9 +24,9 @@ const REGION_ORDER = [
 ];
 
 const OPTS_WRAP =
-  "grid grid-cols-2 gap-2 px-5 pt-1.5 pb-5 max-[720px]:gap-1.5 max-[720px]:px-3.5 max-[720px]:pt-1 max-[720px]:pb-4";
+  "grid grid-cols-2 gap-2 px-5 pt-1.5 pb-5 max-md:gap-1.5 max-md:px-3.5 max-md:pt-1 max-md:pb-4";
 const OPT_BASE =
-  "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 max-[720px]:min-h-11 max-[720px]:p-3";
+  "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 max-md:min-h-11 max-md:p-3";
 const OPT_SIMPLE = `${OPT_BASE} flex min-h-11 items-center justify-center text-center`;
 const OPT_LEFT = `${OPT_BASE} text-left`;
 
@@ -55,7 +55,7 @@ export function BlocFoundModalBody() {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <div className="mb-3">
@@ -70,7 +70,7 @@ export function BlocFoundModalBody() {
               setNameTouched(true);
             }}
             aria-label="Name of your trade bloc"
-            className="w-full rounded-md border border-ink-faint bg-white/6 px-3 py-2 font-sans text-[15px] text-white"
+            className="w-full rounded-md border border-ink-faint bg-white/6 px-3 py-2 font-sans text-base text-white"
           />
         </div>
         <div className="flex flex-col gap-2">
@@ -81,7 +81,7 @@ export function BlocFoundModalBody() {
                 key={t.id}
                 type="button"
                 onClick={() => pick(t.id)}
-                className={`cursor-pointer rounded-[10px] border-2 px-3.5 py-2.5 text-left font-sans text-inherit ${sel ? "border-accent bg-blue/10" : "border-ink-faint bg-transparent"}`}
+                className={`cursor-pointer rounded-lg border-2 px-3.5 py-2.5 text-left font-sans text-inherit ${sel ? "border-accent bg-blue/10" : "border-ink-faint bg-transparent"}`}
               >
                 <div className="text-sm font-semibold">
                   {t.name}{" "}
@@ -150,7 +150,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
   return (
     <>
       <div
-        className="px-5 pt-3.5 pb-1.5 text-[14.5px] leading-[1.48] max-[720px]:px-3.5 max-[720px]:pt-3 max-[720px]:pb-1 max-[720px]:text-[14px] [&_p]:mt-0 [&_p]:mb-3"
+        className="px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3"
         id="dpBody"
       >
         <Hint>
@@ -180,24 +180,24 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                     key={p.id}
                     type="button"
                     onClick={() => setSelectedId(p.id)}
-                    className={`mt-1.5 block w-full cursor-pointer rounded-[10px] border-2 px-3 py-2.25 text-left font-sans text-inherit ${sel ? "border-blue bg-blue/8" : "border-edge bg-transparent hover:border-ink-soft"}`}
+                    className={`mt-1.5 block w-full cursor-pointer rounded-lg border-2 px-3 py-2.25 text-left font-sans text-inherit ${sel ? "border-blue bg-blue/8" : "border-edge bg-transparent hover:border-ink-soft"}`}
                   >
                     <div className="flex items-center justify-between gap-2.5">
                       <span className="text-sm font-semibold">{p.name}</span>
                       <span className="flex flex-none items-center gap-1.5">
-                        <span className="h-1.25 w-14 overflow-hidden rounded-[1px] border border-edge bg-g-1">
+                        <span className="h-1.25 w-14 overflow-hidden rounded-xs border border-edge bg-g-1">
                           <i
                             className={`block h-full rounded-none ${c.rel > 60 ? "bg-green" : c.rel < 38 ? "bg-red" : "bg-ink-soft"}`}
                             style={{ width: `${c.rel.toFixed(0)}%` }}
                           />
                         </span>
-                        <span className="min-w-5.5 text-right text-[11.5px] text-ink-soft">
+                        <span className="min-w-5.5 text-right text-xs text-ink-soft">
                           {c.rel.toFixed(0)}
                         </span>
                       </span>
                     </div>
                     <div
-                      className={`mt-0.75 text-[11.5px] leading-[1.35] ${statusCls}`}
+                      className={`mt-0.75 text-xs leading-[1.35] ${statusCls}`}
                     >
                       {status}
                     </div>
@@ -219,7 +219,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                 {blocInviteBlockers(bid, selected.partner.id).join(" · ")}
               </Callout>
             ) : (
-              <div className="mt-1.5 block text-[11px] text-green">
+              <div className="mt-1.5 block text-xs text-green">
                 Ready to propose — every member approves.
               </div>
             )}

@@ -4,6 +4,7 @@ import {
   balanceOf,
   billClauses,
   bump,
+  capitalOutlook,
   capitalShortfallHint,
   fmt,
   impactPanelData,
@@ -13,9 +14,14 @@ import {
   sgn,
   RATE_FLOOR,
   MANUAL_RATE_MIN,
+  ENVOY_UPKEEP_PC,
   clamp,
 } from "../../lib/sim/engine.ts";
-import { setManualRate, setRateManual } from "../../lib/ui/actions.ts";
+import {
+  setManualRate,
+  setRateManual,
+  setSandboxMode,
+} from "../../lib/ui/actions.ts";
 import { CloseIcon } from "../../lib/ui/icons.tsx";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
@@ -28,7 +34,7 @@ function ImpactStrip() {
   if (!data) return null;
   const changeWord = `change${data.count === 1 ? "" : "s"}`;
   const stripHead = (
-    <div className="mb-1.5 flex items-center gap-2 text-[10.5px] font-bold tracking-[.06em] text-ink-soft uppercase">
+    <div className="mb-1.5 flex items-center gap-2 text-xs font-bold tracking-[.06em] text-ink-soft uppercase">
       Staged: {data.count} {changeWord} · {data.cost} capital
     </div>
   );
@@ -36,7 +42,7 @@ function ImpactStrip() {
     return (
       <div className="mb-3 rounded-md border border-frame bg-accent-dim px-2.75 py-2.25">
         {stripHead}
-        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-[11px] text-ink-soft">
+        <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-xs text-ink-soft">
           {(data.bits as string[]).join(" · ")}
         </div>
         <Hint>
@@ -77,14 +83,14 @@ function ImpactPanel({ cl }: { cl: any[] }) {
           className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25"
           key={i}
         >
-          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
+          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650] tracking-[-.01em]">
             {it.label}
-            <span className="ml-auto text-[11px] font-[650] whitespace-nowrap text-accent-lt">
+            <span className="ml-auto text-xs font-[650] whitespace-nowrap text-accent-lt">
               {it.cost} cap
             </span>
           </div>
           {it.revenue != null && (
-            <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
+            <div className="mt-1.25 flex flex-wrap gap-2.25 text-xs text-ink-faint">
               <span
                 className={it.revenue > 0 ? "text-green-lt" : "text-red-lt"}
               >
@@ -98,9 +104,9 @@ function ImpactPanel({ cl }: { cl: any[] }) {
       ))}
       {data.whole && (
         <div className="mb-1.75 rounded-md border border-frame bg-accent-dim px-2.75 py-2.25">
-          <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
+          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650] tracking-[-.01em]">
             The bill as a whole
-            <span className="ml-auto text-[11px] font-[650] whitespace-nowrap text-accent-lt">
+            <span className="ml-auto text-xs font-[650] whitespace-nowrap text-accent-lt">
               {data.whole.cost} cap
             </span>
           </div>
@@ -117,15 +123,15 @@ function RateImpact() {
   if (!data) return null;
   return (
     <div className="mt-2.5 mb-1.75 rounded-md border border-edge bg-g-1 p-3">
-      <div className="mb-1.25 flex items-baseline gap-2 text-[13px] font-[650] tracking-[-.01em]">
+      <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650] tracking-[-.01em]">
         Four quarters at {data.pin.toFixed(2)}% vs the Bank
       </div>
-      <div className="mb-1.5 text-[12.5px] leading-[1.4] text-ink-soft">
+      <div className="mb-1.5 text-xs leading-[1.4] text-ink-soft">
         Same law, pinned rate against the Taylor rule from today&rsquo;s
         starting point.
       </div>
       {data.empty ? (
-        <div className="mt-1.25 flex flex-wrap gap-2.25 text-[11px] text-ink-faint">
+        <div className="mt-1.25 flex flex-wrap gap-2.25 text-xs text-ink-faint">
           No measurable move over four quarters.
         </div>
       ) : (
@@ -146,6 +152,7 @@ export function BillDrawer() {
   const dr = balanceOf(G.draft, G.econ);
   const cur = balanceOf(G.law, G.econ);
   const delta = dr.balance - cur.balance;
+  const capOutlook = capitalOutlook(cost);
 
   return (
     <>
@@ -154,7 +161,7 @@ export function BillDrawer() {
         <div id="clauses">
           {cl.map((c: any, i: number) => (
             <div
-              className="flex items-start gap-2.25 border-b border-edge py-1.75 text-[13px] last-of-type:border-b-0"
+              className="flex items-start gap-2.25 border-b border-edge py-1.75 text-sm last-of-type:border-b-0"
               key={i}
             >
               <button
@@ -169,14 +176,14 @@ export function BillDrawer() {
                 <CloseIcon />
               </button>
               <span>{c.label}</span>
-              <span className="ml-auto text-[11.5px] font-[650] whitespace-nowrap text-accent-lt">
+              <span className="ml-auto text-xs font-[650] whitespace-nowrap text-accent-lt">
                 {c.sunk ? "paid" : c.pc}
               </span>
             </div>
           ))}
         </div>
       ) : (
-        <div className="pt-2 pb-2.5 text-[12.5px] leading-normal text-ink-faint">
+        <div className="pt-2 pb-2.5 text-xs leading-normal text-ink-faint">
           No clauses yet. Change anything in Budget, Taxes, Policies, Society,
           Trade or Diplomacy and it appears here to be costed before it becomes
           law.
@@ -187,7 +194,7 @@ export function BillDrawer() {
           {capitalShortfallHint(cost, G.capital)}
         </Hint>
       ) : null}
-      <div className="mt-3 border-t border-edge pt-2.5 text-[13px]">
+      <div className="mt-3 border-t border-edge pt-2.5 text-sm">
         <div className="flex py-0.75 text-ink-soft">
           <span>Receipts</span>
           <span className="ml-auto font-[650] text-white">
@@ -206,7 +213,7 @@ export function BillDrawer() {
             {dr.sp.interest.toFixed(1)}
           </span>
         </div>
-        <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-[14.5px] font-bold text-white">
+        <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-sm font-bold text-white">
           <span>{dr.balance >= 0 ? "Surplus" : "Deficit"}</span>
           <span
             className={`ml-auto ${dr.balance >= 0 ? "text-green-lt" : "text-red-lt"}`}
@@ -215,17 +222,73 @@ export function BillDrawer() {
           </span>
         </div>
         {Math.abs(delta) > 0.049 ? (
-          <div className="pt-1.25 text-[11px] text-ink-faint">
+          <div className="pt-1.25 text-xs text-ink-faint">
             {sgn(delta, 1)} points versus current law
           </div>
         ) : null}
       </div>
+      {capOutlook ? (
+        <div className="mt-3 border-t border-edge pt-2.5 text-sm">
+          <div className="mb-1 text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
+            Political capital
+          </div>
+          <div className="flex py-0.75 text-ink-soft">
+            <span>Capital at start of turn</span>
+            <span className="ml-auto font-[650] text-white">
+              {Math.round(capOutlook.current)}
+            </span>
+          </div>
+          {capOutlook.cost > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>For this bill</span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.cost}
+              </span>
+            </div>
+          ) : null}
+          {capOutlook.envoyCount > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>
+                Envoy upkeep ({capOutlook.envoyCount} × −{ENVOY_UPKEEP_PC})
+              </span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.envoyUpkeep.toFixed(1)}
+              </span>
+            </div>
+          ) : null}
+          <div className="flex py-0.75 text-ink-soft">
+            <span>From popularity ({Math.round(capOutlook.approval)}% approval)</span>
+            <span
+              className={`ml-auto font-[650] ${capOutlook.gain >= 0 ? "text-green-lt" : "text-red-lt"}`}
+            >
+              {capOutlook.gain >= 0 ? "+" : ""}
+              {capOutlook.gain.toFixed(1)}
+            </span>
+          </div>
+          <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-sm font-bold text-white">
+            <span>Next turn</span>
+            <span
+              className={`ml-auto ${capOutlook.nextQuarter >= capOutlook.current ? "text-green-lt" : "text-red-lt"}`}
+            >
+              {Math.round(capOutlook.nextQuarter)}
+            </span>
+          </div>
+          <Hint className="mt-1.5">
+            Capital regenerates every quarter, faster the more popular you
+            are. Below about {Math.round(capOutlook.breakeven)}% approval it
+            goes into reverse and capital falls instead of growing.
+            {capOutlook.envoyCount > 0
+              ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
+              : ""}
+          </Hint>
+        </div>
+      ) : null}
       {G.sandbox ? <ImpactPanel cl={cl} /> : null}
       <Eyebrow className="mt-5">Rules</Eyebrow>
       <Panel padded className="mt-0">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="min-w-35 flex-1">
-            <div className="text-[13.5px] font-semibold">Central Bank</div>
+            <div className="text-sm font-semibold">Central Bank</div>
             <Hint className="mt-0.5">
               {G.rateManual
                 ? "Base rate is pinned by you. No political capital. Forecasts use the same pin."
@@ -265,6 +328,27 @@ export function BillDrawer() {
             <RateImpact />
           </>
         ) : null}
+      </Panel>
+      <Panel padded className="mt-2">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="min-w-35 flex-1">
+            <div className="text-sm font-semibold">Game mode</div>
+            <Hint className="mt-0.5">
+              {G.sandbox
+                ? "Sandbox — every removal-from-office path is suppressed. You keep the job regardless."
+                : "Career — lose an election, a coup, or the bond market and it's over."}
+            </Hint>
+          </div>
+          <SegControl
+            mini
+            value={G.sandbox ? "sandbox" : "career"}
+            options={[
+              ["career", "Career"],
+              ["sandbox", "Sandbox"],
+            ]}
+            onChange={(v) => setSandboxMode(v === "sandbox")}
+          />
+        </div>
       </Panel>
       <button
         type="button"

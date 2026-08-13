@@ -44,6 +44,7 @@ import {
   ENVOY_SLOTS,
   ENVOY_TARGET,
   ENVOY_ASSIGN_PC,
+  ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
@@ -384,14 +385,14 @@ function reviewStamp(meta: any) {
 function careerHint(meta: any, sandbox: any) {
   const m = meta || polityOf();
   if (sandbox)
-    return "Sandbox is on: you cannot be removed from office. Switch to Career any time from the top bar.";
+    return "Sandbox is on: you cannot be removed from office. Switch to Career any time from the Programme drawer.";
   if (m.kind === "congress") {
-    return "Career mode: survive the party congress, keep the apparatus loyal, or the bond market ends you. Political capital recovers slowly. Sandbox is one click away in the top bar.";
+    return "Career mode: survive the party congress, keep the apparatus loyal, or the bond market ends you. Political capital recovers slowly. Sandbox is one click away in the Programme drawer.";
   }
   if (m.kind === "managed") {
-    return "Career mode: managed ballots still matter, as does your party — or the bond market ends you. Sandbox is one click away in the top bar.";
+    return "Career mode: managed ballots still matter, as does your party — or the bond market ends you. Sandbox is one click away in the Programme drawer.";
   }
-  return "Career mode: lose an election, a party coup, or the bond market and it is over. Sandbox is one click away in the top bar.";
+  return "Career mode: lose an election, a party coup, or the bond market and it is over. Sandbox is one click away in the Programme drawer.";
 }
 function polityShiftAge() {
   const g = getG();
@@ -4302,7 +4303,7 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
     const cl = billClauses();
     return {
       ok: true,
-      cost: billCost(),
+      cost: billCost(cl),
       clauses: cl.map((c) => ({
         label: c.label,
         pc: c.sunk ? 0 : c.pc,
@@ -4900,7 +4901,7 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
   getG().brief = [];
   getG().press = [];
-  clearAllPressFades();
+  resetPressUi();
   tab = null;
   mirrorPlayerToWorld(getG());
   /* mirror rebuilds the player bag — keep the log we just mounted. */
@@ -6389,7 +6390,7 @@ function newGame(opts?: any) {
   G.over = false;
   G.press = [];
   G.briefImpact = null;
-  clearAllPressFades();
+  resetPressUi();
   tab = null;
   render();
   /* Opening morning note is first-class, not buried in the Budget drawer. */ if (
@@ -8780,13 +8781,8 @@ function govDemandShares(law: any, econ: any) {
     );
   }
   const appr = approvalOf(g.fac);
-  /* Base regen plus a mild approval bonus. Tuned so a mid-term chancellor can
-     stage a few medium bills without living permanently at the capital floor.
-     Authoritarian seats recover capital more slowly — tenure is
-     cheaper than legislative pace. Suppressing parliament costs a little more
-     of it still — there is no legislature to lean on for legitimacy. */ const regen =
-    polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
-  g.capital = clamp(g.capital + (3.2 + (appr - 45) * 0.1) * regen, 0, 100);
+  const { gain, envoyUpkeep } = capitalRegenGain(g, law, appr);
+  g.capital = clamp(g.capital + gain - envoyUpkeep, 0, 100);
   if (law.policies.fiscalRule && deficit > 4) {
     g.ruleBreaches++;
     g.capital = clamp(g.capital - 3, 0, 100);
@@ -9460,6 +9456,32 @@ const rateCost = (t: any, d: any) =>
     });
   }
 }
+/** Per-partner/per-bloc tariff clauses — identical undo/fallback logic for
+ *  both scopes (an unset override falls back to the schedule default),
+ *  differing only in which sub-object is touched and how the id names. */
+function tariffScopeClauses(
+  out: any[],
+  D: any,
+  L: any,
+  scope: "bloc" | "country",
+  nameOf: (id: string) => string,
+) {
+  for (const id in D.tariffSchedule[scope]) {
+    const raw = L.tariffSchedule[scope][id];
+    const a = raw != null ? raw : L.tariffSchedule.default;
+    const b = D.tariffSchedule[scope][id];
+    if (a === b) continue;
+    out.push({
+      label: nameOf(id) + " tariff " + a + "% to " + b + "%",
+      pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
+      undo: () => {
+        if (raw == null) delete D.tariffSchedule[scope][id];
+        else D.tariffSchedule[scope][id] = raw;
+        syncTariffHeadline(D);
+      },
+    });
+  }
+}
 function billClauses() {
   pruneDraftBlocInvites();
   const L = G.law,
@@ -9762,36 +9784,14 @@ function billClauses() {
         },
       });
     }
-    for (const bid in D.tariffSchedule.bloc) {
-      const a = L.tariffSchedule.bloc[bid],
-        b = D.tariffSchedule.bloc[bid];
-      if (a !== b) {
-        const bloc = blocById(bid);
-        out.push({
-          label: (bloc ? bloc.name : bid) + " tariff " + a + "% to " + b + "%",
-          pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
-          undo: () => {
-            D.tariffSchedule.bloc[bid] = a;
-            syncTariffHeadline(D);
-          },
-        });
-      }
-    }
-    for (const cid in D.tariffSchedule.country) {
-      const a = L.tariffSchedule.country[cid],
-        b = D.tariffSchedule.country[cid];
-      if (a !== b) {
-        const c = partnerById(cid);
-        out.push({
-          label: (c ? c.name : cid) + " tariff " + a + "% to " + b + "%",
-          pc: Math.max(1, Math.ceil(Math.abs(b - a) * 0.6)),
-          undo: () => {
-            D.tariffSchedule.country[cid] = a;
-            syncTariffHeadline(D);
-          },
-        });
-      }
-    }
+    tariffScopeClauses(out, D, L, "bloc", (bid) => {
+      const bloc = blocById(bid);
+      return bloc ? bloc.name : bid;
+    });
+    tariffScopeClauses(out, D, L, "country", (cid) => {
+      const c = partnerById(cid);
+      return c ? c.name : cid;
+    });
     if (
       D.tariffSchedule.default !== L.tariffSchedule.default &&
       tLock.mode === "none"
@@ -10053,8 +10053,57 @@ function billClauses() {
   }
   return out;
 }
-const billCost = () =>
-  billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
+const billCost = (cl?: any): number =>
+  (cl || billClauses()).reduce(
+    (a: number, c: any) => a + (c.sunk ? 0 : c.pc),
+    0,
+  );
+/** Capital regen for one quarter — base 3.2, ±0.1 per point of approval
+ *  either side of the 45 neutral point, scaled by polity/state-form regen,
+ *  less envoy upkeep (a standing commitment: each posted envoy costs a
+ *  little capital every quarter on top of the upfront assignment fee).
+ *  Authoritarian seats recover capital more slowly — tenure is cheaper than
+ *  legislative pace. Suppressing parliament costs a little more still —
+ *  there is no legislature to lean on for legitimacy. Shared by step()'s
+ *  quarter-advance and capitalOutlook()'s preview so the two can't drift
+ *  out of sync. */
+function capitalRegenGain(g: any, law: any, approval: number) {
+  const regen =
+    polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
+  const gain = (3.2 + (approval - 45) * 0.1) * regen;
+  const envoyCount = (g.envoys || []).filter(Boolean).length;
+  const envoyUpkeep = envoyCount * ENVOY_UPKEEP_PC;
+  return { regen, gain, envoyCount, envoyUpkeep, breakeven: 45 - 3.2 / 0.1 };
+}
+/** Next-quarter capital preview for the Programme drawer, evaluated against
+ *  the draft law and today's approval rather than a full simulate() pass, so
+ *  it's cheap enough to show unconditionally (not gated to sandbox like the
+ *  4-quarter impact figures). Approval itself only partly reflects a staged
+ *  bill's faction effects each quarter (the 0.2 damping in the regen step),
+ *  so today's approval is a reasonable stand-in for next quarter's without
+ *  needing a forward simulation. */
+function capitalOutlook(cost?: number) {
+  if (!G) return null;
+  if (cost == null) cost = billCost();
+  const approval = approvalOf(G.fac);
+  const { gain, envoyCount, envoyUpkeep, breakeven } = capitalRegenGain(
+    G,
+    G.draft,
+    approval,
+  );
+  const afterBill = clamp(G.capital - cost, 0, 100);
+  return {
+    cost,
+    current: G.capital,
+    afterBill,
+    gain,
+    envoyCount,
+    envoyUpkeep,
+    nextQuarter: clamp(afterBill + gain - envoyUpkeep, 0, 100),
+    approval,
+    breakeven,
+  };
+}
 /* ==================================================================
    7. RENDERING
    ================================================================== */
@@ -10394,6 +10443,16 @@ const ICONS = {
 /** Rough running score the termReview() formula will use — for the thermometer. */ function electionThermometer() {
   return termReviewScore();
 }
+/** Single source of truth for "is the term review going badly enough to
+ *  matter" — the last 4 quarters before the review, scored below the
+ *  polity's loseAt threshold. Used by OverviewPanel's warning box,
+ *  ongoingSituations() (so it surfaces on the rail's Overview badge too),
+ *  and the pre-election news story below. */
+function electionAtRisk() {
+  const left = electionQuartersLeft();
+  const therm = electionThermometer();
+  return { left, therm, atRisk: left <= 4 && therm <= polityOf().loseAt };
+}
 function termReviewScore() {
   const e = G.econ;
   const meta = polityOf(G.homeRole);
@@ -10670,6 +10729,61 @@ function hasDiploAttention(g: any) {
   );
 }
 
+/** Active state visits plus the current major-world episode, if any — the
+ *  Overview drawer's "Ongoing situations" list and the rail's Overview
+ *  badge count both read off this same list, so they can never disagree. */
+function ongoingSituations(g?: any) {
+  const state = g || getG();
+  if (!state) return [];
+  const out: {
+    id: string;
+    kind: "visit" | "episode" | "election";
+    label: string;
+    sub: string;
+    left: number;
+  }[] = [];
+  for (const id of Object.keys(state.activeVisits || {})) {
+    const left = visitQuartersLeft(state, id);
+    if (left <= 0) continue;
+    const p = partnerById(id);
+    out.push({
+      id: "visit:" + id,
+      kind: "visit",
+      label: "State visit — " + (p ? p.name : id),
+      sub: `${left} quarter${left === 1 ? "" : "s"} left`,
+      left,
+    });
+  }
+  if (state.episode) {
+    const left = Math.max(0, state.episode.endsQ - state.q);
+    out.push({
+      id: "episode:" + state.episode.id,
+      kind: "episode",
+      label: state.episode.title || "Ongoing episode",
+      sub: `${left} quarter${left === 1 ? "" : "s"} left`,
+      left,
+    });
+  }
+  /* electionAtRisk() reads the live G directly rather than `state` — fine
+     while this function's only two callers (IconRail, OverviewPanel) both
+     pass the live G; would need threading through if ongoingSituations()
+     ever gains a preview/simulate call site. */
+  const risk = electionAtRisk();
+  if (risk.atRisk) {
+    const noun = reviewNoun();
+    out.push({
+      id: "election-risk",
+      kind: "election",
+      label: `${noun.charAt(0).toUpperCase() + noun.slice(1)} at risk`,
+      sub: `${risk.left} quarter${risk.left === 1 ? "" : "s"} to go — score ~${risk.therm.toFixed(0)}`,
+      left: risk.left,
+    });
+  }
+  return out;
+}
+
+/** Ultimatums only — state visits/summits are "ongoing situations" now,
+ *  shown in the Overview drawer instead of a persistent floating pill. */
 function diploHudChips(g: any) {
   const state = g || getG();
   if (!state) return [];
@@ -10684,18 +10798,6 @@ function diploHudChips(g: any) {
       title: "Ultimatum — opens Diplomacy",
       name: p ? p.name : id,
       label,
-      left,
-    });
-  }
-  for (const id of Object.keys(state.activeVisits || {})) {
-    const left = visitQuartersLeft(state, id);
-    if (left <= 0) continue;
-    const p = partnerById(id);
-    chips.push({
-      kind: "visit",
-      title: "State visit — opens Diplomacy",
-      name: p ? p.name : id,
-      label: null,
       left,
     });
   }
@@ -15121,12 +15223,10 @@ function showMpPendingEvent(opts: any) {
   Promise.resolve(announceQuarterAdvance()).then(present);
   return true;
 }
-/* ---- Floating press clippings ----
-   Non-blocking scraps over the map after Deliver. Templates only — no LLM.
-   G.press is display state; keep it out of MUTABLE / simulate(). */ const PRESS_MAX = 3;
-const PRESS_FADE_MS = 12000;
+/* ---- Press clippings: a persistent news inbox, hidden until opened ----
+   Templates only — no LLM. G.press is display state; keep it out of
+   MUTABLE / simulate(). */ const PRESS_MAX = 20;
 let _pressSeq = 0;
-const _pressFade = new Map();
 function partnerName(id: any) {
   const p = PARTNERS.find((x) => x.id === id);
   return p ? p.name : id;
@@ -15402,32 +15502,17 @@ function composePress(input: any) {
   }
   return clips;
 }
-function clearPressFade(id: any) {
-  const t = _pressFade.get(id);
-  if (t) {
-    clearTimeout(t);
-    _pressFade.delete(id);
-  }
-}
 let _pressExpanded: string | null = null;
-function clearAllPressFades() {
-  _pressFade.forEach((t) => clearTimeout(t));
-  _pressFade.clear();
+let _newsOpen = false;
+/** Closes the news inbox and any focused clip within it — shared by every
+ *  call site that needs the drawer and the inbox to never be open at once
+ *  (resetPressUi, enact()'s quarter advance, setTab() opening a drawer). */
+function closeNewsInbox() {
+  _newsOpen = false;
   _pressExpanded = null;
 }
-function schedulePressFade(id: any) {
-  clearPressFade(id);
-  if (typeof setTimeout !== "function") return;
-  if (_pressExpanded === id) return;
-  const host =
-    (typeof document !== "undefined" &&
-      document.getElementById("pressLayer")) ||
-    $("pressLayer");
-  if (!host) return;
-  const t = setTimeout(() => {
-    dismissPress(id);
-  }, PRESS_FADE_MS);
-  _pressFade.set(id, t);
+function resetPressUi() {
+  closeNewsInbox();
 }
 function pushPress(clips: any) {
   if (!G) return;
@@ -15445,44 +15530,77 @@ function pushPress(clips: any) {
       lede: raw.lede || "",
       kicker: raw.kicker || "",
       rot: Math.random() * 10 - 5,
+      seen: false,
     };
     G.press.push(clip);
-    schedulePressFade(id);
   });
   while (G.press.length > PRESS_MAX) {
     const dropped = G.press.shift();
-    if (dropped) {
-      clearPressFade(dropped.id);
-      if (_pressExpanded === dropped.id) _pressExpanded = null;
-    }
+    if (dropped && _pressExpanded === dropped.id) _pressExpanded = null;
   }
   bump();
 }
+/* Marks a clip read and focused, and — since callers only reach for this
+   when something needs to surface right now (an ultimatum outcome, say) —
+   opens the inbox too, so an important clip still auto-pops the way it
+   always has even though ordinary clips now wait to be opened. */
 function expandPress(id: any) {
   if (!G || !G.press) return false;
-  if (!G.press.some((c: any) => c.id === id)) return false;
-  clearPressFade(id);
+  const clip = G.press.find((c: any) => c.id === id);
+  if (!clip) return false;
+  clip.seen = true;
   _pressExpanded = id;
-  bump();
-  return true;
-}
-function dismissPress(id: any) {
-  if (!G || !G.press) return false;
-  const i = G.press.findIndex((c: any) => c.id === id);
-  if (i < 0) return false;
-  clearPressFade(id);
-  if (_pressExpanded === id) _pressExpanded = null;
-  G.press.splice(i, 1);
+  _newsOpen = true;
+  /* Same reason toggleNewsOpen() clears tab: the focused-clip overlay sits
+     below the drawer's z-index, so an auto-popped clip would otherwise
+     render invisibly behind an open drawer instead of over it. */
+  tab = null;
   bump();
   return true;
 }
 function getPressExpanded() {
   return _pressExpanded;
 }
+/* Closes the focused reading view without deleting the clip — a persistent
+   inbox should let you back out to the list, unlike the old ephemeral
+   clippings where "dismiss" and "close" were the same action. */
+function closeFocusedPress() {
+  if (!_pressExpanded) return false;
+  _pressExpanded = null;
+  bump();
+  return true;
+}
+function getNewsOpen() {
+  return _newsOpen;
+}
+function toggleNewsOpen() {
+  if (_newsOpen) {
+    /* Closing via the rail button (not the in-focus back/close control)
+       should always return to the list next time, not resume whatever
+       clip was last open. */
+    closeNewsInbox();
+  } else {
+    _newsOpen = true;
+    /* Opening the inbox closes whatever drawer is open — they'd otherwise
+       dock to the same side and fight for space. */
+    tab = null;
+  }
+  bump();
+  return _newsOpen;
+}
+function newsUnreadCount() {
+  if (!G || !G.press) return 0;
+  return G.press.filter((c: any) => !c.seen).length;
+}
+/* Escape-key dismiss: only acts while the inbox is actually open, so it
+   never silently touches anything the player can't see. Closes the
+   focused clip first (back to the list), then the inbox itself. */
 function dismissNewestPress() {
-  if (_pressExpanded) return dismissPress(_pressExpanded);
-  if (!G || !G.press || !G.press.length) return false;
-  return dismissPress(G.press[G.press.length - 1].id);
+  if (!_newsOpen) return false;
+  if (_pressExpanded) return closeFocusedPress();
+  _newsOpen = false;
+  bump();
+  return true;
 }
 function checkCrises(_res: any) {
   const e = G.econ;
@@ -15900,7 +16018,7 @@ function impactStripData() {
     return {
       career: true,
       count: cl.length,
-      cost: billCost(),
+      cost: billCost(cl),
       bits: cl.slice(0, 6).map((c) => c.label),
       chips: null,
       factions: null,
@@ -15915,7 +16033,7 @@ function impactStripData() {
   return {
     career: false,
     count: cl.length,
-    cost: billCost(),
+    cost: billCost(cl),
     bits: null,
     chips: impactChipsData(im),
     factions: impactFactionsData(im),
@@ -15938,7 +16056,7 @@ function impactPanelData(cl: any) {
   if (cl.length > 1) {
     const im = impactOf(clone(G.draft), base, 4);
     whole = {
-      cost: billCost(),
+      cost: billCost(cl),
       chips: impactChipsData(im),
       factions: impactFactionsData(im),
     };
@@ -15955,7 +16073,7 @@ function showBlocInviteModal(bid: any) {
 function projectionModal(onConfirm?: any) {
   syncServiceHolds(G.draft, G.econ);
   const cl = billClauses(),
-    cost = billCost();
+    cost = billCost(cl);
   const truth = project(4);
   const p = withForecastError(truth);
   const warn = projectionWarnings(truth);
@@ -16092,10 +16210,14 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
 }
 function enact() {
   if (G.over) return;
+  /* Close any open drawer/news inbox immediately, before the quarter-flash
+     animation, rather than leaving it open over the new quarter. */
+  tab = null;
+  closeNewsInbox();
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
   const cl = billClauses(),
-    cost = billCost();
+    cost = billCost(cl);
   if (cost > G.capital) return;
   if (
     G.draft.blocAccession &&
@@ -16217,6 +16339,25 @@ function enact() {
       q: Math.max(0, G.q - 1),
       brief: G.brief,
     });
+    /* A one-off warning story exactly two quarters out — electionAtRisk()
+       only reads true right at that boundary once per term, so this can't
+       double-fire without another full step() (i.e. another Deliver). */
+    const risk = electionAtRisk();
+    if (risk.atRisk && risk.left === 2) {
+      const noun = reviewNoun();
+      const isCoup = polityOf(G.homeRole).kind === "congress";
+      clips.push({
+        kind: "election-risk",
+        masthead: isCoup ? "Party Bulletin" : "The Fiscal Gazette",
+        headline: isCoup
+          ? "Whispers of a reshuffle in the ranks"
+          : `Two quarters from the ${noun} — and it shows`,
+        lede: isCoup
+          ? "Patriot sentiment inside the apparatus is running cold. Allies and rivals alike are watching the numbers."
+          : `The score is running behind where it needs to be. Unless it turns, the ${noun} looks lost.`,
+        kicker: qLabel(G, Math.max(0, G.q - 1)),
+      });
+    }
     render();
     _quarterFlashLock = true;
     const _db = $("deliverBtn");
@@ -16493,6 +16634,10 @@ function setOnTabChange(fn: any) {
 function setTab(t: any, scrollPartner?: any) {
   const prev = tab;
   tab = t;
+  /* Opening a drawer closes the news inbox — mirrors toggleNewsOpen()
+     closing whatever drawer is open, so the two never fight for the same
+     side of the screen. */
+  if (t) closeNewsInbox();
   /* A partner scroll target has to land on the pill that actually shows
      that partner's card, or queueDrawerPartnerScroll() retries for ~1.5s
      and silently gives up — the card is never in the DOM to find. Mutated
@@ -16586,6 +16731,7 @@ export {
   ENVOY_SLOTS,
   ENVOY_TARGET,
   ENVOY_ASSIGN_PC,
+  ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
@@ -16733,6 +16879,7 @@ export {
   ultimatumWaitingCopy,
   hasDiploAttention,
   diploHudChips,
+  ongoingSituations,
   gdp0ForSeat,
   realmGdpBn,
   fmtGdpBn,
@@ -16771,6 +16918,8 @@ export {
   project,
   simulate,
   billClauses,
+  billCost,
+  capitalOutlook,
   billShock,
   projectionWarnings,
   impactOf,
@@ -16852,16 +17001,20 @@ export {
   careerHint,
   electionQuartersLeft,
   electionThermometer,
+  electionAtRisk,
   termReviewScore,
   termReviewDue,
   termReview,
   qualEffectsData,
   composePress,
   pushPress,
-  dismissPress,
   dismissNewestPress,
   expandPress,
   getPressExpanded,
+  closeFocusedPress,
+  getNewsOpen,
+  toggleNewsOpen,
+  newsUnreadCount,
   dealBlockers,
   fullEffectsData,
   impactStripData,
