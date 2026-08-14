@@ -593,7 +593,7 @@ function TariffScheduleSection({ G }: { G: any }) {
           <Hint>
             You are in a customs union — every member trades under one shared
             external tariff. Any member may propose a new rate; it only takes
-            effect once every other member's relations clear the bar.
+            effect once every other member&apos;s relations clear the bar.
           </Hint>
           <div className="overflow-hidden rounded-md border border-edge bg-g-1">
             <Lever
@@ -611,7 +611,7 @@ function TariffScheduleSection({ G }: { G: any }) {
             />
             {cetBlockers.length ? (
               <Callout tone="red">
-                Needs every member's approval — {cetBlockers[0]}
+                Needs every member&apos;s approval — {cetBlockers[0]}
               </Callout>
             ) : null}
           </div>
