@@ -254,6 +254,7 @@ export default function Map3DOverlay({
 
         const bulge = H * 0.03 * scale;
         const now = performance.now() / 1000;
+        const boatPx = mapContentPx(BOAT_SCALE, plateW, scale);
         for (const route of routesRef.current) {
           for (const boat of route.boats) {
             syncBoatTiles(scene, boat, offsets.length);
@@ -287,7 +288,7 @@ export default function Map3DOverlay({
                 t,
               );
               inst.position.set(pt.x, pt.y, 0);
-              inst.scale.setScalar(mapContentPx(BOAT_SCALE, plateW, scale));
+              inst.scale.setScalar(boatPx);
               inst.rotation.z = pt.angle;
               setOpacity(inst, opacity);
               inst.visible = true;

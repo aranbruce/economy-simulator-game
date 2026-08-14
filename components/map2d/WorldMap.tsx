@@ -59,7 +59,7 @@ const OCEAN = "#3c4a3f";
 const SCENERY_FILL = "#3a3226";
 const HOVER_LIFT = 1.1;
 const MIN_ZOOM = 3;
-const DEFAULT_ZOOM = 3;
+const DEFAULT_ZOOM = MIN_ZOOM;
 const MAX_ZOOM = 16;
 /** Geographic focus of the opening view (mid-Atlantic / western Europe). */
 const DEFAULT_VIEW_LNG = -5;
@@ -845,16 +845,11 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
           fill: hot ? "rgba(246,240,226,0.95)" : "rgba(24,18,10,0.85)",
         };
       });
+      const capitalPx = mapContentPx(CAPITAL_MARKER_SIZE, plateW, scale);
       for (const dx of offsets) {
         for (const { pt, fill } of capitalScreenPoints) {
           const [x, y] = toScreen(pt[0], pt[1], dx);
-          drawCapitalMarker(
-            tctx,
-            x,
-            y,
-            mapContentPx(CAPITAL_MARKER_SIZE, plateW, scale),
-            fill,
-          );
+          drawCapitalMarker(tctx, x, y, capitalPx, fill);
         }
       }
     }
