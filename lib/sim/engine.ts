@@ -596,16 +596,47 @@ function firstPendingInbound(pol: any) {
   return null;
 }
 
-/** One-button Noted paper for a unilateral hostile act (tariff hike / sanctions). */
+/** Every act on a parked notice; tolerates the flat single-act shape. */
+function inboundNoticeActs(notice: any) {
+  if (!notice) return [];
+  if (Array.isArray(notice.acts) && notice.acts.length) return notice.acts;
+  return [
+    {
+      fromId: notice.fromId,
+      kind: notice.kind || "notice",
+      label: notice.label || "",
+    },
+  ];
+}
+
+/** One-button Noted paper for unilateral hostile acts (tariff hike / sanctions). */
 function parkInboundNotice(g: any, fromId: any, toId: any, notice: any) {
   if (!g || !fromId || !toId || fromId === toId) return false;
   if (!isHumanMpSeat(g, toId)) return false;
   const pol = g.politics[toId];
-  if (pol.inboundNotice && pol.inboundNotice.status === "pending") return false;
-  pol.inboundNotice = {
+  const act = {
     fromId,
     kind: (notice && notice.kind) || "notice",
     label: (notice && notice.label) || "",
+  };
+  /* One deliver can land several hostile acts on the same seat (a tariff hike
+     and sanctions, or two different peers). They ride one Noted paper rather
+     than the first claiming the slot and the rest going unreported. */
+  const open = pol.inboundNotice;
+  if (open && open.status === "pending") {
+    const acts = inboundNoticeActs(open);
+    if (acts.some((a: any) => a.fromId === act.fromId && a.kind === act.kind)) {
+      return false;
+    }
+    acts.push(act);
+    open.acts = acts;
+    return true;
+  }
+  pol.inboundNotice = {
+    fromId: act.fromId,
+    kind: act.kind,
+    label: act.label,
+    acts: [act],
     q: g.q || 0,
     status: "pending",
   };
@@ -4910,16 +4941,16 @@ function enactHumanSeatOnSnapshot(
     pol.capital = clamp(pol.capital - spend, 0, 100);
     g.capital = pol.capital;
     syncServiceHolds(g.draft, seat.econ);
-    const stagedMissions = clone((g.draft && g.draft.missions) || {});
     seat.prevLaw = clone(seat.law);
     seat.law = clone(g.draft);
-    applyDraftMissions(seat.law, g.draft, seat.econ, pol.fac);
-    notifyHumanPeerActions(
-      g,
-      seatId,
-      seat.prevLaw,
+    /* Notify off what applyDraftMissions actually applied, not what was
+       staged: sanctions dropped for a live state visit must not fan a
+       hostile notice at a seat nothing happened to. */
+    const appliedMissions = applyDraftMissions(
       seat.law,
-      stagedMissions,
+      g.draft,
+      seat.econ,
+      pol.fac,
     );
     const lock = lockedTariff(seat.law);
     if (lock != null) {
@@ -4927,6 +4958,9 @@ function enactHumanSeatOnSnapshot(
       seat.law.tariffSchedule.cet = lock;
       syncTariffHeadline(seat.law);
     }
+    /* After the bloc CET clamp, so a locked schedule is never reported as a
+       hike the seat never actually made. */
+    notifyHumanPeerActions(g, seatId, seat.prevLaw, seat.law, appliedMissions);
     if (seat.law.missions) seat.law.missions = {};
     seat.law.blocAccession = null;
     seat.law.blocLeave = false;
@@ -15588,7 +15622,10 @@ function mergeMpInboundAsksFromSnapshot(snap: any, seatId: any) {
   const notice = local.inboundNotice;
   const noticeKey =
     notice && notice.status === "pending"
-      ? "notice:" + (notice.fromId || "") + ":" + (notice.kind || "")
+      ? "notice:" +
+        inboundNoticeActs(notice)
+          .map((a: any) => (a.fromId || "") + ":" + (a.kind || ""))
+          .join("|")
       : "";
   const pending = local.pendingEvent;
   if (pending) return JSON.stringify(pending);
@@ -15893,28 +15930,36 @@ function showMpInboundNotice(notice: any) {
     if (typeof G.mp.onEventChoice === "function") G.mp.onEventChoice(payload);
     else render();
   };
-  const fromId = notice.fromId;
-  const p = partnerById(fromId);
-  const name = p ? p.name : fromId;
-  const hike = notice.kind === "tariff_inbound_hike";
-  const title = hike
-    ? T(name + " raises tariffs on {C}")
-    : T(name + " sanctions {C}");
-  const body = hike
-    ? "<p>" +
-      T(
-        name +
-          " has lifted duties on {C}'s goods" +
-          (notice.label ? " — " + esc(notice.label) : "") +
-          ". The change is already on their statute book. Exporters will feel it this quarter.",
-      ) +
-      "</p>"
-    : "<p>" +
-      T(
-        name +
-          " has imposed restrictive measures on {C}. Trade and finance with that seat will get dearer.",
-      ) +
-      "</p>";
+  const acts = inboundNoticeActs(notice);
+  const nameOf = (id: any) => {
+    const p = partnerById(id);
+    return p ? p.name : id;
+  };
+  const paraFor = (act: any) => {
+    const name = nameOf(act.fromId);
+    return act.kind === "tariff_inbound_hike"
+      ? "<p>" +
+          T(
+            name +
+              " has lifted duties on {C}'s goods" +
+              (act.label ? " — " + esc(act.label) : "") +
+              ". The change is already on their statute book. Exporters will feel it this quarter.",
+          ) +
+          "</p>"
+      : "<p>" +
+          T(
+            name +
+              " has imposed restrictive measures on {C}. Trade and finance with that seat will get dearer.",
+          ) +
+          "</p>";
+  };
+  const one = acts.length === 1 ? acts[0] : null;
+  const title = one
+    ? one.kind === "tariff_inbound_hike"
+      ? T(nameOf(one.fromId) + " raises tariffs on {C}")
+      : T(nameOf(one.fromId) + " sanctions {C}")
+    : T("Measures against {C}");
+  const body = acts.map(paraFor).join("");
   despatch(title, "Foreign & Commonwealth", body, [
     {
       b: "Noted",
@@ -17367,11 +17412,13 @@ function projectionModal(onConfirm?: any) {
     ],
   );
 }
+/** Applies staged missions and returns the ones that actually took effect. */
 function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
   ensureDiploStocks(econ);
   if (typeof G !== "undefined" && G) pruneInvalidDraftMissions(G);
   const missions = (draft && draft.missions) || (law && law.missions) || {};
   const gBag = { econ, q: typeof G !== "undefined" && G ? G.q : 0 };
+  const applied: Record<string, any> = {};
   for (const pid in missions) {
     const m = (MISSION_BY_ID as any)[missions[pid]];
     if (!m) continue;
@@ -17384,6 +17431,7 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
     ) {
       continue;
     }
+    applied[pid] = m.id;
     econ.missionCd[pid] = MISSION_CD;
     if (m.fac && fac) {
       for (const f in m.fac)
@@ -17414,6 +17462,7 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
   }
   if (law) delete law.missions;
   if (draft) draft.missions = {};
+  return applied;
 }
 function enact() {
   if (G.over) return;
@@ -18004,6 +18053,7 @@ export {
   applyMpInboundDealChoice,
   timeoutInboundDealProposals,
   applyMpInboundNoticeChoice,
+  inboundNoticeActs,
   announceQuarterAdvance,
   lockMpSubmission,
   clearMpLockedSubmission,

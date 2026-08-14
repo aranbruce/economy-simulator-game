@@ -31,6 +31,7 @@ import {
   applyLocalMpDiploAction,
   playerCountryId,
   mpDraftBlocGateError,
+  inboundNoticeActs,
 } from "../../lib/sim/engine.ts";
 import {
   DEFAULT_REALM_ID,
@@ -415,7 +416,10 @@ export default function GameApp() {
         const notice = pol && pol.inboundNotice;
         const noticeKey =
           notice && notice.status === "pending"
-            ? "notice:" + (notice.fromId || "") + ":" + (notice.kind || "")
+            ? "notice:" +
+              inboundNoticeActs(notice)
+                .map((a: any) => (a.fromId || "") + ":" + (a.kind || ""))
+                .join("|")
             : "";
         const pendingKey = pending
           ? JSON.stringify(pending)

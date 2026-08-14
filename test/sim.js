@@ -4522,7 +4522,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     "prune clears sanctions from draft while visit active",
   );
   G.draft.missions = { france: "sanctionsPosture" };
-  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  const appliedVisit = applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
     !(G.econ.sanctionStance.france && G.econ.sanctionStance.france.against),
     "sanctions mission skipped while state visit active",
@@ -4530,6 +4530,20 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(
     !(G.econ.relImpulse.france <= -14),
     "no sanctions impulse during visit",
+  );
+  /* MP peer notification reads this return value, so a skipped mission must
+     not appear in it or the target gets a Noted paper for nothing. */
+  assert(
+    appliedVisit && !appliedVisit.france,
+    "applyDraftMissions omits the skipped mission from its applied set",
+  );
+  G.draft.missions = { china: "demarche", russia: "sanctionsPosture" };
+  const appliedBoth = applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  assert(
+    appliedBoth &&
+      appliedBoth.china === "demarche" &&
+      appliedBoth.russia === "sanctionsPosture",
+    "applyDraftMissions reports every mission it did apply",
   );
 }
 

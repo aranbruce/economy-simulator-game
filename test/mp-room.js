@@ -1923,6 +1923,11 @@ async function main() {
       polGTar.inboundNotice.kind === "tariff_inbound_hike",
     "target parks a Noted inbound notice",
   );
+  assert.deepEqual(
+    (polGTar.inboundNotice.acts || []).map((a) => a.kind),
+    ["tariff_inbound_hike"],
+    "single hostile act parks one act on the notice",
+  );
   {
     const inbound = diploOutcomeAlertsForBrief(
       polGTar.diploAlerts,
@@ -1940,6 +1945,57 @@ async function main() {
       "guest press has a World Post inbound-hike clip",
     );
   }
+
+  /* Two hostile acts in one deliver ride a single Noted paper — the first must
+     not claim the only slot and leave sanctions unreported. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapBoth = exportGameSnapshot(getG());
+  const hBoth = await createRoom({ hostName: "Alice", role: "home" });
+  const gBoth = await joinRoom(hBoth.room.code, {
+    name: "Bob",
+    role: "germany",
+  });
+  const stBoth = await startRoom(hBoth.room.code, hBoth.token, snapBoth);
+  assert.ok(!stBoth.error, stBoth.error);
+  const hostDraftBoth = clone(stBoth.room.snapshot.world.kingdom.law);
+  hostDraftBoth.tariffSchedule = hostDraftBoth.tariffSchedule || {
+    default: 4,
+    bloc: {},
+    country: {},
+    cet: null,
+  };
+  hostDraftBoth.tariffSchedule.country = {
+    ...(hostDraftBoth.tariffSchedule.country || {}),
+    germany: 18,
+  };
+  hostDraftBoth.missions = { germany: "sanctionsPosture" };
+  await submitBill(hBoth.room.code, hBoth.token, hostDraftBoth);
+  const bothResolved = await submitBill(
+    gBoth.room.code,
+    gBoth.token,
+    clone(stBoth.room.snapshot.world.germany.law),
+  );
+  assert.ok(!bothResolved.error, bothResolved.error);
+  assert.equal(bothResolved.resolved, true, "two-act quarter resolves");
+  const polGBoth = bothResolved.room.snapshot.politics.germany;
+  const actKinds = (
+    (polGBoth.inboundNotice && polGBoth.inboundNotice.acts) ||
+    []
+  ).map((a) => a.kind);
+  assert.ok(
+    polGBoth.inboundNotice && polGBoth.inboundNotice.status === "pending",
+    "target still parks a pending notice",
+  );
+  assert.ok(
+    actKinds.includes("tariff_inbound_hike") &&
+      actKinds.includes("sanctions_inbound"),
+    `both hostile acts ride one notice (got ${JSON.stringify(actKinds)})`,
+  );
+  assert.ok(
+    (polGBoth.diploAlerts || []).some((a) => a.kind === "sanctions_inbound"),
+    "target gets the sanctions alert too",
+  );
 
   /* Human US seat: agency events skip Washington; ambient slowdown may still fire. */
   _resetRoomsForTests();
