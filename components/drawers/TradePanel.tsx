@@ -579,7 +579,7 @@ function TariffScheduleSection({ G }: { G: any }) {
     if (!byRegion[r]) byRegion[r] = [];
     byRegion[r].push(p);
   }
-  const playerBloc = playerBid ? blocById(playerBid) || G.customBlocs[playerBid] : null;
+  const playerBloc = playerBid ? blocByIdOrCustom(playerBid) : null;
 
   const cetBlockers =
     locked && sched.cet != null && sched.cet !== G.law.tariffSchedule.cet
@@ -639,7 +639,7 @@ function TariffScheduleSection({ G }: { G: any }) {
         </Hint>
       ) : null}
       {Object.keys(usedBlocs).map((bid) => {
-        const bloc = blocById(bid) || G.customBlocs[bid];
+        const bloc = blocByIdOrCustom(bid);
         const key = `tariffBloc:${bid}`;
         const val = sched.bloc[bid] != null ? sched.bloc[bid] : baseline;
         return (

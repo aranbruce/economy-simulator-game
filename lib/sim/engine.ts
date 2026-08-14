@@ -1755,13 +1755,12 @@ function effectiveTariff(
   const bm = blocMember || (g && g.blocMember) || {};
   if (shareSameBloc(partnerId, role, bm)) return 0;
   const lock = tariffLocked(L, role, bm);
-  /* The common external tariff is only the *shared baseline* against outsiders —
-   * the chair sets it, but every member (chair included) can still layer their
-   * own tariff on top of it for a specific outside bloc or country, same as a
-   * non-union player would. Only the CET value itself is off-limits to a
-   * non-chair member (enforced in the UI, not here). */
+  /* The common external tariff is only the *shared baseline* against
+   * outsiders — any member can still layer their own tariff on top of it
+   * for a specific outside bloc or country, same as a non-union player
+   * would (tariffCetBlockers() gates changing the CET itself, not this). */
   let baseline = sched.default;
-  if (lock.mode === "cet" || lock.mode === "full") {
+  if (lock.mode === "cet") {
     if (lock.cet != null) baseline = lock.cet;
     else {
       const bloc = blocById(lock.blocId);
@@ -3349,7 +3348,16 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
           ultimatums: sub.ultimatums,
         });
         if (!r.ok) continue;
-      } catch {
+      } catch (err) {
+        /* Unlike the graceful !r.ok path above (an expected, already-
+         * described validation failure), a thrown exception here is
+         * unexpected — still safe to skip so it can't take down every
+         * other player's turn, but worth a server-side trace so a genuine
+         * bug doesn't silently vanish as "my bill didn't apply". */
+        console.error(
+          `resolveLockstepQuarter: enactHumanSeatOnSnapshot threw for seat=${id}`,
+          err,
+        );
         continue;
       }
     }
@@ -9545,10 +9553,11 @@ function tariffScopeClauses(
   L: any,
   scope: "bloc" | "country",
   nameOf: (id: string) => string,
+  baseline: number,
 ) {
   for (const id in D.tariffSchedule[scope]) {
     const raw = L.tariffSchedule[scope][id];
-    const a = raw != null ? raw : L.tariffSchedule.default;
+    const a = raw != null ? raw : baseline;
     const b = D.tariffSchedule[scope][id];
     if (a === b) continue;
     out.push({
@@ -9864,14 +9873,39 @@ function billClauses() {
         },
       });
     }
-    tariffScopeClauses(out, D, L, "bloc", (bid) => {
-      const bloc = blocById(bid);
-      return bloc ? bloc.name : bid;
-    });
-    tariffScopeClauses(out, D, L, "country", (cid) => {
-      const c = partnerById(cid);
-      return c ? c.name : cid;
-    });
+    /* Same "before" baseline effectiveTariff()/the UI use: the law's CET
+     * while in a customs union (bloc/country overrides layer on top of it),
+     * else the plain default schedule. Using the stale `default` field
+     * unconditionally here mispriced/mislabeled a locked member's own
+     * outsider-tariff clauses against a rate they were never actually on. */
+    const lawBaseline =
+      tLock.mode === "cet"
+        ? L.tariffSchedule.cet != null
+          ? L.tariffSchedule.cet
+          : (tLock.cet ?? L.tariffSchedule.default)
+        : L.tariffSchedule.default;
+    tariffScopeClauses(
+      out,
+      D,
+      L,
+      "bloc",
+      (bid) => {
+        const bloc = blocById(bid);
+        return bloc ? bloc.name : bid;
+      },
+      lawBaseline,
+    );
+    tariffScopeClauses(
+      out,
+      D,
+      L,
+      "country",
+      (cid) => {
+        const c = partnerById(cid);
+        return c ? c.name : cid;
+      },
+      lawBaseline,
+    );
     if (
       D.tariffSchedule.default !== L.tariffSchedule.default &&
       tLock.mode === "none"
@@ -16299,28 +16333,10 @@ function enact() {
   const cl = billClauses(),
     cost = billCost(cl);
   if (cost > G.capital) return;
-  if (
-    G.draft.blocAccession &&
-    blocJoinBlockers(G.draft.blocAccession.blocId, "apply").length
-  )
-    return;
-  if (G.draft.blocExternalDeal) {
-    const bed = G.draft.blocExternalDeal;
-    if (blocExternalDealBlockers(bed.partnerId, bed.dealId).length) return;
-  }
-  for (const cid in G.draft.blocInvite || {}) {
-    const playerBloc = countryBlocId(playerCountryId());
-    if (playerBloc && blocInviteBlockers(playerBloc, cid).length) return;
-  }
-  {
-    const tLock = tariffLocked(G.draft);
-    if (
-      tLock.mode === "cet" &&
-      G.draft.tariffSchedule.cet !== G.law.tariffSchedule.cet &&
-      tariffCetBlockers(tLock.blocId).length
-    )
-      return;
-  }
+  /* Same blocker set handleDeliver() already pre-checks before ever calling
+   * enact() — kept here too as a backstop for any direct caller (tests,
+   * future callers) that bypasses that pre-check. */
+  if (mpDraftBlocGateError()) return;
   const balDelta =
     balanceOf(G.draft, G.econ).balance - balanceOf(G.law, G.econ).balance;
   G.capital -= cost;
