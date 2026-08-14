@@ -2587,12 +2587,64 @@ function processBlocInvites(g: any) {
             (bloc ? bloc.name : inv.blocId) +
             ".",
         );
+        notifyBlocInviteAccept(
+          state,
+          cid,
+          inv.blocId,
+          bloc ? bloc.name : inv.blocId,
+          inv.fromId || player,
+        );
       }
     }
   }
   if (notes.length && state.brief)
     state.brief = notes.concat(state.brief).slice(0, 3);
 }
+
+/** Fan out AI/solo invite-accept news to human co-members and the inviter. */
+function notifyBlocInviteAccept(
+  state: any,
+  acceptedId: any,
+  blocId: any,
+  blocName: any,
+  invitedBy: any,
+) {
+  if (!state || !acceptedId || !blocId) return;
+  const q = state.q || 0;
+  const alert = {
+    kind: "bloc_invite_accept",
+    partnerId: acceptedId,
+    blocId,
+    label: blocName || blocId,
+    q,
+    expiresQ: q + 3,
+  };
+  const player =
+    state.homeRole === "home"
+      ? "kingdom"
+      : resolveHomeRole(state.homeRole || "home");
+  const notified = new Set([acceptedId]);
+  const notifySeat = (seatId: any) => {
+    if (!seatId || notified.has(seatId)) return;
+    notified.add(seatId);
+    if (state.politics && state.politics[seatId]) {
+      pushDiploAlert(state.politics[seatId], alert);
+    } else if (seatId === player) {
+      pushDiploAlert(state, alert);
+    }
+  };
+  if (state.politics) {
+    for (const seatId of Object.keys(state.politics)) {
+      if (countryBlocId(seatId, state.blocMember) === blocId)
+        notifySeat(seatId);
+    }
+  }
+  if (countryBlocId(player, state.blocMember) === blocId) notifySeat(player);
+  if (invitedBy) notifySeat(invitedBy);
+  const custom = state.customBlocs && state.customBlocs[blocId];
+  if (custom && custom.founder) notifySeat(custom.founder);
+}
+
 function processBlocAccessions(g: any) {
   const state = g || (typeof getG() !== "undefined" ? getG() : null);
   if (!state || !state.blocAccessionByCountry) return;
@@ -4710,6 +4762,19 @@ function enactHumanSeatOnSnapshot(
     seat.law.blocCreate = null;
     seat.law.blocInvite = {};
     seat.law.blocExternalDeal = null;
+    {
+      const clauses = check.clauses || [];
+      pol.lastBill = clauses.length
+        ? {
+            clauses,
+            cost: check.cost || 0,
+            balDelta:
+              balanceOf(g.draft, g.econ).balance -
+              balanceOf(g.law, g.econ).balance,
+            q: g.q != null ? g.q : 0,
+          }
+        : null;
+    }
     syncDiploPoliticsFromGame(pol, g);
     return {
       ok: true,
@@ -4854,6 +4919,10 @@ function hydrateGameSnapshot(snap: any, opts: any) {
     prevSeatPol && prevSeatPol.diploAlerts
       ? prevSeatPol.diploAlerts
       : (getG() && getG().diploAlerts) || [];
+  /* Press is client display state (export always sends []). Keep the inbox
+   * across lockstep remounts so Fiscal Gazette clips survive the quarter. */
+  const prevPress =
+    getG() && Array.isArray(getG().press) ? getG().press.slice() : [];
   setG(clone(snap));
   getG().homeRole = homeRole;
   getG().homeIso = o.homeIso || getG().homeIso || "826";
@@ -4988,8 +5057,8 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   getG().over = !!getG().over;
   /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
   getG().brief = [];
-  getG().press = [];
   resetPressUi();
+  getG().press = prevPress;
   tab = null;
   mirrorPlayerToWorld(getG());
   /* mirror rebuilds the player bag — keep the log we just mounted. */
@@ -15070,26 +15139,32 @@ function showMpBriefing(opts?: any) {
       }
     }
     markDiploAlertsNoted(freshUlt);
-    if (freshUlt.length) {
-      const pressBefore = G.press ? G.press.length : 0;
-      const clips = composePress({
-        ultimatumOutcomes: freshUlt,
-        q: Math.max(0, (G.q || 1) - 1),
-        brief: G.brief,
-      });
-      if (clips.length) {
-        pushPress(clips);
-        for (let i = G.press.length - 1; i >= pressBefore; i--) {
-          if (G.press[i].kind === "ultimatum") {
-            expandPress(G.press[i].id);
-            break;
-          }
+    const lastBill = pol && pol.lastBill;
+    const pressBefore = G.press ? G.press.length : 0;
+    const clips = composePress({
+      clauses: (lastBill && lastBill.clauses) || [],
+      cost: (lastBill && lastBill.cost) || 0,
+      balDelta: lastBill && lastBill.balDelta,
+      ultimatumOutcomes: freshUlt,
+      q:
+        lastBill && lastBill.q != null
+          ? lastBill.q
+          : Math.max(0, (G.q || 1) - 1),
+      brief: G.brief,
+    });
+    if (clips.length) {
+      pushPress(clips);
+      for (let i = G.press.length - 1; i >= pressBefore; i--) {
+        if (G.press[i].kind === "ultimatum") {
+          expandPress(G.press[i].id);
+          break;
         }
       }
-      if (pol && alertSrc === pol.diploAlerts) {
-        pol.diploAlerts = alertSrc;
-        G.diploAlerts = alertSrc;
-      }
+    }
+    if (pol) pol.lastBill = null;
+    if (freshUlt.length && pol && alertSrc === pol.diploAlerts) {
+      pol.diploAlerts = alertSrc;
+      G.diploAlerts = alertSrc;
     }
     if (!G.brief || !G.brief.length) return;
     despatch(
@@ -15681,6 +15756,16 @@ function getPressExpanded() {
 function closeFocusedPress() {
   if (!_pressExpanded) return false;
   _pressExpanded = null;
+  bump();
+  return true;
+}
+/** Remove a clip from the inbox. Display-only — does not touch diplo alerts. */
+function discardPress(id: any) {
+  if (!G || !G.press || !id) return false;
+  const i = G.press.findIndex((c: any) => c.id === id);
+  if (i < 0) return false;
+  G.press.splice(i, 1);
+  if (_pressExpanded === id) _pressExpanded = null;
   bump();
   return true;
 }
@@ -17120,6 +17205,7 @@ export {
   expandPress,
   getPressExpanded,
   closeFocusedPress,
+  discardPress,
   getNewsOpen,
   toggleNewsOpen,
   newsUnreadCount,

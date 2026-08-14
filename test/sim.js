@@ -28,6 +28,9 @@ import {
   SIMULATE_OMITS,
   composePress,
   pushPress,
+  discardPress,
+  expandPress,
+  getPressExpanded,
   diploOutcomeAlertsForBrief,
   markDiploAlertsNoted,
   capitalShortfallHint,
@@ -1385,6 +1388,23 @@ assert(G.press.length === 4, "press inbox holds every clip below the cap");
    still trims from the oldest end rather than growing unbounded */
 for (let i = 0; i < 25; i++) pushPress(billClips);
 assert(G.press.length === 20, "press inbox caps at twenty clips");
+
+{
+  const n = G.press.length;
+  const keep = G.press[0].id;
+  const drop = G.press[n - 1].id;
+  expandPress(drop);
+  assert(getPressExpanded() === drop, "expandPress focuses a clip");
+  assert(discardPress(drop) === true, "discardPress removes a clip");
+  assert(G.press.length === n - 1, "discardPress shortens the inbox");
+  assert(
+    !G.press.some((c) => c.id === drop),
+    "discarded clip is gone",
+  );
+  assert(G.press[0].id === keep, "discardPress does not shuffle remaining clips");
+  assert(getPressExpanded() === null, "discarding the focused clip clears focus");
+  assert(discardPress("missing") === false, "discardPress no-ops on unknown id");
+}
 
 /* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
 {
@@ -3438,6 +3458,15 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(
     G.blocAccessionByCountry.india && G.blocAccessionByCountry.india.step === 1,
     "warm relations start accession pipeline",
+  );
+  assert(
+    (G.diploAlerts || []).some(
+      (a) =>
+        a.kind === "bloc_invite_accept" &&
+        a.partnerId === "india" &&
+        a.blocId === blocId,
+    ),
+    "founding country gets a press alert when an invited country accepts",
   );
   let customJoined = false;
   for (let i = 0; i < 10; i++) {

@@ -3,6 +3,7 @@
 import type { CSSProperties } from "react";
 import {
   closeFocusedPress,
+  discardPress,
   expandPress,
   getNewsOpen,
   getPressExpanded,
@@ -10,10 +11,13 @@ import {
 import { useGame } from "../../lib/ui/useGame.ts";
 import { CloseIcon } from "../../lib/ui/icons.tsx";
 
+const clipCloseBtnClass =
+  "absolute top-2 right-2 z-1 grid size-7 cursor-pointer place-items-center rounded-full border border-paper-border/35 bg-paper-bg/80 text-paper-ink shadow-[0_1px_0_rgba(255,255,255,.45)_inset] transition duration-160 hover:bg-paper-border/14 hover:text-paper-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]";
+
 function ClipBody({ c }: { c: any }) {
   return (
     <>
-      <div className="clip-mast mb-0.5 text-xs font-bold tracking-[.14em] text-paper-ink-faint uppercase">
+      <div className="clip-mast mb-0.5 pr-8 text-xs font-bold tracking-[.14em] text-paper-ink-faint uppercase">
         {c.masthead}
       </div>
       <div className="clip-kick mb-1.75 border-b border-paper-border/18 pb-1.25 text-xs text-paper-ink-faint">
@@ -50,7 +54,7 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col overflow-y-auto scrollbar-none px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 scrollbar-none flex-col overflow-y-auto px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {/* my-auto centres a short stack; when the list overflows, the
@@ -60,7 +64,7 @@ export function PressLayer() {
           <div className="my-auto flex flex-col gap-3">
             {ordered.length === 0 ? (
               <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
-                Nothing yet this term.
+                No news stories
               </div>
             ) : (
               ordered.map((c: any, i: number) => (
@@ -74,24 +78,38 @@ export function PressLayer() {
                       "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
                     } as CSSProperties
                   }
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Open clipping"
-                  onClick={() => expandPress(c.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      expandPress(c.id);
-                    }
-                  }}
                 >
-                  {!c.seen ? (
-                    <span
-                      className="absolute top-2.5 right-2.5 size-2 rounded-full bg-paper-red"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <ClipBody c={c} />
+                  <button
+                    type="button"
+                    aria-label="Discard clipping"
+                    className={clipCloseBtnClass}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      discardPress(c.id);
+                    }}
+                  >
+                    <CloseIcon />
+                  </button>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Open clipping"
+                    onClick={() => expandPress(c.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        expandPress(c.id);
+                      }
+                    }}
+                  >
+                    {!c.seen ? (
+                      <span
+                        className="absolute top-2.5 left-2.5 size-2 rounded-full bg-paper-red"
+                        aria-hidden="true"
+                      />
+                    ) : null}
+                    <ClipBody c={c} />
+                  </div>
                 </article>
               ))
             )}
@@ -118,11 +136,11 @@ export function PressLayer() {
           >
             <button
               type="button"
-              aria-label="Close"
-              className="absolute top-2.5 right-2.5 grid size-7 cursor-pointer place-items-center rounded-full border border-paper-border/22 bg-paper-border/6 text-paper-ink-faint transition duration-160 hover:bg-paper-border/14 hover:text-paper-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]"
+              aria-label="Discard clipping"
+              className={clipCloseBtnClass}
               onClick={(e) => {
                 e.stopPropagation();
-                closeFocusedPress();
+                discardPress(focused.id);
               }}
             >
               <CloseIcon />
