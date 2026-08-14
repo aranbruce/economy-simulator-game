@@ -494,10 +494,17 @@ no second major can fire. When `G.q >= episode.endsQ`, Deliver shows an end
 despatch (“Noted”), runs any tariff unwind, clears the episode, and reschedules
 the next major. Ordinary bilateral/domestic events may still fire during a major.
 
-The nine majors: `globalRecess`, `aiBoom`, `worldInflation`, `commodityShock`,
-`globalEasing`, `tradeWar`, `chinaSlowdown`, `creditCrunch`, `greenTransition`.
-`tradeWar` raises real `tariffSchedule` defaults (player and/or AI seats) and
-restores them on end unless the player chose to keep the wall.
+The majors: `globalRecess`, `aiBoom`, `worldInflation`, `commodityShock`,
+`globalEasing`, `tradeWar`, `chinaSlowdown`, `usSlowdown`, `indiaSlowdown`,
+`usTariffUp`, `usTariffDown`, `chinaTariffUp`, `chinaTariffDown`,
+`creditCrunch`, `greenTransition`. `tradeWar` raises real `tariffSchedule`
+defaults (player and/or AI seats) and restores them on end unless the player
+chose to keep the wall. Scripted US/China tariff majors (`usTariffUp` and
+friends) require a scriptable AI seat — a human occupying Washington or Beijing
+does not get a fake agency event; their real tariff move notifies the other
+human through diplo alerts. Ambient slowdowns (`usSlowdown`, `indiaSlowdown`,
+`chinaSlowdown`) may still shock a human-occupied seat without claiming they
+chose it.
 
 A large share of the ordinary pool is foreign relations, which is where
 the interesting bilateral consequences live: ultimatums over the digital services

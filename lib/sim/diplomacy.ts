@@ -1324,12 +1324,25 @@ export function rollMissionEvent(
   };
 }
 
+/** Substitute summit {P}/{R} before generic T(), which only knows {C}/{P}=eventFocus/{S}. */
+export function formatMissionTokens(
+  s: any,
+  partnerName: string,
+  rivalName?: string,
+) {
+  return String(s || "")
+    .replace(/\{P\}/g, partnerName || "a partner")
+    .replace(/\{R\}/g, rivalName || "a rival");
+}
+
 export function formatMissionEventText(ev: any, g: GameState, deps: Deps) {
   const { partnerById, T } = deps;
   const p = partnerById(ev.partnerId);
-  let text = ev.text || "";
-  text = text.replace(/\{P\}/g, p ? p.name : ev.partnerId);
-  text = text.replace(/\{R\}/g, ev.rivalName || "a rival");
+  let text = formatMissionTokens(
+    ev.text || "",
+    p ? p.name : ev.partnerId,
+    ev.rivalName,
+  );
   if (T) text = T(text);
   else text = text.replace(/\{C\}/g, g.country || "The Kingdom");
   return text;

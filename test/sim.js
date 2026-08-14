@@ -27,6 +27,7 @@ import {
   MUTABLE,
   SIMULATE_OMITS,
   composePress,
+  eventPressCopy,
   pushPress,
   discardPress,
   expandPress,
@@ -40,6 +41,13 @@ import {
   continueCoach,
   getCoachPanel,
   getDespatch,
+  despatch,
+  closeDespatch,
+  immediateOptionChips,
+  presentEventAsPress,
+  pressChoicePending,
+  closeFocusedPress,
+  getNewsOpen,
   setTab,
   getTab,
   billClauses,
@@ -91,6 +99,10 @@ import {
   withdrawBlocAccession,
   inviteToBloc,
   pickEventPartner,
+  isPlayerSeat,
+  requirePartner,
+  requireScriptablePartner,
+  isHumanMpSeat,
   applyDraftMissions,
   DEAL_BY_ID,
   prepareEvent,
@@ -159,6 +171,7 @@ import {
   partnerSelfInterest,
   interestTag,
   rollMissionEvent,
+  formatMissionTokens,
   applyMissionEventOption,
   MISSION_EVENTS,
   queueSummitVisitEvents,
@@ -914,7 +927,28 @@ newGame();
 G = getG();
 {
   const majors = EVENTS.filter((e) => e.major);
-  assert(majors.length === 9, `nine major episodes (got ${majors.length})`);
+  const majorIds = majors.map((e) => e.id).sort();
+  const expectedMajors = [
+    "aiBoom",
+    "chinaSlowdown",
+    "chinaTariffDown",
+    "chinaTariffUp",
+    "commodityShock",
+    "creditCrunch",
+    "globalEasing",
+    "globalRecess",
+    "greenTransition",
+    "indiaSlowdown",
+    "tradeWar",
+    "usSlowdown",
+    "usTariffDown",
+    "usTariffUp",
+    "worldInflation",
+  ];
+  assert(
+    majorIds.join(",") === expectedMajors.slice().sort().join(","),
+    `major episodes (${majorIds.join(", ")})`,
+  );
   assert(
     G.nextMajorQ >= MAJOR_GAP_MIN &&
       G.nextMajorQ < MAJOR_GAP_MIN + MAJOR_GAP_SPAN,
@@ -1300,6 +1334,17 @@ assert(
   `every MUTABLE field lands in simulate() or SIMULATE_OMITS (missing: ${unaccounted.join(", ")})`,
 );
 
+const CALM_ECON = {
+  inflation: 2.5,
+  unemployment: 4.5,
+  yield: 4.5,
+  debt: 94,
+  services: 55,
+  rate: 3.75,
+};
+const PAPER_MASTHEAD =
+  /Fiscal Gazette|World Post|Diplomatic Courier|Trade Gazette|Party Bulletin/;
+
 const emptyClips = composePress({
   clauses: [],
   cost: 0,
@@ -1307,6 +1352,7 @@ const emptyClips = composePress({
   event: null,
   option: null,
   q: 0,
+  econ: CALM_ECON,
 });
 assert(emptyClips.length === 0, "quiet quarter produces no clippings");
 
@@ -1319,51 +1365,74 @@ const billClips = composePress({
   cost: 18,
   balDelta: -0.4,
   q: 0,
+  econ: CALM_ECON,
 });
 assert(
   billClips.length === 1 && billClips[0].kind === "bill",
   "non-empty bill yields one bill clipping",
 );
 assert(
-  /Chancellor's bill:\s*3 measures/.test(billClips[0].headline),
-  "multi-clause bill uses count headline",
+  /Carbon price/.test(billClips[0].headline),
+  "multi-clause bill leads with the costliest measure",
 );
 assert(
-  /Carbon price/.test(billClips[0].lede) &&
+  !/Chancellor's bill/.test(billClips[0].headline) &&
+    !/Political capital/.test(billClips[0].lede),
+  "bill clip is reporting, not a clause dump",
+);
+assert(
+  /VAT rises to 22 percent/.test(billClips[0].lede) &&
     /deficit widens/.test(billClips[0].lede),
-  "bill lede names a clause and fiscal direction",
+  "bill lede names remaining clauses and fiscal direction",
+);
+assert(
+  PAPER_MASTHEAD.test(billClips[0].masthead),
+  "bill masthead is a newspaper",
 );
 
-const ev = EVENTS[0];
+const ev = EVENTS.find((e) => e.id === "ultimatum");
 const opt = ev.opts[0];
-const eventClips = composePress({
-  clauses: [],
-  event: ev,
-  option: opt,
-  q: 2,
-});
+const eventCopy = eventPressCopy(ev, opt);
 assert(
-  eventClips.length === 1 && eventClips[0].kind === "event",
-  "event option yields one event clipping",
+  /Washington/.test(eventCopy.headline) &&
+    eventCopy.headline.indexOf(opt.b) < 0,
+  "event headline is the story, not the chosen option",
 );
 assert(
-  eventClips[0].headline.indexOf(opt.b) >= 0 || opt.b.indexOf("{C}") >= 0,
-  "event headline comes from the chosen option",
+  PAPER_MASTHEAD.test(eventCopy.masthead) &&
+    eventCopy.masthead !== ev.stamp,
+  "event masthead is a newspaper, not a ministry stamp",
 );
 assert(
-  eventClips[0].masthead === ev.stamp || eventClips[0].masthead === "Despatch",
-  "event masthead comes from the despatch stamp",
+  !composePress({
+    clauses: [{ label: "Abolish fuel duty", pc: 8 }],
+    event: ev,
+    option: opt,
+    q: 1,
+    econ: CALM_ECON,
+  }).some((c) => c.kind === "event"),
+  "composePress no longer files event clips — those land via presentEventAsPress",
 );
 
-const both = composePress({
-  clauses: [{ label: "Abolish fuel duty", pc: 8 }],
-  cost: 8,
-  balDelta: 0.2,
-  event: ev,
-  option: opt,
-  q: 1,
+const macroClips = composePress({
+  clauses: [],
+  q: 0,
+  res: { growth: -1.2 },
+  econ: { ...CALM_ECON, inflation: 5.1, rate: 4.5 },
 });
-assert(both.length === 2, "bill plus event yields two clippings");
+assert(
+  macroClips.some((c) => c.kind === "macro" && /contraction/i.test(c.headline)),
+  "contraction yields a macro clip",
+);
+assert(
+  macroClips.some((c) => /Prices climb/i.test(c.headline)),
+  "high inflation yields a prices clip",
+);
+assert(
+  macroClips.length <= 2 &&
+    macroClips.every((c) => PAPER_MASTHEAD.test(c.masthead)),
+  "at most two macro clips, all on newspaper mastheads",
+);
 
 const econBefore = JSON.stringify(G.econ);
 const pressBefore = G.press.length;
@@ -1374,14 +1443,14 @@ assert(
   "pushPress does not mutate live econ",
 );
 assert(
-  G.press[G.press.length - 1].headline.indexOf("Chancellor") >= 0,
+  G.press[G.press.length - 1].headline.indexOf("Carbon price") >= 0,
   "pushed clip keeps headline",
 );
 
 /* Well under the cap — the inbox is persistent now, not a three-item ticker */
 pushPress(billClips);
 pushPress(billClips);
-pushPress(eventClips);
+pushPress(billClips);
 assert(G.press.length === 4, "press inbox holds every clip below the cap");
 
 /* Push well past the cap (20 — see PRESS_MAX in engine.ts) and confirm it
@@ -3279,12 +3348,99 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame();
   G = getG();
+  G.sandbox = false;
+  G.q = 5;
+  G.law.deals.ru_energy = true;
+  G.rel.russia = 30;
+  G.rel.france = 55;
+  G.rel.united_states = 60;
+  G.eventFocus = "russia";
+  G.eventSponsors = ["france", "united_states"];
+  const sanctions = EVENTS.find((e) => e.id === "sanctions");
+  const rel0 = clone(G.rel);
+  const deals0 = clone(G.law.deals);
+  const chips = immediateOptionChips(sanctions.opts[0]);
+  const byName = Object.fromEntries(chips.map((c) => [c.name, c]));
+  assert(
+    byName["Russia relations"] && byName["Russia relations"].value <= -20,
+    `join-sanctions chip names Russia (got ${JSON.stringify(chips)})`,
+  );
+  assert(
+    byName["France relations"] && byName["France relations"].value >= 10,
+    "join-sanctions chip names sponsor France",
+  );
+  assert(
+    byName["United States relations"] &&
+      byName["United States relations"].value >= 10,
+    "join-sanctions chip names sponsor United States",
+  );
+  assert(
+    JSON.stringify(G.rel) === JSON.stringify(rel0),
+    "relation-chip preview does not mutate live rel",
+  );
+  assert(
+    JSON.stringify(G.law.deals) === JSON.stringify(deals0),
+    "relation-chip preview does not tear up deals",
+  );
+  G.sandbox = false;
+  let picked = null;
+  presentEventAsPress(sanctions, (o) => {
+    picked = o;
+  });
+  const pending = (G.press || []).find((c) => c.pendingChoice);
+  assert(pending && pending.opts && pending.opts.length, "event opens as a news clip with choices");
+  assert(pressChoicePending(), "pressChoicePending while the clip waits for an answer");
+  assert(getNewsOpen() && getPressExpanded() === pending.id, "event clip auto-opens the inbox");
+  const shown =
+    (pending.opts[0] && pending.opts[0].immediate) || [];
+  assert(
+    shown.some((c) => c.name === "Russia relations" && c.value <= -20),
+    "career event clip still lists relation chips",
+  );
+  assert(
+    !pending.opts[0].chips,
+    "career event clip does not attach 4-quarter forecast chips",
+  );
+  assert(
+    discardPress(pending.id) === false,
+    "cannot discard an unanswered event clip",
+  );
+  assert(closeFocusedPress() === true && getPressExpanded() === pending.id, "cannot dismiss an unanswered event clip");
+  pending.opts[0].f();
+  assert(picked && picked.b === sanctions.opts[0].b, "choosing a clip option fires the callback");
+  assert(!pressChoicePending(), "answering clears pendingChoice");
+  const archived = (G.press || []).filter((c) => c.kind === "event");
+  assert(archived.length === 1, "answering does not file a second event clip");
+  assert(/chose to join the package in full/i.test(archived[0].lede), "archive lede records the choice");
+
+  const boom = EVENTS.find((e) => e.id === "boom");
+  const boomChips = immediateOptionChips(boom.opts[0]);
+  assert(
+    !boomChips.some((c) => /relations$/.test(c.name)),
+    "domestic boom has no relation chips",
+  );
+}
+
+{
+  newGame();
+  G = getG();
   const ids = new Set(activePartners().map((p) => p.id));
   for (let i = 0; i < 30; i++) {
     const p = pickEventPartner();
     assert(
       p && ids.has(p.id),
       `pickEventPartner stays on active seats (${p && p.id})`,
+    );
+  }
+  G.politics = {
+    [playerCountryId()]: {},
+    germany: {},
+  };
+  for (let i = 0; i < 20; i++) {
+    const p = pickEventPartner({ scriptable: true });
+    assert(
+      p && p.id !== "germany" && p.id !== playerCountryId(),
+      `scriptable pick skips human MP seats (${p && p.id})`,
     );
   }
 }
@@ -3387,9 +3543,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
    * noise unless sandbox is on — newGame() defaults to sandbox off — and,
    * separately, can roll a genuine random EVENTS entry once the 4-quarter
    * cooldown clears (rollEvent() gates on G.lastEventQ, not sandbox; a 20%
-   * roll fires regardless of it). A fired event opens a despatch instead of
+   * roll fires regardless of it). A fired event opens a news clip instead of
    * calling proceed(), so G.q silently stops advancing on that enact() call
-   * — this test never answers the despatch, so it just drifted from what
+   * — this test never answers the clip, so it just drifted from what
    * the accession pipeline below expected. Push lastEventQ out of reach so
    * the cooldown never clears across this block's ~7 quarters. */
   G.sandbox = true;
@@ -3399,6 +3555,12 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     Math.abs(effectiveTariff("germany", G.law) - 4) < 0.01,
     "bloc member uses bloc tariff rate",
   );
+  G.law.tariffSchedule.country.germany = 18;
+  assert(
+    Math.abs(effectiveTariff("germany", G.law) - 18) < 0.01,
+    "country rate on a foreign-bloc partner overrides the bloc rate",
+  );
+  delete G.law.tariffSchedule.country.germany;
   assert(
     effectiveTariff("india", G.law) === G.law.tariffSchedule.default,
     "non-bloc partner uses default schedule",
@@ -4776,6 +4938,18 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     G.rel.japan !== rel0 || (G.econ.relImpulse.japan || 0) > 0,
     "mission option moves relations or relImpulse",
   );
+  {
+    const rival = MISSION_EVENTS.find((e) => e.id === "summit_rival");
+    const sub = formatMissionTokens(rival.opts[0].e, "Russia", "China");
+    assert(
+      /Russia/.test(sub) && /China/.test(sub) && !/\{[PR]\}/.test(sub),
+      "summit option copy names partner and rival, not tokens",
+    );
+    assert(
+      /Russia/.test(formatMissionTokens(rival.opts[2].b, "Russia", "China")),
+      "warn-against-escalation names the summit partner, not a leftover focus",
+    );
+  }
 }
 
 {
@@ -4966,6 +5140,41 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     "ultimatum outcomes no longer appear on diplo hud",
   );
   assert(MUTABLE.includes("diploAlerts"), "diploAlerts on MUTABLE");
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.law.deals.ru_energy = true;
+  if (G.draft && G.draft.deals) G.draft.deals.ru_energy = true;
+  G.rel.russia = 12;
+  G.econ.dealStress = G.econ.dealStress || {};
+  G.econ.dealStress.russia = 3;
+  step(G, G.law, G.law, true);
+  assert(
+    !G.law.deals.ru_energy,
+    "cold relations collapse the energy treaty",
+  );
+  assert(
+    (G.diploAlerts || []).some(
+      (a) => a.kind === "deal_collapse" && a.partnerId === "russia",
+    ),
+    "treaty collapse posts a press alert",
+  );
+  const collapseClips = composePress({
+    ultimatumOutcomes: diploOutcomeAlertsForBrief(G.diploAlerts, G.q),
+    q: G.q,
+  });
+  assert(
+    collapseClips.some(
+      (c) =>
+        /collapses/i.test(c.headline) &&
+        /Trade Gazette/.test(c.masthead) &&
+        /diplomatic strain/i.test(c.lede),
+    ),
+    "treaty collapse yields a Trade Gazette clipping",
+  );
 }
 
 {
@@ -5410,6 +5619,184 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   continueCoach();
   G = getG();
   assert(G.coachDone === true && G.coach == null, "Finish clears coach");
+}
+
+/* Self never the foreign actor; setRel / worldPartner skip the local seat. */
+{
+  for (const role of ["united_states", "china", "india"]) {
+    newGame({
+      sandbox: true,
+      silent: true,
+      homeRole: role,
+      homeIso: role === "united_states" ? "840" : role === "china" ? "156" : "356",
+      country: role,
+    });
+    G = getG();
+    const self = playerCountryId();
+    assert(isPlayerSeat(self), `${role}: local id is the player seat`);
+    assert(
+      !requirePartner(self),
+      `${role}: self is not an active partner`,
+    );
+    for (const p of activePartners()) {
+      assert(
+        p.id !== self && !isPlayerSeat(p.id),
+        `${role}: activePartners excludes self (${p.id})`,
+      );
+    }
+    const beforeRel = G.rel[self];
+    applyEventOption({ setRel: { [self]: 18, germany: 4 } });
+    assert(
+      G.rel[self] === beforeRel,
+      `${role}: setRel does not write the local seat`,
+    );
+    const mods0 = G.mods.length;
+    applyEventOption({
+      shocks: [
+        { channel: "worldPartner", partner: self, points: -6, q: 4 },
+      ],
+    });
+    assert(
+      G.mods.length === mods0 &&
+        !G.mods.some((m) => m.partner === self),
+      `${role}: worldPartner shock skips the local seat`,
+    );
+  }
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
+  G = getG();
+  G.law.taxes.digitalTax.on = true;
+  G.law.taxes.digitalTax.rate = 5;
+  assert(
+    !EVENTS.find((e) => e.id === "ultimatum").cond(),
+    "US home skips the Washington DST ultimatum",
+  );
+  assert(
+    !EVENTS.find((e) => e.id === "usTariffUp").cond(),
+    "US home skips US tariff-up major",
+  );
+  assert(
+    !EVENTS.find((e) => e.id === "usSlowdown").cond(),
+    "US home skips US slowdown (self is not a partner)",
+  );
+
+  newGame({ sandbox: true, silent: true, homeRole: "home", country: "The Kingdom" });
+  G = getG();
+  G.politics = {
+    [playerCountryId()]: {},
+    united_states: {},
+  };
+  G.law.taxes.digitalTax.on = true;
+  G.law.taxes.digitalTax.rate = 5;
+  G.rel.united_states = 50;
+  assert(isHumanMpSeat(G, "united_states"), "politics bag marks US as human");
+  assert(
+    !requireScriptablePartner("united_states"),
+    "human US is not scriptable",
+  );
+  assert(requirePartner("united_states"), "human US is still on the board");
+  assert(
+    !EVENTS.find((e) => e.id === "ultimatum").cond(),
+    "human US skips DST ultimatum agency",
+  );
+  assert(
+    !EVENTS.find((e) => e.id === "usTariffUp").cond(),
+    "human US skips tariff-up agency",
+  );
+  assert(
+    EVENTS.find((e) => e.id === "usSlowdown").cond(),
+    "human US still allows an ambient slowdown",
+  );
+}
+
+/* Partner-scoped foreign events hit the named seat, not a generic residual. */
+{
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  G.q = 6;
+  const spy = EVENTS.find((e) => e.id === "espionage");
+  const spyPrep = prepareEvent(spy);
+  assert(spyPrep && G.eventFocus, "espionage resolve picks a focus");
+  assert(!isPlayerSeat(G.eventFocus), "espionage focus is not the local seat");
+  const spyFocus = G.eventFocus;
+  const spyRel0 = G.rel[spyFocus] != null ? G.rel[spyFocus] : 50;
+  applyEventOption(spy.opts[0]);
+  assert(
+    G.rel[spyFocus] < spyRel0 - 10,
+    `expel diplomats hits ${spyFocus} relations`,
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  G.q = 5;
+  const boom = EVENTS.find((e) => e.id === "tradeBoom");
+  const boomPrep = prepareEvent(boom);
+  assert(boomPrep && G.eventFocus, "tradeBoom resolve picks a focus");
+  const boomFocus = G.eventFocus;
+  const playerId = playerCountryId();
+  const partnerRole =
+    (G.world[boomFocus] && G.world[boomFocus].role) || boomFocus;
+  const tar0 = effectiveTariff(
+    playerId,
+    G.world[boomFocus].law,
+    partnerRole,
+    G.blocMember,
+  );
+  const boomRel0 = G.rel[boomFocus] != null ? G.rel[boomFocus] : 50;
+  applyEventOption(boom.opts[1]);
+  assert(
+    G.rel[boomFocus] < boomRel0,
+    "taking access without reciprocating cools the named partner",
+  );
+  const tar1 = effectiveTariff(
+    playerId,
+    G.world[boomFocus].law,
+    partnerRole,
+    G.blocMember,
+  );
+  assert(
+    tar1 < tar0 - 1,
+    `tradeBoom cuts ${boomFocus}'s tariff on the player (${tar0} → ${tar1})`,
+  );
+  assert(
+    G.mods.some((m) => m.partner === boomFocus && m.worldPartner),
+    "tradeBoom worldPartner shock binds to the focus seat",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  G.law.tariff = 10;
+  const row = EVENTS.find((e) => e.id === "tradeRow");
+  const rowPrep = prepareEvent(row);
+  assert(rowPrep && G.eventFocus, "tradeRow resolve picks a focus");
+  const rowFocus = G.eventFocus;
+  const rowRel0 = G.rel[rowFocus] != null ? G.rel[rowFocus] : 50;
+  applyEventOption(row.opts[1]);
+  assert(
+    G.rel[rowFocus] < rowRel0,
+    "retaliation cools the named partner",
+  );
+  assert(
+    G.mods.some((m) => m.partner === rowFocus && m.worldPartner),
+    "tradeRow worldPartner shock binds to the focus seat",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  const rec = EVENTS.find((e) => e.id === "recess");
+  const recPrep = prepareEvent(rec);
+  assert(recPrep && G.eventFocus, "recess resolve picks an export market");
+  applyEventOption(rec.opts[0]);
+  assert(
+    G.mods.some((m) => m.partner === G.eventFocus && m.worldPartner),
+    "recess shock hits the named export market",
+  );
 }
 
 /* FLAG_CODE (lib/ui/flags.ts) is a hand-synced realm-id -> ISO alpha-2 table,

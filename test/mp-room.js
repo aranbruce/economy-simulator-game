@@ -1464,9 +1464,9 @@ async function main() {
     );
     assert.ok(
       (Gfr.press || []).some((c) =>
-        /invitation accepted/i.test(c.headline || ""),
+        /accepts .*invitation/i.test(c.headline || ""),
       ),
-      "invite accept produces a Gazette clip",
+      "invite accept produces a newspaper clip",
     );
     assert.deepEqual(
       Gfr.brief || [],
@@ -1873,6 +1873,106 @@ async function main() {
     getG().blocMember.kingdom,
     leaveBlocId,
     "hydrate keeps remaining seat in the bloc",
+  );
+
+  /* Human vs human: tariff hike notifies both seats and parks a Noted notice. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapTar = exportGameSnapshot(getG());
+  const hTar = await createRoom({ hostName: "Alice", role: "home" });
+  const gTar = await joinRoom(hTar.room.code, { name: "Bob", role: "germany" });
+  const stTar = await startRoom(hTar.room.code, hTar.token, snapTar);
+  assert.ok(!stTar.error, stTar.error);
+  const hostDraftTar = clone(stTar.room.snapshot.world.kingdom.law);
+  hostDraftTar.tariffSchedule = hostDraftTar.tariffSchedule || {
+    default: 4,
+    bloc: {},
+    country: {},
+    cet: null,
+  };
+  hostDraftTar.tariffSchedule.country = {
+    ...(hostDraftTar.tariffSchedule.country || {}),
+    germany: 18,
+  };
+  const guestDraftTar = clone(stTar.room.snapshot.world.germany.law);
+  await submitBill(hTar.room.code, hTar.token, hostDraftTar);
+  const tarResolved = await submitBill(
+    gTar.room.code,
+    gTar.token,
+    guestDraftTar,
+  );
+  assert.ok(!tarResolved.error, tarResolved.error);
+  assert.equal(tarResolved.resolved, true, "tariff quarter resolves");
+  const polKTar = tarResolved.room.snapshot.politics.kingdom;
+  const polGTar = tarResolved.room.snapshot.politics.germany;
+  assert.ok(
+    (polKTar.diploAlerts || []).some(
+      (a) => a.kind === "tariff_hike" && a.partnerId === "germany",
+    ),
+    "actor gets tariff_hike alert",
+  );
+  assert.ok(
+    (polGTar.diploAlerts || []).some(
+      (a) => a.kind === "tariff_inbound_hike" && a.partnerId === "kingdom",
+    ),
+    "target gets tariff_inbound_hike alert",
+  );
+  assert.ok(
+    polGTar.inboundNotice &&
+      polGTar.inboundNotice.status === "pending" &&
+      polGTar.inboundNotice.kind === "tariff_inbound_hike",
+    "target parks a Noted inbound notice",
+  );
+  {
+    const inbound = diploOutcomeAlertsForBrief(
+      polGTar.diploAlerts,
+      tarResolved.room.snapshot.q,
+    ).filter((a) => a.kind === "tariff_inbound_hike");
+    const clips = composePress({
+      ultimatumOutcomes: inbound,
+      q: tarResolved.room.snapshot.q,
+    });
+    assert.ok(
+      clips.some(
+        (c) =>
+          /slaps tariffs/i.test(c.headline) && /World Post/.test(c.masthead),
+      ),
+      "guest press has a World Post inbound-hike clip",
+    );
+  }
+
+  /* Human US seat: agency events skip Washington; ambient slowdown may still fire. */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapUs = exportGameSnapshot(getG());
+  const hUs = await createRoom({ hostName: "Alice", role: "home" });
+  await joinRoom(hUs.room.code, { name: "Bob", role: "united_states" });
+  const stUs = await startRoom(hUs.room.code, hUs.token, snapUs);
+  assert.ok(!stUs.error, stUs.error);
+  hydrateGameSnapshot(stUs.room.snapshot, {
+    homeRole: "home",
+    country: "Hostland",
+    render: false,
+  });
+  const Gk = getG();
+  Gk.law.taxes.digitalTax.on = true;
+  Gk.law.taxes.digitalTax.rate = 5;
+  Gk.rel.united_states = 50;
+  assert.ok(
+    Gk.politics && Gk.politics.united_states,
+    "US seat has a politics bag",
+  );
+  assert.ok(
+    !EVENTS.find((e) => e.id === "ultimatum").cond(),
+    "kingdom ultimatum cond false when US is human",
+  );
+  assert.ok(
+    !EVENTS.find((e) => e.id === "usTariffUp").cond(),
+    "usTariffUp cond false when US is human",
+  );
+  assert.ok(
+    EVENTS.find((e) => e.id === "usSlowdown").cond(),
+    "usSlowdown may still fire against a human US",
   );
 
   /* CAS: stale writer must not clobber a newer room version. */
