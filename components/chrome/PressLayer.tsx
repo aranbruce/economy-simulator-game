@@ -54,7 +54,7 @@ export function PressLayer() {
       {!focused && (
         <div
           id="pressLayer"
-          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 flex-col overflow-y-auto scrollbar-none px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
+          className="pointer-events-none fixed top-1/2 right-14 z-40 flex max-h-[60vh] w-[min(280px,46vw)] -translate-y-1/2 scrollbar-none flex-col overflow-y-auto px-8 py-12 max-md:right-12 max-md:max-w-[min(220px,44vw)]"
           aria-live="polite"
         >
           {/* my-auto centres a short stack; when the list overflows, the
@@ -64,7 +64,7 @@ export function PressLayer() {
           <div className="my-auto flex flex-col gap-3">
             {ordered.length === 0 ? (
               <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
-                Nothing yet this term.
+                No news stories
               </div>
             ) : (
               ordered.map((c: any, i: number) => (
