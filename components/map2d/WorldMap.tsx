@@ -31,8 +31,10 @@ import {
   project,
   clampViewport,
   computePlateLayout,
+  mapContentPx,
   repeatOffsets,
   toScreen as projectToScreen,
+  viewCenteredOn,
   wrapDelta,
   type MapViewport,
   type Point,
@@ -55,16 +57,29 @@ interface CountryFeature {
 
 const OCEAN = "#3c4a3f";
 const SCENERY_FILL = "#3a3226";
-const HOVER_LIFT = 1.18;
-const MIN_ZOOM = 1.15;
+const HOVER_LIFT = 1.1;
+const MIN_ZOOM = 3;
+const DEFAULT_ZOOM = 3;
 const MAX_ZOOM = 16;
+/** Geographic focus of the opening view (mid-Atlantic / western Europe). */
+const DEFAULT_VIEW_LNG = -5;
+const DEFAULT_VIEW_LAT = 40;
 const SKIP_ISO = new Set(["010"]); // Antarctica — not on the board
+
+function openingView(wrap: HTMLElement | null) {
+  const cssW = wrap?.clientWidth || window.innerWidth;
+  const cssH = wrap?.clientHeight || window.innerHeight;
+  const { W, H } = clampViewport(cssW, cssH);
+  return viewCenteredOn(DEFAULT_VIEW_LNG, DEFAULT_VIEW_LAT, DEFAULT_ZOOM, W, H);
+}
 
 const SETUP_SELECTED = "#D4AF69";
 /** Trade-line stroke — a single fixed colour/opacity, not relation-tiered. */
 const TRADE_LINE_STROKE = "rgba(100,210,255,.18)";
 
-const CAPITAL_MARKER_SIZE = 15;
+/** CSS pixels at MAP_CONTENT_REF_PLATE_W (1440). Scales with plate width
+ *  and zoom so pins stay a constant size on the map. */
+const CAPITAL_MARKER_SIZE = 4;
 
 const DIPLO_MARKER_ORDER = ["envoy", "summit", "summit_staged", "ultimatum"];
 const DIPLO_MARKER_SIZE = 18;
@@ -411,10 +426,10 @@ function capitalTintBuffer(): HTMLCanvasElement | null {
 }
 
 /** `size` is the caller's responsibility — unlike diplo markers (fixed
- *  screen-pixel UI chrome), capital markers scale with the map's own zoom
- *  (caller multiplies by viewRef.current.scale) so they read as map content
- *  sitting on the parchment, not a constant-size overlay floating above
- *  it. `fill` is the country-border ink (dark brown / cream when hot). */
+ *  screen-pixel UI chrome), capital markers scale with the plate and zoom
+ *  via mapContentPx() so they read as map content sitting on the parchment,
+ *  not a constant-size overlay floating above it. `fill` is the
+ *  country-border ink (dark brown / cream when hot). */
 function drawCapitalMarker(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -621,7 +636,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
    *  ~180 individual fill()/stroke() calls per paint(). */
   const terrainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const countriesRef = useRef<CountryFeature[]>([]);
-  const viewRef = useRef({ scale: 1.15, tx: 0, ty: 0 });
+  const viewRef = useRef({ scale: DEFAULT_ZOOM, tx: 0, ty: 0 });
   const dragRef = useRef<{
     x: number;
     y: number;
@@ -822,8 +837,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
             ];
           })();
       const capitalScreenPoints = capitalEntries.map(({ cap, role, iso }) => {
-        const hot =
-          isSelected(role) || isHovered(role, iso) || role === "home";
+        const hot = isSelected(role) || isHovered(role, iso) || role === "home";
         /* Same ink as the country stroke above — cream when hot, dark
            brown otherwise — so the pin reads as part of the border. */
         return {
@@ -838,7 +852,7 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
             tctx,
             x,
             y,
-            CAPITAL_MARKER_SIZE * scale * 0.3,
+            mapContentPx(CAPITAL_MARKER_SIZE, plateW, scale),
             fill,
           );
         }
@@ -1140,8 +1154,8 @@ const WorldMap = forwardRef<WorldMapHandle, WorldMapProps>(function WorldMap(
             };
           })
           .filter(Boolean);
-        /* Centre the opening view on the Atlantic / Europe. */
-        viewRef.current = { scale: 1.35, tx: 40, ty: 20 };
+        /* Centre the opening view on the Atlantic / western Europe. */
+        viewRef.current = openingView(wrapRef.current);
         setReady(true);
       })
       .catch((err) => {

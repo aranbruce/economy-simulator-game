@@ -5,7 +5,12 @@ import * as THREE from "three";
 import { activePartners, getG, playerCountryId } from "../../lib/sim/engine.ts";
 import { COUNTRIES, type Country } from "../../lib/sim/countries.ts";
 import { HOME_ISO } from "../../lib/sim/partners.ts";
-import { project, toScreen, wrapDelta } from "../../lib/map/projection.ts";
+import {
+  mapContentPx,
+  project,
+  toScreen,
+  wrapDelta,
+} from "../../lib/map/projection.ts";
 import type { WorldMapHandle } from "../map2d/WorldMap.tsx";
 import {
   clearModelCache,
@@ -40,7 +45,8 @@ interface Map3DOverlayProps {
  *  MAX_TILES cap that can undershoot a wide zoomed-out viewport. Capital
  *  markers are a 2D vector glyph drawn by WorldMap.tsx; this overlay only
  *  handles boats. */
-const BOAT_SCALE = 0.5;
+/** Authored at MAP_CONTENT_REF_PLATE_W; scales with plate width and zoom. */
+const BOAT_SCALE = 0.2;
 /** Fixed lean applied to every boat instance so the 3D layer doesn't read as
  *  completely flat/top-down, without touching the camera itself — the 2D
  *  canvas underneath stays genuinely flat, so tilting the *camera* would
@@ -235,7 +241,7 @@ export default function Map3DOverlay({
       const canvasEl = canvasRef.current;
       const viewport = worldMapRef.current?.getViewport();
       if (canvasEl && viewport && rendererRef.current && cameraRef.current) {
-        const { W, H, offsets, scale } = viewport;
+        const { W, H, offsets, scale, plateW } = viewport;
         canvasEl.style.width = W + "px";
         canvasEl.style.height = H + "px";
         rendererRef.current.setSize(W, H, false);
@@ -281,7 +287,7 @@ export default function Map3DOverlay({
                 t,
               );
               inst.position.set(pt.x, pt.y, 0);
-              inst.scale.setScalar(BOAT_SCALE * scale);
+              inst.scale.setScalar(mapContentPx(BOAT_SCALE, plateW, scale));
               inst.rotation.z = pt.angle;
               setOpacity(inst, opacity);
               inst.visible = true;

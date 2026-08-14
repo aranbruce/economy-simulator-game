@@ -53,6 +53,43 @@ export function computePlateLayout(W: number, H: number) {
   return { plateW, plateH, ox: (W - plateW) / 2, oy: (H - plateH) / 2 };
 }
 
+/** Plate width (CSS px) at which map-content sizes — capital markers, boats
+ *  — are authored. Those sizes are CSS pixels at this width; smaller or
+ *  larger windows scale them with the plate so they stay a constant size
+ *  on the map rather than a constant size on the screen. */
+export const MAP_CONTENT_REF_PLATE_W = 1440;
+
+/** CSS-pixel size of map content that should track the plate (zoom ×
+ *  window), not the screen. `authoredPx` is the size at
+ *  MAP_CONTENT_REF_PLATE_W. */
+export function mapContentPx(
+  authoredPx: number,
+  plateW: number,
+  scale: number,
+): number {
+  return authoredPx * scale * (plateW / MAP_CONTENT_REF_PLATE_W);
+}
+
+/** Pan/zoom that puts a lat/lng at the centre of the viewport. Scale alone
+ *  grows the plate from its top-left, so a zoomed opening view needs this
+ *  compensation or the frame sits on the north-west Pacific instead of the
+ *  intended region. */
+export function viewCenteredOn(
+  lng: number,
+  lat: number,
+  scale: number,
+  W: number,
+  H: number,
+): { scale: number; tx: number; ty: number } {
+  const [nx, ny] = project(lng, lat);
+  const { plateW, plateH, ox, oy } = computePlateLayout(W, H);
+  return {
+    scale,
+    tx: W / 2 - ox - nx * plateW * scale,
+    ty: H / 2 - oy - ny * plateH * scale,
+  };
+}
+
 /** Horizontal pixel offsets at which the plate must be redrawn so a tiled
  *  copy covers every point of the viewport — the board wraps east/west, so
  *  panning past one edge should reveal the far side instead of bare ocean. */
