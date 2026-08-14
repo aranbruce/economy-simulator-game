@@ -1733,18 +1733,14 @@ function blocMembers(blocId: any, blocMember?: any) {
   const bm = blocMember || (g && g.blocMember) || {};
   return countriesInBloc(blocId, bm);
 }
-function shareSameCustomsUnion(partnerId: any, homeRole: any, blocMember: any) {
-  const g = getG();
+/** Fellow members of any bloc (FTA or customs union) trade duty-free with each other —
+ * that is the defining feature of bloc membership, not something exclusive to a
+ * common-external-tariff union. */
+function shareSameBloc(partnerId: any, homeRole: any, blocMember: any) {
   const player = playerCountryId(homeRole);
   const pb = countryBlocId(partnerId, blocMember);
   const hb = countryBlocId(player, blocMember);
-  if (!pb || !hb || pb !== hb) return false;
-  const bloc =
-    blocById(pb) ||
-    (Object.values((g && g.customBlocs) || {}) as any[]).find(
-      (b) => b.id === pb,
-    );
-  return bloc && isCustomsUnion(bloc);
+  return !!pb && !!hb && pb === hb;
 }
 function effectiveTariff(
   partnerId: any,
@@ -1757,28 +1753,24 @@ function effectiveTariff(
   const sched = ensureTariffSchedule(L);
   const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
   const bm = blocMember || (g && g.blocMember) || {};
-  if (shareSameCustomsUnion(partnerId, role, bm)) return 0;
+  if (shareSameBloc(partnerId, role, bm)) return 0;
   const lock = tariffLocked(L, role, bm);
-  if (lock.mode === "cet" || lock.mode === "full") {
-    let _blocById;
-    if (lock.cet != null) return lock.cet;
-    const pb = countryBlocId(partnerId, bm);
-    if (pb && pb === lock.blocId) return 0;
-    let _blocById_defaultCet;
-    return sched.cet != null
-      ? sched.cet
-      : (_blocById_defaultCet =
-            (_blocById = blocById(lock.blocId)) === null || _blocById === void 0
-              ? void 0
-              : _blocById.defaultCet) !== null &&
-          _blocById_defaultCet !== void 0
-        ? _blocById_defaultCet
-        : sched.default;
+  /* The common external tariff is only the *shared baseline* against
+   * outsiders — any member can still layer their own tariff on top of it
+   * for a specific outside bloc or country, same as a non-union player
+   * would (tariffCetBlockers() gates changing the CET itself, not this). */
+  let baseline = sched.default;
+  if (lock.mode === "cet") {
+    if (lock.cet != null) baseline = lock.cet;
+    else {
+      const bloc = blocById(lock.blocId);
+      baseline = bloc && bloc.defaultCet != null ? bloc.defaultCet : sched.default;
+    }
   }
   const pb = countryBlocId(partnerId, bm);
   if (pb && sched.bloc[pb] != null) return sched.bloc[pb];
   if (!pb && sched.country[partnerId] != null) return sched.country[partnerId];
-  return sched.default;
+  return baseline;
 }
 function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   const g = getG();
@@ -1846,6 +1838,12 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   const tariffInt = (Math.max(0, BASE_TARIFF - importT) / BASE_TARIFF) * 100;
   return access + tariffInt;
 }
+/** Customs-union members share one external tariff, but nobody sets it alone
+ * — any member may propose a new rate, and it takes effect only once every
+ * other member's relations clear the bar (see tariffCetBlockers()), the same
+ * consensus gate the union already uses for accession and external deals.
+ * "Chair" still exists (see blocAccessionSpec) for admission gating, but no
+ * longer buys sole authority over the shared rate. */
 function tariffLocked(law: any, homeRole?: any, blocMember?: any) {
   const g = getG();
   const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
@@ -1862,22 +1860,24 @@ function tariffLocked(law: any, homeRole?: any, blocMember?: any) {
     return {
       mode: "none",
     };
-  const chair =
-    bloc.chair ||
-    (g && g.customBlocs && g.customBlocs[bid] && g.customBlocs[bid].founder);
   const sched = ensureTariffSchedule(L);
   const cet = sched.cet != null ? sched.cet : bloc.defaultCet;
-  if (chair === player)
-    return {
-      mode: "cet",
-      blocId: bid,
-      cet,
-    };
   return {
-    mode: "full",
+    mode: "cet",
     blocId: bid,
     cet,
   };
+}
+/** Fellow members who would need to sign off on a proposed CET change,
+ * reusing the same relation-threshold approval already used for accession
+ * and bloc-external deals. */
+function tariffCetBlockers(blocId: any) {
+  return blocMemberApprovals(blocId)
+    .filter((a: any) => !a.ok)
+    .map(
+      (a: any) =>
+        "relations with " + a.name + " " + a.rel.toFixed(0) + " (need " + a.min + "+)",
+    );
 }
 function initBlocState(homeRole: any) {
   const bm = clone(DEFAULT_BLOC_MEMBER);
@@ -1887,7 +1887,9 @@ function initBlocState(homeRole: any) {
 }
 function blocByIdOrCustom(blocId: any) {
   const g = getG();
-  return blocById(blocId) || (g.customBlocs && g.customBlocs[blocId]) || null;
+  return (
+    blocById(blocId) || (g && g.customBlocs && g.customBlocs[blocId]) || null
+  );
 }
 function blocAccessionSpec(blocId: any) {
   const g = getG();
@@ -1895,7 +1897,7 @@ function blocAccessionSpec(blocId: any) {
   if (bloc && bloc.accession) return bloc.accession;
   /* Custom blocs have no full accession spec object; use a default
    * accession shape so founded blocs can be rejoined. */
-  if (bloc && g.customBlocs && g.customBlocs[blocId]) {
+  if (bloc && g && g.customBlocs && g.customBlocs[blocId]) {
     return {
       memberRelationMin: 45,
       steps: {
@@ -2224,6 +2226,17 @@ function clearBilateralDeals(law: any) {
     }
     clearBilateralDeals(state.law);
   }
+  /* The draft is a separate copy from `law`/`L` and this join can land
+   * mid-quarter (auto-accession finalizes inside step()), so without this
+   * the draft's cet stays null against a now-non-null law.cet — billClauses()
+   * then reads that mismatch as a phantom "propose a CET change" clause the
+   * player never asked for. Only backfill an unset draft value; a value the
+   * player is actively proposing must not be clobbered. */
+  if (countryId === player && state.draft && bloc && isCustomsUnion(bloc)) {
+    const dSched = ensureTariffSchedule(state.draft);
+    if (dSched.cet == null)
+      dSched.cet = bloc.defaultCet != null ? bloc.defaultCet : dSched.default;
+  }
   applyBlocJoinNationEffects(state, countryId, blocId);
   applyBlocJoinPlayerTrade(state, blocId, countryId);
   return true;
@@ -2235,10 +2248,11 @@ function joinBloc(blocId: any, law: any) {
   return finalizeBlocJoin(g, player, blocId, law || g.law);
 }
 function isBlocFounder() {
+  const g = getG();
   const player = playerCountryId();
   const bid = countryBlocId(player);
   if (!bid) return false;
-  const custom = getG().customBlocs[bid];
+  const custom = g && g.customBlocs && g.customBlocs[bid];
   return !!(custom && custom.founder === player);
 }
 function blocDealMemberApprovals(blocId: any, relationMin: any) {
@@ -3316,11 +3330,36 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
       const sub = subs[id];
       const draft = sub && sub.draft;
       if (!draft) continue;
-      const r = enactHumanSeatOnSnapshot(g, id, draft, {
-        envoys: sub.envoys,
-        ultimatums: sub.ultimatums,
-      });
-      if (!r.ok) throw new Error(r.error || "Enact failed for " + id);
+      /* A bill can pass validation at submit time and still fail re-validation
+       * here at resolve time — e.g. a bloc-invite target's relations drift
+       * below the threshold from the other human's own turn resolving first
+       * in this same quarter. enactHumanSeatOnSnapshot's early-return path
+       * runs before it mutates anything for this seat, so it is safe to just
+       * skip this seat's bill for the quarter (same as a solo player whose
+       * blocked draft never reaches enact()) rather than aborting the whole
+       * lockstep resolution — and everyone else's turn — over one seat's
+       * now-stale clause. enactHumanSeatOnSnapshot's own `finally` always
+       * restores the mount fields even on a throw, so it is also safe to
+       * swallow an unexpected exception here the same way, instead of
+       * letting one seat's bug take down the shared quarter for everyone. */
+      try {
+        const r = enactHumanSeatOnSnapshot(g, id, draft, {
+          envoys: sub.envoys,
+          ultimatums: sub.ultimatums,
+        });
+        if (!r.ok) continue;
+      } catch (err) {
+        /* Unlike the graceful !r.ok path above (an expected, already-
+         * described validation failure), a thrown exception here is
+         * unexpected — still safe to skip so it can't take down every
+         * other player's turn, but worth a server-side trace so a genuine
+         * bug doesn't silently vanish as "my bill didn't apply". */
+        console.error(
+          `resolveLockstepQuarter: enactHumanSeatOnSnapshot threw for seat=${id}`,
+          err,
+        );
+        continue;
+      }
     }
     for (const id of worldSeatIds()) {
       if (humanSet.has(id)) continue;
@@ -3330,6 +3369,19 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
     }
 
     const leadId = humans[0] || worldSeatIds()[0];
+    /* stepCountry()/step() run against the local per-seat `g` object passed
+     * below, but a few bloc helpers reachable from inside step() (e.g. a
+     * pending invite's accession spec) take no state param and read the
+     * module-level G directly. G was never mounted this far into resolve —
+     * only the human-enact loop above and the "career flags" block below set
+     * it — so any of those helpers null-deref on customBlocs the first time
+     * a human seat carries a live blocInvites/blocAccessionByCountry entry
+     * into its own step(). Mount the real snapshot for the whole seat loop;
+     * it shares blocMember/customBlocs by reference with what's already
+     * threaded through stepCountry's opts, so this doesn't change behavior
+     * when G happened to be mounted already — it only fixes the case where
+     * it wasn't. */
+    setG(g);
     for (const id of worldSeatIds()) {
       const seat = g.world[id];
       if (!seat || !seat.econ || !seat.law) continue;
@@ -3351,42 +3403,50 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
       }
       const seatLog = isHuman ? seat.log : [];
       if (isHuman) normalizeDiploPolitics(pol);
-      const r = stepCountry({
-        econ: seat.econ,
-        law: seat.law,
-        prevLaw: seat.prevLaw || seat.law,
-        role: seat.role || worldRoleForSeat(id),
-        countryId: id,
-        playerId: leadId,
-        playerEcon: g.world[leadId] && g.world[leadId].econ,
-        blocMember: g.blocMember,
-        customBlocs: g.customBlocs,
-        blocInvites: g.blocInvites || (g.blocInvites = {}),
-        blocAccessionByCountry:
-          g.blocAccessionByCountry || (g.blocAccessionByCountry = {}),
-        rel: pol ? pol.rel : g.rel,
-        fac: pol ? pol.fac : undefined,
-        capital: pol ? pol.capital : undefined,
-        politics: pol,
-        rateManual: pol ? !!pol.rateManual : false,
-        manualRate: pol && pol.manualRate != null ? pol.manualRate : undefined,
-        sandbox: pol ? !!pol.sandbox : true,
-        log: seatLog,
-        det: true,
-        world: g.world,
-        skipWorld: true,
-        aiSeat: !isHuman,
-        q: g.q,
-        envoys: pol ? pol.envoys : undefined,
-        ultimatums: pol ? pol.ultimatums : undefined,
-        activeVisits: pol ? pol.activeVisits : undefined,
-        missionEvents: pol ? pol.missionEvents : undefined,
-        diploAlerts: pol ? pol.diploAlerts : undefined,
-        politicsMap: g.politics,
-        mods: isHuman
-          ? pol.mods || []
-          : globalModsForAiSeat(g.world[leadId] && g.world[leadId].econ, id),
-      });
+      let r;
+      try {
+        r = stepCountry({
+          econ: seat.econ,
+          law: seat.law,
+          prevLaw: seat.prevLaw || seat.law,
+          role: seat.role || worldRoleForSeat(id),
+          countryId: id,
+          playerId: leadId,
+          playerEcon: g.world[leadId] && g.world[leadId].econ,
+          blocMember: g.blocMember,
+          customBlocs: g.customBlocs,
+          blocInvites: g.blocInvites || (g.blocInvites = {}),
+          blocAccessionByCountry:
+            g.blocAccessionByCountry || (g.blocAccessionByCountry = {}),
+          rel: pol ? pol.rel : g.rel,
+          fac: pol ? pol.fac : undefined,
+          capital: pol ? pol.capital : undefined,
+          politics: pol,
+          rateManual: pol ? !!pol.rateManual : false,
+          manualRate:
+            pol && pol.manualRate != null ? pol.manualRate : undefined,
+          sandbox: pol ? !!pol.sandbox : true,
+          log: seatLog,
+          det: true,
+          world: g.world,
+          skipWorld: true,
+          aiSeat: !isHuman,
+          q: g.q,
+          envoys: pol ? pol.envoys : undefined,
+          ultimatums: pol ? pol.ultimatums : undefined,
+          activeVisits: pol ? pol.activeVisits : undefined,
+          missionEvents: pol ? pol.missionEvents : undefined,
+          diploAlerts: pol ? pol.diploAlerts : undefined,
+          politicsMap: g.politics,
+          mods: isHuman
+            ? pol.mods || []
+            : globalModsForAiSeat(g.world[leadId] && g.world[leadId].econ, id),
+        });
+      } catch (err) {
+        throw new Error(
+          `[RLQ:stepCountry seat=${id}] ${err instanceof Error ? err.message : err}`,
+        );
+      }
       /* step() may replace the world bag via mirrorPlayerToWorld — re-fetch. */
       const seatNow = g.world[id] || seat;
       seatNow.prevLaw = clone(seatNow.law);
@@ -3418,12 +3478,22 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
                 else if (getG().lowRun >= meta.coupQuarters) getG().over = true;
               }
               syncMpPoliticsFromG(pol);
+            } catch (err) {
+              throw new Error(
+                `[RLQ:career-flags seat=${id}] ${err instanceof Error ? err.message : err}`,
+              );
             } finally {
               setG(prev);
             }
           }
           /* Roll events against this seat after its step; choice is async. */
-          rollMpEventIntoPolitics(g, id, g.q);
+          try {
+            rollMpEventIntoPolitics(g, id, g.q);
+          } catch (err) {
+            throw new Error(
+              `[RLQ:rollMpEventIntoPolitics seat=${id}] ${err instanceof Error ? err.message : err}`,
+            );
+          }
         }
       }
     }
@@ -4352,6 +4422,19 @@ function mpDraftBlocGateError() {
     if (!playerBloc) return "Cannot invite — not in a trade bloc";
     const blockers = blocInviteBlockers(playerBloc, cid);
     if (blockers.length) return "Cannot invite — " + blockers[0];
+  }
+  {
+    const tLock = tariffLocked(g.draft);
+    ensureTariffSchedule(g.draft);
+    ensureTariffSchedule(g.law);
+    if (
+      tLock.mode === "cet" &&
+      g.draft.tariffSchedule.cet !== g.law.tariffSchedule.cet
+    ) {
+      const blockers = tariffCetBlockers(tLock.blocId);
+      if (blockers.length)
+        return "Cannot change the common external tariff — " + blockers[0];
+    }
   }
   return null;
 }
@@ -9470,10 +9553,11 @@ function tariffScopeClauses(
   L: any,
   scope: "bloc" | "country",
   nameOf: (id: string) => string,
+  baseline: number,
 ) {
   for (const id in D.tariffSchedule[scope]) {
     const raw = L.tariffSchedule[scope][id];
-    const a = raw != null ? raw : L.tariffSchedule.default;
+    const a = raw != null ? raw : baseline;
     const b = D.tariffSchedule[scope][id];
     if (a === b) continue;
     out.push({
@@ -9749,12 +9833,12 @@ function billClauses() {
     ensureTariffSchedule(D);
     ensureTariffSchedule(L);
     const tLock = tariffLocked(D);
-    if (tLock.mode === "full") {
-      D.tariffSchedule = clone(L.tariffSchedule);
-    } else if (tLock.mode === "cet" && tLock.cet != null) {
+    if (tLock.mode === "cet" && tLock.cet != null) {
+      /* The shared baseline replaces "default" while in a customs union, but
+       * bloc/country overrides against outsiders stay player-editable —
+       * only the CET itself needs the rest of the union to sign off
+       * (tariffCetBlockers()). */
       D.tariffSchedule.default = L.tariffSchedule.default;
-      D.tariffSchedule.bloc = clone(L.tariffSchedule.bloc);
-      D.tariffSchedule.country = clone(L.tariffSchedule.country);
     } else {
       const lock = lockedTariff(L);
       if (lock != null) {
@@ -9789,14 +9873,39 @@ function billClauses() {
         },
       });
     }
-    tariffScopeClauses(out, D, L, "bloc", (bid) => {
-      const bloc = blocById(bid);
-      return bloc ? bloc.name : bid;
-    });
-    tariffScopeClauses(out, D, L, "country", (cid) => {
-      const c = partnerById(cid);
-      return c ? c.name : cid;
-    });
+    /* Same "before" baseline effectiveTariff()/the UI use: the law's CET
+     * while in a customs union (bloc/country overrides layer on top of it),
+     * else the plain default schedule. Using the stale `default` field
+     * unconditionally here mispriced/mislabeled a locked member's own
+     * outsider-tariff clauses against a rate they were never actually on. */
+    const lawBaseline =
+      tLock.mode === "cet"
+        ? L.tariffSchedule.cet != null
+          ? L.tariffSchedule.cet
+          : (tLock.cet ?? L.tariffSchedule.default)
+        : L.tariffSchedule.default;
+    tariffScopeClauses(
+      out,
+      D,
+      L,
+      "bloc",
+      (bid) => {
+        const bloc = blocById(bid);
+        return bloc ? bloc.name : bid;
+      },
+      lawBaseline,
+    );
+    tariffScopeClauses(
+      out,
+      D,
+      L,
+      "country",
+      (cid) => {
+        const c = partnerById(cid);
+        return c ? c.name : cid;
+      },
+      lawBaseline,
+    );
     if (
       D.tariffSchedule.default !== L.tariffSchedule.default &&
       tLock.mode === "none"
@@ -16224,19 +16333,10 @@ function enact() {
   const cl = billClauses(),
     cost = billCost(cl);
   if (cost > G.capital) return;
-  if (
-    G.draft.blocAccession &&
-    blocJoinBlockers(G.draft.blocAccession.blocId, "apply").length
-  )
-    return;
-  if (G.draft.blocExternalDeal) {
-    const bed = G.draft.blocExternalDeal;
-    if (blocExternalDealBlockers(bed.partnerId, bed.dealId).length) return;
-  }
-  for (const cid in G.draft.blocInvite || {}) {
-    const playerBloc = countryBlocId(playerCountryId());
-    if (playerBloc && blocInviteBlockers(playerBloc, cid).length) return;
-  }
+  /* Same blocker set handleDeliver() already pre-checks before ever calling
+   * enact() — kept here too as a backstop for any direct caller (tests,
+   * future callers) that bypasses that pre-check. */
+  if (mpDraftBlocGateError()) return;
   const balDelta =
     balanceOf(G.draft, G.econ).balance - balanceOf(G.law, G.econ).balance;
   G.capital -= cost;
@@ -16766,6 +16866,7 @@ export {
   partnerAccessTargets,
   tradeExposureTarget,
   tariffLocked,
+  tariffCetBlockers,
   countryBlocId,
   blocMembers,
   joinBloc,
@@ -16834,6 +16935,7 @@ export {
   blocInviteMemberApprovals,
   blocInviteBlockers,
   blocExternalDealBlockers,
+  mpDraftBlocGateError,
   needBlockers,
   simulateFromDraft,
   BLOC_TEMPLATES,
