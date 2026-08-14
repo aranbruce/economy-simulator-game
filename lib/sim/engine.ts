@@ -11680,16 +11680,16 @@ function snapshotTariffSchedules() {
   return snap;
 }
 /** Raise or cut a partner's bilateral tariff on the player (and optionally the
- *  player's rate on them). Stores a snapshot on G._pendingTariffSnap for episode unwind. */
+ *  player's rate on them). Returns the pre-change snapshot; a *major* option
+ *  wanting an end-of-episode unwind must park it on G._pendingTariffSnap
+ *  itself. Ordinary events call this for a permanent move and ignore the
+ *  return, so nothing parks a snapshot a later episode would restore. */
 function adjustBilateralTariffs(partnerId: any, delta: any, opts?: any) {
   const o = opts || {};
   const snap = snapshotTariffSchedules();
   const d = delta != null ? delta : 0;
   const playerId = playerCountryId();
-  if (!partnerId || isPlayerSeat(partnerId) || !d) {
-    G._pendingTariffSnap = snap;
-    return snap;
-  }
+  if (!partnerId || isPlayerSeat(partnerId) || !d) return snap;
   const applyDelta = (law: any, againstId: any, role?: any) => {
     if (!law) return;
     ensureTariffSchedule(law);
@@ -11708,7 +11708,6 @@ function adjustBilateralTariffs(partnerId: any, delta: any, opts?: any) {
     applyDelta(seat.law, playerId, seat.role || worldRoleForSeat(partnerId));
   if ((o.raisePlayer || o.cutPlayer) && G.law && lockedTariff(G.law) == null)
     applyDelta(G.law, partnerId);
-  G._pendingTariffSnap = snap;
   return snap;
 }
 function restoreEpisodeTariffs(ep: any) {

@@ -1010,6 +1010,36 @@ G = getG();
   );
 }
 
+/* An ordinary tariff event moves rates for good: it must not park a snapshot
+   that a later, unrelated episode would unwind to. */
+newGame();
+G = getG();
+{
+  const row = EVENTS.find((e) => e.id === "tradeRow");
+  assert(row && !row.major, "tradeRow is an ordinary event, not a major");
+  G.eventFocus = "germany";
+  const rowOpt = row.opts.find((o) => typeof o.f === "function");
+  applyEventOption(rowOpt);
+  const raised = tariffScheduleAverage(G.law, G.homeRole, G.blocMember);
+  assert(
+    !G._pendingTariffSnap,
+    "ordinary tariff event parks no pending tariff snapshot",
+  );
+  const rec = EVENTS.find((e) => e.id === "globalRecess");
+  beginEpisode(rec, rec.opts[0]);
+  assert(
+    !(G.episode && G.episode.tariffSnap),
+    "a later episode with no tariff move carries no snapshot",
+  );
+  G.q = G.episode.endsQ;
+  endEpisode();
+  assert(
+    Math.abs(tariffScheduleAverage(G.law, G.homeRole, G.blocMember) - raised) <
+      1e-9,
+    "episode end leaves the earlier event's tariffs standing",
+  );
+}
+
 /* Uncertainty stock: raises precautionary pullback vs baseline consumption path. */
 newGame();
 G = getG();
