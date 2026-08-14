@@ -78,6 +78,7 @@ import {
   ultimatumOutcomeImpacts,
   rollMissionEvent,
   formatMissionEventText,
+  formatMissionTokens,
   MISSION_EVENTS,
   sharedCamp,
   VISIT_DURATION,
@@ -595,6 +596,138 @@ function firstPendingInbound(pol: any) {
   return null;
 }
 
+/** Every act on a parked notice; tolerates the flat single-act shape. */
+function inboundNoticeActs(notice: any) {
+  if (!notice) return [];
+  if (Array.isArray(notice.acts) && notice.acts.length) return notice.acts;
+  return [
+    {
+      fromId: notice.fromId,
+      kind: notice.kind || "notice",
+      label: notice.label || "",
+    },
+  ];
+}
+
+/** One-button Noted paper for unilateral hostile acts (tariff hike / sanctions). */
+function parkInboundNotice(g: any, fromId: any, toId: any, notice: any) {
+  if (!g || !fromId || !toId || fromId === toId) return false;
+  if (!isHumanMpSeat(g, toId)) return false;
+  const pol = g.politics[toId];
+  const act = {
+    fromId,
+    kind: (notice && notice.kind) || "notice",
+    label: (notice && notice.label) || "",
+  };
+  /* One deliver can land several hostile acts on the same seat (a tariff hike
+     and sanctions, or two different peers). They ride one Noted paper rather
+     than the first claiming the slot and the rest going unreported. */
+  const open = pol.inboundNotice;
+  if (open && open.status === "pending") {
+    const acts = inboundNoticeActs(open);
+    if (acts.some((a: any) => a.fromId === act.fromId && a.kind === act.kind)) {
+      return false;
+    }
+    acts.push(act);
+    open.acts = acts;
+    return true;
+  }
+  pol.inboundNotice = {
+    fromId: act.fromId,
+    kind: act.kind,
+    label: act.label,
+    acts: [act],
+    q: g.q || 0,
+    status: "pending",
+  };
+  return true;
+}
+function clearInboundNotice(g: any, toId: any) {
+  const pol = g && g.politics && g.politics[toId];
+  if (!pol) return;
+  pol.inboundNotice = null;
+}
+function pendingInboundNotice(pol: any) {
+  const n = pol && pol.inboundNotice;
+  return n && n.status === "pending" ? n : null;
+}
+function applyMpInboundNoticeChoice(g: any, seatId: any) {
+  if (!g || !seatId) return { ok: false, error: "Unknown seat" };
+  if (!g.politics || !g.politics[seatId]) {
+    return { ok: false, error: "Missing seat politics" };
+  }
+  clearInboundNotice(g, seatId);
+  return { ok: true };
+}
+
+/** Fan tariff/sanctions/protest news to both human seats; park Noted on hostile inbound. */
+function notifyHumanPeerActions(
+  state: any,
+  fromId: any,
+  prevLaw: any,
+  nextLaw: any,
+  missions: any,
+) {
+  if (!state || !fromId || !state.politics) return;
+  const fromPol = state.politics[fromId];
+  if (!fromPol) return;
+  const q = state.q || 0;
+  const fromRole = worldRoleForSeat(fromId);
+  const bm = state.blocMember || {};
+  for (const pid of Object.keys(state.politics)) {
+    if (pid === fromId) continue;
+    if (!isHumanMpSeat(state, pid)) continue;
+    const before = effectiveTariff(pid, prevLaw, fromRole, bm);
+    const after = effectiveTariff(pid, nextLaw, fromRole, bm);
+    if (Math.abs(after - before) < 1) continue;
+    const hike = after > before;
+    const label = Math.round(before) + "% to " + Math.round(after) + "%";
+    pushDiploAlert(fromPol, {
+      kind: hike ? "tariff_hike" : "tariff_cut",
+      partnerId: pid,
+      q,
+      label,
+    });
+    pushDiploAlert(state.politics[pid], {
+      kind: hike ? "tariff_inbound_hike" : "tariff_inbound_cut",
+      partnerId: fromId,
+      q,
+      label,
+    });
+    if (hike) {
+      parkInboundNotice(state, fromId, pid, {
+        kind: "tariff_inbound_hike",
+        label,
+      });
+    }
+  }
+  for (const pid in missions || {}) {
+    const mid = missions[pid];
+    if (mid !== "sanctionsPosture" && mid !== "demarche") continue;
+    if (!isHumanMpSeat(state, pid) || pid === fromId) continue;
+    const hostile = mid === "sanctionsPosture";
+    const label = hostile ? "Restrictive measures" : "Formal protest";
+    pushDiploAlert(fromPol, {
+      kind: hostile ? "sanctions_outbound" : "protest_outbound",
+      partnerId: pid,
+      q,
+      label,
+    });
+    pushDiploAlert(state.politics[pid], {
+      kind: hostile ? "sanctions_inbound" : "protest_inbound",
+      partnerId: fromId,
+      q,
+      label,
+    });
+    if (hostile) {
+      parkInboundNotice(state, fromId, pid, {
+        kind: "sanctions_inbound",
+        label,
+      });
+    }
+  }
+}
+
 function pushDiploAlert(state: any, alert: any) {
   if (!state) return;
   if (!state.diploAlerts) state.diploAlerts = [];
@@ -681,6 +814,15 @@ const DIPLO_PRESS_ONLY_KINDS = {
   deal_propose_decline: 1,
   deal_inbound_accept: 1,
   deal_inbound_decline: 1,
+  deal_collapse: 1,
+  tariff_hike: 1,
+  tariff_cut: 1,
+  tariff_inbound_hike: 1,
+  tariff_inbound_cut: 1,
+  sanctions_outbound: 1,
+  sanctions_inbound: 1,
+  protest_outbound: 1,
+  protest_inbound: 1,
 };
 
 /** Alerts not yet shown on a morning note / press strip.
@@ -689,7 +831,12 @@ const DIPLO_PRESS_ONLY_KINDS = {
 function diploOutcomeAlertsForBrief(alerts: any, q: any) {
   const qNow = q != null ? q : 0;
   return (alerts || []).filter((a: any) => {
-    if (!a || !(DIPLO_OUTCOME_KINDS as any)[a.kind] || a.noted) return false;
+    if (!a || a.noted) return false;
+    if (
+      !(DIPLO_OUTCOME_KINDS as any)[a.kind] &&
+      !(DIPLO_PRESS_ONLY_KINDS as any)[a.kind]
+    )
+      return false;
     const aq = a.q != null ? a.q : qNow;
     return aq === qNow || aq === qNow - 1;
   });
@@ -1502,10 +1649,8 @@ function presentNextMissionEvent(onDone: any) {
     return;
   }
   const pName = partnerById(item.partnerId)?.name || item.partnerId;
-  let title = (ev.title || "")
-    .replace(/\{P\}/g, pName)
-    .replace(/\{R\}/g, ev.rivalName || "a rival");
-  title = T(title);
+  const rivalName = ev.rivalName || "a rival";
+  const title = T(formatMissionTokens(ev.title || "", pName, rivalName));
   const body =
     "<p>" +
     formatMissionEventText(ev, getG(), diploDeps()) +
@@ -1517,8 +1662,8 @@ function presentNextMissionEvent(onDone: any) {
     rivalName: ev.rivalName,
   };
   const optsWithHints = ev.opts.map((o) => ({
-    b: o.b,
-    e: o.e,
+    b: formatMissionTokens(o.b, pName, rivalName),
+    e: formatMissionTokens(o.e, pName, rivalName),
     hint: missionOptionHint(o, ctx),
     f: () => {
       applyMissionEventOption(o, {
@@ -1723,6 +1868,49 @@ function playerCountryId(homeRole?: any) {
   );
   return role === "home" ? "kingdom" : role;
 }
+/** True when `id` is the local player's seat (home/kingdom alias included). */
+function isPlayerSeat(id: any, homeRole?: any) {
+  if (!id) return false;
+  const pid = playerCountryId(homeRole);
+  if (id === pid) return true;
+  const g = getG();
+  const role = resolveHomeRole(
+    homeRole != null ? homeRole : (g && g.homeRole) || "home",
+  );
+  if (id === "kingdom" && (role === "home" || pid === "kingdom")) return true;
+  if (id === "home" && pid === "kingdom") return true;
+  return false;
+}
+function activePartnerIds(homeRole?: any) {
+  return activePartners(homeRole).map((p) => p.id);
+}
+/** Partner is on the board and is not the local seat. */
+function requirePartner(id: any) {
+  return !!id && activePartners().some((p) => p.id === id);
+}
+/** AI partner: on the board, not the local seat, not a human MP seat. */
+function requireScriptablePartner(id: any) {
+  return requirePartner(id) && !isHumanMpSeat(getG(), id);
+}
+function scriptablePartners(extraFilter?: (p: any) => boolean) {
+  return activePartners().filter((p) => {
+    if (isHumanMpSeat(getG(), p.id)) return false;
+    if (extraFilter && !extraFilter(p)) return false;
+    return true;
+  });
+}
+function firstPresentPartner(ids: any[]) {
+  for (const id of ids || []) {
+    if (requirePartner(id)) return id;
+  }
+  return null;
+}
+function firstScriptablePartner(ids: any[]) {
+  for (const id of ids || []) {
+    if (requireScriptablePartner(id)) return id;
+  }
+  return null;
+}
 function countryBlocId(countryId: any, blocMember?: any) {
   const g = getG();
   const bm = blocMember || (g && g.blocMember) || {};
@@ -1767,9 +1955,11 @@ function effectiveTariff(
       baseline = bloc && bloc.defaultCet != null ? bloc.defaultCet : sched.default;
     }
   }
+  /* A country rate layers on a specific partner even when they sit in a
+   * foreign bloc. Same-bloc partners already returned 0 above. */
+  if (sched.country[partnerId] != null) return sched.country[partnerId];
   const pb = countryBlocId(partnerId, bm);
   if (pb && sched.bloc[pb] != null) return sched.bloc[pb];
-  if (!pb && sched.country[partnerId] != null) return sched.country[partnerId];
   return baseline;
 }
 function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
@@ -2871,11 +3061,13 @@ function inviteToBloc(countryId: any, blocId: any) {
     parkInboundBlocInvite(g, fromId, countryId, g.blocInvites[countryId]);
   return true;
 }
-/** Pick an active partner. Optional score(p) → higher wins; filter(p) to exclude. */ function pickEventPartner(
+/** Pick an active partner. Optional score(p) → higher wins; filter(p) to exclude.
+ *  Pass `scriptable: true` to skip human-occupied MP seats (agency events). */ function pickEventPartner(
   opts?: any,
 ) {
   const o = opts || {};
-  const pool = activePartners().filter((p) => !o.filter || o.filter(p));
+  const base = o.scriptable ? scriptablePartners() : activePartners();
+  const pool = base.filter((p) => !o.filter || o.filter(p));
   if (!pool.length) return null;
   if (o.score) {
     let best = pool[0],
@@ -3621,6 +3813,7 @@ function normalizeDiploPolitics(pol: any) {
     pol.inboundUltimatums = {};
   if (pol.inboundBlocInvite === undefined) pol.inboundBlocInvite = null;
   if (pol.inboundDealProposal === undefined) pol.inboundDealProposal = null;
+  if (pol.inboundNotice === undefined) pol.inboundNotice = null;
   if (pol.outboundDealProposal === undefined) pol.outboundDealProposal = null;
   if (!pol.activeVisits || typeof pol.activeVisits !== "object")
     pol.activeVisits = {};
@@ -3767,6 +3960,7 @@ function defaultMpPolitics(seatId: any, role: any, name?: any) {
     inboundUltimatums: {},
     inboundBlocInvite: null,
     inboundDealProposal: null,
+    inboundNotice: null,
     outboundDealProposal: null,
     blocAccession: null,
     activeVisits: {},
@@ -4749,13 +4943,24 @@ function enactHumanSeatOnSnapshot(
     syncServiceHolds(g.draft, seat.econ);
     seat.prevLaw = clone(seat.law);
     seat.law = clone(g.draft);
-    applyDraftMissions(seat.law, g.draft, seat.econ, pol.fac);
+    /* Notify off what applyDraftMissions actually applied, not what was
+       staged: sanctions dropped for a live state visit must not fan a
+       hostile notice at a seat nothing happened to. */
+    const appliedMissions = applyDraftMissions(
+      seat.law,
+      g.draft,
+      seat.econ,
+      pol.fac,
+    );
     const lock = lockedTariff(seat.law);
     if (lock != null) {
       ensureTariffSchedule(seat.law);
       seat.law.tariffSchedule.cet = lock;
       syncTariffHeadline(seat.law);
     }
+    /* After the bloc CET clamp, so a locked schedule is never reported as a
+       hike the seat never actually made. */
+    notifyHumanPeerActions(g, seatId, seat.prevLaw, seat.law, appliedMissions);
     if (seat.law.missions) seat.law.missions = {};
     seat.law.blocAccession = null;
     seat.law.blocLeave = false;
@@ -4859,6 +5064,8 @@ function exportGameSnapshot(g: any) {
         prevPol && prevPol.inboundDealProposal
           ? clone(prevPol.inboundDealProposal)
           : null,
+      inboundNotice:
+        prevPol && prevPol.inboundNotice ? clone(prevPol.inboundNotice) : null,
       outboundDealProposal:
         prevPol && prevPol.outboundDealProposal
           ? clone(prevPol.outboundDealProposal)
@@ -5551,9 +5758,9 @@ const taxGroup = (id: any) =>
   (SYNTH_GRP as any)[id] ||
   ((TAX_BY_ID as any)[id] ? (TAX_BY_ID as any)[id].grp : "other");
 const clone = (o: any) => JSON.parse(JSON.stringify(o));
-/* Copy carries a {C} token so the country can be named by the player. Applied
-   where authored text reaches the screen: modal despatches, the morning
-   briefing, card blurbs in the drawers, and floating press clippings. */ const T =
+/* Copy carries {C}/{P}/{S} tokens. Applied where authored text reaches the
+   screen: modal despatches, the morning briefing, card blurbs, stamps, and
+   floating press clippings. */ const T =
   (str: any) =>
     String(str)
       .replace(/\{C\}/g, (G && G.country) || "United Kingdom")
@@ -5561,6 +5768,22 @@ const clone = (o: any) => JSON.parse(JSON.stringify(o));
         const id = G && G.eventFocus;
         const p = id && partnerById(id);
         return p ? p.name : "a partner";
+      })
+      .replace(/\{S\}/g, () => {
+        const ids = G && G.eventSponsors;
+        if (!ids || !ids.length) return "allies";
+        const names = ids
+          .map((id: any) => {
+            const p = partnerById(id);
+            return p ? p.name : null;
+          })
+          .filter(Boolean);
+        if (!names.length) return "allies";
+        if (names.length === 1) return names[0];
+        if (names.length === 2) return names[0] + " and " + names[1];
+        return (
+          names.slice(0, -1).join(", ") + ", and " + names[names.length - 1]
+        );
       });
 const fmt = function (v: any, d: any = 1) {
   return (v >= 0 ? "" : "-") + Math.abs(v).toFixed(d);
@@ -8871,6 +9094,12 @@ function govDemandShares(law: any, econ: any) {
             label: "Treaty collapsed under strain",
             pts: -8,
           });
+          pushDiploAlert(g, {
+            kind: "deal_collapse",
+            partnerId: p.id,
+            q: g.q || 0,
+            label: (DEAL_BY_ID as any)[softest].name,
+          });
         }
         e.dealStress[p.id] = 0;
       }
@@ -9085,7 +9314,7 @@ const QUARTER_FLASH_MS = 2500;
 let _lastQuarterFlashKey: string | null = null;
 let _quarterFlashLock = false;
 function isDeliverLocked() {
-  return _quarterFlashLock;
+  return _quarterFlashLock || pressChoicePending();
 }
 
 function announceQuarterAdvance() {
@@ -11241,80 +11470,23 @@ function applyTToDespatchBody(body: { kind: string; data: any }) {
   }
   return d;
 }
-function despatch(title: any, stamp: any, html: any, opts: any, cfg?: any) {
-  const preview = cfg && cfg.preview && G.sandbox;
-  let base = null;
-  if (preview) {
-    try {
-      base = simulate(G.law, 4);
-    } catch {
-      base = null;
-    }
-  }
-  const prepared = opts.map((o: any) => {
-    let chips = null,
-      factions = null;
-    if (preview && base) {
-      const im = previewOption(o.previewTarget || o, base);
-      if (im) {
-        chips = impactChipsData(im);
-        factions = impactFactionsData(im);
-      }
-    }
-    return {
-      b: o.b,
-      e: o.e,
-      hint: o.hint || "",
-      chips,
-      factions,
-      f: o.f,
-    };
-  });
+function despatch(title: any, stamp: any, html: any, opts: any) {
+  const prepared = (opts || []).map((o: any) => ({
+    b: o.b,
+    e: o.e,
+    hint: o.hint || "",
+    f: o.f,
+  }));
   const structured = html && typeof html === "object";
   _despatchOpen = {
     title: T(title),
-    stamp,
+    stamp: T(stamp),
     body: structured ? "" : T(html),
     kind: structured ? html.kind : null,
     data: structured ? applyTToDespatchBody(html) : null,
     opts: prepared,
   };
-  if (_onDespatchChange) {
-    _onDespatchChange(_despatchOpen);
-    return;
-  }
-  const titleEl = $("dpTitle"),
-    stampEl = $("dpStamp"),
-    bodyEl = $("dpBody"),
-    box = $("dpOpts");
-  if (!titleEl || !stampEl || !bodyEl || !box) return;
-  titleEl.textContent = _despatchOpen.title;
-  stampEl.textContent = stamp;
-  bodyEl.innerHTML = _despatchOpen.body;
-  box.innerHTML = "";
-  prepared.forEach((o: any) => {
-    const b = document.createElement("button");
-    b.className = "opt";
-    b.innerHTML =
-      "<b>" +
-      T(esc(o.b)) +
-      "</b>" +
-      (o.e ? "<em>" + T(esc(o.e)) + "</em>" : "") +
-      (o.hint || "");
-    b.onclick = () => {
-      closeDespatch();
-      const scrim = $("scrim");
-      if (scrim) scrim.hidden = true;
-      o.f();
-    };
-    box.appendChild(b);
-  });
-  const scrim = $("scrim");
-  if (scrim) scrim.hidden = false;
-  setTimeout(() => {
-    const f = box.querySelector(".opt");
-    if (f) f.focus();
-  }, 40);
+  if (_onDespatchChange) _onDespatchChange(_despatchOpen);
 }
 /* Structural event shocks. Options disturb model inputs, not GDP/CPI outcomes.
    Allowed channels: world, worldPartner(+partner), worldInfl, worldRate, worldTfp,
@@ -11368,8 +11540,11 @@ function despatch(title: any, stamp: any, html: any, opts: any, cfg?: any) {
 function applyEventOption(opt: any) {
   if (!opt) return;
   if (opt.setRel) {
-    for (const k in opt.setRel)
-      G.rel[k] = clamp((G.rel[k] || 50) + opt.setRel[k], 0, 100);
+    for (const k in opt.setRel) {
+      const pid = k === "_partner" ? G.eventFocus : k;
+      if (!pid || isPlayerSeat(pid) || !requirePartner(pid)) continue;
+      G.rel[pid] = clamp((G.rel[pid] || 50) + opt.setRel[k], 0, 100);
+    }
   }
   if (opt.fac) {
     for (const k in opt.fac) G.fac[k] = (G.fac[k] || 0) + opt.fac[k];
@@ -11395,8 +11570,11 @@ function applyEventOption(opt: any) {
         if (ch === "tfp") mod.tfp = pts;
         else if (ch === "potential") mod.potential = pts;
         else if (ch === "worldPartner") {
+          const partner =
+            !s.partner || s.partner === "_partner" ? G.eventFocus : s.partner;
+          if (!partner || isPlayerSeat(partner)) continue;
           mod.worldPartner = pts;
-          mod.partner = s.partner;
+          mod.partner = partner;
         } else (mod as any)[ch] = pts;
         G.mods.push(mod);
       }
@@ -11437,6 +11615,7 @@ function beginEpisode(ev: any, opt: any) {
     startedQ: G.q,
     endsQ: G.q + dur,
     restorePlayerTariffs: !o.keepPlayerTariffs,
+    restorePartnerTariffs: o.restorePartnerTariffs !== false,
     tariffSnap: o._tariffSnap || G._pendingTariffSnap || null,
   };
   G._pendingTariffSnap = null;
@@ -11500,6 +11679,37 @@ function snapshotTariffSchedules() {
   }
   return snap;
 }
+/** Raise or cut a partner's bilateral tariff on the player (and optionally the
+ *  player's rate on them). Returns the pre-change snapshot; a *major* option
+ *  wanting an end-of-episode unwind must park it on G._pendingTariffSnap
+ *  itself. Ordinary events call this for a permanent move and ignore the
+ *  return, so nothing parks a snapshot a later episode would restore. */
+function adjustBilateralTariffs(partnerId: any, delta: any, opts?: any) {
+  const o = opts || {};
+  const snap = snapshotTariffSchedules();
+  const d = delta != null ? delta : 0;
+  const playerId = playerCountryId();
+  if (!partnerId || isPlayerSeat(partnerId) || !d) return snap;
+  const applyDelta = (law: any, againstId: any, role?: any) => {
+    if (!law) return;
+    ensureTariffSchedule(law);
+    const cur = law.tariffSchedule.country[againstId];
+    const base =
+      cur != null
+        ? cur
+        : law.tariffSchedule.default != null
+          ? law.tariffSchedule.default
+          : BASE_TARIFF;
+    law.tariffSchedule.country[againstId] = clamp(base + d, 0, 45);
+    syncTariffHeadline(law, role);
+  };
+  const seat = G.world && G.world[partnerId];
+  if (seat && seat.law)
+    applyDelta(seat.law, playerId, seat.role || worldRoleForSeat(partnerId));
+  if ((o.raisePlayer || o.cutPlayer) && G.law && lockedTariff(G.law) == null)
+    applyDelta(G.law, partnerId);
+  return snap;
+}
 function restoreEpisodeTariffs(ep: any) {
   if (!ep || !ep.tariffSnap) return;
   const snap = ep.tariffSnap;
@@ -11507,7 +11717,7 @@ function restoreEpisodeTariffs(ep: any) {
     G.law.tariffSchedule = clone(snap.player);
     syncTariffHeadline(G.law);
   }
-  if (snap.world && G.world) {
+  if (ep.restorePartnerTariffs !== false && snap.world && G.world) {
     for (const id of Object.keys(snap.world)) {
       const seat = G.world[id];
       if (seat && seat.law) {
@@ -11551,13 +11761,244 @@ function rollMajorEvent() {
   }
   return null;
 }
+function applyRecessPartnerShocks() {
+  const ids = [G.eventFocus].concat(G.eventSponsors || []).filter(Boolean);
+  const n = Math.max(1, ids.length);
+  const pts = -3.6 / n;
+  ids.forEach((id: any) => {
+    if (!id || isPlayerSeat(id)) return;
+    G.mods.push({
+      worldPartner: pts,
+      partner: id,
+      q: 5,
+    });
+  });
+  G.mods.push({
+    world: -0.5,
+    q: 5,
+  });
+}
+function makeSlowdownMajor(cfg: any) {
+  const pid = cfg.partner;
+  const name = cfg.name;
+  const court = cfg.court || [];
+  return {
+    id: cfg.id,
+    major: true,
+    w: cfg.w != null ? cfg.w : 5,
+    duration: 8,
+    stamp: "Foreign & Commonwealth",
+    title: "A deep slowdown in " + name,
+    endTitle: name + "'s slowdown bottoms out",
+    endStamp: "Foreign & Commonwealth",
+    endText:
+      "Activity in " +
+      name +
+      " has stabilised. The bilateral demand shock from that episode has lifted.",
+    text:
+      name +
+      "'s investment cycle has cracked. Factories are cutting orders and the shock will travel through the trade matrix into {C}'s export markets.",
+    news: {
+      masthead: "The World Post",
+      headline: name + "'s investment cycle cracks",
+      lede: (opt: any) =>
+        "Factories in " +
+        name +
+        " are cutting orders. The shock will travel into {C}. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
+    cond: () => requirePartner(pid),
+    resolve: () => ({ focus: pid }),
+    opts: [
+      {
+        b: "Diversify quietly",
+        e: "No legislative change",
+        shocks: [
+          { channel: "worldPartner", partner: pid, points: -6.5, q: 8 },
+          { channel: "world", points: -2.2, q: 7 },
+        ],
+      },
+      {
+        b: "Court alternative partners",
+        e: "A relations push toward other markets",
+        fac: { business: 2, patriots: 1 },
+        shocks: [
+          { channel: "worldPartner", partner: pid, points: -6.5, q: 8 },
+          { channel: "world", points: -1.6, q: 7 },
+        ],
+        f: () => {
+          const id = firstPresentPartner(court);
+          if (!id) return;
+          G.rel[id] = clamp((G.rel[id] || 50) + 8, 0, 100);
+        },
+      },
+      {
+        b: "Support exporters with credit",
+        e: "A modest spending impulse",
+        fac: { business: 3, rural: 1 },
+        shocks: [
+          { channel: "worldPartner", partner: pid, points: -6.5, q: 8 },
+          { channel: "spend", points: 0.35, q: 5 },
+          { channel: "world", points: -1.4, q: 6 },
+        ],
+      },
+    ],
+  };
+}
+function makeBilateralTariffMajor(cfg: any) {
+  const pid = cfg.partner;
+  const name = cfg.name;
+  const up = !!cfg.up;
+  const delta = up ? 8 : -8;
+  return {
+    id: cfg.id,
+    major: true,
+    w: 5,
+    duration: 8,
+    stamp: "Foreign & Commonwealth",
+    title: up
+      ? name + " raises tariffs on {C}"
+      : name + " opens its schedule to {C}",
+    endTitle: up
+      ? name + "'s tariff wall comes down"
+      : name + "'s tariff cut expires",
+    endStamp: "Foreign & Commonwealth",
+    endText: up
+      ? "The bilateral tariff wall " +
+        name +
+        " raised for this episode has come down, unless {C} chose to keep a matching rate."
+      : "The temporary opening in " +
+        name +
+        "'s schedule has closed, unless {C} locked in a reciprocal cut.",
+    text: up
+      ? name +
+        " has lifted duties on {C}'s goods. Retaliation is a choice; absorbing the hit is another."
+      : name +
+        " has cut duties on {C}'s goods. Pocket the access, or cut your own rate in return.",
+    news: {
+      masthead: "The Trade Gazette",
+      headline: up
+        ? name + " slaps tariffs on {C}"
+        : name + " cuts duties on {C}'s goods",
+      lede: (opt: any) =>
+        (up
+          ? name + " has raised barriers against {C}. "
+          : name + " has opened its schedule to {C}. ") +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
+    cond: () => requireScriptablePartner(pid),
+    resolve: () => ({ focus: pid }),
+    opts: up
+      ? [
+          {
+            b: "Stay open and absorb the hit",
+            e: "They raise the wall; you do not",
+            fac: { business: -3, rural: -2, patriots: -2 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: -2.0, q: 6 },
+              { channel: "uncertainty", points: 0.8, q: 6 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, delta);
+            },
+          },
+          {
+            b: "Match the wall, restore later",
+            e: "Raise your bilateral rate; both sides unwind when it ends",
+            fac: { business: -2, rural: 2, patriots: 4 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: -1.5, q: 6 },
+              { channel: "uncertainty", points: 0.6, q: 6 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, delta, {
+                raisePlayer: true,
+              });
+            },
+          },
+          {
+            b: "Match and keep the higher wall",
+            e: "They unwind later; your bilateral rate stays up",
+            keepPlayerTariffs: true,
+            fac: { business: -4, rural: 3, patriots: 6 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: -1.2, q: 6 },
+              { channel: "uncertainty", points: 0.5, q: 5 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, 10, {
+                raisePlayer: true,
+              });
+            },
+          },
+        ]
+      : [
+          {
+            b: "Pocket the access",
+            e: "Enjoy the cut; no reciprocal opening",
+            fac: { business: 3, patriots: 2 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: 1.4, q: 6 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, delta);
+            },
+          },
+          {
+            b: "Reciprocate, restore later",
+            e: "Cut your rate on them too; episode restores both",
+            fac: { business: 4, rural: -2 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: 1.8, q: 6 },
+              { channel: "tfp", points: 0.06, q: 8 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, delta, {
+                cutPlayer: true,
+              });
+            },
+          },
+          {
+            b: "Lock in liberalisation",
+            e: "Both sides keep the lower bilateral rates",
+            keepPlayerTariffs: true,
+            restorePartnerTariffs: false,
+            fac: { business: 6, rural: -4, patriots: -3 },
+            shocks: [
+              { channel: "worldPartner", partner: pid, points: 2.0, q: 8 },
+              { channel: "tfp", points: 0.1, q: 10 },
+            ],
+            f: () => {
+              G._pendingTariffSnap = adjustBilateralTariffs(pid, delta, {
+                cutPlayer: true,
+              });
+            },
+          },
+        ],
+  };
+}
 const EVENTS = [
   /* ---- foreign relations ---- */ {
     id: "blocInvitation",
     w: 9,
     stamp: "Foreign & Commonwealth",
-    title: "A bloc invitation arrives",
-    text: "A partner realm has invited {C} to join their trade alliance. Membership is exclusive — you would leave any other bloc first.",
+    title: "{P} invites {C} to its trade bloc",
+    text: "{P} has invited {C} to join their trade alliance. Membership is exclusive — you would leave any other bloc first.",
+    news: {
+      masthead: "The Trade Gazette",
+      headline: "{P} invites {C} into a trade bloc",
+      lede: (opt: any) =>
+        "{P} has asked {C} to join its alliance. " +
+        (opt && opt.b === "Accept"
+          ? "{C} has opened accession talks."
+          : opt && opt.b === "Leak the terms"
+            ? "{C} leaked the terms; relations with {P} have soured."
+            : "{C} declined, leaving the door open."),
+    },
     cond: () => {
       const player = playerCountryId();
       if (countryBlocId(player)) return false;
@@ -11666,20 +12107,20 @@ const EVENTS = [
     id: "memberDefection",
     w: 7,
     stamp: "Foreign & Commonwealth",
-    title: "A bloc partner wavers",
+    title: "{P} wavers inside the bloc",
     text: "Relations with {P} have soured inside your trade pact. Their delegation hints at walking away.",
     cond: () => {
       const player = playerCountryId();
       const bid = countryBlocId(player);
       if (!bid) return false;
-      return activePartners().some(
+      return scriptablePartners().some(
         (p) => countryBlocId(p.id) === bid && (G.rel[p.id] || 50) < 22,
       );
     },
     resolve: () => {
       const player = playerCountryId();
       const bid = countryBlocId(player);
-      const pool = activePartners().filter(
+      const pool = scriptablePartners().filter(
         (p) => countryBlocId(p.id) === bid && (G.rel[p.id] || 50) < 22,
       );
       return pool.length
@@ -11779,13 +12220,17 @@ const EVENTS = [
         b: "Renegotiate terms",
         e: "Half a loaf",
         capital: -6,
-        setRel: {
-          france: 5,
-          germany: 5,
-        },
         fac: {
           business: 2,
           patriots: -3,
+        },
+        f: () => {
+          const bid = countryBlocId(playerCountryId());
+          if (!bid) return;
+          activePartners().forEach((p) => {
+            if (countryBlocId(p.id) !== bid) return;
+            G.rel[p.id] = clamp((G.rel[p.id] || 50) + 5, 0, 100);
+          });
         },
       },
       {
@@ -11803,15 +12248,25 @@ const EVENTS = [
     id: "ultimatum",
     w: 11,
     stamp: "Foreign & Commonwealth",
-    title: "A partner issues an ultimatum",
+    title: "Washington issues an ultimatum",
     text: "The United States has given {C} ninety days to drop the digital services tax, or face tariffs on {C}'s largest export categories.",
+    news: {
+      masthead: "The World Post",
+      headline: "Washington ultimatum: drop the digital tax",
+      lede: (opt: any) =>
+        "The United States has given {C} ninety days to scrap the digital services tax. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     cond: () => {
-      if (!activePartners().some((p) => p.id === "united_states")) return false;
+      if (!requireScriptablePartner("united_states")) return false;
       if (hasDeal("us_tech")) return false;
       if ((G.rel.united_states != null ? G.rel.united_states : 50) < 25)
         return false;
       return G.law.taxes.digitalTax.on && G.law.taxes.digitalTax.rate > 1;
     },
+    resolve: () => ({ focus: "united_states" }),
     opts: [
       {
         b: "Abolish the digital services tax",
@@ -11892,8 +12347,17 @@ const EVENTS = [
     id: "sanctions",
     w: 10,
     stamp: "Foreign & Commonwealth",
-    title: "You are asked to join sanctions",
-    text: "{C}'s allies are assembling a sanctions package against {P} and want {C} inside it. Trade with {P} is not costless to lose.",
+    title: "{S} want {C} inside sanctions on {P}",
+    text: "{S} are assembling a sanctions package against {P} and want {C} inside it. Trade with {P} is not costless to lose.",
+    news: {
+      masthead: "The Diplomatic Courier",
+      headline: "{S} press {C} to sanction {P}",
+      lede: (opt: any) =>
+        "Allies have asked {C} to join restrictive measures against {P}. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     cond: () => {
       if (G.q <= 4) return false;
       const target = pickEventPartner({
@@ -11933,7 +12397,7 @@ const EVENTS = [
           (52 - (G.rel[p.id] != null ? G.rel[p.id] : 50)) * 3 +
           partnerShare(G.homeRole, p) * 25,
       });
-      const sponsors = activePartners()
+      const sponsors = scriptablePartners()
         .filter(
           (p) =>
             ["france", "germany", "united_states", "australia"].includes(
@@ -12066,9 +12530,8 @@ const EVENTS = [
     stamp: "Foreign & Commonwealth",
     title: () => {
       const meta = polityOf(G.eventFocus);
-      if (meta.kind === "congress")
-        return "A partner reshuffles its leadership";
-      return "A partner changes government";
+      if (meta.kind === "congress") return "{P} reshuffles its leadership";
+      return "A new government in {P}";
     },
     text: () => {
       const meta = polityOf(G.eventFocus);
@@ -12077,9 +12540,9 @@ const EVENTS = [
       }
       return "An election in {P} has produced a government with very different views about {C}. Everything previously agreed is now, in their words, open for discussion.";
     },
-    cond: () => G.q > 2 && activePartners().length > 0,
+    cond: () => G.q > 2 && scriptablePartners().length > 0,
     resolve: () => {
-      const p = pickEventPartner();
+      const p = pickEventPartner({ scriptable: true });
       return p
         ? {
             focus: p.id,
@@ -12141,11 +12604,27 @@ const EVENTS = [
     w: 9,
     stamp: "Bank of {C}",
     title: "An offer of a currency swap line",
-    text: () =>
-      countryBlocId(playerCountryId()) === "continental_union"
-        ? "The Gulf states have offered a standing swap line. It would steady the currency in a crisis. It also means someone else has a view on your budget."
-        : "The Gulf states and the Continental Union have both offered a standing swap line. It would steady the currency in a crisis. It also means someone else has a view on your budget.",
-    cond: () => G.econ.yield > 5.5 || G.econ.debt > 105,
+    text: () => {
+      const gulf = requireScriptablePartner("saudi") || requireScriptablePartner("uae");
+      const cu =
+        countryBlocId(playerCountryId()) !== "continental_union" &&
+        (requireScriptablePartner("france") ||
+          requireScriptablePartner("germany"));
+      if (gulf && cu)
+        return "The Gulf states and the Continental Union have both offered a standing swap line. It would steady the currency in a crisis. It also means someone else has a view on your budget.";
+      if (gulf)
+        return "The Gulf states have offered a standing swap line. It would steady the currency in a crisis. It also means someone else has a view on your budget.";
+      return "The Continental Union has offered a standing swap line. It would steady the currency in a crisis. It also means someone else has a view on your budget.";
+    },
+    cond: () => {
+      if (!(G.econ.yield > 5.5 || G.econ.debt > 105)) return false;
+      const gulf = requireScriptablePartner("saudi") || requireScriptablePartner("uae");
+      const cu =
+        countryBlocId(playerCountryId()) !== "continental_union" &&
+        (requireScriptablePartner("france") ||
+          requireScriptablePartner("germany"));
+      return !!(gulf || cu);
+    },
     opts: [
       {
         b: "Take the Continental line",
@@ -12171,10 +12650,11 @@ const EVENTS = [
         ],
         available: () =>
           countryBlocId(playerCountryId()) !== "continental_union" &&
-          activePartners().some((p) => p.id === "france"),
+          (requireScriptablePartner("france") ||
+            requireScriptablePartner("germany")),
         f: () => {
           ["france", "germany"].forEach((id) => {
-            if (!partnerById(id)) return;
+            if (!requirePartner(id)) return;
             addDiploLedger(G, id, {
               id: "swap_cu_" + id,
               label: "Accepted Continental swap line",
@@ -12200,10 +12680,11 @@ const EVENTS = [
             points: -0.5,
           },
         ],
-        available: () => activePartners().some((p) => p.id === "saudi"),
+        available: () =>
+          requireScriptablePartner("saudi") || requireScriptablePartner("uae"),
         f: () => {
           ["saudi", "uae"].forEach((id) => {
-            if (!partnerById(id)) return;
+            if (!requirePartner(id)) return;
             addDiploLedger(G, id, {
               id: "swap_gulf_" + id,
               label: "Accepted Gulf swap line",
@@ -12231,17 +12712,40 @@ const EVENTS = [
     id: "migration",
     w: 9,
     stamp: "Home Office",
-    title: "A migration crisis on the border",
-    text: "Displacement abroad has brought sustained arrivals at {C}'s frontier. Neighbouring governments want a burden-sharing agreement; your backbenchers want a fence.",
-    cond: () => G.q > 3,
+    title: "{P} wants a migration deal",
+    text: "Displacement abroad has brought sustained arrivals at {C}'s frontier. {P} wants a burden-sharing agreement; your backbenchers want a fence.",
+    news: {
+      masthead: "The World Post",
+      headline: "Arrivals at {C}'s frontier — {P} wants a deal",
+      lede: (opt: any) =>
+        "{P} has asked {C} to share the caseload. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
+    cond: () => G.q > 3 && scriptablePartners().length > 0,
+    resolve: () => {
+      const p = pickEventPartner({
+        scriptable: true,
+        score: (x: any) => partnerShare(G.homeRole, x) * 20,
+      });
+      if (!p) return null;
+      const others = scriptablePartners()
+        .filter((x) => x.id !== p.id)
+        .sort(
+          (a, b) =>
+            partnerShare(G.homeRole, b) - partnerShare(G.homeRole, a),
+        )
+        .slice(0, 2)
+        .map((x) => x.id);
+      return { focus: p.id, sponsors: others };
+    },
     opts: [
       {
         b: "Sign the burden-sharing agreement",
         e: "Capacity rises, patriots revolt",
         setRel: {
-          france: 13,
-          germany: 11,
-          australia: 10,
+          _partner: 13,
         },
         fac: {
           patriots: -11,
@@ -12260,8 +12764,11 @@ const EVENTS = [
           },
         ],
         f: () => {
-          ["france", "germany", "australia"].forEach((id) => {
-            if (!partnerById(id)) return;
+          const ids = [G.eventFocus].concat(G.eventSponsors || []).filter(Boolean);
+          ids.forEach((id: any) => {
+            if (!requirePartner(id)) return;
+            if (id !== G.eventFocus)
+              G.rel[id] = clamp((G.rel[id] || 50) + 8, 0, 100);
             addDiploLedger(G, id, {
               id: "migration_share_" + id,
               label: "Burden-sharing agreement",
@@ -12274,9 +12781,7 @@ const EVENTS = [
         b: "Pay them to hold the line",
         e: "Money instead of politics",
         setRel: {
-          france: 5,
-          germany: 5,
-          australia: 4,
+          _partner: 5,
         },
         fac: {
           patriots: 2,
@@ -12322,11 +12827,20 @@ const EVENTS = [
     id: "espionage",
     w: 8,
     stamp: "Cabinet Secretary",
-    title: "An espionage scandal",
+    title: "{P} caught spying",
     text: "{P}'s intelligence service has been operating inside {C}'s ministries. The press has it, and expects you to say something before lunch.",
-    cond: () => G.q > 5 && activePartners().length > 0,
+    news: {
+      masthead: "The World Post",
+      headline: "{P} caught spying inside {C}'s ministries",
+      lede: (opt: any) =>
+        "{P}'s intelligence service has been operating in {C}. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
+    cond: () => G.q > 5 && scriptablePartners().length > 0,
     resolve: () => {
-      const p = pickEventPartner();
+      const p = pickEventPartner({ scriptable: true });
       return p
         ? {
             focus: p.id,
@@ -12389,11 +12903,21 @@ const EVENTS = [
     id: "tradeBoom",
     w: 8,
     stamp: "Business & Trade",
-    title: "A partner opens its market",
+    title: "{P} opens its market",
     text: "{P} has unilaterally cut tariffs on the goods {C} is best at making. They would like something in return, eventually.",
+    news: {
+      masthead: "The Trade Gazette",
+      headline: "{P} opens its market to {C}",
+      lede: (opt: any) =>
+        "{P} has cut tariffs on {C}'s strongest exports. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     cond: () => {
       if (G.q <= 2) return false;
       return !!pickEventPartner({
+        scriptable: true,
         filter: (p: any) => {
           const signed = dealsWith(p.id);
           return signed.length < dealsForPartner(p, G.homeRole).length;
@@ -12405,6 +12929,7 @@ const EVENTS = [
     },
     resolve: () => {
       const p = pickEventPartner({
+        scriptable: true,
         filter: (p: any) =>
           dealsWith(p.id).length < dealsForPartner(p, G.homeRole).length,
         score: (p: any) =>
@@ -12431,12 +12956,19 @@ const EVENTS = [
             points: 0.08,
             q: 10,
           },
+          {
+            channel: "worldPartner",
+            partner: "_partner",
+            points: 1.0,
+            q: 5,
+          },
         ],
         f: () => {
           const id = G.eventFocus;
-          if (id) G.rel[id] = clamp((G.rel[id] || 50) + 15, 0, 100);
-          if (lockedTariff(G.law) == null)
-            G.law.tariff = Math.max(0, G.law.tariff - 3);
+          if (id) {
+            G.rel[id] = clamp((G.rel[id] || 50) + 15, 0, 100);
+            adjustBilateralTariffs(id, -6, { cutPlayer: true });
+          }
         },
       },
       {
@@ -12448,14 +12980,18 @@ const EVENTS = [
         },
         shocks: [
           {
-            channel: "world",
+            channel: "worldPartner",
+            partner: "_partner",
             points: 1.2,
             q: 5,
           },
         ],
         f: () => {
           const id = G.eventFocus;
-          if (id) G.rel[id] = clamp((G.rel[id] || 50) - 8, 0, 100);
+          if (id) {
+            G.rel[id] = clamp((G.rel[id] || 50) - 8, 0, 100);
+            adjustBilateralTariffs(id, -6);
+          }
         },
       },
       {
@@ -12474,9 +13010,11 @@ const EVENTS = [
           },
         ],
         f: () => {
-          activePartners().forEach(
-            (p) => (G.rel[p.id] = clamp(G.rel[p.id] + 7, 0, 100)),
-          );
+          const id = G.eventFocus;
+          if (id) {
+            G.rel[id] = clamp((G.rel[id] || 50) + 12, 0, 100);
+            adjustBilateralTariffs(id, -8, { cutPlayer: true });
+          }
           if (lockedTariff(G.law) == null) G.law.tariff = 0;
         },
       },
@@ -12677,41 +13215,60 @@ const EVENTS = [
     id: "recess",
     w: 6,
     stamp: "Foreign & Commonwealth",
-    title: "Recession among your trading partners",
-    text: "{C}'s two largest export markets have both contracted. Order books are thinning.",
+    title: "Recession in {P}",
+    text: () =>
+      G.eventSponsors && G.eventSponsors[0]
+        ? "{P} and {S} have both contracted. Order books in {C} are thinning."
+        : "{P} has contracted. Order books in {C} are thinning.",
+    news: {
+      masthead: "The Fiscal Gazette",
+      headline: () =>
+        G.eventSponsors && G.eventSponsors[0]
+          ? "{P} and {S} slip into recession"
+          : "{P} slips into recession",
+      lede: (opt: any) =>
+        "Export orders from {C}'s largest markets are thinning. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     cond: () =>
+      activePartners().length > 0 &&
       !(
         G.episode &&
         (G.episode.id === "globalRecess" || G.episode.id === "creditCrunch")
       ),
+    resolve: () => {
+      const ranked = activePartners()
+        .slice()
+        .sort(
+          (a, b) =>
+            partnerShare(G.homeRole, b) - partnerShare(G.homeRole, a),
+        );
+      if (!ranked.length) return null;
+      return {
+        focus: ranked[0].id,
+        sponsors: ranked[1] ? [ranked[1].id] : [],
+      };
+    },
     opts: [
       {
         b: "Let the automatic stabilisers work",
         e: "No new policy",
         shocks: [
           {
-            channel: "world",
-            points: -3.6,
-            q: 5,
-          },
-          {
             channel: "spend",
             points: 0.5,
             q: 5,
           },
         ],
+        f: () => applyRecessPartnerShocks(),
       },
       {
         b: "Bring forward capital projects",
         e: "Raises infrastructure spending",
-        shocks: [
-          {
-            channel: "world",
-            points: -3.6,
-            q: 5,
-          },
-        ],
         f: () => {
+          applyRecessPartnerShocks();
           G.law.spend.infra = clamp(G.law.spend.infra + 0.6, 0, 8);
         },
       },
@@ -12719,11 +13276,6 @@ const EVENTS = [
         b: "Cut VAT temporarily",
         e: "Cuts the standard rate by five points; reverse it when you dare",
         shocks: [
-          {
-            channel: "world",
-            points: -3.6,
-            q: 5,
-          },
           {
             channel: "uncertainty",
             points: -0.5,
@@ -12736,6 +13288,7 @@ const EVENTS = [
           },
         ],
         f: () => {
+          applyRecessPartnerShocks();
           const v = G.law.taxes.vat;
           if (v && v.on) v.rate = Math.max(0, v.rate - 5);
         },
@@ -13131,8 +13684,17 @@ const EVENTS = [
     id: "tradeRow",
     w: 8,
     stamp: "Foreign & Commonwealth",
-    title: "A partner threatens retaliation",
+    title: "{P} threatens retaliation",
     text: "{P} has objected to {C}'s tax and tariff settlement, and has published a list of goods it intends to target.",
+    news: {
+      masthead: "The Trade Gazette",
+      headline: "{P} threatens tariffs on {C}",
+      lede: (opt: any) =>
+        "{P} has published a retaliation list against {C}. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     cond: () =>
       G.law.tariff > 6 ||
       G.law.taxes.digitalTax.rate > 5 ||
@@ -13140,14 +13702,11 @@ const EVENTS = [
     resolve: () => {
       const dt = G.law.taxes.digitalTax;
       let focus;
-      if (
-        dt.on &&
-        dt.rate > 5 &&
-        activePartners().some((p) => p.id === "united_states")
-      )
+      if (dt.on && dt.rate > 5 && requireScriptablePartner("united_states"))
         focus = partnerById("united_states");
       else
         focus = pickEventPartner({
+          scriptable: true,
           score: (p: any) =>
             partnerShare(G.homeRole, p) * 30 +
             Math.max(0, 50 - (G.rel[p.id] != null ? G.rel[p.id] : 50)),
@@ -13189,7 +13748,8 @@ const EVENTS = [
             q: 5,
           },
           {
-            channel: "world",
+            channel: "worldPartner",
+            partner: "_partner",
             points: -1.5,
             q: 5,
           },
@@ -13200,14 +13760,11 @@ const EVENTS = [
           },
         ],
         f: () => {
-          if (lockedTariff(G.law) == null)
-            G.law.tariff = clamp(G.law.tariff + 5, 0, 25);
           const id = G.eventFocus;
-          if (id) G.rel[id] = clamp((G.rel[id] || 50) - 12, 0, 100);
-          else
-            activePartners().forEach(
-              (p) => (G.rel[p.id] = clamp(G.rel[p.id] - 9, 0, 100)),
-            );
+          if (id) {
+            G.rel[id] = clamp((G.rel[id] || 50) - 12, 0, 100);
+            adjustBilateralTariffs(id, 8, { raisePlayer: true });
+          }
         },
       },
       {
@@ -13425,7 +13982,7 @@ const EVENTS = [
     endStamp: "Office for Science",
     endText:
       "The extraordinary productivity pulse abroad has normalised. Catch-up and diffusion continue at a quieter pace.",
-    text: "Labs and boardrooms from the United States to China are shipping tools that raise measured output per hour. Foreign demand and the technology frontier are both moving.",
+    text: "Labs and boardrooms across the Pacific tech corridor are shipping tools that raise measured output per hour. Foreign demand and the technology frontier are both moving.",
     cond: () => true,
     opts: [
       {
@@ -13868,7 +14425,17 @@ const EVENTS = [
     endText:
       "Activity in China has stabilised. The bilateral demand shock from that episode has lifted.",
     text: "China's investment cycle has cracked. Factories are cutting orders and the shock will travel through the trade matrix into {C}'s export markets.",
-    cond: () => activePartners().some((p) => p.id === "china"),
+    cond: () => requirePartner("china"),
+    resolve: () => ({ focus: "china" }),
+    news: {
+      masthead: "The World Post",
+      headline: "China's investment cycle cracks",
+      lede: (opt: any) =>
+        "Factories in China are cutting orders. The shock will travel through the trade matrix into {C}. " +
+        (opt && opt.b
+          ? "{C}'s government chose to " + opt.b.toLowerCase() + "."
+          : ""),
+    },
     opts: [
       {
         b: "Diversify quietly",
@@ -13939,6 +14506,42 @@ const EVENTS = [
       },
     ],
   },
+  makeSlowdownMajor({
+    id: "usSlowdown",
+    partner: "united_states",
+    name: "the United States",
+    court: ["mexico", "canada"],
+  }),
+  makeSlowdownMajor({
+    id: "indiaSlowdown",
+    partner: "india",
+    name: "India",
+    court: ["indonesia", "vietnam", "korea"],
+  }),
+  makeBilateralTariffMajor({
+    id: "usTariffUp",
+    partner: "united_states",
+    name: "the United States",
+    up: true,
+  }),
+  makeBilateralTariffMajor({
+    id: "usTariffDown",
+    partner: "united_states",
+    name: "the United States",
+    up: false,
+  }),
+  makeBilateralTariffMajor({
+    id: "chinaTariffUp",
+    partner: "china",
+    name: "China",
+    up: true,
+  }),
+  makeBilateralTariffMajor({
+    id: "chinaTariffDown",
+    partner: "china",
+    name: "China",
+    up: false,
+  }),
   {
     id: "creditCrunch",
     major: true,
@@ -14336,7 +14939,9 @@ const EVENTS = [
             points: -0.6,
           },
         ],
-        available: () => activePartners().some((p) => p.id === "france"),
+        available: () =>
+          requireScriptablePartner("france") ||
+          requireScriptablePartner("germany"),
       },
       {
         b: "Announce a mid-term consolidation",
@@ -14394,9 +14999,9 @@ const EVENTS = [
     id: "setPieceAlly",
     w: 0,
     stamp: "Foreign & Commonwealth",
-    title: "An ally asks you to choose",
-    text: "Late in the term, {P} wants {C} inside a sanctions package that would hit a cheaper supplier. Standing aside costs you the alliance; joining costs you inputs.",
-    cond: () => activePartners().length > 0,
+    title: "{S} ask {C} to sanction {P}",
+    text: "Late in the term, {S} want {C} inside a sanctions package against {P} that would hit a cheaper supplier. Standing aside costs you the alliance; joining costs you inputs.",
+    cond: () => scriptablePartners().length > 0,
     resolve: () => {
       const focus =
         pickEventPartner({
@@ -14406,7 +15011,7 @@ const EVENTS = [
             (G.rel[p.id] != null ? G.rel[p.id] : 50) +
             partnerShare(G.homeRole, p) * 20,
         }) || pickEventPartner();
-      const sponsors = activePartners()
+      const sponsors = scriptablePartners()
         .filter(
           (p) =>
             ["france", "germany", "united_states", "australia"].includes(
@@ -14961,6 +15566,9 @@ function mergeMpInboundAsksFromSnapshot(snap: any, seatId: any) {
   local.inboundDealProposal = remote.inboundDealProposal
     ? clone(remote.inboundDealProposal)
     : null;
+  local.inboundNotice = remote.inboundNotice
+    ? clone(remote.inboundNotice)
+    : null;
   if (remote.pendingEvent) local.pendingEvent = clone(remote.pendingEvent);
   else if (local.pendingEvent && !remote.pendingEvent)
     local.pendingEvent = null;
@@ -15010,11 +15618,20 @@ function mergeMpInboundAsksFromSnapshot(snap: any, seatId: any) {
     dealProp && dealProp.status === "pending"
       ? "deal:" + (dealProp.fromId || "") + ":" + (dealProp.dealId || "")
       : "";
+  const notice = local.inboundNotice;
+  const noticeKey =
+    notice && notice.status === "pending"
+      ? "notice:" +
+        inboundNoticeActs(notice)
+          .map((a: any) => (a.fromId || "") + ":" + (a.kind || ""))
+          .join("|")
+      : "";
   const pending = local.pendingEvent;
   if (pending) return JSON.stringify(pending);
   if (inboundKey) return "inbound:" + inboundKey;
   if (blocKey) return blocKey;
   if (dealKey) return dealKey;
+  if (noticeKey) return noticeKey;
   /* Outcome alerts (accept / join / treaty) are press or next morning note —
      never a mid-quarter pendingKey, or showMpBriefing replays the briefing. */
   return null;
@@ -15084,6 +15701,11 @@ function showMpBriefing(opts?: any) {
       showMpInboundDealProposal(dealProp);
       return;
     }
+    const notice = pendingInboundNotice(pol);
+    if (notice) {
+      showMpInboundNotice(notice);
+      return;
+    }
     const res = pol && pol.lastRes;
     if (!res || res.E == null) return;
     writeBriefing(res);
@@ -15151,6 +15773,8 @@ function showMpBriefing(opts?: any) {
           ? lastBill.q
           : Math.max(0, (G.q || 1) - 1),
       brief: G.brief,
+      res,
+      econ: G.econ,
     });
     if (clips.length) {
       pushPress(clips);
@@ -15297,6 +15921,53 @@ function showMpInboundDealProposal(prop: any) {
   ]);
   return true;
 }
+
+/** Present a unilateral hostile notice (tariff hike / sanctions); Noted clears it. */
+function showMpInboundNotice(notice: any) {
+  if (!G || !G.mp || !notice) return false;
+  const choose = (payload: any) => {
+    if (typeof G.mp.onEventChoice === "function") G.mp.onEventChoice(payload);
+    else render();
+  };
+  const acts = inboundNoticeActs(notice);
+  const nameOf = (id: any) => {
+    const p = partnerById(id);
+    return p ? p.name : id;
+  };
+  const paraFor = (act: any) => {
+    const name = nameOf(act.fromId);
+    return act.kind === "tariff_inbound_hike"
+      ? "<p>" +
+          T(
+            name +
+              " has lifted duties on {C}'s goods" +
+              (act.label ? " — " + esc(act.label) : "") +
+              ". The change is already on their statute book. Exporters will feel it this quarter.",
+          ) +
+          "</p>"
+      : "<p>" +
+          T(
+            name +
+              " has imposed restrictive measures on {C}. Trade and finance with that seat will get dearer.",
+          ) +
+          "</p>";
+  };
+  const one = acts.length === 1 ? acts[0] : null;
+  const title = one
+    ? one.kind === "tariff_inbound_hike"
+      ? T(nameOf(one.fromId) + " raises tariffs on {C}")
+      : T(nameOf(one.fromId) + " sanctions {C}")
+    : T("Measures against {C}");
+  const body = acts.map(paraFor).join("");
+  despatch(title, "Foreign & Commonwealth", body, [
+    {
+      b: "Noted",
+      e: "Back to the statute book",
+      f: () => choose({ inboundNotice: true }),
+    },
+  ]);
+  return true;
+}
 /** Present a lockstep-rolled event; choice is applied via G.mp.onEventChoice. */
 function showMpPendingEvent(opts: any) {
   if (!G || !G.mp) return false;
@@ -15351,10 +16022,8 @@ function showMpPendingEvent(opts: any) {
         return false;
       }
       const pName = partnerById(pend.partnerId)?.name || pend.partnerId;
-      let title = (ev.title || "")
-        .replace(/\{P\}/g, pName)
-        .replace(/\{R\}/g, ev.rivalName || "a rival");
-      title = T(title);
+      const rivalName = ev.rivalName || "a rival";
+      const title = T(formatMissionTokens(ev.title || "", pName, rivalName));
       const body =
         "<p>" +
         formatMissionEventText(ev, G, diploDeps()) +
@@ -15366,8 +16035,8 @@ function showMpPendingEvent(opts: any) {
         rivalName: ev.rivalName,
       };
       const optsWithHints = ev.opts.map((o, i) => ({
-        b: o.b,
-        e: o.e,
+        b: formatMissionTokens(o.b, pName, rivalName),
+        e: formatMissionTokens(o.e, pName, rivalName),
         hint: missionOptionHint(o, ctx),
         f: () => choose({ optionIndex: i }),
       }));
@@ -15386,22 +16055,10 @@ function showMpPendingEvent(opts: any) {
       });
       return false;
     }
-    despatch(
-      ev.title,
-      ev.stamp,
-      "<p>" + T(ev.text) + "</p>",
-      ev.opts.map((o: any, i: any) => ({
-        b: o.b,
-        e: o.e,
-        previewTarget: o,
-        f: () =>
-          choose({
-            optionIndex: i,
-          }),
-      })),
-      {
-        preview: true,
-      },
+    presentEventAsPress(ev, (_o: any, i: any) =>
+      choose({
+        optionIndex: i,
+      }),
     );
     return true;
   };
@@ -15438,15 +16095,147 @@ function lcFirst(str: any) {
   return str.charAt(0).toLowerCase() + str.slice(1);
 }
 
+function billClauseHeadline(label: any) {
+  const s = String(label || "");
+  const m = s.match(/^(.+),\s*([\d.]+)%\s+to\s+([\d.]+)%$/);
+  if (m) {
+    const name = m[1];
+    const from = parseFloat(m[2]);
+    const to = parseFloat(m[3]);
+    if (to > from) return name + " rises to " + to + " percent";
+    if (to < from) return name + " cut to " + to + " percent";
+    return name + " held at " + to + " percent";
+  }
+  return s;
+}
+function stripEventHtml(s: any) {
+  return String(s || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function eventPressCopy(event: any, option: any) {
+  const news = event && event.news;
+  let masthead = "The World Post";
+  let headline = event && event.title;
+  let lede = "";
+  if (news) {
+    masthead =
+      typeof news.masthead === "function"
+        ? news.masthead()
+        : news.masthead || masthead;
+    headline =
+      typeof news.headline === "function"
+        ? news.headline()
+        : news.headline || headline;
+    if (typeof news.lede === "function") lede = news.lede(option) || "";
+    else if (news.lede) lede = news.lede;
+  }
+  if (!headline) headline = (option && option.b) || "A decision in {C}";
+  if (!lede) {
+    const text = stripEventHtml(event && event.text).slice(0, 180);
+    const choice =
+      option && option.b ? "{C}'s government chose to " + option.b + "." : "";
+    lede = [text, choice].filter(Boolean).join(" ");
+  }
+  return {
+    masthead: T(masthead),
+    headline: T(headline),
+    lede: T(lede),
+  };
+}
+function macroPressClips(input: any, date: any) {
+  const e = (input && input.econ) || (G && G.econ);
+  const res = input && input.res;
+  if (!e) return [];
+  const out: any[] = [];
+  const growth = res && res.growth;
+  if (growth != null && growth < -0.5) {
+    out.push({
+      pri: 10,
+      masthead: "The Fiscal Gazette",
+      headline: "{C} slips into contraction",
+      lede: "Output contracted this quarter. Markets are already using the word recession.",
+    });
+  }
+  if (e.inflation > 8) {
+    out.push({
+      pri: 9,
+      masthead: "The Fiscal Gazette",
+      headline: "Prices run away as the Bank tightens",
+      lede:
+        "Inflation printed at " +
+        e.inflation.toFixed(1) +
+        " percent. Wage demands are following it up.",
+    });
+  } else if (e.inflation > 4) {
+    out.push({
+      pri: 6,
+      masthead: "The Fiscal Gazette",
+      headline: "Prices climb as the Bank tightens",
+      lede:
+        "Inflation is " +
+        e.inflation.toFixed(1) +
+        " percent, and the policy rate has moved to " +
+        (e.rate != null ? e.rate.toFixed(2) : "—") +
+        " percent.",
+    });
+  }
+  if (e.unemployment > 8) {
+    out.push({
+      pri: 8,
+      masthead: "The Fiscal Gazette",
+      headline: "Jobless rate becomes the political number",
+      lede:
+        "Unemployment at " +
+        e.unemployment.toFixed(1) +
+        " percent is the figure the backbenches quote.",
+    });
+  }
+  if (e.yield > 7) {
+    out.push({
+      pri: 8,
+      masthead: "The Fiscal Gazette",
+      headline: "Bond market baulks at {C}'s books",
+      lede:
+        "Yields hit " +
+        e.yield.toFixed(1) +
+        " percent. Investors are pricing in the chance that the Treasury cannot pay.",
+    });
+  } else if (e.debt > 130) {
+    out.push({
+      pri: 5,
+      masthead: "The Fiscal Gazette",
+      headline: "Debt burden weighs on {C}",
+      lede:
+        "Public debt sits near " +
+        e.debt.toFixed(0) +
+        " percent of GDP, and the interest bill is climbing.",
+    });
+  }
+  if (e.services < 35) {
+    out.push({
+      pri: 7,
+      masthead: "The Fiscal Gazette",
+      headline: "Waiting lists dominate the front pages",
+      lede: "Public services have deteriorated far enough that the queues are now a daily political fact.",
+    });
+  }
+  out.sort((a, b) => b.pri - a.pri);
+  return out.slice(0, 2).map((c) => ({
+    kind: "macro",
+    masthead: T(c.masthead),
+    headline: T(c.headline),
+    lede: T(c.lede),
+    kicker: date,
+  }));
+}
 function composePress(input: any) {
   const clauses = ((input && input.clauses) || []).filter((c: any) => {
     /* Leave is announced via bloc_self_left / bloc_member_left, not the fiscal bill strip. */
     return !(c && c.label && /^Leave /.test(c.label));
   });
-  const cost = (input && input.cost) || 0;
   const balDelta = input && input.balDelta;
-  const event = input && input.event;
-  const option = input && input.option;
   const qIdx =
     input && input.q != null ? input.q : Math.max(0, (G && G.q ? G.q : 1) - 1);
   const date = G ? qLabel(G, qIdx) : "Q" + (qIdx + 1);
@@ -15455,18 +16244,17 @@ function composePress(input: any) {
     const byCost = clauses.slice().sort((a: any, b: any) => b.pc - a.pc);
     let headline, lede;
     if (clauses.length === 1) {
-      headline = clauses[0].label;
-      lede = "A single measure cleared the red box this quarter.";
-    } else if (clauses.length === 2) {
-      headline = byCost[0].label;
-      lede = "Also: " + byCost[1].label + ".";
+      headline = billClauseHeadline(clauses[0].label);
+      lede = "The measure cleared the red box this quarter.";
     } else {
-      headline = "Chancellor's bill: " + clauses.length + " measures";
+      headline = billClauseHeadline(byCost[0].label);
       lede =
+        "Also in the package: " +
         byCost
-          .slice(0, 2)
-          .map((c: any) => c.label)
-          .join(". ") + ".";
+          .slice(1, 3)
+          .map((c: any) => billClauseHeadline(c.label))
+          .join("; ") +
+        ".";
     }
     if (typeof balDelta === "number" && Math.abs(balDelta) >= 0.05) {
       lede +=
@@ -15477,50 +16265,12 @@ function composePress(input: any) {
           : " The deficit widens by about " +
             Math.abs(balDelta).toFixed(1) +
             " points of GDP on delivery.";
-    } else if (cost > 0) {
-      lede += " Political capital spent: " + cost + ".";
     }
     clips.push({
       kind: "bill",
       masthead: "The Fiscal Gazette",
       headline: T(headline),
       lede: T(lede),
-      kicker: date,
-    });
-  }
-  if (event && option) {
-    let lede = option.e || "";
-    const extras: any[] = [];
-    if (option.setRel) {
-      Object.keys(option.setRel).forEach((id) => {
-        const d = option.setRel[id];
-        if (!d) return;
-        extras.push(partnerName(id) + (d > 0 ? " warmer" : " cooler"));
-      });
-    }
-    if (option.fac) {
-      Object.keys(option.fac).forEach((id) => {
-        const d = option.fac[id];
-        if (!d) return;
-        extras.push(
-          factionName(id as FactionId) + (d > 0 ? " pleased" : " angered"),
-        );
-      });
-    }
-    if (extras.length)
-      lede =
-        (lede ? lede.replace(/\s*$/, "") + " " : "") +
-        extras.slice(0, 3).join("; ") +
-        ".";
-    if (!lede && event.text)
-      lede = String(event.text)
-        .replace(/<[^>]+>/g, "")
-        .slice(0, 160);
-    clips.push({
-      kind: "event",
-      masthead: event.stamp || "Despatch",
-      headline: T(option.b || event.title || "Cabinet decision"),
-      lede: T(lede || "A choice was made in the Cabinet Room."),
       kicker: date,
     });
   }
@@ -15589,7 +16339,11 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: "Bloc invitation accepted",
+        headline: T(
+          u.kind === "bloc_invite_accept"
+            ? name + " accepts {C}'s invitation to " + demand
+            : "{C} accepts " + name + "'s invitation to " + demand,
+        ),
         lede: T(
           u.kind === "bloc_invite_accept"
             ? name + " accepts the invitation to " + demand + "."
@@ -15604,7 +16358,11 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: "Bloc invitation declined",
+        headline: T(
+          u.kind === "bloc_invite_decline"
+            ? name + " declines {C}'s invitation to " + demand
+            : "{C} declines " + name + "'s invitation to " + demand,
+        ),
         lede: T(
           u.kind === "bloc_invite_decline"
             ? name + " declines the invitation to " + demand + "."
@@ -15664,7 +16422,11 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: "Treaty accepted",
+        headline: T(
+          u.kind === "deal_propose_accept"
+            ? name + " accepts {C}'s treaty"
+            : "{C} accepts " + name + "'s treaty",
+        ),
         lede: T(
           u.kind === "deal_propose_accept"
             ? name + " accepts the treaty — " + demand + "."
@@ -15679,7 +16441,11 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: "Treaty declined",
+        headline: T(
+          u.kind === "deal_propose_decline"
+            ? name + " declines {C}'s treaty"
+            : "{C} declines " + name + "'s treaty",
+        ),
         lede: T(
           u.kind === "deal_propose_decline"
             ? name + " declines the treaty — " + demand + "."
@@ -15687,8 +16453,122 @@ function composePress(input: any) {
         ),
         kicker: date,
       });
+    } else if (u.kind === "deal_collapse") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Trade Gazette",
+        headline: T("{C}'s treaty with " + name + " collapses"),
+        lede: T(
+          (demand ? demand : "A treaty") +
+            " with " +
+            name +
+            " has collapsed under diplomatic strain. Preferential access is gone.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "tariff_hike") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Trade Gazette",
+        headline: T("{C} raises duties on " + name),
+        lede: T(
+          "{C} has lifted tariffs on " +
+            name +
+            (demand ? " — " + demand : "") +
+            ". Exporters in " +
+            name +
+            " will feel it first.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "tariff_cut") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Trade Gazette",
+        headline: T("{C} opens its schedule to " + name),
+        lede: T(
+          "{C} has cut tariffs on " +
+            name +
+            (demand ? " — " + demand : "") +
+            ". The barrier is coming down.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "tariff_inbound_hike") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The World Post",
+        headline: T(name + " slaps tariffs on {C}"),
+        lede: T(
+          name +
+            " has raised duties on {C}'s goods" +
+            (demand ? " — " + demand : "") +
+            ". Exporters are already counting the cost.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "tariff_inbound_cut") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Trade Gazette",
+        headline: T(name + " cuts duties on {C}'s goods"),
+        lede: T(
+          name +
+            " has lowered tariffs facing {C}" +
+            (demand ? " — " + demand : "") +
+            ".",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "sanctions_outbound") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Diplomatic Courier",
+        headline: T("{C} tightens the screws on " + name),
+        lede: T(
+          "{C} has imposed restrictive measures on " +
+            name +
+            ". Trade and finance with that seat will get dearer.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "sanctions_inbound") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The World Post",
+        headline: T(name + " sanctions {C}"),
+        lede: T(
+          name +
+            " has placed restrictive measures on {C}. The Foreign Office called it a hostile act.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "protest_outbound") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Diplomatic Courier",
+        headline: T("{C} delivers a formal protest to " + name),
+        lede: T(
+          "A démarche has been lodged in " +
+            name +
+            ". Relations take a knock; the note is now on the record.",
+        ),
+        kicker: date,
+      });
+    } else if (u.kind === "protest_inbound") {
+      clips.push({
+        kind: "ultimatum",
+        masthead: "The Diplomatic Courier",
+        headline: T(name + " protests to {C}"),
+        lede: T(
+          name +
+            " has delivered a formal protest. The démarche is public, and the relationship is cooler tonight.",
+        ),
+        kicker: date,
+      });
     }
   }
+  for (const m of macroPressClips(input, date)) clips.push(m);
   return clips;
 }
 let _pressExpanded: string | null = null;
@@ -15697,6 +16577,7 @@ let _newsOpen = false;
  *  call site that needs the drawer and the inbox to never be open at once
  *  (resetPressUi, enact()'s quarter advance, setTab() opening a drawer). */
 function closeNewsInbox() {
+  if (pressChoicePending()) return;
   _newsOpen = false;
   _pressExpanded = null;
 }
@@ -15710,7 +16591,7 @@ function pushPress(clips: any) {
   list.forEach((raw) => {
     if (!raw) return;
     const id = "p" + ++_pressSeq;
-    const clip = {
+    const clip: Record<string, any> = {
       id,
       q: G.q,
       kind: raw.kind || "bill",
@@ -15721,10 +16602,17 @@ function pushPress(clips: any) {
       rot: Math.random() * 10 - 5,
       seen: false,
     };
+    if (raw.eventId) clip.eventId = raw.eventId;
+    if (raw.pendingChoice) {
+      clip.pendingChoice = true;
+      clip.opts = raw.opts || null;
+    }
     G.press.push(clip);
   });
   while (G.press.length > PRESS_MAX) {
-    const dropped = G.press.shift();
+    const dropAt = G.press.findIndex((c: any) => !c.pendingChoice);
+    if (dropAt < 0) break;
+    const dropped = G.press.splice(dropAt, 1)[0];
     if (dropped && _pressExpanded === dropped.id) _pressExpanded = null;
   }
   bump();
@@ -15747,6 +16635,89 @@ function expandPress(id: any) {
   bump();
   return true;
 }
+function pressChoicePending() {
+  return !!(G && G.press && G.press.some((c: any) => c.pendingChoice));
+}
+/** Immediate chips (and sandbox 4-quarter forecast) for an event's options. */
+function eventChoiceOpts(ev: any, onPick: any) {
+  const preview = !!G.sandbox;
+  let base = null;
+  if (preview) {
+    try {
+      base = simulate(G.law, 4);
+    } catch {
+      base = null;
+    }
+  }
+  return (ev.opts || []).map((o: any, i: number) => {
+    const inspected = inspectEventOption(o, preview ? base : null);
+    return {
+      b: o.b,
+      e: o.e,
+      immediate:
+        inspected.chips && inspected.chips.length ? inspected.chips : null,
+      chips:
+        preview && inspected.forecast
+          ? impactChipsData(inspected.forecast)
+          : null,
+      factions:
+        preview && inspected.forecast
+          ? impactFactionsData(inspected.forecast)
+          : null,
+      f: () => onPick(o, i),
+    };
+  });
+}
+/** Settle the clip whose button was pressed — by id, not "the first pending
+ *  one", which answers the wrong story when two clips are awaiting a choice. */
+function resolvePressEventChoice(clipId: any, ev: any, option: any) {
+  if (!G || !G.press) return;
+  const clip = G.press.find((c: any) => c.id === clipId);
+  if (!clip) return;
+  const after = eventPressCopy(ev, option);
+  clip.headline = after.headline;
+  clip.lede = after.lede;
+  clip.masthead = after.masthead;
+  clip.pendingChoice = false;
+  clip.opts = null;
+  clip.seen = true;
+  if (_pressExpanded === clip.id) _pressExpanded = null;
+  bump();
+}
+/** Cabinet events land as a newspaper clipping you must answer — not a HUD
+ *  despatch and then a second clip of the same story. */
+function presentEventAsPress(ev: any, onPick: any) {
+  if (!ev || !G) return false;
+  const copy = eventPressCopy(ev, null);
+  /* A lockstep remount keeps the inbox, so the same unanswered event can be
+     presented twice. Refresh that clip in place: a second clip for one story
+     would leave one of them pending for ever, and pressChoicePending() holds
+     Deliver shut until every clip is answered. */
+  let clip = ev.id
+    ? G.press &&
+      G.press.find((c: any) => c.pendingChoice && c.eventId === ev.id)
+    : null;
+  if (!clip) {
+    pushPress({
+      kind: "event",
+      eventId: ev.id || null,
+      masthead: copy.masthead,
+      headline: copy.headline,
+      lede: copy.lede,
+      kicker: qLabel(G, G.q),
+      pendingChoice: true,
+    });
+    clip = G.press[G.press.length - 1];
+    if (!clip) return false;
+  }
+  const clipId = clip.id;
+  clip.opts = eventChoiceOpts(ev, (o: any, i: number) => {
+    resolvePressEventChoice(clipId, ev, o);
+    onPick(o, i);
+  });
+  expandPress(clipId);
+  return true;
+}
 function getPressExpanded() {
   return _pressExpanded;
 }
@@ -15755,6 +16726,9 @@ function getPressExpanded() {
    clippings where "dismiss" and "close" were the same action. */
 function closeFocusedPress() {
   if (!_pressExpanded) return false;
+  const clip =
+    G && G.press && G.press.find((c: any) => c.id === _pressExpanded);
+  if (clip && clip.pendingChoice) return true;
   _pressExpanded = null;
   bump();
   return true;
@@ -15764,6 +16738,7 @@ function discardPress(id: any) {
   if (!G || !G.press || !id) return false;
   const i = G.press.findIndex((c: any) => c.id === id);
   if (i < 0) return false;
+  if (G.press[i].pendingChoice) return false;
   G.press.splice(i, 1);
   if (_pressExpanded === id) _pressExpanded = null;
   bump();
@@ -15774,6 +16749,7 @@ function getNewsOpen() {
 }
 function toggleNewsOpen() {
   if (_newsOpen) {
+    if (pressChoicePending()) return _newsOpen;
     /* Closing via the rail button (not the in-focus back/close control)
        should always return to the list next time, not resume whatever
        clip was last open. */
@@ -16102,8 +17078,9 @@ function impactFactionsData(im: any) {
   };
 }
 /* What an event option would actually do. Options mutate the game directly, so
-   this snapshots every mutable field, runs the option, measures, then puts it
-   all back. A test asserts the state is byte-identical afterwards. */ const MUTABLE =
+   inspectEventOption snapshots every mutable field, runs the option, reads
+   immediate chips (and an optional 4-quarter forecast), then puts it all back.
+   A test asserts the state is byte-identical afterwards. */ const MUTABLE =
   [
     "econ",
     "fac",
@@ -16192,22 +17169,112 @@ function cloneWorldForSim(g: any) {
   }
   return out;
 }
-function previewOption(opt: any, base: any) {
+function snapshotMutable() {
   const snap: Record<string, any> = {};
   MUTABLE.forEach((k) => {
     (snap as any)[k] = G[k] === undefined ? undefined : clone(G[k]);
   });
-  let im = null;
-  try {
-    applyEventOption(opt);
-    im = impactOf(clone(G.law), base, 4);
-  } catch {
-    im = null;
-  }
+  return snap;
+}
+function restoreMutable(snap: Record<string, any>) {
   MUTABLE.forEach((k) => {
     G[k] = (snap as any)[k];
   });
-  return im;
+}
+/** Immediate, on-impact chips for an event option: named relation moves
+ *  (including those written in `f()` rather than `setRel`), capital, and
+ *  faction jumps. Forecast chips stay on the sandbox path. */ function immediateChipsFromSnap(
+  snap: Record<string, any>,
+) {
+  const chips: {
+    name: string;
+    value: number;
+    dp: number;
+    up: boolean;
+  }[] = [];
+  const rel0 = snap.rel || {};
+  const rel = G.rel || {};
+  const relBits: { name: string; d: number }[] = [];
+  for (const id of new Set([...Object.keys(rel0), ...Object.keys(rel)])) {
+    if (!id || isPlayerSeat(id)) continue;
+    const d = (rel[id] != null ? rel[id] : 50) - (rel0[id] != null ? rel0[id] : 50);
+    if (Math.abs(d) < 0.95) continue;
+    const p = partnerById(id);
+    const name = (p && p.name) || id;
+    relBits.push({ name, d });
+  }
+  relBits.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  for (const x of relBits.slice(0, 6)) {
+    chips.push({
+      name: x.name + " relations",
+      value: Math.round(x.d),
+      dp: 0,
+      up: x.d > 0,
+    });
+  }
+  const capD = (G.capital != null ? G.capital : 0) - (snap.capital != null ? snap.capital : 0);
+  if (Math.abs(capD) >= 0.95) {
+    chips.push({
+      name: "Capital",
+      value: Math.round(capD),
+      dp: 0,
+      up: capD > 0,
+    });
+  }
+  const fac0 = snap.fac || {};
+  const fac = G.fac || {};
+  const facBits: { name: string; d: number }[] = [];
+  FACTIONS.forEach((f) => {
+    const d =
+      (fac[f.id] != null ? fac[f.id] : 0) - (fac0[f.id] != null ? fac0[f.id] : 0);
+    if (Math.abs(d) < 0.95) return;
+    facBits.push({ name: f.name, d });
+  });
+  facBits.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+  if (
+    facBits.length >= 4 &&
+    facBits.every((x) => Math.round(x.d) === Math.round(facBits[0].d))
+  ) {
+    chips.push({
+      name: "Factions",
+      value: Math.round(facBits[0].d),
+      dp: 0,
+      up: facBits[0].d > 0,
+    });
+  } else {
+    for (const x of facBits.slice(0, 3)) {
+      chips.push({
+        name: x.name,
+        value: Math.round(x.d),
+        dp: 0,
+        up: x.d > 0,
+      });
+    }
+  }
+  return chips;
+}
+/** Snapshot, apply, read immediate chips (and optional 4-quarter forecast),
+ *  restore. One apply covers both career relation chips and sandbox
+ *  forecast chips. */ function inspectEventOption(opt: any, forecastBase: any) {
+  const snap = snapshotMutable();
+  let chips: ReturnType<typeof immediateChipsFromSnap> = [];
+  let forecast = null;
+  try {
+    applyEventOption(opt);
+    chips = immediateChipsFromSnap(snap);
+    if (forecastBase) forecast = impactOf(clone(G.law), forecastBase, 4);
+  } catch {
+    chips = [];
+    forecast = null;
+  }
+  restoreMutable(snap);
+  return { chips, forecast };
+}
+function immediateOptionChips(opt: any) {
+  return inspectEventOption(opt, null).chips;
+}
+function previewOption(opt: any, base: any) {
+  return inspectEventOption(opt, base).forecast;
 }
 /** Running total for whatever is staged — shown in the bill drawer only. */
 function impactStripData() {
@@ -16359,11 +17426,13 @@ function projectionModal(onConfirm?: any) {
     ],
   );
 }
+/** Applies staged missions and returns the ones that actually took effect. */
 function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
   ensureDiploStocks(econ);
   if (typeof G !== "undefined" && G) pruneInvalidDraftMissions(G);
   const missions = (draft && draft.missions) || (law && law.missions) || {};
   const gBag = { econ, q: typeof G !== "undefined" && G ? G.q : 0 };
+  const applied: Record<string, any> = {};
   for (const pid in missions) {
     const m = (MISSION_BY_ID as any)[missions[pid]];
     if (!m) continue;
@@ -16376,6 +17445,7 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
     ) {
       continue;
     }
+    applied[pid] = m.id;
     econ.missionCd[pid] = MISSION_CD;
     if (m.fac && fac) {
       for (const f in m.fac)
@@ -16406,6 +17476,7 @@ function applyDraftMissions(law: any, draft: any, econ: any, fac: any) {
   }
   if (law) delete law.missions;
   if (draft) draft.missions = {};
+  return applied;
 }
 function enact() {
   if (G.over) return;
@@ -16521,13 +17592,12 @@ function enact() {
     const pressBefore = G.press ? G.press.length : 0;
     const clips = composePress({
       clauses: cl,
-      cost,
       balDelta,
-      event: chosen && chosen.event,
-      option: chosen && chosen.option,
       ultimatumOutcomes: freshUltOutcomes,
       q: Math.max(0, G.q - 1),
       brief: G.brief,
+      res,
+      econ: G.econ,
     });
     /* A one-off warning story exactly two quarters out — electionAtRisk()
        only reads true right at that boundary once per term, so this can't
@@ -16587,42 +17657,29 @@ function enact() {
   const presentChoice = (ev: any, isMajor: any) => {
     G.lastEventQ = G.q;
     G.lastEventId = ev.id;
-    despatch(
-      ev.title,
-      ev.stamp,
-      "<p>" + ev.text + "</p>",
-      ev.opts.map((o: any) => ({
-        b: o.b,
-        e: o.e,
-        previewTarget: o,
-        f: () => {
-          let impact = null;
-          let base = null;
-          try {
-            base = simulate(G.law, 4);
-          } catch {
-            base = null;
-          }
-          applyEventOption(o);
-          if (isMajor) beginEpisode(ev, o);
-          if (base) {
-            try {
-              impact = impactOf(clone(G.law), base, 4);
-            } catch {
-              impact = null;
-            }
-          }
-          proceed({
-            event: ev,
-            option: o,
-            impact,
-          });
-        },
-      })),
-      {
-        preview: true,
-      },
-    );
+    presentEventAsPress(ev, (o: any) => {
+      let impact = null;
+      let base = null;
+      try {
+        base = simulate(G.law, 4);
+      } catch {
+        base = null;
+      }
+      applyEventOption(o);
+      if (isMajor) beginEpisode(ev, o);
+      if (base) {
+        try {
+          impact = impactOf(clone(G.law), base, 4);
+        } catch {
+          impact = null;
+        }
+      }
+      proceed({
+        event: ev,
+        option: o,
+        impact,
+      });
+    });
   };
   if (G.episode && G.q >= G.episode.endsQ) {
     const ep = G.episode;
@@ -17009,6 +18066,8 @@ export {
   timeoutInboundBlocInvites,
   applyMpInboundDealChoice,
   timeoutInboundDealProposals,
+  applyMpInboundNoticeChoice,
+  inboundNoticeActs,
   announceQuarterAdvance,
   lockMpSubmission,
   clearMpLockedSubmission,
@@ -17026,6 +18085,12 @@ export {
   BLOC_TEMPLATES,
   CUSTOM_BLOC_TEMPLATES,
   pickEventPartner,
+  isPlayerSeat,
+  requirePartner,
+  requireScriptablePartner,
+  scriptablePartners,
+  adjustBilateralTariffs,
+  isHumanMpSeat,
   partnerById,
   prepareEvent,
   applyDraftMissions,
@@ -17059,6 +18124,8 @@ export {
   partnerTariffOnPlayer,
   ultimatumOutcomeImpacts,
   rollMissionEvent,
+  formatMissionEventText,
+  formatMissionTokens,
   applyMissionEventOption,
   MISSION_EVENTS,
   queueSummitVisitEvents,
@@ -17120,6 +18187,7 @@ export {
   lawWithOnlyClause,
   withForecastError,
   previewOption,
+  immediateOptionChips,
   applyEventOption,
   incomeYield,
   incomeByBand,
@@ -17200,6 +18268,7 @@ export {
   termReview,
   qualEffectsData,
   composePress,
+  eventPressCopy,
   pushPress,
   dismissNewestPress,
   expandPress,
@@ -17207,6 +18276,8 @@ export {
   closeFocusedPress,
   discardPress,
   getNewsOpen,
+  pressChoicePending,
+  presentEventAsPress,
   toggleNewsOpen,
   newsUnreadCount,
   dealBlockers,

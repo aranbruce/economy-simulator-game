@@ -10,7 +10,6 @@ import {
   T,
 } from "../../lib/sim/engine.ts";
 import { SafeHtml } from "../ui/SafeHtml.tsx";
-import { ImpactChips, ImpactFactions } from "../ui/ImpactChips.tsx";
 import { BlocFoundModalBody, BlocInviteModalBody } from "./BlocModals.tsx";
 import { BriefingBody } from "./BriefingBody.tsx";
 import { VerdictBody } from "./VerdictBody.tsx";
@@ -136,12 +135,6 @@ export function DespatchModal() {
                     <em className={skin.optionSub}>{T(o.e)}</em>
                   ) : null}
                   {o.hint ? <SafeHtml html={o.hint} /> : null}
-                  {o.chips ? (
-                    <ImpactChips chips={o.chips} paper={isBriefing} />
-                  ) : null}
-                  {o.factions ? (
-                    <ImpactFactions factions={o.factions} paper={isBriefing} />
-                  ) : null}
                 </button>
               ))}
             </div>

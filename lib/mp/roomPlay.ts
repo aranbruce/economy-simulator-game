@@ -11,6 +11,7 @@ import {
   applyMpInboundUltimatumChoice,
   applyMpInboundBlocInviteChoice,
   applyMpInboundDealChoice,
+  applyMpInboundNoticeChoice,
 } from "../sim/engine.ts";
 import type { Room } from "./types.ts";
 import { publicRoom } from "./roomStore.ts";
@@ -221,10 +222,11 @@ interface EventChoiceBody {
   fromId?: string;
   concede?: boolean;
   inboundBlocInvite?: boolean;
-  inboundDealProposal?: boolean;
   accept?: boolean;
-  dismiss?: boolean;
+  inboundDealProposal?: boolean;
+  inboundNotice?: boolean;
   optionIndex?: number;
+  dismiss?: boolean;
 }
 
 /** Apply a pending event choice for the calling seat. */
@@ -312,6 +314,27 @@ export async function chooseEvent(
     );
     if (!result.ok) {
       return { error: result.error || "Deal response failed", status: 400 };
+    }
+    room.version = baseVer + 1;
+    const conflict = await commitRoom(room, baseVer);
+    if (conflict) return conflict;
+    return { room: publicRoom(room, playerToken), ok: true };
+  }
+
+  /* Unilateral hostile notice — Noted, no economic re-apply. */
+  if (body.inboundNotice) {
+    if (!pol) return { error: "No seat politics", status: 409 };
+    const inbound = pol.inboundNotice;
+    if (!inbound || inbound.status !== "pending") {
+      return { error: "No pending notice", status: 409 };
+    }
+    const baseVer = room.version;
+    const result = applyMpInboundNoticeChoice(room.snapshot, player.seatId);
+    if (!result.ok) {
+      return {
+        error: result.error || "Notice response failed",
+        status: 400,
+      };
     }
     room.version = baseVer + 1;
     const conflict = await commitRoom(room, baseVer);

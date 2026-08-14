@@ -755,7 +755,7 @@ function NetTradePanel({ G }: { G: any }) {
   return (
     <ChartBox
       title="Exports, imports and the net"
-      caption="Index points, same scale as the GDP index — not a currency amount or % of GDP. Competitiveness runs on underlying prices, so a VAT change does not move it on its own."
+      caption="Index points — not a currency amount or % of GDP. Competitiveness runs on underlying prices, so a VAT change does not move it on its own."
     >
       <LineChartSvg
         spec={lineChartSpec(

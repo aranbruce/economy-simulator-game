@@ -7,14 +7,42 @@ import {
   expandPress,
   getNewsOpen,
   getPressExpanded,
+  T,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { CloseIcon } from "../../lib/ui/icons.tsx";
+import { ImpactChips, ImpactFactions } from "../ui/ImpactChips.tsx";
+import { SafeHtml } from "../ui/SafeHtml.tsx";
 
 const clipCloseBtnClass =
   "absolute top-2 right-2 z-1 grid size-7 cursor-pointer place-items-center rounded-full border border-paper-border/35 bg-paper-bg/80 text-paper-ink shadow-[0_1px_0_rgba(255,255,255,.45)_inset] transition duration-160 hover:bg-paper-border/14 hover:text-paper-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.94]";
 
-function ClipBody({ c }: { c: any }) {
+const choiceBtnClass =
+  "cursor-pointer rounded-md border border-l-3 border-paper-border/22 border-l-paper-border/35 bg-paper-border/4.5 px-3.25 py-2.75 text-left font-sans text-sm text-paper-ink transition duration-160 hover:border-l-paper-accent hover:bg-paper-border/9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3";
+
+type PressClipOpt = {
+  b: string;
+  e?: string;
+  hint?: string;
+  immediate?: any;
+  chips?: any;
+  factions?: any;
+  f: () => void;
+};
+
+type PressClip = {
+  id: string;
+  masthead: string;
+  kicker: string;
+  headline: string;
+  lede: string;
+  rot?: number;
+  seen?: boolean;
+  pendingChoice?: boolean;
+  opts?: PressClipOpt[] | null;
+};
+
+function ClipBody({ c }: { c: PressClip }) {
   return (
     <>
       <div className="clip-mast mb-0.5 pr-8 text-xs font-bold tracking-[.14em] text-paper-ink-faint uppercase">
@@ -33,14 +61,51 @@ function ClipBody({ c }: { c: any }) {
   );
 }
 
+function ClipChoices({ opts }: { opts: PressClipOpt[] }) {
+  return (
+    <div className="mt-3.5 grid gap-1.5">
+      {opts.map((o, i) => (
+        <button
+          key={i}
+          type="button"
+          className={choiceBtnClass}
+          onClick={(e) => {
+            e.stopPropagation();
+            o.f();
+          }}
+        >
+          <b className="block font-[650] tracking-[-.02em]">{T(o.b)}</b>
+          {o.e ? (
+            <em className="mt-0.75 block text-xs text-paper-ink-soft not-italic">
+              {T(o.e)}
+            </em>
+          ) : null}
+          {o.hint ? <SafeHtml html={o.hint} /> : null}
+          {o.immediate ? (
+            <div className="mt-1.5">
+              <ImpactChips chips={o.immediate} paper />
+            </div>
+          ) : null}
+          {o.chips ? (
+            <div className={o.immediate ? "mt-1" : "mt-1.5"}>
+              <ImpactChips chips={o.chips} paper />
+            </div>
+          ) : null}
+          {o.factions ? <ImpactFactions factions={o.factions} paper /> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function PressLayer() {
   const G = useGame();
   const open = getNewsOpen();
   if (!open) return null;
 
-  const clips = G?.press || [];
+  const clips: PressClip[] = G?.press || [];
   const expandedId = getPressExpanded();
-  const focused = expandedId && clips.find((c: any) => c.id === expandedId);
+  const focused = expandedId && clips.find((c) => c.id === expandedId);
   const ordered = clips.slice().reverse();
 
   return (
@@ -62,57 +127,55 @@ export function PressLayer() {
               (justify-center on the scroll container itself would clip
               the top and make it unreachable). */}
           <div className="my-auto flex flex-col gap-3">
-            {ordered.length === 0 ? (
-              <div className="m-0 rounded-sm border border-paper-border/28 bg-(image:--paper-gradient) px-3.5 py-3 text-sm text-paper-ink shadow-[0_12px_32px_rgba(0,0,0,.48),0_1px_0_rgba(255,255,255,.5)_inset]">
-                No news stories
-              </div>
-            ) : (
-              ordered.map((c: any, i: number) => (
-                <article
-                  key={c.id}
-                  className="clipping relative"
-                  data-id={c.id}
-                  style={
-                    {
-                      "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
-                      "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
-                    } as CSSProperties
-                  }
-                >
-                  <button
-                    type="button"
-                    aria-label="Discard clipping"
-                    className={clipCloseBtnClass}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      discardPress(c.id);
-                    }}
+            {ordered.length === 0
+              ? null
+              : ordered.map((c, i) => (
+                  <article
+                    key={c.id}
+                    className="clipping relative"
+                    data-id={c.id}
+                    style={
+                      {
+                        "--clip-rot": `${(c.rot != null ? c.rot : 0).toFixed(2)}deg`,
+                        "--clip-delay": `${(i * 0.04).toFixed(2)}s`,
+                      } as CSSProperties
+                    }
                   >
-                    <CloseIcon />
-                  </button>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Open clipping"
-                    onClick={() => expandPress(c.id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        expandPress(c.id);
-                      }
-                    }}
-                  >
-                    {!c.seen ? (
-                      <span
-                        className="absolute top-2.5 left-2.5 size-2 rounded-full bg-paper-red"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <ClipBody c={c} />
-                  </div>
-                </article>
-              ))
-            )}
+                    {c.pendingChoice ? null : (
+                    <button
+                      type="button"
+                      aria-label="Discard clipping"
+                      className={clipCloseBtnClass}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        discardPress(c.id);
+                      }}
+                    >
+                      <CloseIcon />
+                    </button>
+                    )}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Open clipping"
+                      onClick={() => expandPress(c.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          expandPress(c.id);
+                        }
+                      }}
+                    >
+                      {!c.seen ? (
+                        <span
+                          className="absolute top-2.5 left-2.5 size-2 rounded-full bg-paper-red"
+                          aria-hidden="true"
+                        />
+                      ) : null}
+                      <ClipBody c={c} />
+                    </div>
+                  </article>
+                ))}
           </div>
         </div>
       )}
@@ -122,8 +185,10 @@ export function PressLayer() {
           role="dialog"
           aria-modal="true"
           aria-label="Newspaper clipping"
+          style={focused.pendingChoice ? { zIndex: 50 } : undefined}
           onClick={(e) => {
-            if (e.target === e.currentTarget) closeFocusedPress();
+            if (e.target === e.currentTarget && !focused.pendingChoice)
+              closeFocusedPress();
           }}
         >
           <article
@@ -134,18 +199,23 @@ export function PressLayer() {
               } as CSSProperties
             }
           >
-            <button
-              type="button"
-              aria-label="Discard clipping"
-              className={clipCloseBtnClass}
-              onClick={(e) => {
-                e.stopPropagation();
-                discardPress(focused.id);
-              }}
-            >
-              <CloseIcon />
-            </button>
+            {focused.pendingChoice ? null : (
+              <button
+                type="button"
+                aria-label="Discard clipping"
+                className={clipCloseBtnClass}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  discardPress(focused.id);
+                }}
+              >
+                <CloseIcon />
+              </button>
+            )}
             <ClipBody c={focused} />
+            {focused.pendingChoice && focused.opts && focused.opts.length ? (
+              <ClipChoices opts={focused.opts} />
+            ) : null}
           </article>
         </div>
       ) : null}

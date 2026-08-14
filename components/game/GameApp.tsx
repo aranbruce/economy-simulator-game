@@ -31,6 +31,7 @@ import {
   applyLocalMpDiploAction,
   playerCountryId,
   mpDraftBlocGateError,
+  inboundNoticeActs,
 } from "../../lib/sim/engine.ts";
 import {
   DEFAULT_REALM_ID,
@@ -412,21 +413,29 @@ export default function GameApp() {
           dealProp && dealProp.status === "pending"
             ? "deal:" + (dealProp.fromId || "") + ":" + (dealProp.dealId || "")
             : "";
+        const notice = pol && pol.inboundNotice;
+        const noticeKey =
+          notice && notice.status === "pending"
+            ? "notice:" +
+              inboundNoticeActs(notice)
+                .map((a: any) => (a.fromId || "") + ":" + (a.kind || ""))
+                .join("|")
+            : "";
         const pendingKey = pending
           ? JSON.stringify(pending)
           : inboundKey
             ? "inbound:" + inboundKey
-            : blocKey || dealKey || null;
+            : blocKey || dealKey || noticeKey || null;
         if (G.q !== lastMorningNoteQ.current) {
           /* New quarter: flash once, then summit/event/inbound or morning note. */
           lastMorningNoteQ.current = G.q;
           lastBriefQ.current = G.q;
           lastPresentedPendingKey.current = pendingKey;
-          if (!pending && !inboundKey && !blocKey && !dealKey) {
+          if (!pending && !inboundKey && !blocKey && !dealKey && !noticeKey) {
             lastBriefingCompleteQ.current = G.q;
           }
           showMpBriefing();
-        } else if (pending || inboundKey || blocKey || dealKey) {
+        } else if (pending || inboundKey || blocKey || dealKey || noticeKey) {
           /* Same quarter, another queued event or inbound ask. */
           if (pendingKey === lastPresentedPendingKey.current) return;
           lastPresentedPendingKey.current = pendingKey;

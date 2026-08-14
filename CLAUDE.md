@@ -486,18 +486,44 @@ roll, which lands at roughly one event every nine quarters. Guaranteed
 set-pieces still fire at mid-term (Q8) and late-term (Q16). Frequent
 interruptions stop the budget being the game.
 
+**An event arrives once, as a newspaper clipping you must answer** —
+`presentEventAsPress()`, not `despatch()`, which is now reserved for
+non-interactive papers (morning notes, summit papers, episode ends, inbound
+multiplayer notices). The clip is sticky: `pendingChoice` blocks discard,
+dismissal and Deliver (`pressChoicePending()`) until an option is picked, and
+each option lists the seats and factions it actually moves via
+`inspectEventOption()`, which dry-runs the option against a `MUTABLE` snapshot
+so relation deltas buried in an `f()` body show up alongside declarative
+`setRel` ones. Two clips can wait at once, so a choice settles its own clip by
+id; re-presenting an unanswered event (a lockstep remount keeps the inbox)
+refreshes that clip rather than filing a rival copy that would strand Deliver.
+
 **Major world episodes** (`major: true` on the event) ride a separate track.
 `G.nextMajorQ` is scheduled 16–32 quarters (4–8 years) ahead on `newGame` and
-again when an episode ends. When due, Deliver presents a start despatch; choosing
+again when an episode ends. When due, Deliver presents the start clip; choosing
 an option applies shocks and calls `beginEpisode`. While `G.episode` is active,
 no second major can fire. When `G.q >= episode.endsQ`, Deliver shows an end
 despatch (“Noted”), runs any tariff unwind, clears the episode, and reschedules
 the next major. Ordinary bilateral/domestic events may still fire during a major.
 
-The nine majors: `globalRecess`, `aiBoom`, `worldInflation`, `commodityShock`,
-`globalEasing`, `tradeWar`, `chinaSlowdown`, `creditCrunch`, `greenTransition`.
-`tradeWar` raises real `tariffSchedule` defaults (player and/or AI seats) and
-restores them on end unless the player chose to keep the wall.
+The majors: `globalRecess`, `aiBoom`, `worldInflation`, `commodityShock`,
+`globalEasing`, `tradeWar`, `chinaSlowdown`, `usSlowdown`, `indiaSlowdown`,
+`usTariffUp`, `usTariffDown`, `chinaTariffUp`, `chinaTariffDown`,
+`creditCrunch`, `greenTransition`. `tradeWar` raises real `tariffSchedule`
+defaults (player and/or AI seats) and restores them on end unless the player
+chose to keep the wall. Scripted US/China tariff majors (`usTariffUp` and
+friends) require a scriptable AI seat — a human occupying Washington or Beijing
+does not get a fake agency event; their real tariff move notifies the other
+human through diplo alerts. Ambient slowdowns (`usSlowdown`, `indiaSlowdown`,
+`chinaSlowdown`) may still shock a human-occupied seat without claiming they
+chose it.
+
+`raiseTradeWarTariffs()` and `adjustBilateralTariffs()` **return** the
+pre-change tariff snapshot without parking it. Only a major's option should
+assign it to `G._pendingTariffSnap`, which `beginEpisode` consumes as
+`episode.tariffSnap` for the end-of-episode unwind. An ordinary event moves
+rates for good and must ignore the return — a snapshot left lying around gets
+picked up by the next unrelated episode and reverted to when that one ends.
 
 A large share of the ordinary pool is foreign relations, which is where
 the interesting bilateral consequences live: ultimatums over the digital services
@@ -524,10 +550,11 @@ If you add mutable top-level state such as `episode` / `nextMajorQ`, keep it on
 ## Naming
 
 Authored copy carries a `{C}` token instead of a country name, and `T()`
-substitutes `G.country`. It is applied at exactly three points where authored
-text reaches the screen: `despatch()` (covering every event, crisis and
-verdict), the morning briefing, and the card blurbs in the drawers. Adding a new
-place that shows authored copy means adding a `T()` call.
+substitutes `G.country`. It is applied at exactly four points where authored
+text reaches the screen: `despatch()` (covering crises and verdicts),
+`eventPressCopy()` (the news clipping every Cabinet event now arrives as — see
+"Events"), the morning briefing, and the card blurbs in the drawers. Adding a
+new place that shows authored copy means adding a `T()` call.
 
 A test asserts no authored string contains a hard-coded country name, so this
 cannot silently regress.

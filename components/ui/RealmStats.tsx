@@ -281,11 +281,6 @@ export default function RealmStats({
           }
         />
         <Stat
-          label="GDP index"
-          value={snap.output.toFixed(1)}
-          note="Opening = 100"
-        />
-        <Stat
           label={"Exchange rate (" + (snap.currency || "—") + ")"}
           value={
             snap.currency === displayCcy
