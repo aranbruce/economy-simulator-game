@@ -137,15 +137,18 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
     (byRegion[r] ||= []).push(c);
   }
 
-  const canStage = !!selected && !selected.staged;
+  const canStage =
+    !!selected && !selected.staged && !selected.blockers.length;
   const confirmContent = !selected
     ? { b: "No candidate selected", e: null as string | null }
     : selected.staged
       ? { b: "Already in the bill", e: "See the bill panel above" }
-      : {
-          b: `Propose ${selected.partner.name}`,
-          e: "12 capital · added to your bill",
-        };
+      : selected.blockers.length
+        ? { b: "Not eligible", e: selected.blockers[0] }
+        : {
+            b: `Propose ${selected.partner.name}`,
+            e: "12 capital · added to your bill",
+          };
 
   return (
     <>

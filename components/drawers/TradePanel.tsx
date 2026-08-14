@@ -26,6 +26,7 @@ import {
   syncTariffHeadline,
   ensureTariffSchedule,
   tariffLocked,
+  tariffCetBlockers,
   tariffLeverValue,
   tariffScheduleAverage,
   importTariffLevel,
@@ -271,6 +272,9 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
     (cid) => G.draft.blocInvite[cid],
   );
   const candidates = blocInviteCandidates(bid);
+  const eligibleCount = candidates.filter(
+    (c: any) => !c.blockers.length,
+  ).length;
 
   const prevInvitesRef = useRef<string[]>(invites);
   useEffect(() => {
@@ -367,7 +371,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
           onClick={() => showBlocInviteModal(bid)}
         >
           {candidates.length
-            ? `Invite a member (${candidates.length} eligible)`
+            ? `Invite a member (${eligibleCount} eligible)`
             : "Invite a member"}
         </Button>
       </div>
@@ -552,44 +556,22 @@ function TariffScheduleSection({ G }: { G: any }) {
   ensureTariffSchedule(G.law);
   const lock = tariffLocked(G.draft);
   const sched = G.draft.tariffSchedule;
+  const locked = lock.mode !== "none";
+  /* The chair's CET is only the shared baseline against outsiders — every
+   * member (chair included) can still layer their own tariff on top of it
+   * for a specific outside bloc or country, same as effectiveTariff(). */
+  const baseline = locked
+    ? sched.cet != null
+      ? sched.cet
+      : (lock.cet ?? 4)
+    : sched.default;
 
-  if (lock.mode !== "none") {
-    return (
-      <>
-        <Hint>
-          You are in a customs union. External tariff is{" "}
-          {sched.cet != null ? sched.cet : lock.cet}%.
-          {lock.mode === "full"
-            ? " Set in the bloc capital — you cannot change it."
-            : ""}
-        </Hint>
-        {lock.mode === "cet" ? (
-          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
-            <Lever
-              id="tariffCet"
-              name="Common external tariff"
-              value={
-                sched.cet != null ? sched.cet : lock.cet != null ? lock.cet : 4
-              }
-              min={0}
-              max={25}
-              step={1}
-              decimals={0}
-              base={tariffLeverValue("tariffCet", G.law)}
-              note="Applies to all partners outside your customs union"
-              onInput={(_id, v) => setTariffLever("tariffCet", v)}
-              onCommit={(_id, v) => setTariffLever("tariffCet", v)}
-            />
-          </div>
-        ) : null}
-      </>
-    );
-  }
-
+  const playerBid = countryBlocId(playerCountryId());
   const usedBlocs: Record<string, number> = {};
   for (const p of activePartners()) {
     const bid = countryBlocId(p.id);
-    if (bid) usedBlocs[bid] = (usedBlocs[bid] || 0) + 1;
+    /* Fellow bloc members trade duty-free — no lever to tariff yourself. */
+    if (bid && bid !== playerBid) usedBlocs[bid] = (usedBlocs[bid] || 0) + 1;
   }
   const byRegion: Record<string, any[]> = {};
   for (const p of activePartners()) {
@@ -597,28 +579,69 @@ function TariffScheduleSection({ G }: { G: any }) {
     if (!byRegion[r]) byRegion[r] = [];
     byRegion[r].push(p);
   }
+  const playerBloc = playerBid ? blocById(playerBid) || G.customBlocs[playerBid] : null;
+
+  const cetBlockers =
+    locked && sched.cet != null && sched.cet !== G.law.tariffSchedule.cet
+      ? tariffCetBlockers(lock.blocId)
+      : [];
 
   return (
     <>
-      <div className="overflow-hidden rounded-md border border-edge bg-g-1">
-        <Lever
-          id="tariffDefault"
-          name="Default external tariff"
-          value={sched.default}
-          min={0}
-          max={25}
-          step={1}
-          decimals={0}
-          base={tariffLeverValue("tariffDefault", G.law)}
-          note={`Trade-weighted average ${tariffScheduleAverage(G.draft).toFixed(1)}%`}
-          onInput={(_id, v) => setTariffLever("tariffDefault", v)}
-          onCommit={(_id, v) => setTariffLever("tariffDefault", v)}
-        />
-      </div>
+      {locked ? (
+        <>
+          <Hint>
+            You are in a customs union — every member trades under one shared
+            external tariff. Any member may propose a new rate; it only takes
+            effect once every other member's relations clear the bar.
+          </Hint>
+          <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+            <Lever
+              id="tariffCet"
+              name="Common external tariff"
+              value={baseline}
+              min={0}
+              max={25}
+              step={1}
+              decimals={0}
+              base={tariffLeverValue("tariffCet", G.law)}
+              note="The shared baseline for all partners outside your customs union"
+              onInput={(_id, v) => setTariffLever("tariffCet", v)}
+              onCommit={(_id, v) => setTariffLever("tariffCet", v)}
+            />
+            {cetBlockers.length ? (
+              <Callout tone="red">
+                Needs every member's approval — {cetBlockers[0]}
+              </Callout>
+            ) : null}
+          </div>
+        </>
+      ) : (
+        <div className="overflow-hidden rounded-md border border-edge bg-g-1">
+          <Lever
+            id="tariffDefault"
+            name="Default external tariff"
+            value={sched.default}
+            min={0}
+            max={25}
+            step={1}
+            decimals={0}
+            base={tariffLeverValue("tariffDefault", G.law)}
+            note={`Trade-weighted average ${tariffScheduleAverage(G.draft).toFixed(1)}%`}
+            onInput={(_id, v) => setTariffLever("tariffDefault", v)}
+            onCommit={(_id, v) => setTariffLever("tariffDefault", v)}
+          />
+        </div>
+      )}
+      {playerBloc ? (
+        <Hint>
+          Trade with fellow {playerBloc.name} members is duty-free.
+        </Hint>
+      ) : null}
       {Object.keys(usedBlocs).map((bid) => {
-        const bloc = blocById(bid);
+        const bloc = blocById(bid) || G.customBlocs[bid];
         const key = `tariffBloc:${bid}`;
-        const val = sched.bloc[bid] != null ? sched.bloc[bid] : sched.default;
+        const val = sched.bloc[bid] != null ? sched.bloc[bid] : baseline;
         return (
           <div
             key={bid}
@@ -651,9 +674,7 @@ function TariffScheduleSection({ G }: { G: any }) {
             {lone.map((p: Country) => {
               const key = `tariffCountry:${p.id}`;
               const val =
-                sched.country[p.id] != null
-                  ? sched.country[p.id]
-                  : sched.default;
+                sched.country[p.id] != null ? sched.country[p.id] : baseline;
               return (
                 <div
                   key={p.id}

@@ -80,6 +80,7 @@ import {
   countryBlocId,
   playerCountryId,
   lockedTariff,
+  mpDraftBlocGateError,
   effectiveTariff,
   importTariffLevel,
   createCustomBloc,
@@ -2852,6 +2853,11 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 }
 
 {
+  /* Any member — not just a fixed "chair" — may propose a new common
+   * external tariff; billClauses() must not silently discard it. It only
+   * takes effect if every other member's relations clear the bar (see the
+   * mpDraftBlocGateError() check below), same consensus gate the union
+   * already uses for accession and external deals. */
   newGame();
   G = getG();
   joinBloc("continental_union", G.law);
@@ -2861,9 +2867,24 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.draft.tariffSchedule.default = 15;
   billClauses();
   assert(
-    G.draft.tariffSchedule.cet === 4,
-    "billClauses snaps draft tariff to the lock",
+    G.draft.tariffSchedule.cet === 15,
+    "billClauses keeps a member's proposed common external tariff",
   );
+  assert(
+    G.draft.tariffSchedule.default === G.law.tariffSchedule.default,
+    "billClauses still snaps the unused 'default' field back while locked",
+  );
+  for (const p of activePartners()) G.rel[p.id] = 70;
+  assert(
+    mpDraftBlocGateError() === null,
+    "a CET proposal with warm relations everywhere is not blocked",
+  );
+  G.rel.germany = 10;
+  assert(
+    /Cannot change the common external tariff/.test(mpDraftBlocGateError() || ""),
+    "a CET proposal is blocked without every member's approval",
+  );
+  for (const p of activePartners()) G.rel[p.id] = 70;
 }
 
 {
@@ -2886,6 +2907,12 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame();
   G = getG();
+  /* enact() below falls through to the ordinary solo quarter-advance, which
+   * rolls a random event and adds demand noise unless sandbox is on
+   * (newGame() defaults to sandbox off) — and the exact-step-count
+   * assertions after the direct step() calls further down need that
+   * advance to be deterministic. */
+  G.sandbox = true;
   assert(
     !EVENTS.find((e) => e.id === "allianceOffer"),
     "allianceOffer event removed",
@@ -3067,6 +3094,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame();
   G = getG();
+  /* Same non-determinism as above — the two enact() calls below feed a
+   * quarter-count-sensitive step() loop. */
+  G.sandbox = true;
   joinBloc("continental_union", G.law);
   G.capital = 200;
   G.rel.india = 55;
@@ -3165,6 +3195,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
+  G.sandbox = true;
   assert(
     countryBlocId(playerCountryId()) === "continental_union",
     "France starts in continental union",
@@ -3327,6 +3358,15 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame();
   G = getG();
+  /* This block's enact() calls (Deliver a Leave clause, apply to rejoin)
+   * fall through to the ordinary solo quarter-advance, which rolls a random
+   * event and adds demand noise unless sandbox is on — newGame() defaults
+   * to sandbox off. Left non-deterministic, that randomness nudges G.q and
+   * G.rel just enough to occasionally change how many quarters the
+   * accession pipeline below takes, which intermittently failed the
+   * "advances to step 2" / "rejoins the bloc" / "restores founder"
+   * assertions further down. */
+  G.sandbox = true;
   G.law.tariffSchedule.bloc.continental_union = 4;
   assert(
     Math.abs(effectiveTariff("germany", G.law) - 4) < 0.01,

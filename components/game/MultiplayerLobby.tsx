@@ -14,8 +14,10 @@ import {
   DEFAULT_REALM_ID,
   realmById,
 } from "../../lib/sim/realms.ts";
+import { playerCountryId } from "../../lib/sim/engine.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
+import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 
 function errMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
@@ -235,7 +237,11 @@ export default function MultiplayerLobby({
                           </em>
                         ) : null}
                       </span>
-                      <span className="min-w-0 truncate text-xs text-ink-soft max-md:col-span-full">
+                      <span className="flex min-w-0 items-center gap-1.5 truncate text-xs text-ink-soft max-md:col-span-full">
+                        <FlagAvatar
+                          role={playerCountryId(p.role)}
+                          size="size-4.5"
+                        />
                         {seat.name}
                       </span>
                       {p.isHost ? (
@@ -329,9 +335,15 @@ export default function MultiplayerLobby({
                   <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
                     Your seat
                   </span>
-                  <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
-                    {realm.name}
-                  </strong>
+                  <div className="flex items-center gap-2.5">
+                    <FlagAvatar
+                      role={playerCountryId(realm.role)}
+                      size="size-10"
+                    />
+                    <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
+                      {realm.name}
+                    </strong>
+                  </div>
                   <em className="text-xs leading-[1.4] text-ink-soft not-italic">
                     Click another country on the map to change seat — it must be
                     free when you enter.

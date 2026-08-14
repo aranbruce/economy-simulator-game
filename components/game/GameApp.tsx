@@ -30,6 +30,7 @@ import {
   restoreMpDiploUi,
   applyLocalMpDiploAction,
   playerCountryId,
+  mpDraftBlocGateError,
 } from "../../lib/sim/engine.ts";
 import {
   DEFAULT_REALM_ID,
@@ -46,6 +47,7 @@ import {
   chooseMpEvent,
   applyMpDiplo,
   openMpRoomStream,
+  MpApiError,
 } from "../../lib/mp/client.ts";
 import {
   saveMpSession,
@@ -82,6 +84,19 @@ function errStatus(err: unknown): number | undefined {
   return err instanceof Error && "status" in err
     ? (err as any).status
     : undefined;
+}
+
+/** A 4xx MpApiError is the server declining an action for a reason the
+ *  player can already see and act on (capital, relations, timing) — normal
+ *  game flow, not a bug. Only warn the console for genuinely unexpected
+ *  failures (network errors, 5xx, anything else), so an ordinary rejection
+ *  doesn't trip Next's dev-mode console-error overlay like a crash. */
+function logMpErrorIfUnexpected(err: unknown) {
+  const status = errStatus(err);
+  if (err instanceof MpApiError && status != null && status >= 400 && status < 500) {
+    return;
+  }
+  console.error(err);
 }
 
 export default function GameApp() {
@@ -266,7 +281,7 @@ export default function GameApp() {
           }
           bump();
         } catch (err) {
-          console.error(err);
+          logMpErrorIfUnexpected(err);
           alert(errMessage(err, "Could not resolve event"));
         }
       };
@@ -784,7 +799,7 @@ export default function GameApp() {
       }
       bump();
     } catch (err) {
-      console.error(err);
+      logMpErrorIfUnexpected(err);
       if (errStatus(err) === 404) {
         exitMpToSetup(
           "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage).",
@@ -816,7 +831,7 @@ export default function GameApp() {
         render();
         return true;
       } catch (err) {
-        console.error(err);
+        logMpErrorIfUnexpected(err);
         if (errStatus(err) === 404) {
           exitMpToSetup(
             "This multiplayer room was lost (host left, or the server instance recycled without shared KV storage).",
@@ -991,6 +1006,14 @@ export default function GameApp() {
   }, [phase, mpSession, mpRoom?.status, bump, applyMpSnapshot, exitMpToSetup]);
 
   const handleDeliver = useCallback(() => {
+    /* Catch a blocked bloc clause (low relations, capital, timing) before the
+     * projection modal and any server round-trip — the same check the server
+     * enforces, but surfaced as a plain message instead of a failed submit. */
+    const gateErr = mpDraftBlocGateError();
+    if (gateErr) {
+      alert(gateErr);
+      return;
+    }
     if (mpSessionRef.current) {
       const G = getG();
       if (!G?.mp || G.mp.bootstrapping) return;
