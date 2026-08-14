@@ -3443,6 +3443,50 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(archived.length === 1, "answering does not file a second event clip");
   assert(/chose to join the package in full/i.test(archived[0].lede), "archive lede records the choice");
 
+  /* Two clips can await answers at once. A button must settle its own story:
+     resolving the oldest pending clip instead would leave the other pending
+     for ever, and pressChoicePending() holds Deliver shut. */
+  const rowEv = EVENTS.find((e) => e.id === "tradeRow");
+  let pickedA = null;
+  let pickedB = null;
+  presentEventAsPress(sanctions, (o) => {
+    pickedA = o;
+  });
+  presentEventAsPress(rowEv, (o) => {
+    pickedB = o;
+  });
+  const pendA = (G.press || []).find(
+    (c) => c.pendingChoice && c.eventId === "sanctions",
+  );
+  const pendB = (G.press || []).find(
+    (c) => c.pendingChoice && c.eventId === "tradeRow",
+  );
+  assert(
+    pendA && pendB && pendA.id !== pendB.id,
+    "two events await answers as separate clips",
+  );
+  pendB.opts[0].f();
+  assert(pickedB && !pickedA, "only the clicked clip's callback fires");
+  assert(
+    !pendB.pendingChoice && pendA.pendingChoice,
+    "answering settles that clip and leaves the other one pending",
+  );
+  assert(pressChoicePending(), "Deliver stays shut while the other clip waits");
+  pendA.opts[0].f();
+  assert(!pressChoicePending(), "answering the last clip lifts the block");
+
+  /* Re-presenting an unanswered event (lockstep remount keeps the inbox)
+     refreshes its clip rather than filing a rival copy. */
+  presentEventAsPress(sanctions, () => {});
+  const pendingCount = (G.press || []).filter((c) => c.pendingChoice).length;
+  presentEventAsPress(sanctions, () => {});
+  assert(
+    (G.press || []).filter((c) => c.pendingChoice).length === pendingCount,
+    "re-presenting an unanswered event files no second pending clip",
+  );
+  (G.press || []).find((c) => c.pendingChoice).opts[0].f();
+  assert(!pressChoicePending(), "refreshed clip is still answerable");
+
   const boom = EVENTS.find((e) => e.id === "boom");
   const boomChips = immediateOptionChips(boom.opts[0]);
   assert(

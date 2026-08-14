@@ -16602,6 +16602,7 @@ function pushPress(clips: any) {
       rot: Math.random() * 10 - 5,
       seen: false,
     };
+    if (raw.eventId) clip.eventId = raw.eventId;
     if (raw.pendingChoice) {
       clip.pendingChoice = true;
       clip.opts = raw.opts || null;
@@ -16667,9 +16668,11 @@ function eventChoiceOpts(ev: any, onPick: any) {
     };
   });
 }
-function resolvePressEventChoice(ev: any, option: any) {
+/** Settle the clip whose button was pressed — by id, not "the first pending
+ *  one", which answers the wrong story when two clips are awaiting a choice. */
+function resolvePressEventChoice(clipId: any, ev: any, option: any) {
   if (!G || !G.press) return;
-  const clip = G.press.find((c: any) => c.pendingChoice);
+  const clip = G.press.find((c: any) => c.id === clipId);
   if (!clip) return;
   const after = eventPressCopy(ev, option);
   clip.headline = after.headline;
@@ -16678,7 +16681,7 @@ function resolvePressEventChoice(ev: any, option: any) {
   clip.pendingChoice = false;
   clip.opts = null;
   clip.seen = true;
-  _pressExpanded = null;
+  if (_pressExpanded === clip.id) _pressExpanded = null;
   bump();
 }
 /** Cabinet events land as a newspaper clipping you must answer — not a HUD
@@ -16686,21 +16689,33 @@ function resolvePressEventChoice(ev: any, option: any) {
 function presentEventAsPress(ev: any, onPick: any) {
   if (!ev || !G) return false;
   const copy = eventPressCopy(ev, null);
-  const opts = eventChoiceOpts(ev, (o: any, i: number) => {
-    resolvePressEventChoice(ev, o);
+  /* A lockstep remount keeps the inbox, so the same unanswered event can be
+     presented twice. Refresh that clip in place: a second clip for one story
+     would leave one of them pending for ever, and pressChoicePending() holds
+     Deliver shut until every clip is answered. */
+  let clip = ev.id
+    ? G.press &&
+      G.press.find((c: any) => c.pendingChoice && c.eventId === ev.id)
+    : null;
+  if (!clip) {
+    pushPress({
+      kind: "event",
+      eventId: ev.id || null,
+      masthead: copy.masthead,
+      headline: copy.headline,
+      lede: copy.lede,
+      kicker: qLabel(G, G.q),
+      pendingChoice: true,
+    });
+    clip = G.press[G.press.length - 1];
+    if (!clip) return false;
+  }
+  const clipId = clip.id;
+  clip.opts = eventChoiceOpts(ev, (o: any, i: number) => {
+    resolvePressEventChoice(clipId, ev, o);
     onPick(o, i);
   });
-  pushPress({
-    kind: "event",
-    masthead: copy.masthead,
-    headline: copy.headline,
-    lede: copy.lede,
-    kicker: qLabel(G, G.q),
-    pendingChoice: true,
-    opts,
-  });
-  const clip = G.press[G.press.length - 1];
-  if (clip) expandPress(clip.id);
+  expandPress(clipId);
   return true;
 }
 function getPressExpanded() {
