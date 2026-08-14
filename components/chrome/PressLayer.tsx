@@ -146,16 +146,6 @@ export function PressLayer() {
               <CloseIcon />
             </button>
             <ClipBody c={focused} />
-            <button
-              type="button"
-              className="mt-3.5 cursor-pointer border-0 bg-transparent p-0 text-xs font-semibold tracking-[.02em] text-paper-ink-soft underline-offset-2 transition-colors duration-150 hover:text-paper-ink hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              onClick={(e) => {
-                e.stopPropagation();
-                closeFocusedPress();
-              }}
-            >
-              Back to inbox
-            </button>
           </article>
         </div>
       ) : null}
