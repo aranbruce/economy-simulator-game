@@ -228,6 +228,7 @@ import {
   capitalOutlook,
   chamberBlocksDeliver,
   leaderTitle,
+  impactStripData,
 } from "../lib/sim/engine.ts";
 import { PARTY_OVERLAYS, partyOverlayForRole } from "../lib/sim/parties.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
@@ -7496,6 +7497,18 @@ for (const c of COUNTRIES) {
     "programme cost includes the whip",
   );
   assert(afterWhip.whipSpend === 10, "billVoteData reports whip spend");
+  /* The bill drawer's staged-capital figure quotes the same price the Dock and
+     enact() charge, whip included, in both the career and sandbox branches. */
+  assert(
+    impactStripData().cost === programmeCost(),
+    "staged capital matches the programme price in sandbox",
+  );
+  G.sandbox = false;
+  assert(
+    impactStripData().cost === programmeCost(),
+    "staged capital matches the programme price in career",
+  );
+  G.sandbox = true;
   const capBefore = G.capital;
   /* Force a passable chamber so enact is not blocked by majority. */
   G.parties.seats = {
