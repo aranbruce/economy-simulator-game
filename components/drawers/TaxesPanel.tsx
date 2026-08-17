@@ -17,6 +17,7 @@ import {
   thresholdSliderMax,
   compositionBarData,
   effectiveBands,
+  itemPartyStances,
   withIncomeOn,
   withNi,
   TAPER_RATE,
@@ -43,6 +44,7 @@ import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
 import { CardPrice } from "../ui/Card.tsx";
+import { PartyStanceChips } from "../ui/PartyStance.tsx";
 import type { Tax } from "../../lib/sim/types.ts";
 
 export type TaxCat = "income" | "wealth" | "consumption" | "corporate" | "vice";
@@ -233,6 +235,13 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         <div className="mt-0.5 text-xs text-ink-faint">
           Introducing it costs {t.pc || 6} political capital.
         </div>
+        <PartyStanceChips
+          stances={itemPartyStances("tax", {
+            id: t.id,
+            delta: (s.rate || t.def) - (t.def || 0) || 1,
+          })}
+          sandbox={!!G.sandbox}
+        />
       </div>
     );
   }
@@ -267,6 +276,16 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
         raises {y.toFixed(2)}% of GDP
         {t.grp === "vice" ? ` · black market ${E.blackLevel.toFixed(0)}%` : ""}
       </div>
+      <PartyStanceChips
+        stances={itemPartyStances("tax", {
+          id: t.id,
+          delta:
+            s.rate -
+            ((G.law.taxes[t.id] && G.law.taxes[t.id].rate) || s.rate) ||
+            0.01,
+        })}
+        sandbox={!!G.sandbox}
+      />
     </div>
   );
 }

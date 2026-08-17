@@ -6,12 +6,19 @@ import {
   electionAtRisk,
   ongoingSituations,
   reviewNoun,
+  seatRows,
+  CHAMBER_SEATS,
+  canCallEarlyElection,
+  earlyElectionBlocker,
+  callEarlyElection,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { STATE_VALUE_COLOR } from "../ui/Chip.tsx";
 import { Callout } from "../ui/Callout.tsx";
 import { Card } from "../ui/Card.tsx";
+import { ChamberSeating } from "../ui/ChamberVote.tsx";
+import { Button } from "../ui/Button.tsx";
 
 interface Flag {
   label: string;
@@ -30,7 +37,9 @@ export function OverviewPanel() {
 
   const electionDetail =
     risk.left <= 4
-      ? `Score ~${risk.therm.toFixed(0)} — ${risk.atRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
+      ? risk.plurality === false
+        ? `On these numbers you would not come first (${risk.projectedSeats ?? 0} seats)`
+        : `Score ~${risk.therm.toFixed(0)} — ${risk.atRisk ? "below the threshold to hold on" : "above the threshold to hold on"}`
       : "Too early to score — the threshold only starts mattering in the final 4 quarters";
 
   const inflationOff = e.inflation > 4 || e.inflation < 0;
@@ -97,7 +106,68 @@ export function OverviewPanel() {
         >
           {electionDetail}
         </div>
+        {noun !== "congress" ? (
+          <div className="mt-2.5">
+            <Button
+              tiny
+              disabled={!canCallEarlyElection()}
+              title={
+                earlyElectionBlocker() ||
+                "Dissolve the chamber and face the country"
+              }
+              onClick={() => callEarlyElection()}
+            >
+              Call an early {noun}
+            </Button>
+            <Hint className="mt-1.5">
+              {earlyElectionBlocker() ||
+                "Dissolve the chamber and go to the country now. A lost plurality ends the term."}
+            </Hint>
+          </div>
+        ) : null}
       </Callout>
+
+      <Eyebrow>The chamber</Eyebrow>
+      <ChamberSeating
+        parties={seatRows().map((r: any) => ({
+          ...r,
+          aye: r.seats,
+          nay: 0,
+        }))}
+        mode="composition"
+        className="mx-auto mb-2 max-w-80"
+      />
+      <div className="mb-4 flex flex-col gap-2">
+        {seatRows().map((r: any) => {
+          const w = Math.max(0, Math.min(100, r.seats));
+          return (
+            <div key={r.id}>
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="font-semibold">
+                  <span
+                    className="mr-1.5 inline-block size-1.5 rounded-full align-middle"
+                    style={{ background: r.color }}
+                  />
+                  {r.name}
+                  {r.ruling ? " · you" : ""}
+                </span>
+                <span className="ml-auto font-[650] text-accent-lt tabular-nums">
+                  {r.seats}/{CHAMBER_SEATS}
+                </span>
+              </div>
+              <div className="mt-1 h-1 overflow-hidden rounded-full bg-g-1">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${w}%`,
+                    background: r.color,
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
 
       <Eyebrow>Faction approval</Eyebrow>
       <div className="mb-4 flex flex-col gap-2">

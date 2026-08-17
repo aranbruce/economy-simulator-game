@@ -11,6 +11,7 @@ import {
   applyMpInboundUltimatumChoice,
   applyMpInboundBlocInviteChoice,
   applyMpInboundDealChoice,
+  applyMpInboundSummitCommercialChoice,
   applyMpInboundNoticeChoice,
 } from "../sim/engine.ts";
 import type { Room } from "./types.ts";
@@ -224,9 +225,15 @@ interface EventChoiceBody {
   inboundBlocInvite?: boolean;
   accept?: boolean;
   inboundDealProposal?: boolean;
+  inboundSummitCommercial?: boolean;
   inboundNotice?: boolean;
   optionIndex?: number;
   dismiss?: boolean;
+  commercialTariff?: boolean;
+  commercialPackage?: boolean;
+  ourDelta?: number;
+  theirDelta?: number;
+  dealIds?: string[];
 }
 
 /** Apply a pending event choice for the calling seat. */
@@ -290,6 +297,31 @@ export async function chooseEvent(
     if (!result.ok) {
       return {
         error: result.error || "Bloc invite response failed",
+        status: 400,
+      };
+    }
+    room.version = baseVer + 1;
+    const conflict = await commitRoom(room, baseVer);
+    if (conflict) return conflict;
+    return { room: publicRoom(room, playerToken), ok: true };
+  }
+
+  /* Inbound summit reciprocal tariff offer — accept / decline. */
+  if (body.inboundSummitCommercial) {
+    if (!pol) return { error: "No seat politics", status: 409 };
+    const inbound = pol.inboundSummitCommercial;
+    if (!inbound || inbound.status !== "pending") {
+      return { error: "No pending summit commercial offer", status: 409 };
+    }
+    const baseVer = room.version;
+    const result = applyMpInboundSummitCommercialChoice(
+      room.snapshot,
+      player.seatId,
+      !!body.accept,
+    );
+    if (!result.ok) {
+      return {
+        error: result.error || "Summit commercial response failed",
         status: 400,
       };
     }
@@ -372,6 +404,7 @@ export async function chooseEvent(
     room.snapshot,
     player.seatId,
     body.optionIndex,
+    body,
   );
   if (!result.ok) {
     return { error: result.error || "Event failed", status: 400 };

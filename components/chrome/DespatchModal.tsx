@@ -12,6 +12,7 @@ import {
 import { SafeHtml } from "../ui/SafeHtml.tsx";
 import { BlocFoundModalBody, BlocInviteModalBody } from "./BlocModals.tsx";
 import { BriefingBody } from "./BriefingBody.tsx";
+import { CommercialAgendaBody } from "./CommercialAgendaBody.tsx";
 import { VerdictBody } from "./VerdictBody.tsx";
 
 type BlocModalState =
@@ -33,7 +34,7 @@ const PAPER_SKIN = {
     "mt-2.5 mb-0 font-display text-3xl leading-[1.1] font-normal tracking-tight text-paper-ink max-md:text-2xl",
   body: "px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] text-paper-ink max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3",
   option:
-    "cursor-pointer rounded-md border border-l-3 border-paper-border/22 border-l-paper-border/35 bg-paper-border/4.5 px-3.25 py-2.75 text-left font-sans text-sm text-paper-ink transition duration-160 hover:border-l-paper-accent hover:bg-paper-border/9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3",
+    "cursor-pointer rounded-md border border-l-3 border-paper-border/22 border-l-paper-border/35 bg-paper-border/4.5 px-3.25 py-2.75 text-left font-sans text-sm text-paper-ink transition duration-160 hover:border-l-paper-accent hover:bg-paper-border/9 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-paper-accent active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-l-paper-border/35 disabled:hover:bg-paper-border/4.5 disabled:active:scale-100 max-md:min-h-11 max-md:p-3",
   optionSub: "mt-0.75 block text-xs text-paper-ink-soft not-italic",
 };
 
@@ -48,7 +49,7 @@ const HUD_SKIN = {
     "mt-2.5 mb-0 font-display text-3xl leading-[1.1] font-normal tracking-tight max-md:text-2xl",
   body: "px-5 pt-3.5 pb-1.5 text-sm leading-[1.48] max-md:px-3.5 max-md:pt-3 max-md:pb-1 max-md:text-sm [&_p]:mt-0 [&_p]:mb-3",
   option:
-    "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 text-left font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.99] max-md:min-h-11 max-md:p-3",
+    "cursor-pointer rounded-md border border-l-3 border-edge border-l-transparent bg-g-1 px-3.25 py-2.75 text-left font-sans text-sm text-white transition duration-160 hover:border-l-accent hover:bg-white/7 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-l-transparent disabled:hover:bg-g-1 disabled:active:scale-100 max-md:min-h-11 max-md:p-3",
   optionSub: "mt-0.75 block text-xs text-ink-soft not-italic",
 };
 
@@ -112,6 +113,11 @@ export function DespatchModal() {
                 <BriefingBody data={open.data} paper />
               ) : open.kind === "verdict" ? (
                 <VerdictBody data={open.data} />
+              ) : open.kind === "commercial" ? (
+                <CommercialAgendaBody
+                  data={open.data}
+                  optionClassName={skin.option}
+                />
               ) : (
                 <SafeHtml html={open.body} />
               )}
@@ -125,7 +131,9 @@ export function DespatchModal() {
                   key={i}
                   type="button"
                   className={skin.option}
+                  disabled={!!o.disabled}
                   onClick={() => {
+                    if (o.disabled) return;
                     closeDespatch();
                     o.f();
                   }}

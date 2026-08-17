@@ -159,24 +159,13 @@ export function setNiRate(key: "empRate" | "erRate", value: number) {
   bump();
 }
 
+/** Stage or cancel withdrawal of a ratified bilateral deal (summits sign new ones). */
 export function toggleDraftDeal(dealId: string) {
   const G = getG();
+  if (!G.law || !G.law.deals || !G.law.deals[dealId]) return;
+  if (!G.draft.deals) G.draft.deals = {};
   if (G.draft.deals[dealId]) delete G.draft.deals[dealId];
   else G.draft.deals[dealId] = true;
-  bump();
-}
-
-export function toggleBlocExternalDeal(dealId: string, partnerId: string) {
-  const G = getG();
-  if (
-    G.draft.blocExternalDeal &&
-    G.draft.blocExternalDeal.dealId === dealId &&
-    G.draft.blocExternalDeal.partnerId === partnerId
-  ) {
-    G.draft.blocExternalDeal = null;
-  } else {
-    G.draft.blocExternalDeal = { partnerId, dealId };
-  }
   bump();
 }
 

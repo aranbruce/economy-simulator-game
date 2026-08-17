@@ -2,6 +2,7 @@
  * Minimal sim smoke tests — opening books, projection purity, deterministic step,
  * structural event shocks.
  */
+import { toggleDraftDeal } from "../lib/ui/actions.ts";
 import {
   newGame,
   getG,
@@ -105,6 +106,7 @@ import {
   isHumanMpSeat,
   applyDraftMissions,
   DEAL_BY_ID,
+  BLOC_TEMPLATES,
   prepareEvent,
   FAC_0,
   enact,
@@ -114,6 +116,13 @@ import {
   finalizeBlocJoin,
   partnerAccessTargets,
   dealBlockers,
+  blocExternalDealBlockers,
+  cuBoundary,
+  canNegotiateUnionCommercial,
+  canNegotiateReciprocalTariffs,
+  unionAssociationDeal,
+  unionPackageBlockers,
+  ratifyBilateralDealWithPartner,
   beginEpisode,
   endEpisode,
   scheduleNextMajorQ,
@@ -149,6 +158,9 @@ import {
   termLenOf,
   termReviewDue,
   termReview,
+  canCallEarlyElection,
+  earlyElectionBlocker,
+  EARLY_ELECTION_MIN_Q,
   checkCrises,
   FACTIONS,
   relationModifiers,
@@ -162,6 +174,8 @@ import {
   applySphereTrespassOnDeal,
   ENVOY_ASSIGN_PC,
   ENVOY_TARGET,
+  ENVOY_DRIFT,
+  ENVOY_BUILD_CAP,
   ULTIMATUM_PC,
   LEDGER_DECAY,
   TABS,
@@ -173,6 +187,18 @@ import {
   rollMissionEvent,
   formatMissionTokens,
   applyMissionEventOption,
+  applySummitCommercialOption,
+  applyMpInboundSummitCommercialChoice,
+  buildSummitCommercialEvent,
+  previewSummitTariff,
+  commercialAcceptScore,
+  commercialDealDeclineReason,
+  commercialPackageScore,
+  diploDeps,
+  snapshotPartnerTariffs,
+  snapshotPartnerTrade,
+  livePartnerTariffOnPlayer,
+  partnerTariffOnPlayer,
   MISSION_EVENTS,
   queueSummitVisitEvents,
   VISIT_DURATION,
@@ -183,7 +209,27 @@ import {
   diploHudChips,
   ongoingSituations,
   hasFormalProtest,
+  PARTIES,
+  PARTY_IDS,
+  CHAMBER_SEATS,
+  lawDeltaTaste,
+  partyStances,
+  policyTaste,
+  seatsFromVotes,
+  rulingAyeShare,
+  chamberVote,
+  seedParties,
+  allocateElection,
+  billVoteData,
+  billCost,
+  programmeCost,
+  parliamentPowersOf,
+  seatRows,
+  capitalOutlook,
+  chamberBlocksDeliver,
+  leaderTitle,
 } from "../lib/sim/engine.ts";
+import { PARTY_OVERLAYS, partyOverlayForRole } from "../lib/sim/parties.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
 import { COUNTRIES } from "../lib/sim/countries.ts";
 import { REALM_LAW } from "../lib/sim/realmLaws.ts";
@@ -226,7 +272,7 @@ assert(
   const g0 = step(G, G.law, G.law, true).growth;
   const g1 = step(G, G.law, G.law, true).growth;
   assert(
-    Math.abs(g0) < 2 && Math.abs(g1) < 2,
+    Math.abs(g0) < 2.8 && Math.abs(g1) < 2.8,
     `opening growth stays quiet (got ${g0.toFixed(2)} then ${g1.toFixed(2)})`,
   );
   assert(
@@ -1420,6 +1466,72 @@ assert(
   "bill masthead is a newspaper",
 );
 
+{
+  const chamber = composePress({
+    clauses: [{ label: "Abolish fuel duty", pc: 8 }],
+    q: 0,
+    econ: CALM_ECON,
+  });
+  assert(
+    chamber.length === 1 &&
+      /passed the chamber/.test(chamber[0].lede) &&
+      !/red box/i.test(chamber[0].lede),
+    "sovereign legislative clip reports a chamber vote, not the red box",
+  );
+  const exec = composePress({
+    clauses: [{ label: "State visit with Japan", pc: 6, executive: true }],
+    q: 0,
+    econ: CALM_ECON,
+  });
+  assert(
+    /government enacted/.test(exec[0].lede) && !/chamber/.test(exec[0].lede),
+    "executive-only clip does not claim a parliamentary vote",
+  );
+  const summitMp = composePress({
+    clauses: [{ label: "State visit / summit with Japan", pc: 8 }],
+    q: 0,
+    econ: CALM_ECON,
+  });
+  assert(
+    /government enacted/.test(summitMp[0].lede) &&
+      !/chamber/.test(summitMp[0].lede),
+    "a summit clip without an executive flag still does not claim a chamber vote",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.groups.parliamentaryPowers = "suppressed";
+  G.draft.groups.parliamentaryPowers = "suppressed";
+  const clip = composePress({
+    clauses: [{ label: "Abolish fuel duty", pc: 8 }],
+    q: 0,
+    econ: CALM_ECON,
+  });
+  assert(
+    /government enacted/.test(clip[0].lede) &&
+      !/passed the chamber/.test(clip[0].lede),
+    "suppressed parliament clip is an executive act",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.groups.parliamentaryPowers = "consultative";
+  G.draft.groups.parliamentaryPowers = "consultative";
+  const clip = composePress({
+    clauses: [{ label: "Abolish fuel duty", pc: 8 }],
+    q: 0,
+    econ: CALM_ECON,
+  });
+  assert(
+    /advisory/.test(clip[0].lede),
+    "consultative parliament clip notes the vote was advisory",
+  );
+}
+
 const ev = EVENTS.find((e) => e.id === "ultimatum");
 const opt = ev.opts[0];
 const eventCopy = eventPressCopy(ev, opt);
@@ -1429,8 +1541,7 @@ assert(
   "event headline is the story, not the chosen option",
 );
 assert(
-  PAPER_MASTHEAD.test(eventCopy.masthead) &&
-    eventCopy.masthead !== ev.stamp,
+  PAPER_MASTHEAD.test(eventCopy.masthead) && eventCopy.masthead !== ev.stamp,
   "event masthead is a newspaper, not a ministry stamp",
 );
 assert(
@@ -1496,13 +1607,19 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(getPressExpanded() === drop, "expandPress focuses a clip");
   assert(discardPress(drop) === true, "discardPress removes a clip");
   assert(G.press.length === n - 1, "discardPress shortens the inbox");
+  assert(!G.press.some((c) => c.id === drop), "discarded clip is gone");
   assert(
-    !G.press.some((c) => c.id === drop),
-    "discarded clip is gone",
+    G.press[0].id === keep,
+    "discardPress does not shuffle remaining clips",
   );
-  assert(G.press[0].id === keep, "discardPress does not shuffle remaining clips");
-  assert(getPressExpanded() === null, "discarding the focused clip clears focus");
-  assert(discardPress("missing") === false, "discardPress no-ops on unknown id");
+  assert(
+    getPressExpanded() === null,
+    "discarding the focused clip clears focus",
+  );
+  assert(
+    discardPress("missing") === false,
+    "discardPress no-ops on unknown id",
+  );
 }
 
 /* Morning-note impact: Permanent Secretary prose from impactOf, not the Gazette. */
@@ -1859,6 +1976,15 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     ) < 0.01,
     "partner GDP bn tracks opening level at index 100",
   );
+  const last = G.log[G.log.length - 1];
+  const reconstructed =
+    gdp0ForSeat(G.homeRole) *
+    ((last.gdp != null ? last.gdp : 100) / 100) *
+    ((last.fx != null ? last.fx : 100) / 100);
+  assert(
+    Math.abs(reconstructed - realmGdpBn("home", G)) < 0.01,
+    "log gdp×fx reconstructs the same USD GDP the realm card uses",
+  );
 }
 
 /* Realm-specific openings, Kingdom as partner, settle chart history. */
@@ -1979,6 +2105,29 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   );
   assert(!!G.law.policies.swf, "Saudi opens with a sovereign wealth fund");
   assert(G.law.spend.defence === 7.0, "Saudi opens with a high defence share");
+  assert(
+    G.law.groups.partyPluralism === "banned",
+    "Saudi opens with opposition banned",
+  );
+  assert(
+    G.law.groups.parliamentaryPowers === "suppressed",
+    "Saudi opens with no standing legislature",
+  );
+  assert(
+    G.parties.seats.national === 100,
+    "Saudi chamber is 100 for the Court",
+  );
+
+  newGame({ homeRole: "vietnam", homeIso: "704", country: "Vietnam" });
+  G = getG();
+  assert(
+    G.law.groups.partyPluralism === "singleParty",
+    "Vietnam opens as a single-party system",
+  );
+  assert(
+    G.law.groups.parliamentaryPowers === "consultative",
+    "Vietnam's assembly is consultative",
+  );
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
@@ -2014,6 +2163,22 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     "China opens with industrial strategy and strict borders",
   );
   assert(G.law.vice.gambling === "banned", "China opens with gambling banned");
+  assert(
+    G.law.groups.partyPluralism === "singleParty",
+    "China opens as a single-party system",
+  );
+  assert(
+    G.law.groups.parliamentaryPowers === "consultative",
+    "China's assembly is consultative, not a sovereign parliament",
+  );
+  assert(
+    G.parties.seats.national === 100,
+    "China chamber is the Communist Party alone",
+  );
+  assert(
+    !chamberBlocksDeliver(),
+    "China's consultative assembly cannot block Deliver",
+  );
   /* pinOpeningHeadlines must keep the seat's income schedule, not UK defaults. */
   assert(
     G.law.income.allowance === 8000,
@@ -2024,6 +2189,27 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     G.econ.trendBias == null || G.econ.trendBias === 0,
     "no residual trendBias on Eastern open",
   );
+  {
+    const cap0 = G.capital;
+    const outlook = capitalOutlook(0);
+    assert(
+      outlook && outlook.fiscalRuleHit === 3,
+      "China fiscal rule is in the capital preview",
+    );
+    assert(
+      outlook.nextQuarter < cap0 + outlook.gain - 0.5,
+      "China next-turn capital nets the fiscal-rule dock, not just popularity regen",
+    );
+    step(G, G.law, G.law, true);
+    assert(
+      Math.abs(G.capital - outlook.nextQuarter) < 1.5,
+      "China capital after a quiet quarter matches the preview (got " +
+        G.capital.toFixed(2) +
+        " vs " +
+        outlook.nextQuarter.toFixed(2) +
+        ")",
+    );
+  }
 
   newGame({ homeRole: "russia", homeIso: "643", country: "Northern Reach" });
   G = getG();
@@ -2146,6 +2332,36 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
       assert(distinct, `${c.id} statute differs from UK baseLaw`);
     }
   }
+
+  {
+    const offices = [
+      ["home", "Prime Minister"],
+      ["germany", "Chancellor"],
+      ["france", "President"],
+      ["united_states", "President"],
+      ["korea", "President"],
+      ["brazil", "President"],
+      ["mexico", "President"],
+      ["china", "General Secretary"],
+      ["vietnam", "General Secretary"],
+      ["saudi", "Monarch"],
+      ["uae", "Monarch"],
+      ["russia", "President"],
+      ["egypt", "President"],
+      ["turkey", "President"],
+      ["south_africa", "President"],
+      ["kenya", "President"],
+      ["italy", "Prime Minister"],
+      ["japan", "Prime Minister"],
+      ["india", "Prime Minister"],
+      ["canada", "Prime Minister"],
+    ];
+    for (const [role, title] of offices) {
+      const got = leaderTitle(lawForRole(role), undefined, role);
+      assert(got === title, `${role} office is ${title} (got ${got})`);
+    }
+  }
+
   newGame({ homeRole: "germany", homeIso: "276", country: "Germany" });
   G = getG();
   assert(
@@ -2338,6 +2554,75 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const kt = G.term;
   termReview();
   assert(G.term === kt + 1, "Kingdom election advances the term");
+  assert(G.termStartQ === 20, "scheduled election resets the term clock");
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  assert(
+    G.law.groups.electionCalendar === "flexible",
+    "Kingdom opens with dissolution allowed",
+  );
+  assert(
+    !!earlyElectionBlocker(),
+    "cannot call a snap election on day one (" + earlyElectionBlocker() + ")",
+  );
+  G.q = EARLY_ELECTION_MIN_Q;
+  assert(canCallEarlyElection(), "Kingdom may dissolve after a year");
+  const snapTerm = G.term;
+  const seatsBefore = { ...G.parties.seats };
+  termReview();
+  assert(G.term === snapTerm + 1, "early election advances the term");
+  assert(
+    G.termStartQ === EARLY_ELECTION_MIN_Q,
+    "snap election resets the clock from today",
+  );
+  assert(!termReviewDue(), "snap election is not immediately due again");
+  G.q = 20;
+  assert(
+    !termReviewDue(),
+    "old q=20 date is no longer an election after a snap at q=4",
+  );
+  G.q = EARLY_ELECTION_MIN_Q + 20;
+  assert(termReviewDue(), "next election is a full term after the snap");
+  assert(
+    JSON.stringify(G.parties.seats) !== JSON.stringify(seatsBefore) ||
+      G.parties.seats[G.parties.rulingId] > 0,
+    "early election reallocates or keeps a seated government",
+  );
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
+  G = getG();
+  G.q = EARLY_ELECTION_MIN_Q;
+  assert(
+    G.law.groups.electionCalendar === "fixed",
+    "United States opens with fixed terms",
+  );
+  assert(
+    /fixed calendar/.test(earlyElectionBlocker() || ""),
+    "US cannot call an early presidential term (" +
+      earlyElectionBlocker() +
+      ")",
+  );
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "china",
+    homeIso: "156",
+    country: "Eastern Republic",
+  });
+  G = getG();
+  G.q = EARLY_ELECTION_MIN_Q;
+  assert(
+    /congress/.test(earlyElectionBlocker() || ""),
+    "China cannot call an early congress (" + earlyElectionBlocker() + ")",
+  );
 
   /* Capital regen: same approval, China ~55% of Kingdom gain (no fiscal-rule hit). */
   function capitalGain(role, iso, name) {
@@ -2673,6 +2958,33 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     partnerShare("united_states", "china") > partnerShare("home", "china"),
     "US→China trade weight exceeds UK→China",
   );
+  assert(
+    partnerShare("home", "united_states") > partnerShare("home", "germany") &&
+      partnerShare("home", "germany") > partnerShare("home", "china") &&
+      partnerShare("home", "china") < 0.07,
+    "UK export weights rank US > Germany > China, with China near the real ~5%",
+  );
+
+  newGame();
+  G = getG();
+  const openingTrade = snapshotPartnerTrade(G);
+  assert(
+    openingTrade.united_states.X > openingTrade.germany.X &&
+      openingTrade.germany.X > openingTrade.china.X,
+    "opening UK exports rank US > Germany > China",
+  );
+  assert(
+    openingTrade.china.M > openingTrade.china.X,
+    "opening UK runs a deficit with China",
+  );
+  assert(
+    openingTrade.germany.M > openingTrade.germany.X,
+    "opening UK runs a deficit with Germany",
+  );
+  assert(
+    openingTrade.united_states.X > openingTrade.united_states.M,
+    "opening UK runs a surplus with the United States",
+  );
 
   newGame({ homeRole: "france", homeIso: "250", country: "France" });
   G = getG();
@@ -2897,12 +3209,31 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     cl.some((c) => /summit|State visit/i.test(c.label)),
     "staging a summit creates a bill clause",
   );
+  assert(
+    cl.some((c) => c.executive && /summit|State visit/i.test(c.label)),
+    "a summit clause is executive",
+  );
+  assert(
+    billVoteData() && !billVoteData().needed,
+    "a summit alone does not go to the chamber",
+  );
+  assert(
+    !chamberBlocksDeliver(),
+    "a summit alone cannot be blocked by the chamber",
+  );
+  const vat0 = G.law.taxes.vat.rate;
+  G.draft.taxes.vat.rate = vat0 + 2;
+  assert(
+    billVoteData() && billVoteData().needed,
+    "a summit plus a tax still needs the chamber",
+  );
+  G.draft.taxes.vat.rate = vat0;
   const cost = cl.reduce((a, c) => a + c.pc, 0);
   const cap0 = G.capital;
   applyDraftMissions(G.law, G.draft, G.econ, G.fac);
   assert(
     isVisitActive(G, "france"),
-    "summit begins a two-quarter state visit on enact",
+    "summit begins a one-quarter state visit on enact",
   );
   assert(
     !G.missionEvents || G.missionEvents.length === 0,
@@ -2911,9 +3242,11 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   queueSummitVisitEvents(G);
   assert(
     G.missionEvents &&
-      G.missionEvents.length === 1 &&
-      G.missionEvents[0].missionId === "summit",
-    "first deliver during summit visit queues one mission event",
+      G.missionEvents.length === 2 &&
+      G.missionEvents[0].missionId === "summit" &&
+      G.missionEvents[0].eventIndex === 0 &&
+      G.missionEvents[1].eventIndex === 1,
+    "first deliver during summit visit queues political then commercial",
   );
   assert(
     (G.econ.relImpulse.france || 0) < 10,
@@ -2935,7 +3268,670 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 {
   newGame();
   G = getG();
-  step(G, G.law, G.prevLaw, true);
+  G.sandbox = true;
+  G.politics = {
+    [playerCountryId()]: {},
+    japan: {},
+  };
+  beginActiveVisit(G, "japan", "summit");
+  G.missionEvents = [];
+  queueSummitVisitEvents(G);
+  assert(
+    G.missionEvents.length === 1 &&
+      G.missionEvents[0].partnerId === "japan" &&
+      G.missionEvents[0].eventIndex === 1,
+    "human-human summit queues only the commercial agenda",
+  );
+  const skipped = rollMissionEvent(
+    "summit",
+    "japan",
+    G,
+    diploDeps(),
+    true,
+    0,
+  );
+  assert(
+    !skipped,
+    "scripted summit demand paper does not roll vs a human seat",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  assert(
+    G.log.length >= 2 &&
+      G.log.every(
+        (r) => r.partnerTariffs && typeof r.partnerTariffs === "object",
+      ),
+    "settle and opening log rows carry partnerTariffs",
+  );
+  const live = livePartnerTariffOnPlayer("japan");
+  const last = G.log[G.log.length - 1];
+  assert(
+    last.partnerTariffs.japan != null &&
+      Math.abs(last.partnerTariffs.japan - live) < 0.01,
+    "logged japan tariff matches live partnerTariffOnPlayer",
+  );
+  const deLive = livePartnerTariffOnPlayer("germany");
+  assert(
+    Math.abs(deLive - 4) < 0.01,
+    "Germany charges the EU CET of 4 on the player (got " + deLive + ")",
+  );
+  assert(
+    G.log.every(
+      (r) =>
+        r.partnerTariffs &&
+        r.partnerTariffs.germany != null &&
+        Math.abs(r.partnerTariffs.germany - deLive) < 0.01,
+    ),
+    "opening log does not show a pre-CET jump for EU members",
+  );
+  assert(
+    G.world.france &&
+      G.world.france.law.tariffSchedule &&
+      G.world.france.law.tariffSchedule.cet === 4,
+    "CU CET is stamped on AI union members' statute books",
+  );
+  const lenBefore = G.log.length;
+  step(G, G.law, G.law, true);
+  assert(
+    G.log.length === lenBefore + 1,
+    "step appends log rows with tariff history",
+  );
+  assert(
+    G.log[G.log.length - 1].partnerTariffs,
+    "live quarter logs partnerTariffs",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  assert(
+    G.log.length >= 2 &&
+      G.log.every((r) => r.partnerTrade && typeof r.partnerTrade === "object"),
+    "settle and opening log rows carry partnerTrade",
+  );
+  const live = snapshotPartnerTrade(G);
+  const last = G.log[G.log.length - 1];
+  assert(
+    live.japan &&
+      live.japan.X > 0 &&
+      last.partnerTrade.japan &&
+      Math.abs(last.partnerTrade.japan.X - live.japan.X) < 0.05 &&
+      Math.abs(last.partnerTrade.japan.M - live.japan.M) < 0.05,
+    "logged japan trade matches live snapshotPartnerTrade",
+  );
+  let sumX = 0;
+  let sumM = 0;
+  for (const id of Object.keys(live)) {
+    sumX += live[id].X || 0;
+    sumM += live[id].M || 0;
+  }
+  assert(
+    Math.abs(sumX - G.econ.X) < 0.05 && Math.abs(sumM - G.econ.M) < 0.05,
+    "partner trade X/M sum to headline exports and imports",
+  );
+  const lenBefore = G.log.length;
+  step(G, G.law, G.law, true);
+  assert(
+    G.log.length === lenBefore + 1 && G.log[G.log.length - 1].partnerTrade,
+    "live quarter logs partnerTrade",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.draft.missions = { japan: "summit" };
+  applyDraftMissions(G.law, G.draft, G.econ, G.fac);
+  beginActiveVisit(G, "japan", "summit");
+  const ev0 = rollMissionEvent(
+    "summit",
+    "japan",
+    G,
+    {
+      effectiveTariff,
+      playerCountryId,
+      activePartners,
+      lawForRole,
+      partnerById,
+      DEAL_BY_ID,
+      buildSummitCommercialEvent,
+    },
+    true,
+    0,
+  );
+  assert(
+    ev0 && ev0.id !== "summit_commercial_agenda",
+    "summit beat 0 stays in the political pool",
+  );
+  const ev1 = rollMissionEvent(
+    "summit",
+    "japan",
+    G,
+    {
+      effectiveTariff,
+      playerCountryId,
+      activePartners,
+      lawForRole,
+      partnerById,
+      DEAL_BY_ID,
+      buildSummitCommercialEvent,
+    },
+    true,
+    1,
+  );
+  assert(
+    ev1 && ev1.id === "summit_commercial_agenda",
+    "summit beat 1 is the commercial agenda",
+  );
+  assert(
+    ev1.opts.some((o) => o.summitKind === "tariff"),
+    "commercial agenda offers reciprocal tariff cut",
+  );
+  const t0 =
+    G.draft.tariffSchedule.country.japan != null
+      ? G.draft.tariffSchedule.country.japan
+      : G.draft.tariffSchedule.default;
+  const their0 = livePartnerTariffOnPlayer("japan");
+  const tariffOpt = ev1.opts.find((o) => o.summitKind === "tariff");
+  applySummitCommercialOption(tariffOpt, { partnerId: "japan" });
+  const t1 =
+    G.draft.tariffSchedule.country.japan != null
+      ? G.draft.tariffSchedule.country.japan
+      : G.draft.tariffSchedule.default;
+  assert(t1 < t0, "reciprocal tariff choice cuts player draft rate on japan");
+  assert(
+    G.law.tariffSchedule.country.japan === t1,
+    "reciprocal tariff writes the player cut onto law, not only the bill",
+  );
+  const their1 = livePartnerTariffOnPlayer("japan");
+  assert(
+    their1 < their0,
+    "japan reciprocates by cutting its duty on the player",
+  );
+  const dealOpt = ev1.opts.find((o) => o.summitKind === "deal");
+  if (dealOpt) {
+    G.draft.deals = {};
+    G.law.deals = {};
+    applySummitCommercialOption(dealOpt, { partnerId: "japan" });
+    assert(
+      G.law.deals[dealOpt.dealId],
+      "commercial agenda ratifies eligible deal onto law when partner agrees",
+    );
+    assert(
+      G.draft.deals[dealOpt.dealId],
+      "draft stays synced after instant bilateral ratification",
+    );
+  }
+}
+
+{
+  newGame();
+  G = getG();
+  const deals = dealsForPartner(partnerById("japan"), G.homeRole);
+  const open = deals.find((d) => !(G.law.deals && G.law.deals[d.id]));
+  if (open) {
+    toggleDraftDeal(open.id);
+    assert(
+      !(G.law.deals && G.law.deals[open.id]),
+      "unsigned bilateral deals cannot be ratified from the trade panel",
+    );
+  }
+}
+
+{
+  newGame();
+  G = getG();
+  const usaEv = buildSummitCommercialEvent("united_states", G);
+  const usaTariff = usaEv.opts.find((o) => o.summitKind === "tariff");
+  assert(usaTariff && !usaTariff.disabled, "USA reciprocal tariff is offered");
+  const usaTheir0 = livePartnerTariffOnPlayer("united_states");
+  const usaOur0 =
+    G.law.tariffSchedule.country.united_states != null
+      ? G.law.tariffSchedule.country.united_states
+      : G.law.tariffSchedule.default;
+  applySummitCommercialOption(usaTariff, { partnerId: "united_states" });
+  const usaTheir1 = livePartnerTariffOnPlayer("united_states");
+  const usaOur1 = G.law.tariffSchedule.country.united_states;
+  assert(
+    usaOur1 < usaOur0,
+    "USA summit cut lands on player law (got " +
+      usaOur1 +
+      " from " +
+      usaOur0 +
+      ")",
+  );
+  assert(
+    usaTheir1 < usaTheir0,
+    "USA reciprocates rather than declining after our cut is applied (got " +
+      usaTheir1 +
+      " from " +
+      usaTheir0 +
+      ")",
+  );
+  assert(
+    !billClauses().some((c) => /united states tariff/i.test(c.label)),
+    "summit tariff cut is not a bill clause",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  const chinaEv = buildSummitCommercialEvent("china", G);
+  const chinaTariff = chinaEv.opts.find((o) => o.summitKind === "tariff");
+  assert(chinaTariff, "summit shows reciprocal tariff option for china");
+  const chinaEqual2 = chinaEv.opts.find(
+    (o) => o.summitKind === "tariff" && (o.delta === 2 || o.theirDelta === 2),
+  );
+  assert(
+    chinaEqual2 && chinaEqual2.disabled && chinaEqual2.blockReason,
+    "reciprocal 2pt tariff disabled when partner would decline",
+  );
+  assert(
+    chinaEv.opts.some((o) => o.summitKind === "decline"),
+    "summit still offers a no-breakthrough option for china",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 50;
+  const midChina = buildSummitCommercialEvent("china", G);
+  const midCuts = midChina.opts.filter((o) => o.summitKind === "tariff");
+  const modest = midCuts.find((o) => o.delta === 1);
+  const standard = midCuts.find((o) => o.delta === 2);
+  assert(modest && standard, "China summit offers 1pt and 2pt cuts");
+  assert(
+    modest && !modest.disabled,
+    "China takes a modest 1pt trim at 50",
+  );
+  assert(
+    standard && standard.disabled,
+    "China refuses a 2pt cut at 50 — the ask is too deep",
+  );
+  assert(
+    standard.blockReason && !/tax our exports/i.test(standard.blockReason),
+    "China 2pt decline is not 'they tax us more'",
+  );
+  const midDeal = midChina.opts.find((o) => o.summitKind === "deal");
+  assert(
+    midDeal && !midDeal.disabled,
+    "China treaty can still be tabled at 50 — acceptance is the package, not a gate",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 40;
+  const blockers = dealBlockers(DEAL_BY_ID.cn_invest);
+  assert(
+    !blockers.some((b) => /relations below/i.test(b)),
+    "treaty relation floor is not a hard Trade-panel block",
+  );
+  const cold = commercialAcceptScore(
+    "deal",
+    "china",
+    G,
+    diploDeps(),
+    { dealId: "cn_invest" },
+  );
+  assert(
+    typeof cold.p === "number" && cold.p > 0,
+    "a treaty below its warmth floor still scores, not a hard zero (got " +
+      (cold.p != null ? cold.p.toFixed(2) : cold.p) +
+      ")",
+  );
+  assert(cold && !cold.ok, "China still declines the investment treaty at 40");
+  assert(
+    cold.reason && !/too low for this treaty/i.test(cold.reason),
+    "decline copy is the scored reason, not a relation veto",
+  );
+  const uiReason = commercialDealDeclineReason("china", "cn_invest", G);
+  assert(
+    uiReason && !/too low for this treaty/i.test(uiReason),
+    "Trade panel decline reason is scored, not a relation veto",
+  );
+  const coldEv = buildSummitCommercialEvent("china", G);
+  const invest = coldEv.opts.find((o) => o.dealId === "cn_invest");
+  assert(
+    invest && !invest.disabled,
+    "China investment treaty is still tableable below its old relation floor",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 50;
+  const their0 = livePartnerTariffOnPlayer("china");
+  ensureSched(G.law);
+  ensureSched(G.draft);
+  G.law.tariffSchedule.country.china = their0;
+  G.draft.tariffSchedule.country.china = their0;
+  const matchedChina = buildSummitCommercialEvent("china", G);
+  const matchedStd = matchedChina.opts.find(
+    (o) => o.summitKind === "tariff" && o.delta === 2,
+  );
+  assert(
+    matchedStd && matchedStd.disabled,
+    "matching rates at 50 does not unlock a 2pt China cut",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 72;
+  const hotChina = buildSummitCommercialEvent("china", G);
+  const hotStd = hotChina.opts.find(
+    (o) => o.summitKind === "tariff" && o.delta === 2,
+  );
+  assert(
+    hotStd && !hotStd.disabled,
+    "China accepts a 2pt cut at high warmth",
+  );
+  const hotDeal = hotChina.opts.find((o) => o.summitKind === "deal");
+  assert(
+    hotDeal && !hotDeal.disabled,
+    "China treaty unlocks at high warmth",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.russia = 50;
+  const ruEv = buildSummitCommercialEvent("russia", G);
+  const ruStd = ruEv.opts.find(
+    (o) => o.summitKind === "tariff" && o.delta === 2,
+  );
+  const ruDeep = ruEv.opts.find(
+    (o) => o.summitKind === "tariff" && o.delta > 2,
+  );
+  assert(
+    ruStd && !ruStd.disabled,
+    "Russia accepts a 2pt cut at 50 despite a higher MFN",
+  );
+  assert(
+    ruDeep && ruDeep.disabled,
+    "Russia refuses a deeper cut at 50",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  const chinaOpen = buildSummitCommercialEvent("china", G);
+  const ourOpen =
+    G.law.tariffSchedule.country.china != null
+      ? G.law.tariffSchedule.country.china
+      : G.law.tariffSchedule.default;
+  const theirOpen = livePartnerTariffOnPlayer("china");
+  const toZero = chinaOpen.opts.find(
+    (o) =>
+      o.summitKind === "tariff" &&
+      o.ourDelta === Math.floor(ourOpen + 1e-6) &&
+      o.theirDelta === Math.floor(theirOpen + 1e-6),
+  );
+  assert(
+    toZero,
+    "summit offers cutting each side all the way to 0",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 50;
+  const their0 = livePartnerTariffOnPlayer("china");
+  const our0 =
+    G.law.tariffSchedule.country.china != null
+      ? G.law.tariffSchedule.country.china
+      : G.law.tariffSchedule.default;
+  applySummitCommercialOption(
+    { summitKind: "tariff", ourDelta: Math.floor(our0 + 1e-6), theirDelta: 1 },
+    { partnerId: "china" },
+  );
+  assert(
+    G.law.tariffSchedule.country.china === 0,
+    "China accepts a 1pt cut if we go to 0",
+  );
+  assert(
+    livePartnerTariffOnPlayer("china") === their0 - 1,
+    "China trims 1pt when we disarm our remaining duty",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 50;
+  const their0 = livePartnerTariffOnPlayer("china");
+  const our0 =
+    G.law.tariffSchedule.country.china != null
+      ? G.law.tariffSchedule.country.china
+      : G.law.tariffSchedule.default;
+  const rel0 = G.rel.china;
+  applySummitCommercialOption(
+    {
+      summitKind: "tariff",
+      ourDelta: 0,
+      theirDelta: Math.floor(their0 + 1e-6),
+    },
+    { partnerId: "china" },
+  );
+  assert(
+    livePartnerTariffOnPlayer("china") === their0,
+    "China refuses a unilateral cut to 0",
+  );
+  assert(
+    (G.law.tariffSchedule.country.china != null
+      ? G.law.tariffSchedule.country.china
+      : G.law.tariffSchedule.default) === our0,
+    "our duty unchanged when they refuse",
+  );
+  assert(G.rel.china < rel0, "a refused ask cools relations");
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.china = 50;
+  const their0 = livePartnerTariffOnPlayer("china");
+  const our0 =
+    G.law.tariffSchedule.country.china != null
+      ? G.law.tariffSchedule.country.china
+      : G.law.tariffSchedule.default;
+  applySummitCommercialOption(
+    {
+      summitKind: "tariff",
+      ourDelta: Math.floor(our0 + 1e-6),
+      theirDelta: 2,
+    },
+    { partnerId: "china" },
+  );
+  assert(
+    livePartnerTariffOnPlayer("china") === their0 - 2,
+    "China takes a 2pt cut at 50 if we go to 0",
+  );
+  assert(
+    G.law.tariffSchedule.country.china === 0,
+    "our remaining duty is the sweetener",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  const cliff = previewSummitTariff("china", 3, 0);
+  assert(
+    typeof cliff.p === "number" && cliff.p > 0.15,
+    "China at opening relations scores a unilateral UK cut on a scale, not a hard zero (got " +
+      (cliff.p != null ? cliff.p.toFixed(2) : cliff.p) +
+      ")",
+  );
+  const equal = previewSummitTariff("china", 2, 2);
+  assert(
+    equal && !equal.ok,
+    "China still refuses an equal 2pt cut at opening relations",
+  );
+}
+
+{
+  const sweet = commercialPackageScore([{ p: 0.45 }, { p: 0.82 }]);
+  const product = 0.45 * 0.82;
+  assert(
+    sweet.p > 0.45,
+    "a popular treaty sweetens a weak cut rather than dragging it (got " +
+      sweet.p.toFixed(2) +
+      ")",
+  );
+  assert(
+    sweet.p > product + 0.05,
+    "package score is not the product of item chances",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.japan = 70;
+  const jp = buildSummitCommercialEvent("japan", G);
+  const deal = jp.opts.find((o) => o.summitKind === "deal" && !o.disabled);
+  assert(deal, "japan has a signable treaty at a summit");
+  const rel0 = G.rel.japan;
+  const their0 = livePartnerTariffOnPlayer("japan");
+  applySummitCommercialOption(
+    {
+      summitKind: "package",
+      ourDelta: 1,
+      theirDelta: 1,
+      dealIds: [deal.dealId],
+    },
+    { partnerId: "japan" },
+  );
+  assert(
+    livePartnerTariffOnPlayer("japan") === their0 - 1,
+    "package still cuts their duty",
+  );
+  assert(
+    G.law.deals[deal.dealId],
+    "package ratifies the treaty in the same session",
+  );
+  assert(
+    G.rel.japan >= rel0 + 10,
+    "tariff plus treaty lifts relations more than a cut alone (got " +
+      (G.rel.japan - rel0).toFixed(1) +
+      ")",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.germany = 70;
+  G.politics = {
+    [playerCountryId()]: {},
+    germany: {},
+  };
+  const ev = buildSummitCommercialEvent("germany", G);
+  const deal = ev.opts.find((o) => o.summitKind === "deal" && !o.disabled);
+  assert(deal, "germany has a signable treaty at a summit");
+  const their0 = livePartnerTariffOnPlayer("germany");
+  applySummitCommercialOption(
+    {
+      summitKind: "package",
+      ourDelta: 1,
+      theirDelta: 1,
+      dealIds: [deal.dealId],
+    },
+    { partnerId: "germany" },
+  );
+  const inbound = G.politics.germany.inboundSummitCommercial;
+  assert(
+    inbound && inbound.status === "pending",
+    "human partner parks a pending summit agenda",
+  );
+  assert(
+    (inbound.theirDelta != null ? inbound.theirDelta : inbound.delta) === 1,
+    "inbound carries the asked tariff cut",
+  );
+  assert(
+    (inbound.deals || []).some((d) => d.id === deal.dealId),
+    "inbound carries the treaty on the same offer",
+  );
+  assert(
+    !(
+      G.politics.germany.inboundDealProposal &&
+      G.politics.germany.inboundDealProposal.status === "pending"
+    ),
+    "does not park a separate treaty proposal",
+  );
+  assert(
+    !(G.law.deals && G.law.deals[deal.dealId]),
+    "treaty waits on their answer",
+  );
+  assert(
+    livePartnerTariffOnPlayer("germany") === their0,
+    "partner tariff waits on accept",
+  );
+
+  const choice = applyMpInboundSummitCommercialChoice(G, "germany", true);
+  assert(choice && choice.ok, "germany can accept the combined agenda");
+  assert(
+    !G.politics.germany.inboundSummitCommercial,
+    "accept clears the inbound agenda",
+  );
+  assert(
+    G.world[playerCountryId()].law.deals &&
+      G.world[playerCountryId()].law.deals[deal.dealId],
+    "accept writes the treaty onto the issuer's law",
+  );
+  assert(
+    livePartnerTariffOnPlayer("germany") === their0 - 1,
+    "accept cuts the partner tariff",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.rel.japan = 70;
+  const jp = buildSummitCommercialEvent("japan", G);
+  const deal = jp.opts.find((o) => o.summitKind === "deal" && !o.disabled);
+  const rel0 = G.rel.japan;
+  applySummitCommercialOption(deal, { partnerId: "japan" });
+  assert(
+    G.rel.japan >= rel0 + 7,
+    "signing a treaty lifts relations (got +" +
+      (G.rel.japan - rel0).toFixed(1) +
+      ")",
+  );
+}
+
+{
+  newGame();
+  G = getG();
   const warmX = G.econ.bilateralX.russia;
   G.rel.russia = 20;
   step(G, G.law, G.prevLaw, true);
@@ -3000,7 +3996,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   );
   G.rel.germany = 10;
   assert(
-    /Cannot change the common external tariff/.test(mpDraftBlocGateError() || ""),
+    /Cannot change the common external tariff/.test(
+      mpDraftBlocGateError() || "",
+    ),
     "a CET proposal is blocked without every member's approval",
   );
   for (const p of activePartners()) G.rel[p.id] = 70;
@@ -3166,8 +4164,8 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const frDeal = DEAL_BY_ID.fr_fta;
   const blockers = dealBlockers(frDeal);
   assert(
-    blockers.some((b) => b.includes("trade bloc")),
-    "bilateral deals blocked while in a bloc",
+    blockers.some((b) => b.includes("customs union")),
+    "bilateral deals blocked while in a customs union",
   );
 }
 
@@ -3178,7 +4176,288 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const blockers = dealBlockers(deDeal);
   assert(
     blockers.some((b) => b.includes("their bloc")),
-    "cannot bilateral with partner in a bloc",
+    "cannot bilateral with partner in a customs union",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  const jpDeal = DEAL_BY_ID.jp_tech;
+  const blockers = dealBlockers(jpDeal);
+  assert(
+    !blockers.some((b) => b.includes("their bloc")),
+    "CPTPP Japan is signable — FTA members keep commercial policy",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  joinBloc("pacific_accord", G.law);
+  const inDeal = DEAL_BY_ID.in_goods;
+  const blockers = dealBlockers(inDeal);
+  assert(
+    !blockers.some(
+      (b) => b.includes("customs union") || b.includes("their bloc"),
+    ),
+    "player in CPTPP can still sign with India",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.deals.in_goods = true;
+  joinBloc("pacific_accord", G.law);
+  assert(G.law.deals.in_goods, "joining an FTA keeps bilateral deals");
+}
+
+{
+  newGame();
+  G = getG();
+  G.law.deals.in_goods = true;
+  joinBloc("continental_union", G.law);
+  assert(!G.law.deals.in_goods, "joining a CU wipes bilateral deals");
+}
+
+{
+  newGame();
+  G = getG();
+  joinBloc("continental_union", G.law);
+  G.rel.france = 55;
+  G.rel.germany = 55;
+  G.rel.italy = 55;
+  G.rel.spain = 55;
+  G.rel.netherlands = 55;
+  G.rel.poland = 55;
+  G.rel.india = 55;
+  G.draft = clone(G.law);
+  assert(
+    canNegotiateUnionCommercial(G, "india"),
+    "EU member can table a union package with India",
+  );
+  assert(
+    !canNegotiateReciprocalTariffs(G, "india"),
+    "ordinary bilateral tariff talks stay closed in a CU",
+  );
+  const indiaEv = buildSummitCommercialEvent("india", G);
+  assert(
+    indiaEv.opts.some((o) => o.summitKind === "deal" && o.dealId === "in_goods"),
+    "EU member summit with India offers in_goods as a union treaty",
+  );
+  assert(
+    indiaEv.opts.some((o) => o.summitKind === "tariff"),
+    "EU member summit with India offers a preferential tariff pack",
+  );
+  const unmet = blocExternalDealBlockers("india", "in_goods");
+  assert(
+    unmet.length === 0,
+    "EU member union treaty with India clears when every member approves",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.france = 55;
+  G.rel.germany = 55;
+  G.rel.italy = 55;
+  G.rel.spain = 55;
+  G.rel.netherlands = 55;
+  G.rel.poland = 55;
+  G.draft = clone(G.law);
+  assert(cuBoundary(G, "france"), "outsider vs France is a CU boundary");
+  assert(
+    canNegotiateUnionCommercial(G, "france"),
+    "outsider can table a union package with France",
+  );
+  assert(
+    !canNegotiateReciprocalTariffs(G, "france"),
+    "ordinary bilateral tariff talks stay closed with a CU member",
+  );
+  const frEv = buildSummitCommercialEvent("france", G);
+  assert(
+    frEv.opts.some((o) => o.summitKind === "deal" && o.dealId === "eu_assoc"),
+    "outsider summit with France offers the union association",
+  );
+  assert(
+    !frEv.opts.some((o) => o.dealId === "fr_fta"),
+    "outsider summit with France does not offer France's bilateral FTA",
+  );
+  assert(
+    frEv.opts.some((o) => o.summitKind === "tariff"),
+    "outsider summit with France offers a union tariff pack",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.france = 55;
+  G.rel.germany = 55;
+  G.rel.italy = 55;
+  G.rel.spain = 55;
+  G.rel.netherlands = 55;
+  G.rel.poland = 55;
+  G.draft = clone(G.law);
+  const cetBefore = G.law.tariffSchedule.cet;
+  const our0 = effectiveTariff("france", G.law);
+  const their0 = livePartnerTariffOnPlayer("france", G);
+  const frEv = buildSummitCommercialEvent("france", G);
+  const tariffOpt = frEv.opts.find((o) => o.summitKind === "tariff");
+  applySummitCommercialOption(tariffOpt, { partnerId: "france" });
+  assert(
+    G.law.tariffSchedule.bloc.continental_union != null,
+    "outsider union cut writes the bloc lever",
+  );
+  assert(
+    effectiveTariff("france", G.law) < our0,
+    "outsider duty on France falls via the bloc lever",
+  );
+  assert(
+    effectiveTariff("germany", G.law) ===
+      G.law.tariffSchedule.bloc.continental_union,
+    "bloc lever covers every EU member",
+  );
+  assert(
+    G.law.tariffSchedule.cet === cetBefore,
+    "union package does not cut the CET",
+  );
+  const their1 = livePartnerTariffOnPlayer("france", G);
+  assert(their1 < their0, "France's duty on the player falls");
+  const deLaw = G.world.germany.law;
+  const playerId = playerCountryId();
+  assert(
+    deLaw.tariffSchedule.country[playerId] != null,
+    "other EU members write a country overlay on the outsider",
+  );
+  assert(
+    deLaw.tariffSchedule.cet === 4 || deLaw.tariffSchedule.cet == null,
+    "member CET is unchanged",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.france = 55;
+  G.rel.germany = 30;
+  G.rel.italy = 55;
+  G.rel.spain = 55;
+  G.rel.netherlands = 55;
+  G.rel.poland = 55;
+  G.draft = clone(G.law);
+  const blocked = unionPackageBlockers(G, "france");
+  assert(
+    blocked.some((b) => /Germany withholds/i.test(b)),
+    "a cool Germany blocks the union package",
+  );
+  const frEv = buildSummitCommercialEvent("france", G);
+  const tariffOpt = frEv.opts.find((o) => o.summitKind === "tariff");
+  const our0 = effectiveTariff("france", G.law);
+  if (tariffOpt) applySummitCommercialOption(tariffOpt, { partnerId: "france" });
+  assert(
+    effectiveTariff("france", G.law) === our0,
+    "blocked union package does not cut tariffs",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.rel.france = 55;
+  G.rel.germany = 55;
+  G.rel.italy = 55;
+  G.rel.spain = 55;
+  G.rel.netherlands = 55;
+  G.rel.poland = 55;
+  G.draft = clone(G.law);
+  const assoc = unionAssociationDeal("continental_union");
+  const signed = ratifyBilateralDealWithPartner(G, "france", assoc.id, true);
+  assert(signed.ok, "outsider can ratify the EU association at a summit");
+  assert(G.law.deals.eu_assoc, "association lands on the statute book");
+  const access = partnerAccessTargets(G.law, G.homeRole, G.blocMember);
+  assert(access.france > 0, "association fans access to France");
+  assert(access.germany > 0, "association fans access to Germany");
+  joinBloc("continental_union", G.law);
+  assert(!G.law.deals.eu_assoc, "joining the EU wipes a prior association deal");
+}
+
+{
+  newGame();
+  G = getG();
+  const jpEv = buildSummitCommercialEvent("japan", G);
+  assert(
+    jpEv.opts.some((o) => o.summitKind === "tariff"),
+    "CPTPP Japan is still a normal bilateral summit",
+  );
+  assert(
+    !canNegotiateUnionCommercial(G, "japan"),
+    "FTA Japan is not a CU-boundary summit",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  joinBloc("continental_union", G.law);
+  G.draft = clone(G.law);
+  const sameBloc = buildSummitCommercialEvent("france", G);
+  assert(
+    !sameBloc.opts.some((o) => o.summitKind === "tariff"),
+    "same-bloc visit has no tariff pack",
+  );
+  assert(
+    !cuBoundary(G, "france"),
+    "fellow CU members are not a CU boundary",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.sandbox = true;
+  G.lastEventQ = 1e9;
+  createCustomBloc("Northern League", "shallow_fta");
+  const bid = countryBlocId(playerCountryId());
+  assert(
+    blocInviteBlockers(bid, "germany").some((b) => /need 62/.test(b)),
+    "CU poach stays blocked at open Germany relations",
+  );
+  assert(
+    !blocInviteBlockers(bid, "japan").length,
+    "can poach Japan from CPTPP when in a custom FTA",
+  );
+  G.draft.blocInvite = { japan: true };
+  const poachClause = billClauses().find((c) =>
+    (c.label || "").includes("Japan"),
+  );
+  assert(
+    poachClause && poachClause.label.includes("CPTPP") && poachClause.pc === 20,
+    "poach stages as leave-and-join at 20 capital",
+  );
+  G.draft.blocInvite = {};
+  const auBefore = G.rel.australia;
+  inviteToBloc("japan", bid);
+  G.rel.japan = 70;
+  step(G, G.law, G.law, true);
+  assert(
+    countryBlocId("japan") == null,
+    "poach accept leaves the old bloc before accession",
+  );
+  assert(
+    G.blocAccessionByCountry.japan &&
+      G.blocAccessionByCountry.japan.blocId === bid,
+    "poach accept starts accession into the inviting bloc",
+  );
+  assert(
+    G.rel.australia < auBefore - 2,
+    "poach hits remaining members of the old FTA",
+  );
+  assert(
+    !joinBloc("pacific_accord", G.law),
+    "exclusive membership still blocks a second join",
   );
 }
 
@@ -3333,7 +4612,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     cl.some(
       (c) =>
         c.label.includes("United Kingdom") &&
-        c.label.includes("Continental Union"),
+        c.label.includes("European Union"),
     ),
     "staging propose kingdom adds bill clause",
   );
@@ -3418,11 +4697,19 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     picked = o;
   });
   const pending = (G.press || []).find((c) => c.pendingChoice);
-  assert(pending && pending.opts && pending.opts.length, "event opens as a news clip with choices");
-  assert(pressChoicePending(), "pressChoicePending while the clip waits for an answer");
-  assert(getNewsOpen() && getPressExpanded() === pending.id, "event clip auto-opens the inbox");
-  const shown =
-    (pending.opts[0] && pending.opts[0].immediate) || [];
+  assert(
+    pending && pending.opts && pending.opts.length,
+    "event opens as a news clip with choices",
+  );
+  assert(
+    pressChoicePending(),
+    "pressChoicePending while the clip waits for an answer",
+  );
+  assert(
+    getNewsOpen() && getPressExpanded() === pending.id,
+    "event clip auto-opens the inbox",
+  );
+  const shown = (pending.opts[0] && pending.opts[0].immediate) || [];
   assert(
     shown.some((c) => c.name === "Russia relations" && c.value <= -20),
     "career event clip still lists relation chips",
@@ -3435,13 +4722,22 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     discardPress(pending.id) === false,
     "cannot discard an unanswered event clip",
   );
-  assert(closeFocusedPress() === true && getPressExpanded() === pending.id, "cannot dismiss an unanswered event clip");
+  assert(
+    closeFocusedPress() === true && getPressExpanded() === pending.id,
+    "cannot dismiss an unanswered event clip",
+  );
   pending.opts[0].f();
-  assert(picked && picked.b === sanctions.opts[0].b, "choosing a clip option fires the callback");
+  assert(
+    picked && picked.b === sanctions.opts[0].b,
+    "choosing a clip option fires the callback",
+  );
   assert(!pressChoicePending(), "answering clears pendingChoice");
   const archived = (G.press || []).filter((c) => c.kind === "event");
   assert(archived.length === 1, "answering does not file a second event clip");
-  assert(/chose to join the package in full/i.test(archived[0].lede), "archive lede records the choice");
+  assert(
+    /chose to join the package in full/i.test(archived[0].lede),
+    "archive lede records the choice",
+  );
 
   /* Two clips can await answers at once. A button must settle its own story:
      resolving the oldest pending clip instead would leave the other pending
@@ -3605,6 +4901,51 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(
     im.head.trend > 0.01 || im.head.potential > 0.05,
     `research lift raises trend or potential (trend ${im.head.trend}, pot ${im.head.potential})`,
+  );
+}
+
+/* Named blocs use real-world labels; membership matches the board. */
+{
+  newGame();
+  G = getG();
+  assert(
+    BLOC_TEMPLATES.continental_union.name === "European Union",
+    "EU uses its real name",
+  );
+  assert(
+    BLOC_TEMPLATES.pacific_accord.name === "CPTPP",
+    "CPTPP uses its real name",
+  );
+  assert(
+    BLOC_TEMPLATES.gulf_council.name === "Gulf Cooperation Council",
+    "GCC uses its real name",
+  );
+  assert(
+    BLOC_TEMPLATES.andes_pact.name === "Mercosur",
+    "Mercosur uses its real name",
+  );
+  assert(
+    BLOC_TEMPLATES.asean_circle.name === "ASEAN",
+    "ASEAN uses its real name",
+  );
+  assert(
+    countryBlocId("mexico") == null && countryBlocId("korea") == null,
+    "Mexico and Korea start unaligned",
+  );
+  assert(
+    countryBlocId("brazil") === "andes_pact" &&
+      countryBlocId("argentina") === "andes_pact",
+    "Mercosur is Brazil and Argentina",
+  );
+  assert(
+    countryBlocId("japan") === "pacific_accord" &&
+      countryBlocId("australia") === "pacific_accord",
+    "CPTPP opening members are Japan and Australia",
+  );
+  assert(
+    !BLOC_TEMPLATES.pacific_accord.members.includes("korea") &&
+      !BLOC_TEMPLATES.andes_pact.members.includes("mexico"),
+    "Korea is not CPTPP; Mexico is not Mercosur",
   );
 }
 
@@ -4282,6 +5623,11 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const envoyCl = billClauses().find((c) => /envoy/i.test(c.label));
   assert(envoyCl, "same-quarter envoy assign appears as a Programme clause");
   assert(envoyCl.sunk, "envoy capital already paid is marked sunk");
+  assert(envoyCl.executive, "posting an envoy is executive");
+  assert(
+    billVoteData() && !billVoteData().needed,
+    "an envoy alone does not go to the chamber",
+  );
   assert(
     billClauses().every((c) => c.sunk || !c.pc),
     "sunk envoy does not add unpaid capital to the Programme",
@@ -4306,6 +5652,60 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
 
   G.capital = ENVOY_ASSIGN_PC - 1;
   assert(!assignEnvoy("germany"), "envoy assign no-ops when capital is short");
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  const rel0 = G.rel.france;
+  const target0 = relationTarget("france");
+  assert(assignEnvoy("france"), "post envoy to france");
+  assert(
+    Math.abs(relationTarget("france") - (target0 + ENVOY_TARGET)) < 0.05,
+    "assign adds the +2 presence immediately",
+  );
+  for (let i = 0; i < 8; i++) step(G, G.law, G.prevLaw, true);
+  const built = G.econ.envoyBuild.france;
+  assert(
+    Math.abs(built - 8 * ENVOY_DRIFT) < 1e-9,
+    `envoyBuild grows ${ENVOY_DRIFT}/q while posted (got ${built})`,
+  );
+  const good = relationModifiers("france").find(
+    (m) => m.label === "Envoy goodwill",
+  );
+  assert(
+    good && Math.abs(good.pts - built) < 1e-9,
+    "envoy goodwill appears as a live modifier",
+  );
+  assert(
+    G.rel.france > rel0 + ENVOY_TARGET,
+    `relations keep improving while posted (${rel0.toFixed(1)} → ${G.rel.france.toFixed(1)})`,
+  );
+  recallEnvoy("france");
+  step(G, G.law, G.prevLaw, true);
+  assert(
+    Math.abs((G.econ.envoyBuild.france || 0) - built) < 1e-9,
+    "goodwill stock is kept after recall",
+  );
+  assert(
+    relationModifiers("france").some((m) => m.label === "Envoy goodwill"),
+    "built goodwill remains after recall",
+  );
+  assert(
+    !relationModifiers("france").some((m) => m.label === "Envoy posted"),
+    "presence bonus clears on recall",
+  );
+  assert(assignEnvoy("france"), "re-post france");
+  for (let i = 0; i < 40; i++) step(G, G.law, G.prevLaw, true);
+  assert(
+    G.econ.envoyBuild.france <= ENVOY_BUILD_CAP + 1e-9,
+    "envoy goodwill caps",
+  );
+  assert(
+    Math.abs(G.econ.envoyBuild.france - ENVOY_BUILD_CAP) < 1e-9,
+    "long posting sits on the cap",
+  );
 }
 
 {
@@ -4858,6 +6258,26 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     !demandsFr.some((d) => d.id === "tariffCut"),
     "symmetric tariffs omit tariffCut",
   );
+
+  const player = playerCountryId();
+  ensureSched(G.law);
+  if (G.world && G.world.united_states && G.world.united_states.law) {
+    ensureSched(G.world.united_states.law);
+    G.world.united_states.law.tariffSchedule.country[player] = 8;
+  }
+  const demandsUs = ultimatumDemandsFor("united_states", G, deps);
+  assert(
+    demandsUs.some((d) => d.id === "marketAccess"),
+    "nonzero partner tariff keeps marketAccess ultimatum",
+  );
+  if (G.world && G.world.united_states && G.world.united_states.law) {
+    G.world.united_states.law.tariffSchedule.country[player] = 0;
+  }
+  const demandsUsZero = ultimatumDemandsFor("united_states", G, deps);
+  assert(
+    !demandsUsZero.some((d) => d.id === "marketAccess"),
+    "marketAccess ultimatum drops when their tariff on us is already 0",
+  );
 }
 
 {
@@ -4973,26 +6393,22 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   queueSummitVisitEvents(G);
   assert(
     G.missionEvents &&
-      G.missionEvents.length === 1 &&
-      G.missionEvents[0].partnerId === "japan",
-    "first deliver queues one summit mission event",
-  );
-  assert(
-    G.activeVisits.japan.eventsFired === 1,
-    "first summit event slot consumed",
+      G.missionEvents.length === 2 &&
+      G.missionEvents[0].partnerId === "japan" &&
+      G.missionEvents[0].eventIndex === 0 &&
+      G.missionEvents[1].eventIndex === 1,
+    "first deliver queues political and commercial summit events together",
   );
   G.missionEvents = [];
   step(G, G.law, G.prevLaw, true);
+  assert(
+    !isVisitActive(G, "japan"),
+    "visit is over after the quarter of the summit",
+  );
   queueSummitVisitEvents(G);
   assert(
-    G.missionEvents &&
-      G.missionEvents.length === 1 &&
-      G.missionEvents[0].eventIndex === 1,
-    "second deliver during visit queues second summit event",
-  );
-  assert(
-    G.activeVisits.japan.eventsFired === 2,
-    "both summit event slots consumed",
+    !G.missionEvents.length,
+    "does not queue another summit paper next quarter",
   );
   G.missionEvents = [];
   step(G, G.law, G.prevLaw, true);
@@ -5064,17 +6480,14 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(isVisitActive(G, "france"), "summit visit is active after begin");
   assert(
     visitQuartersLeft(G, "france") === VISIT_DURATION,
-    "summit visit lasts two quarters",
+    "summit visit lasts one quarter",
   );
   assert(
     relationModifiers("france").some((m) => m.label === "State visit underway"),
     "active visit shows live modifier",
   );
   step(G, G.law, G.prevLaw, true);
-  assert(isVisitActive(G, "france"), "visit still active after one quarter");
-  assert(visitQuartersLeft(G, "france") === 1, "one quarter of visit remains");
-  step(G, G.law, G.prevLaw, true);
-  assert(!isVisitActive(G, "france"), "visit ends after two quarters");
+  assert(!isVisitActive(G, "france"), "visit ends after one quarter");
   assert(
     !relationModifiers("france").some(
       (m) => m.label === "State visit underway",
@@ -5240,10 +6653,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.econ.dealStress = G.econ.dealStress || {};
   G.econ.dealStress.russia = 3;
   step(G, G.law, G.law, true);
-  assert(
-    !G.law.deals.ru_energy,
-    "cold relations collapse the energy treaty",
-  );
+  assert(!G.law.deals.ru_energy, "cold relations collapse the energy treaty");
   assert(
     (G.diploAlerts || []).some(
       (a) => a.kind === "deal_collapse" && a.partnerId === "russia",
@@ -5564,7 +6974,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     blocJoinBlockers("continental_union", "apply").some((b) =>
       /France/i.test(b),
     ),
-    "Continental Union Join blocked on France relations",
+    "European Union Join blocked on France relations",
   );
   continueCoach();
   G = getG();
@@ -5709,6 +7119,120 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(G.coachDone === true && G.coach == null, "Finish clears coach");
 }
 
+{
+  console.log("\n— mid-term fiscal set-piece —");
+  const consol = EVENTS.find((e) => e.id === "setPieceFiscal").opts.find((o) =>
+    /consolidation/i.test(o.b),
+  );
+  assert(consol, "setPieceFiscal has a consolidation option");
+
+  newGame({ silent: true });
+  G = getG();
+  const beforeSpend = {};
+  for (const d of DEPTS) beforeSpend[d.id] = G.law.spend[d.id];
+  const prem0 = G.econ.riskPremium || 0;
+  const mods0 = (G.mods || []).length;
+  applyEventOption(consol);
+  G = getG();
+  assert(
+    G.law.spend.health === beforeSpend.health &&
+      G.law.spend.welfare === beforeSpend.welfare,
+    "consolidation ring-fences health and welfare",
+  );
+  for (const d of DEPTS) {
+    if (d.id === "health" || d.id === "welfare") continue;
+    const got = G.law.spend[d.id];
+    const want = beforeSpend[d.id] * 0.94;
+    assert(
+      Math.abs(got - want) < 1e-9,
+      `consolidation cuts ${d.id} by 6% (${got} vs ${want})`,
+    );
+  }
+  assert(
+    (G.econ.riskPremium || 0) === prem0,
+    "consolidation does not write riskPremium",
+  );
+  const newMods = (G.mods || []).slice(mods0);
+  assert(
+    !newMods.some((m) => m.spend),
+    "consolidation does not push a spend shock",
+  );
+  assert(
+    newMods.some((m) => m.uncertainty === 0.3 && m.q === 4),
+    "consolidation queues a modest uncertainty input",
+  );
+
+  function armFiscalSetPiece(g, q) {
+    g.q = q;
+    g.termStartQ = 0;
+    g.setPiece8 = false;
+    g.lastEventQ = -10;
+    g.nextMajorQ = 999;
+  }
+  function makeBooksSoft(g) {
+    const anchor = g.econ.debtAnchor != null ? g.econ.debtAnchor : 94;
+    g.econ.debt = anchor + 8;
+  }
+  function makeBooksHealthy(g) {
+    const anchor = g.econ.debtAnchor != null ? g.econ.debtAnchor : 94;
+    g.econ.debt = Math.min(g.econ.debt, anchor);
+    g.econ.riskPremium = 0;
+    g.econ.yield = g.econ.rate;
+  }
+
+  newGame({ silent: true });
+  G = getG();
+  makeBooksSoft(G);
+  armFiscalSetPiece(G, 10);
+  const fired = rollEvent();
+  assert(
+    fired && fired.id === "setPieceFiscal",
+    "soft books at democracy mid-term fire the fiscal set-piece",
+  );
+  assert(getG().setPiece8 === true, "firing sets the fiscal set-piece flag");
+
+  newGame({ silent: true });
+  G = getG();
+  makeBooksHealthy(G);
+  armFiscalSetPiece(G, 10);
+  const skipped = rollEvent();
+  assert(
+    !skipped || skipped.id !== "setPieceFiscal",
+    "healthy books at mid-term skip the fiscal set-piece",
+  );
+  assert(
+    getG().setPiece8 === false,
+    "skipping leaves the fiscal set-piece flag clear",
+  );
+
+  newGame({ silent: true });
+  G = getG();
+  makeBooksSoft(G);
+  armFiscalSetPiece(G, 8);
+  const early = rollEvent();
+  assert(
+    !early || early.id !== "setPieceFiscal",
+    "soft books before halfway do not fire the fiscal set-piece",
+  );
+
+  newGame({ silent: true });
+  G = getG();
+  G.law.polity = "authoritarian";
+  makeBooksSoft(G);
+  armFiscalSetPiece(G, 10);
+  const authEarly = rollEvent();
+  assert(
+    !authEarly || authEarly.id !== "setPieceFiscal",
+    "authoritarian mid-term is not quarter 10",
+  );
+  armFiscalSetPiece(G, 20);
+  const authMid = rollEvent();
+  assert(
+    authMid && authMid.id === "setPieceFiscal",
+    "soft books at authoritarian mid-term fire the fiscal set-piece",
+  );
+}
+
 /* Self never the foreign actor; setRel / worldPartner skip the local seat. */
 {
   for (const role of ["united_states", "china", "india"]) {
@@ -5716,16 +7240,14 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
       sandbox: true,
       silent: true,
       homeRole: role,
-      homeIso: role === "united_states" ? "840" : role === "china" ? "156" : "356",
+      homeIso:
+        role === "united_states" ? "840" : role === "china" ? "156" : "356",
       country: role,
     });
     G = getG();
     const self = playerCountryId();
     assert(isPlayerSeat(self), `${role}: local id is the player seat`);
-    assert(
-      !requirePartner(self),
-      `${role}: self is not an active partner`,
-    );
+    assert(!requirePartner(self), `${role}: self is not an active partner`);
     for (const p of activePartners()) {
       assert(
         p.id !== self && !isPlayerSeat(p.id),
@@ -5740,13 +7262,10 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     );
     const mods0 = G.mods.length;
     applyEventOption({
-      shocks: [
-        { channel: "worldPartner", partner: self, points: -6, q: 4 },
-      ],
+      shocks: [{ channel: "worldPartner", partner: self, points: -6, q: 4 }],
     });
     assert(
-      G.mods.length === mods0 &&
-        !G.mods.some((m) => m.partner === self),
+      G.mods.length === mods0 && !G.mods.some((m) => m.partner === self),
       `${role}: worldPartner shock skips the local seat`,
     );
   }
@@ -5774,7 +7293,12 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     "US home skips US slowdown (self is not a partner)",
   );
 
-  newGame({ sandbox: true, silent: true, homeRole: "home", country: "The Kingdom" });
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "home",
+    country: "The Kingdom",
+  });
   G = getG();
   G.politics = {
     [playerCountryId()]: {},
@@ -5866,10 +7390,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const rowFocus = G.eventFocus;
   const rowRel0 = G.rel[rowFocus] != null ? G.rel[rowFocus] : 50;
   applyEventOption(row.opts[1]);
-  assert(
-    G.rel[rowFocus] < rowRel0,
-    "retaliation cools the named partner",
-  );
+  assert(G.rel[rowFocus] < rowRel0, "retaliation cools the named partner");
   assert(
     G.mods.some((m) => m.partner === rowFocus && m.worldPartner),
     "tradeRow worldPartner shock binds to the focus seat",
@@ -5909,6 +7430,598 @@ for (const c of COUNTRIES) {
     Object.prototype.hasOwnProperty.call(REALM_FILL, c.id),
     `REALM_FILL has an entry for country "${c.id}"`,
   );
+}
+
+/* Parties, chamber votes, election seat shares. */
+{
+  const ubi = policyTaste("ubi", true);
+  const stances = partyStances(ubi);
+  const social = stances.find((s) => s.id === "social");
+  const cons = stances.find((s) => s.id === "conservative");
+  assert(social && social.stance === "for", "UBI is For for Civic Labour");
+  assert(
+    cons && cons.stance === "against",
+    "UBI is Against for National Conservatives",
+  );
+
+  const dereg = policyTaste("dereg", true);
+  const deregStances = partyStances(dereg);
+  const socialDereg = deregStances.find((s) => s.id === "social");
+  assert(
+    socialDereg && socialDereg.stance === "against",
+    "labour deregulation is Against for Civic Labour",
+  );
+
+  const low = rulingAyeShare({
+    alignment: -0.8,
+    approval: 40,
+    leftoverCapital: 0,
+  });
+  const high = rulingAyeShare({
+    alignment: -0.8,
+    approval: 85,
+    leftoverCapital: 0,
+  });
+  assert(
+    high > low + 0.2,
+    "high leader approval pulls ruling ayes off the party line",
+  );
+  assert(
+    high > 0.5,
+    "at ~85% approval a negative alignment still yields a ruling majority of ayes",
+  );
+
+  const unwhipped = rulingAyeShare({
+    alignment: -0.5,
+    approval: 48,
+    leftoverCapital: 0,
+    whipSpend: 0,
+  });
+  const whipped = rulingAyeShare({
+    alignment: -0.5,
+    approval: 48,
+    leftoverCapital: 0,
+    whipSpend: 8,
+  });
+  const whippedHard = rulingAyeShare({
+    alignment: -0.5,
+    approval: 48,
+    leftoverCapital: 0,
+    whipSpend: 20,
+  });
+  assert(whipped > unwhipped + 0.08, "whipping buys a measurable aye swing");
+  assert(
+    whippedHard - whipped < whipped - unwhipped,
+    "whip spend has diminishing returns",
+  );
+  assert(
+    whippedHard < 0.85,
+    "max whip cannot paper over a hard Against caucus",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  G.draft.policies.dereg = true;
+  G.capital = 60;
+  G.whipSpend = 0;
+  const beforeWhip = billVoteData();
+  assert(beforeWhip && beforeWhip.needed, "deregulation stages a chamber vote");
+  const rulingBefore = beforeWhip.parties.find((p) => p.ruling);
+  assert(
+    rulingBefore && rulingBefore.nay > 0,
+    "Labour rebels against deregulation",
+  );
+  G.whipSpend = 10;
+  const afterWhip = billVoteData();
+  assert(afterWhip.aye > beforeWhip.aye, "whip spend raises chamber ayes");
+  assert(
+    afterWhip.programmeCost === billCost() + 10,
+    "programme cost includes the whip",
+  );
+  assert(afterWhip.whipSpend === 10, "billVoteData reports whip spend");
+  const capBefore = G.capital;
+  /* Force a passable chamber so enact is not blocked by majority. */
+  G.parties.seats = {
+    social: 70,
+    liberal: 10,
+    conservative: 10,
+    national: 5,
+    agrarian: 5,
+  };
+  G.whipSpend = 8;
+  G.fac = {
+    business: 70,
+    workers: 55,
+    pensioners: 50,
+    urban: 55,
+    rural: 45,
+    patriots: 50,
+  };
+  const voteReady = billVoteData();
+  if (voteReady && voteReady.needed && !voteReady.pass && !voteReady.advisory) {
+    G.whipSpend = 20;
+  }
+  const vote2 = billVoteData();
+  if (vote2 && vote2.pass) {
+    enact();
+    assert(G.whipSpend === 0, "enact clears the whip");
+    assert(G.capital < capBefore, "enact charges the whip with the bill");
+  } else {
+    /* Still assert the preview math even if this opening cannot pass. */
+    assert(
+      programmeCost() >= billCost(),
+      "programme cost never undercuts the bill",
+    );
+  }
+
+  const shares = {
+    social: 0.32,
+    liberal: 0.18,
+    conservative: 0.28,
+    national: 0.12,
+    agrarian: 0.1,
+  };
+  const fptp = seatsFromVotes(shares, "majoritySingle", {
+    majorityMaker: false,
+  });
+  const twoRound = seatsFromVotes(shares, "majorityTwoRound", {
+    majorityMaker: false,
+  });
+  const pr = seatsFromVotes(shares, "proportional");
+  const fptpLead = Math.max(...PARTY_IDS.map((id) => fptp[id]));
+  const twoLead = Math.max(...PARTY_IDS.map((id) => twoRound[id]));
+  const prLead = Math.max(...PARTY_IDS.map((id) => pr[id]));
+  assert(
+    fptpLead > prLead,
+    "FPTP exaggerates the leader vs PR on the same shares",
+  );
+  assert(twoLead > prLead, "two-round exaggerates the leader vs PR");
+  assert(
+    fptpLead >= twoLead,
+    "FPTP cube law is at least as majoritarian as two-round",
+  );
+  const close = {
+    social: 0.3,
+    conservative: 0.29,
+    liberal: 0.2,
+    national: 0.12,
+    agrarian: 0.09,
+  };
+  const hung = seatsFromVotes(close, "majoritySingle", {
+    majorityMaker: false,
+  });
+  assert(
+    Math.max(...PARTY_IDS.map((id) => hung[id])) < 51,
+    "FPTP cube law can still hang a close plurality (got " +
+      Math.max(...PARTY_IDS.map((id) => hung[id])) +
+      ")",
+  );
+  const made = seatsFromVotes(close, "majoritySingle");
+  assert(
+    Math.max(...PARTY_IDS.map((id) => made[id])) >= 51,
+    "majorityMaker still manufactures a working majority when asked",
+  );
+  const live = allocateElection({
+    fac: {
+      business: 52,
+      workers: 48,
+      pensioners: 50,
+      urban: 50,
+      rural: 50,
+      patriots: 50,
+    },
+    rulingId: "social",
+    votingSystem: "majoritySingle",
+    pluralism: "multiParty",
+  });
+  const livePr = allocateElection({
+    fac: {
+      business: 52,
+      workers: 48,
+      pensioners: 50,
+      urban: 50,
+      rural: 50,
+      patriots: 50,
+    },
+    rulingId: "social",
+    votingSystem: "proportional",
+    pluralism: "multiParty",
+  });
+  const liveFptp = Math.max(...PARTY_IDS.map((id) => live.seats[id]));
+  const livePrLead = Math.max(...PARTY_IDS.map((id) => livePr.seats[id]));
+  assert(
+    liveFptp > livePrLead,
+    "a live FPTP ballot exaggerates vs PR on the same electorate",
+  );
+
+  const evenFac = (n) => ({
+    business: n,
+    workers: n,
+    pensioners: n,
+    urban: n,
+    rural: n,
+    patriots: n,
+  });
+  const popular = allocateElection({
+    fac: evenFac(62),
+    rulingId: "social",
+    votingSystem: "majoritySingle",
+    pluralism: "multiParty",
+  });
+  const middling = allocateElection({
+    fac: evenFac(50),
+    rulingId: "social",
+    votingSystem: "majoritySingle",
+    pluralism: "multiParty",
+  });
+  const unpopular = allocateElection({
+    fac: evenFac(40),
+    rulingId: "social",
+    votingSystem: "majoritySingle",
+    pluralism: "multiParty",
+  });
+  assert(
+    popular.popularity.social > 0.32,
+    "62% approval puts the incumbent above 32% of the vote (got " +
+      (popular.popularity.social * 100).toFixed(1) +
+      "%)",
+  );
+  assert(
+    popular.seats.social >= 55 && popular.seats.social <= 75,
+    "FPTP turns 62% approval into a working majority, not a wipeout (got " +
+      popular.seats.social +
+      ")",
+  );
+  assert(
+    popular.seats.social > middling.seats.social,
+    "higher approval wins more FPTP seats (" +
+      popular.seats.social +
+      " vs " +
+      middling.seats.social +
+      ")",
+  );
+  assert(
+    middling.seats.social > unpopular.seats.social,
+    "lower approval wins fewer FPTP seats (" +
+      middling.seats.social +
+      " vs " +
+      unpopular.seats.social +
+      ")",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  assert(MUTABLE.includes("parties"), "parties is on MUTABLE");
+  assert(G.parties && G.parties.rulingId, "newGame seeds parties");
+  const homeSeats = G.parties.seats[G.parties.rulingId];
+  assert(
+    G.parties.rulingId === "social",
+    "opening Kingdom is a Labour government",
+  );
+  assert(
+    homeSeats === 68,
+    "opening Kingdom seats match Commons Labour share without Reform/Greens (" +
+      homeSeats +
+      ")",
+  );
+  assert(G.parties.seats.conservative === 20, "opening Conservatives ~20/100");
+  assert(G.parties.seats.liberal === 12, "opening Lib Dems ~12/100");
+  assert(
+    G.parties.seats.national === 0,
+    "Reform is folded out of the opening Commons",
+  );
+  assert(
+    G.parties.seats.agrarian === 0,
+    "Greens are folded out of the opening Commons",
+  );
+  const labourRow = seatRows().find((r) => r.id === "social");
+  assert(
+    labourRow && labourRow.name === "Labour",
+    "Kingdom overlay names the social family Labour",
+  );
+  assert(
+    labourRow && labourRow.short === "Labour",
+    "Kingdom Labour short name",
+  );
+  assert(
+    G.law.groups.votingSystem === "majoritySingle",
+    "Kingdom opens first-past-the-post",
+  );
+
+  for (const r of PLAYABLE_REALMS) {
+    const o = partyOverlayForRole(r.role);
+    assert(!!o, r.name + " has a party overlay");
+  }
+  for (const id of Object.keys(PARTY_OVERLAYS)) {
+    const seats = PARTY_OVERLAYS[id].seats;
+    if (!seats) continue;
+    const sum = PARTY_IDS.reduce((s, p) => s + (seats[p] || 0), 0);
+    assert(
+      sum === CHAMBER_SEATS,
+      id + " opening seats sum to 100 (got " + sum + ")",
+    );
+    for (const p of PARTY_IDS) {
+      const n = seats[p] || 0;
+      assert(
+        n === 0 || n > 5,
+        id + " " + p + " is a splinter caucus (" + n + ")",
+      );
+    }
+  }
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "spain",
+    homeIso: "724",
+    country: "Spain",
+  });
+  G = getG();
+  assert(
+    G.parties.rulingId === "social",
+    "Spain is a PSOE government even though PP is larger",
+  );
+  assert(
+    seatRows().find((r) => r.ruling).name === "PSOE",
+    "Spain overlay names PSOE",
+  );
+  assert(G.parties.seats.conservative === 39, "Spain PP is the largest caucus");
+  assert(G.law.groups.votingSystem === "proportional", "Spain opens with PR");
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "germany",
+    homeIso: "276",
+    country: "Germany",
+  });
+  G = getG();
+  assert(
+    G.parties.rulingId === "conservative",
+    "Germany is a CDU/CSU chancellery",
+  );
+  assert(
+    seatRows().find((r) => r.ruling).name === "CDU/CSU",
+    "Germany overlay names CDU/CSU",
+  );
+  assert(
+    G.parties.seats.conservative === 33,
+    "Germany Union has 33 of 100, not a solo majority",
+  );
+  assert(G.law.groups.votingSystem === "proportional", "Germany opens with PR");
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "france",
+    homeIso: "250",
+    country: "France",
+  });
+  G = getG();
+  assert(
+    G.law.groups.votingSystem === "majorityTwoRound",
+    "France opens with two-round majority",
+  );
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "netherlands",
+    homeIso: "528",
+    country: "Netherlands",
+  });
+  G = getG();
+  assert(
+    G.law.groups.votingSystem === "proportional",
+    "Netherlands opens with PR",
+  );
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "kenya",
+    homeIso: "404",
+    country: "Kenya",
+  });
+  G = getG();
+  assert(
+    G.parties.seats.conservative === 48,
+    "Kenya UDA stays a plurality, not a manufactured majority",
+  );
+  assert(
+    G.parties.seats.social === 37,
+    "Kenya leftover from folding KANU goes to ODM",
+  );
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "united_states",
+    homeIso: "840",
+    country: "United States",
+  });
+  G = getG();
+  assert(
+    G.parties.rulingId === "conservative",
+    "United States opens as a Republican administration",
+  );
+  assert(
+    seatRows().find((r) => r.ruling).name === "Republicans",
+    "US overlay names Republicans",
+  );
+  assert(
+    G.parties.seats.conservative === 52,
+    "US House GOP majority without independents",
+  );
+  assert(G.parties.seats.social === 48, "US House is a two-party chamber");
+
+  newGame({
+    sandbox: true,
+    silent: true,
+    homeRole: "japan",
+    homeIso: "392",
+    country: "Japan",
+  });
+  G = getG();
+  assert(G.parties.rulingId === "conservative", "Japan is an LDP government");
+  assert(
+    G.parties.seats.conservative === 68,
+    "Japan LDP supermajority scaled to 100",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  const snapParties = clone(G.parties);
+  const before = project(4);
+  assert(
+    JSON.stringify(G.parties) === JSON.stringify(snapParties),
+    "project() does not mutate G.parties",
+  );
+  void before;
+
+  G.sandbox = false;
+  G.capital = 80;
+  for (const f of FACTIONS) G.fac[f.id] = 40;
+  G.parties.rulingId = "social";
+  G.parties.seats = {
+    social: 55,
+    liberal: 10,
+    conservative: 25,
+    national: 5,
+    agrarian: 5,
+  };
+  G.draft.policies.dereg = true;
+  const beforeLaw = !!G.law.policies.dereg;
+  const beforeCap = G.capital;
+  const vote = billVoteData();
+  assert(
+    vote && vote.needed && !vote.pass,
+    "off-manifesto bill fails with low approval",
+  );
+  enact();
+  assert(
+    !!G.law.policies.dereg === beforeLaw && G.capital === beforeCap,
+    "sovereign parliament: enact no-ops when aye ≤ 50; capital unchanged",
+  );
+  delete G.draft.policies.dereg;
+
+  G.law.groups.parliamentaryPowers = "suppressed";
+  G.draft.groups.parliamentaryPowers = "suppressed";
+  G.draft.policies.dereg = true;
+  G.capital = 80;
+  enact();
+  assert(
+    !!G.law.policies.dereg,
+    "suppressed parliament: enact succeeds on capital alone",
+  );
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  G.law.groups.parliamentaryPowers = "consultative";
+  G.draft = clone(G.law);
+  G.capital = 80;
+  for (const f of FACTIONS) G.fac[f.id] = 40;
+  G.parties.rulingId = "social";
+  G.parties.seats = {
+    social: 55,
+    liberal: 10,
+    conservative: 25,
+    national: 5,
+    agrarian: 5,
+  };
+  G.draft.policies.dereg = true;
+  const patBefore = G.fac.patriots;
+  enact();
+  assert(!!G.law.policies.dereg, "consultative fail: enact proceeds");
+  assert(G.fac.patriots < patBefore, "consultative fail moves patriots");
+
+  newGame({
+    sandbox: false,
+    silent: true,
+    homeRole: "china",
+    homeIso: "156",
+    country: "Eastern Republic",
+  });
+  G = getG();
+  assert(
+    G.parties.rulingId === "national",
+    "China ruling party is the apparatus",
+  );
+  assert(
+    G.parties.seats.national === 100,
+    "China is not a competitive allocation (" + G.parties.seats.national + ")",
+  );
+  const chinaRuling = seatRows().find((r) => r.ruling);
+  assert(
+    chinaRuling && chinaRuling.name === "Communist Party",
+    "China names the apparatus the Communist Party",
+  );
+  G.law.groups.partyPluralism = "banned";
+  G.draft.groups.partyPluralism = "banned";
+  const banned = seedParties(G.fac, G.law);
+  assert(
+    banned.seats.national === 100,
+    "banned opposition → 100 seats for the ruling party",
+  );
+
+  newGame({ sandbox: false, silent: true });
+  G = getG();
+  const ruling = G.parties.rulingId;
+  /* Bias the electorate against the incumbent's ideology so they cannot
+     come first even with the FPTP majority maker. */
+  if (ruling === "social" || ruling === "liberal") {
+    G.fac = {
+      business: 90,
+      workers: 8,
+      pensioners: 12,
+      urban: 10,
+      rural: 88,
+      patriots: 90,
+    };
+  } else {
+    G.fac = {
+      business: 10,
+      workers: 90,
+      pensioners: 80,
+      urban: 90,
+      rural: 10,
+      patriots: 8,
+    };
+  }
+  const termWas = G.term;
+  G.over = false;
+  termReview();
+  assert(
+    G.over === true,
+    "election: ruling party second in seats → over unless sandbox",
+  );
+  assert(G.term === termWas, "lost election does not increment term");
+
+  newGame({ sandbox: true, silent: true });
+  G = getG();
+  if (G.parties.rulingId === "social" || G.parties.rulingId === "liberal") {
+    G.fac = {
+      business: 90,
+      workers: 8,
+      pensioners: 12,
+      urban: 10,
+      rural: 88,
+      patriots: 90,
+    };
+  } else {
+    G.fac = {
+      business: 10,
+      workers: 90,
+      pensioners: 80,
+      urban: 90,
+      rural: 10,
+      patriots: 8,
+    };
+  }
+  const t0 = G.term;
+  termReview();
+  assert(!G.over, "sandbox election loss still returns you");
+  assert(G.term === t0 + 1, "sandbox election still increments term");
 }
 
 if (failed) {

@@ -6,10 +6,12 @@ import {
   T,
   bump,
   fullEffectsData,
+  itemPartyStances,
   qualEffectsData,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { EffectsBlock } from "./Effects.tsx";
+import { PartyStanceChips } from "./PartyStance.tsx";
 import { Button } from "./Button.tsx";
 import { Card, CardFoot, CardPrice } from "./Card.tsx";
 import { Callout } from "./Callout.tsx";
@@ -56,6 +58,13 @@ export function PolicyCard({ p }: { p: Policy }) {
       </h4>
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">{T(p.blurb)}</p>
       <EffectsBlock data={effectsData} />
+      <PartyStanceChips
+        stances={itemPartyStances("policy", {
+          id: p.id,
+          enacting: !isLaw,
+        })}
+        sandbox={!!G.sandbox}
+      />
       {killLine}
       <CardFoot>
         <CardPrice>

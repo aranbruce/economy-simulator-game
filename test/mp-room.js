@@ -513,11 +513,17 @@ async function main() {
   assert.ok(
     hostPending &&
       hostPending.missionEvent &&
-      hostPending.partnerId === "france",
+      hostPending.partnerId === "france" &&
+      (hostPending.eventIndex == null || hostPending.eventIndex === 0),
     "host gets summit mission pendingEvent for france",
   );
+  const hostQueued = sumRes.room.snapshot.politics.kingdom.missionEvents || [];
   assert.ok(
-    !(sumRes.room.snapshot.politics.kingdom.missionEvents || []).length,
+    hostQueued.length === 1 && hostQueued[0].eventIndex === 1,
+    "commercial agenda stays queued behind the political paper",
+  );
+  assert.ok(
+    !hostQueued.some((e) => e.eventIndex === 0),
     "promoted summit event is not left duplicated in missionEvents",
   );
   assert.ok(
@@ -575,7 +581,7 @@ async function main() {
   assert.equal(
     missionChoices,
     2,
-    "two-quarter summit yields exactly 2 mission presentations",
+    "summit yields exactly 2 mission presentations",
   );
 
   /* Ultimatum resolves in lockstep and leaves a per-seat diploAlert. */
@@ -1769,6 +1775,179 @@ async function main() {
       (a) => a.kind === "deal_propose_decline" && a.partnerId === "germany",
     ),
     "issuer gets deal decline alert",
+  );
+
+  /* ---- Human→human inbound summit commercial tariff ---- */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapSumTar = exportGameSnapshot(getG());
+  assert.ok(
+    snapSumTar.log.some(
+      (r) => r.partnerTariffs && r.partnerTariffs.germany != null,
+    ),
+    "snapshot log carries partnerTariffs",
+  );
+  const hSumT = await createRoom({ hostName: "Alice", role: "home" });
+  const gSumT = await joinRoom(hSumT.room.code, {
+    name: "Bob",
+    role: "germany",
+  });
+  const stSumT = await startRoom(hSumT.room.code, hSumT.token, snapSumTar);
+  assert.ok(!stSumT.error, stSumT.error);
+  {
+    const raw = await loadRoom(hSumT.room.code);
+    raw.snapshot.politics.germany.inboundSummitCommercial = {
+      fromId: "kingdom",
+      delta: 2,
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const roomBeforeAccept = await getRoom(hSumT.room.code, gSumT.token);
+  const guestSched =
+    roomBeforeAccept.snapshot.world.germany.law.tariffSchedule || {};
+  const beforeGuestTar =
+    guestSched.country && guestSched.country.kingdom != null
+      ? guestSched.country.kingdom
+      : guestSched.default != null
+        ? guestSched.default
+        : 10;
+  const sumAccepted = await chooseEvent(hSumT.room.code, gSumT.token, {
+    inboundSummitCommercial: true,
+    accept: true,
+  });
+  assert.ok(!sumAccepted.error, sumAccepted.error);
+  assert.ok(
+    !sumAccepted.room.snapshot.politics.germany.inboundSummitCommercial,
+    "inbound summit commercial cleared on accept",
+  );
+  const afterGuestTar =
+    sumAccepted.room.snapshot.world.germany.law.tariffSchedule.country
+      .kingdom;
+  assert.ok(
+    afterGuestTar != null && afterGuestTar === beforeGuestTar - 2,
+    "accept cuts guest tariff on host exports",
+  );
+  assert.ok(
+    (sumAccepted.room.snapshot.politics.kingdom.diploAlerts || []).some(
+      (a) => a.kind === "summit_tariff_accept" && a.partnerId === "germany",
+    ),
+    "issuer gets summit tariff accept alert",
+  );
+
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapDecSum = exportGameSnapshot(getG());
+  const hDecSum = await createRoom({ hostName: "Alice", role: "home" });
+  const gDecSum = await joinRoom(hDecSum.room.code, {
+    name: "Bob",
+    role: "germany",
+  });
+  const stDecSum = await startRoom(hDecSum.room.code, hDecSum.token, snapDecSum);
+  assert.ok(!stDecSum.error, stDecSum.error);
+  {
+    const raw = await loadRoom(hDecSum.room.code);
+    const kLaw = raw.snapshot.world.kingdom.law;
+    kLaw.tariffSchedule = kLaw.tariffSchedule || { default: 10, country: {} };
+    kLaw.tariffSchedule.country = kLaw.tariffSchedule.country || {};
+    kLaw.tariffSchedule.country.germany = 8;
+    raw.snapshot.politics.germany.inboundSummitCommercial = {
+      fromId: "kingdom",
+      delta: 2,
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const sumDeclined = await chooseEvent(hDecSum.room.code, gDecSum.token, {
+    inboundSummitCommercial: true,
+    accept: false,
+  });
+  assert.ok(!sumDeclined.error, sumDeclined.error);
+  assert.ok(
+    !sumDeclined.room.snapshot.politics.germany.inboundSummitCommercial,
+    "inbound summit commercial cleared on decline",
+  );
+  assert.ok(
+    !sumDeclined.room.snapshot.world.kingdom.law.tariffSchedule.country
+      .germany,
+    "decline reverts issuer bilateral tariff overlay",
+  );
+
+  /* ---- Human→human summit agenda: tariff + treaty shown and accepted together ---- */
+  _resetRoomsForTests();
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const snapSumPkg = exportGameSnapshot(getG());
+  const hSumPkg = await createRoom({ hostName: "Alice", role: "home" });
+  const gSumPkg = await joinRoom(hSumPkg.room.code, {
+    name: "Bob",
+    role: "germany",
+  });
+  const stSumPkg = await startRoom(
+    hSumPkg.room.code,
+    hSumPkg.token,
+    snapSumPkg,
+  );
+  assert.ok(!stSumPkg.error, stSumPkg.error);
+  {
+    const raw = await loadRoom(hSumPkg.room.code);
+    raw.snapshot.politics.germany.inboundSummitCommercial = {
+      fromId: "kingdom",
+      ourDelta: 2,
+      theirDelta: 2,
+      delta: 2,
+      deals: [
+        {
+          id: "de_fta",
+          label: "Bilateral free trade agreement",
+          terms: ["Zero tariffs on manufactures"],
+        },
+      ],
+      sentQ: raw.snapshot.q || 0,
+      expiresQ: (raw.snapshot.q || 0) + 4,
+      status: "pending",
+    };
+    await saveRoom(raw);
+  }
+  const pkgBefore = await getRoom(hSumPkg.room.code, gSumPkg.token);
+  const pkgGuestSched =
+    pkgBefore.snapshot.world.germany.law.tariffSchedule || {};
+  const pkgBeforeGuestTar =
+    pkgGuestSched.country && pkgGuestSched.country.kingdom != null
+      ? pkgGuestSched.country.kingdom
+      : pkgGuestSched.default != null
+        ? pkgGuestSched.default
+        : 10;
+  assert.ok(
+    !(
+      pkgBefore.snapshot.world.kingdom.law.deals &&
+      pkgBefore.snapshot.world.kingdom.law.deals.de_fta
+    ),
+    "combined agenda does not enact the treaty before accept",
+  );
+  const pkgAccepted = await chooseEvent(hSumPkg.room.code, gSumPkg.token, {
+    inboundSummitCommercial: true,
+    accept: true,
+  });
+  assert.ok(!pkgAccepted.error, pkgAccepted.error);
+  assert.ok(
+    !pkgAccepted.room.snapshot.politics.germany.inboundSummitCommercial,
+    "combined inbound cleared on accept",
+  );
+  assert.ok(
+    pkgAccepted.room.snapshot.world.kingdom.law.deals &&
+      pkgAccepted.room.snapshot.world.kingdom.law.deals.de_fta,
+    "accept writes the treaty onto the issuer's law",
+  );
+  const pkgAfterGuestTar =
+    pkgAccepted.room.snapshot.world.germany.law.tariffSchedule.country
+      .kingdom;
+  assert.ok(
+    pkgAfterGuestTar != null && pkgAfterGuestTar === pkgBeforeGuestTar - 2,
+    "accept also cuts guest tariff on host exports",
   );
 
   /* ---- One human leaving a shared custom bloc must not eject the peer ---- */

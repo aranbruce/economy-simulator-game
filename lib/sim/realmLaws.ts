@@ -15,6 +15,13 @@
 export function applyRealmLawOverlay(law: any, overlay: any) {
   if (!overlay) return law;
   if (overlay.tariff != null) law.tariff = overlay.tariff;
+  if (overlay.tariffCountry) {
+    if (!law.tariffSchedule) {
+      law.tariffSchedule = { default: law.tariff, bloc: {}, country: {}, cet: null };
+    }
+    if (!law.tariffSchedule.country) law.tariffSchedule.country = {};
+    Object.assign(law.tariffSchedule.country, overlay.tariffCountry);
+  }
   if (overlay.spend) {
     for (const id in overlay.spend) {
       if (law.spend[id] != null) law.spend[id] = overlay.spend[id];
@@ -53,10 +60,25 @@ export function applyRealmLawOverlay(law: any, overlay: any) {
 }
 
 /**
- * Per-seat overlays keyed by country id. `home` / missing → no overlay (UK baseLaw).
+ * Per-seat overlays keyed by country id. `home` / `kingdom` carry UK FTA
+ * country rates; missing keys fall back to UK baseLaw.
  * Income thresholds stay in the game's £ units; rates and shares do the flavour.
  */
+const UK_FTA_RATES = {
+  japan: 1,
+  australia: 1,
+  korea: 1,
+  canada: 1,
+  vietnam: 1,
+  mexico: 1,
+};
+
 export const REALM_LAW: Record<string, any> = {
+  /* UK residual preference with continuity FTAs. EU partners stay on the
+     default / CET — the UK is outside the union, and zeroing those duties
+     at t=0 blows the opening-growth settle. */
+  home: { tariffCountry: UK_FTA_RATES },
+  kingdom: { tariffCountry: UK_FTA_RATES },
   /* Gaul Republic (France): standard VAT 20%, the OECD's heaviest social
      protection bill, defence at the NATO 2% outturn, ETS-ish carbon,
      CBAM / net-zero pathway. */
@@ -181,7 +203,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Eastern Republic (China): VAT 13, investment-led (infra + research), thinner welfare, strict
      vice and borders, digital ID / industrial strategy on. */
   china: {
-    tariff: 6,
+    tariff: 8,
     spend: {
       health: 3.0,
       education: 3.8,
@@ -287,7 +309,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Lotus Republic (India): GST ~18, thin public health, rising infra, heavy tobacco,
      digital ID, gambling banned. */
   india: {
-    tariff: 7,
+    tariff: 12,
     spend: {
       health: 2.0,
       education: 4.0,
@@ -397,7 +419,7 @@ export const REALM_LAW: Record<string, any> = {
      run near 12% of GDP), corp at the IRPJ + CSLL 34%, notoriously thin
      public investment, cannabis decriminalised patchwork, social housing. */
   brazil: {
-    tariff: 6,
+    tariff: 11,
     spend: {
       health: 4.2,
       education: 4.7,
@@ -444,6 +466,7 @@ export const REALM_LAW: Record<string, any> = {
      open visas; employee NI off (payroll/super flavour via employer only). */
   australia: {
     tariff: 3,
+    tariffCountry: { kingdom: 1 },
     deals: { king_services: true },
     spend: {
       health: 6.8,
@@ -556,6 +579,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Laurentian Federation (Canada): GST 5, carbon, open visas, dual lean. */
   canada: {
     tariff: 3,
+    tariffCountry: { kingdom: 1 },
     spend: {
       health: 8.0,
       education: 4.8,
@@ -607,6 +631,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Morning Calm Republic (Korea): high education/research, competitive corp, ageing. */
   korea: {
     tariff: 4,
+    tariffCountry: { kingdom: 1 },
     spend: {
       health: 5.5,
       education: 4.8,
@@ -752,7 +777,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Pampas Confederation (Argentina): VAT-heavy, thin fiscal space, commodity
      lean, public works slashed, armed forces run on a shoestring. */
   argentina: {
-    tariff: 10,
+    tariff: 13,
     spend: {
       health: 5.0,
       education: 4.2,
@@ -799,6 +824,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Red River Republic (Vietnam): manufacturing state, light welfare, high tariff. */
   vietnam: {
     tariff: 9,
+    tariffCountry: { kingdom: 1 },
     spend: {
       health: 2.6,
       education: 3.6,
@@ -1194,6 +1220,7 @@ export const REALM_LAW: Record<string, any> = {
   /* Sunrise Republic (Mexico): VAT 16; lighter welfare than Brazil; cannabis decrim. */
   mexico: {
     tariff: 6,
+    tariffCountry: { kingdom: 1 },
     spend: {
       health: 3.0,
       education: 3.8,
@@ -1241,6 +1268,7 @@ export const REALM_LAW: Record<string, any> = {
      corp ~30; ageing; strict vice. */
   japan: {
     tariff: 3,
+    tariffCountry: { kingdom: 1 },
     spend: {
       health: 9.0,
       education: 3.5,

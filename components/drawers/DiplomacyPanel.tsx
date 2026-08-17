@@ -9,7 +9,7 @@ import {
   ensureDiploStocks,
   emptyEnvoys,
   MISSIONS,
-  ENVOY_TARGET,
+  ENVOY_DRIFT,
   ENVOY_ASSIGN_PC,
   ULTIMATUM_PC,
   ICONS,
@@ -21,6 +21,7 @@ import {
   ultimatumWaitingCopy,
   visitQuartersLeft,
   diploDeps,
+  cuBoundary,
   shareLabel,
   COUNTRY_REGIONS,
   pruneInvalidDraftMissions,
@@ -106,8 +107,9 @@ function EnvoySummary({ G }: { G: any }) {
         })}
       </div>
       <div className="mt-1.5 text-xs leading-[1.4] text-ink-soft">
-        Assign costs {ENVOY_ASSIGN_PC} capital · missions go into the bill ·
-        ultimatums spend capital immediately
+        Assign costs {ENVOY_ASSIGN_PC} capital · posted envoys warm relations
+        each quarter · missions go into the bill · ultimatums spend capital
+        immediately
       </div>
     </div>
   );
@@ -222,7 +224,7 @@ function EnvoyRow({ p, G }: { p: Country; G: any }) {
   }
   const freeSlot = G.envoys.indexOf(null) >= 0;
   const canAssign = freeSlot && (G.capital || 0) >= ENVOY_ASSIGN_PC;
-  let assignTip = `Spend ${ENVOY_ASSIGN_PC} capital · +${ENVOY_TARGET} relations per quarter`;
+  let assignTip = `Spend ${ENVOY_ASSIGN_PC} capital · +${ENVOY_DRIFT} relations each quarter while posted`;
   if (!freeSlot) assignTip = "All envoy slots are filled";
   else if (!canAssign) assignTip = `Need ${ENVOY_ASSIGN_PC} capital`;
   return (
@@ -398,6 +400,11 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
           {bloc.name}
         </div>
       ) : null}
+      {cuBoundary(G, p.id) ? (
+        <div className="px-3 pb-1.5 text-xs text-ink-soft">
+          A state visit can table a union commercial package.
+        </div>
+      ) : null}
       <div className="grid gap-1 px-3 pb-2">
         <div className="grid grid-cols-[78px_1fr_30px] items-center gap-2 text-xs">
           <span>Relations</span>
@@ -434,7 +441,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         <div className="mb-2 flex items-baseline justify-between gap-2 text-xs font-bold tracking-wider text-ink-soft uppercase">
           Envoy
           <span className="text-xs font-medium tracking-normal text-ink-faint normal-case">
-            +{ENVOY_TARGET}/Q while posted
+            +{ENVOY_DRIFT}/Q while posted
           </span>
         </div>
         <EnvoyRow p={p} G={G} />

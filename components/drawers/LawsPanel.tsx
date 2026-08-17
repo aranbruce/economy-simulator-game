@@ -9,6 +9,7 @@ import {
   bump,
   qualEffectsData,
   fullEffectsData,
+  itemPartyStances,
   resolveReqState,
   taxAvailable,
   getDrawerCat,
@@ -20,6 +21,7 @@ import { Card, CardCat } from "../ui/Card.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
 import { EffectsBlock } from "../ui/Effects.tsx";
+import { PartyStanceChips } from "../ui/PartyStance.tsx";
 import { PolicyCard } from "../ui/PolicyCard.tsx";
 import type {
   LawGroup,
@@ -279,6 +281,18 @@ function GroupCard({ grp }: { grp: LawGroup }) {
         {T(current.blurb)}
       </p>
       <EffectsBlock data={effectsData} />
+      <PartyStanceChips
+        stances={
+          draftId !== lawId
+            ? itemPartyStances("group", {
+                id: grp.id,
+                from: lawId,
+                to: draftId,
+              })
+            : itemPartyStances("fac", { fac: current.fac || {} })
+        }
+        sandbox={!!G.sandbox}
+      />
     </Card>
   );
 }
@@ -377,6 +391,18 @@ function ViceCardGrid() {
               {T(st.blurb)}
             </p>
             <EffectsBlock data={effectsData} />
+            <PartyStanceChips
+              stances={
+                cur !== inLaw
+                  ? itemPartyStances("vice", {
+                      id: v.id,
+                      from: inLaw,
+                      to: cur,
+                    })
+                  : itemPartyStances("fac", { fac: st.fac || {} })
+              }
+              sandbox={!!G.sandbox}
+            />
             {v.tax ? (
               <div className="flex flex-wrap gap-x-2.5 gap-y-0.75 text-xs text-ink-faint">
                 {taxAvailable(TAX_BY_ID[v.tax], G.draft)

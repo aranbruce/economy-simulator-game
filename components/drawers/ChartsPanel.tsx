@@ -3,11 +3,16 @@
 import {
   COL,
   FACTIONS,
+  displayParties,
   aggregate,
   approvalOf,
   clamp,
   currencyForSeat,
   fmt,
+  fmtGdpBn,
+  gdp0ForSeat,
+  realmGdpBn,
+  activePartners,
   lineChartSpec,
   getDrawerCat,
 } from "../../lib/sim/engine.ts";
@@ -143,6 +148,29 @@ export function ChartsPanel() {
   const fxCode = currencyForSeat(G.homeRole);
   const anchorCcy = pref.display || fxCode;
   const facColors = [COL.blue, COL.ox, COL.brass, COL.plum, COL.green, COL.ink];
+  const homeGdp0 = gdp0ForSeat(G.homeRole);
+  const gdpFmt = (v: number) => fmtGdpBn(v, anchorCcy, G);
+  /* Log stores the real-output index and the FX display index (100 at
+     opening). Reconstructing USD bn the same way realmGdpBn does means
+     this series's latest point matches the ranking chart and the realm
+     card. */
+  const gdpBnOverTime = G.log.map(
+    (r: any) =>
+      homeGdp0 * ((r.gdp != null ? r.gdp : 100) / 100) * ((r.fx != null ? r.fx : 100) / 100),
+  );
+  const gdpNowRows = [
+    {
+      name: G.country,
+      gdpBn: realmGdpBn("home", G),
+      us: true,
+    },
+    ...activePartners().map((p: { id: string; name: string }) => ({
+      name: p.name,
+      gdpBn: realmGdpBn(p.id, G),
+      us: false,
+    })),
+  ].sort((a, b) => b.gdpBn - a.gdpBn);
+  const gdpNowMax = Math.max(gdpNowRows[0]?.gdpBn || 1, 1e-6);
 
   const noData = (
     <div className="p-4 text-xs text-ink-faint">
@@ -162,12 +190,65 @@ export function ChartsPanel() {
       </>
     );
 
-  const growth = withData(
+  const gdpNow = (
+    <ChartBox
+      title="GDP now"
+      caption={`Nominal size of every mapped economy, in ${anchorCcy}. ${G.country} is ${gdpFmt(realmGdpBn("home", G))}.`}
+    >
+      {gdpNowRows.map((r) => (
+        <div
+          key={r.us ? "home" : r.name}
+          className="mb-0.5 grid grid-cols-[8.5rem_1fr_4.5rem] items-center gap-2 text-xs"
+        >
+          <span className={`truncate ${r.us ? "font-semibold" : ""}`} title={r.name}>
+            {r.name}
+            {r.us ? " · you" : ""}
+          </span>
+          <span className="h-1.25 overflow-hidden rounded-xs border border-edge bg-g-1">
+            <i
+              className={`block h-full rounded-none transition-[width] duration-400 ease-[cubic-bezier(.2,.9,.3,1)] ${r.us ? "bg-accent" : "bg-ink-soft"}`}
+              style={{
+                width: `${clamp((r.gdpBn / gdpNowMax) * 100, 0, 100).toFixed(1)}%`,
+              }}
+            />
+          </span>
+          <span
+            className={`text-right text-xs tabular-nums ${r.us ? "font-semibold text-ink-soft" : "font-[650] text-ink-soft"}`}
+          >
+            {gdpFmt(r.gdpBn)}
+          </span>
+        </div>
+      ))}
+    </ChartBox>
+  );
+
+  const growth = (
     <>
-      <ChartBox
-        title="Output against potential"
-        caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
-      >
+      {gdpNow}
+      {withData(
+        <>
+          <ChartBox
+            title="GDP over time"
+            caption={`Cash size of ${G.country}, not the 100-at-term-start index. A stronger currency raises the ${anchorCcy} figure; a weaker one cuts it.`}
+          >
+            <LineChartSvg
+              spec={lineChartSpec(
+                [
+                  {
+                    label: "GDP",
+                    color: COL.ink,
+                    data: gdpBnOverTime,
+                    wide: true,
+                  },
+                ],
+                { fmt: gdpFmt, padR: 72 },
+              )}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Output against potential"
+            caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
+          >
         <LineChartSvg
           spec={lineChartSpec([
             {
@@ -277,7 +358,9 @@ export function ChartsPanel() {
           )}
         />
       </ChartBox>
-    </>,
+        </>
+      )}
+    </>
   );
 
   const prices = withData(
@@ -385,6 +468,7 @@ export function ChartsPanel() {
   );
 
   const politics = withData(
+    <>
     <ChartBox
       title="Approval by faction"
       caption="The overall number hides everything interesting."
@@ -406,7 +490,28 @@ export function ChartsPanel() {
           ]),
         )}
       />
-    </ChartBox>,
+    </ChartBox>
+    <ChartBox
+      title="Party vote intention"
+      caption="Tracks vote intention, including government popularity. Seats only move at a term review."
+    >
+      <LineChartSvg
+        spec={lineChartSpec(
+          displayParties()
+            .filter(
+              (p: any) => (G.parties && G.parties.seats && G.parties.seats[p.id]) > 0,
+            )
+            .map((p: any): ChartSeriesInput => ({
+            label: p.short,
+            color: p.color,
+            data: G.log.map((r: any) =>
+              r.parties && r.parties[p.id] != null ? r.parties[p.id] * 100 : 0,
+            ),
+          })),
+        )}
+      />
+    </ChartBox>
+    </>,
   );
 
   const content =

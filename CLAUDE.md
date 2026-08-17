@@ -579,7 +579,9 @@ Breaking any of these will fail the suite, and should.
   (WebGL or a model load) disables only the boat layer and leaves the 2D map
   untouched. No game logic may live in either map module.
 - **Political capital gates everything.** No path may enact a bill costing more
-  than `G.capital`.
+  than `G.capital`. A sovereign parliament is a second gate: the Programme also
+  needs a chamber majority (`billVoteData()`), except when parliament is
+  suppressed (capital only) or consultative (advisory vote).
 - **Taxes gated on legality must vanish when the law changes.** When a vice
   moves to a state where its duty is invalid, `G.draft.taxes[id].on` is forced
   false by `syncViceTaxes()`.
@@ -1130,8 +1132,6 @@ rather than as a second parallel threshold system.
 Unbuilt ideas, roughly in order of how much they would add:
 
 - Regional breakdown, so spending has geography and elections have marginal seats
-- Parliament: bills passing on faction support rather than a single capital
-  pool, with rebellions
 - Save and load via `localStorage` (note: unavailable inside Claude artifacts,
   fine in a real browser)
 - Difficulty settings, starting from different fiscal inheritances
@@ -1145,4 +1145,10 @@ capital rates, private financial wealth in C and credit, consistent opening
 settle, knowledge stock `R` from the research budget (and research-credit
 effort) feeding TFP growth, derived trend (frontier + `yRel` catch-up +
 demography, not per-realm tfp/labour tables), partner opening macros calibrated
-to IMF WEO / Fiscal Monitor April 2026 across the sovereign seats.
+to IMF WEO / Fiscal Monitor April 2026 across the sovereign seats, parties and
+a parliamentary vote on the Programme (capital **and** a chamber majority;
+ruling-party whip scales with leader approval; elections reallocate seats;
+dictatorships skip or rubber-stamp the vote), union commercial packages at
+CU-boundary summits (preferential overlays that bind every member, plus a union
+association treaty or the independent partner's deals; blocs are still not
+seats).
