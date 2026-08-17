@@ -3,6 +3,7 @@
 import {
   TABS,
   billClauses,
+  programmeCost,
   capitalShortfallHint,
   getTab,
   setTab,
@@ -19,8 +20,8 @@ import { CATS as TAXES_CATS } from "../drawers/TaxesPanel.tsx";
 import { CATS as DIPLOMACY_CATS } from "../drawers/DiplomacyPanel.tsx";
 import { CATS as TRADE_CATS } from "../drawers/TradePanel.tsx";
 
-function billCost() {
-  return billClauses().reduce((a, c) => a + (c.sunk ? 0 : c.pc), 0);
+function programmeTotal() {
+  return programmeCost(billClauses());
 }
 
 /** Category pills for a drawer live here, as real persistent chrome, rather
@@ -45,7 +46,7 @@ export function DrawerShell() {
   if (!tab) return null;
 
   const cl = billClauses();
-  const cost = billCost();
+  const cost = programmeTotal();
   const overspent = tab === "bill" && cl.length > 0 && cost > G.capital;
   let name;
   let sub = "";

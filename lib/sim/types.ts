@@ -15,7 +15,22 @@ export type FactionId =
 /** A points-per-faction effect bag — present on taxes, policies, regimes,
  * vice states and diplomatic missions. Every key is optional; absent
  * factions are simply unaffected. */
-type FactionEffects = Partial<Record<FactionId, number>>;
+export type FactionEffects = Partial<Record<FactionId, number>>;
+
+/** Electoral families whose seat shares and whip are derived from factions. */
+export type PartyId =
+  "social" | "liberal" | "conservative" | "national" | "agrarian";
+
+export type PartyStanceKind = "for" | "against" | "split";
+
+export interface Party {
+  id: PartyId;
+  name: string;
+  short: string;
+  /** Weights over the six factions; should sum to 1. */
+  ideology: Record<FactionId, number>;
+  color: string;
+}
 
 /** A structural-channel effect bag (labour, tfp, ucost, part, …) — see
  * CLAUDE.md "Adding content" for the open list of channel keys. Loosely

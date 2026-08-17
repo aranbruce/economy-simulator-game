@@ -57,11 +57,9 @@ export const DEFAULT_BLOC_MEMBER: Record<string, string> = {
   poland: "continental_union",
   japan: "pacific_accord",
   australia: "pacific_accord",
-  korea: "pacific_accord",
   saudi: "gulf_council",
   uae: "gulf_council",
   brazil: "andes_pact",
-  mexico: "andes_pact",
   argentina: "andes_pact",
   indonesia: "asean_circle",
   vietnam: "asean_circle",
@@ -74,7 +72,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "276",
     capital: { lat: 52.52, lng: 13.405 }, // Berlin
-    tradeShare: 0.12,
+    tradeShare: 0.1,
     blurb:
       "Industrial heartland. Rules-minded, export-heavy, allergic to fiscal chaos elsewhere.",
     deals: [
@@ -110,7 +108,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "250",
     capital: { lat: 48.8566, lng: 2.3522 }, // Paris
-    tradeShare: 0.07,
+    tradeShare: 0.065,
     blurb:
       "Wine, strikes, and institutions that outlast whichever government is nominally in charge.",
     deals: [
@@ -149,7 +147,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "380",
     capital: { lat: 41.9028, lng: 12.4964 }, // Rome
-    tradeShare: 0.04,
+    tradeShare: 0.045,
     blurb:
       "Design, food, and a debt stock that makes every budget conversation longer.",
     deals: [
@@ -172,7 +170,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "724",
     capital: { lat: 40.4168, lng: -3.7038 }, // Madrid
-    tradeShare: 0.035,
+    tradeShare: 0.038,
     blurb: "Tourism, agriculture, and a bridge to the southern Atlantic.",
     deals: [
       {
@@ -194,7 +192,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "528",
     capital: { lat: 52.3676, lng: 4.9041 }, // Amsterdam
-    tradeShare: 0.06,
+    tradeShare: 0.085,
     blurb:
       "Ports, logistics, and a very direct view of whether your customs policy works.",
     deals: [
@@ -217,7 +215,7 @@ export const COUNTRIES: Country[] = [
     region: "americas",
     iso: "840",
     capital: { lat: 38.9072, lng: -77.0369 }, // Washington, D.C.
-    tradeShare: 0.175,
+    tradeShare: 0.22,
     blurb:
       "Enormous, litigious, and extremely interested in your digital services tax.",
     deals: [
@@ -267,7 +265,7 @@ export const COUNTRIES: Country[] = [
     region: "asia",
     iso: "156",
     capital: { lat: 39.9042, lng: 116.4074 }, // Beijing
-    tradeShare: 0.11,
+    tradeShare: 0.05,
     blurb:
       "Cheap inputs, deep pockets, and a foreign policy your backbenchers hate.",
     deals: [
@@ -311,7 +309,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "643",
     capital: { lat: 55.7558, lng: 37.6173 }, // Moscow
-    tradeShare: 0.03,
+    tradeShare: 0.02,
     blurb:
       "Energy, commodities, and a long border with the continent. Cheap barrels, expensive politics.",
     deals: [
@@ -346,7 +344,7 @@ export const COUNTRIES: Country[] = [
     region: "asia",
     iso: "356",
     capital: { lat: 28.6139, lng: 77.209 }, // New Delhi
-    tradeShare: 0.035,
+    tradeShare: 0.038,
     blurb:
       "Fast growth, deep labour markets, and a services trade your firms already depend on.",
     deals: [
@@ -517,7 +515,7 @@ export const COUNTRIES: Country[] = [
     region: "gulf",
     iso: "784",
     capital: { lat: 24.4539, lng: 54.3773 }, // Abu Dhabi
-    tradeShare: 0.015,
+    tradeShare: 0.02,
     blurb:
       "Hub economy. Logistics, finance, and a view of every trade lane that matters.",
     deals: [
@@ -592,7 +590,7 @@ export const COUNTRIES: Country[] = [
     region: "americas",
     iso: "124",
     capital: { lat: 45.4215, lng: -75.6972 }, // Ottawa
-    tradeShare: 0.04,
+    tradeShare: 0.042,
     blurb:
       "Commodity wealth, deep capital markets, and a long border with the United States.",
     deals: [
@@ -799,7 +797,7 @@ export const COUNTRIES: Country[] = [
     region: "europe",
     iso: "616",
     capital: { lat: 52.2297, lng: 21.0122 }, // Warsaw
-    tradeShare: 0.025,
+    tradeShare: 0.032,
     blurb:
       "Manufacturing heartland of the east. Growing fast, watching the northern border.",
     deals: [

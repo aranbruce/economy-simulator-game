@@ -274,7 +274,7 @@ export const LAW_GROUPS: LawGroup[] = [
         id: "proportional",
         label: "Proportional representation",
         blurb:
-          "Seats track vote share; smaller parties can win representation.",
+          "Seats track vote share; smaller parties can win representation. Applies at the next election.",
         pc: 14,
         fac: { urban: 3, rural: -1 },
         imp: { lib: 1 },
@@ -282,7 +282,8 @@ export const LAW_GROUPS: LawGroup[] = [
       {
         id: "majoritySingle",
         label: "Majority, single-member",
-        blurb: "First-past-the-post in single-member constituencies.",
+        blurb:
+          "First-past-the-post in single-member constituencies. The largest party is exaggerated; applies at the next election.",
         pc: 10,
         fac: { patriots: 1, rural: 1 },
       },
@@ -290,9 +291,31 @@ export const LAW_GROUPS: LawGroup[] = [
         id: "majorityTwoRound",
         label: "Majority, two-round",
         blurb:
-          "A runoff between the leading candidates if no one clears a majority.",
+          "A runoff between the leading candidates if no one clears a majority. The largest party is exaggerated, but less than first-past-the-post. Applies at the next election.",
         pc: 10,
         fac: { rural: 1, urban: 1 },
+      },
+    ],
+  },
+  {
+    id: "electionCalendar",
+    name: "Electoral calendar",
+    menu: "state",
+    cat: "Electoral System",
+    options: [
+      {
+        id: "flexible",
+        label: "Dissolution allowed",
+        blurb:
+          "The executive may dissolve the chamber and call an early ballot. A lost plurality still ends the term.",
+        pc: 8,
+      },
+      {
+        id: "fixed",
+        label: "Fixed terms",
+        blurb:
+          "Ballots fall on a fixed calendar. The executive cannot go to the country early.",
+        pc: 10,
       },
     ],
   },

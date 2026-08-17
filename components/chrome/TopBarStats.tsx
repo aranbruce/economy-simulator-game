@@ -1,6 +1,15 @@
 "use client";
 
-import { approvalOf, balanceOf, fmt, qLabel } from "../../lib/sim/engine.ts";
+import {
+  approvalOf,
+  balanceOf,
+  fmt,
+  leaderTitle,
+  qLabel,
+  rulingSeats,
+  CHAMBER_SEATS,
+  parliamentPowersOf,
+} from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Chip } from "../ui/Chip.tsx";
 
@@ -73,6 +82,15 @@ export function TopBarStats() {
       state: G.capital < 12 ? "alert" : "",
     },
   ];
+  if (parliamentPowersOf(G.law) === "sovereign") {
+    const seats = rulingSeats();
+    chips.push({
+      label: "Seats",
+      value: String(seats),
+      unit: `/${CHAMBER_SEATS}`,
+      state: seats <= 50 ? "alert" : seats >= 55 ? "good" : "",
+    } as any);
+  }
 
   return (
     <div
@@ -97,7 +115,7 @@ export function TopBarTerm() {
       id="tbTerm"
       className="mt-0.5 block text-xs font-medium tracking-[.06em] text-ink-faint uppercase max-md:text-xs max-sm:max-w-[38vw] max-sm:truncate"
     >
-      {termLabel} term · {qLabel(G, G.q)}
+      {leaderTitle()} · {termLabel} term · {qLabel(G, G.q)}
     </small>
   );
 }

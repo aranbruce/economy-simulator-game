@@ -4,6 +4,7 @@
  * while in force (deals, envoys, stance, policy alignment).
  */
 import type { GameState } from "./types.ts";
+import { shareFor } from "./tradeMatrix.ts";
 
 /** Engine hooks injected so this module stays free of circular imports on
  * the full engine bag — untyped until Phase 4's engine.js pass. */
@@ -14,6 +15,10 @@ export const LEDGER_FLOOR = 0.5;
 export const LEDGER_CAP = 25;
 export const ENVOY_SLOTS = 2;
 export const ENVOY_TARGET = 2;
+/** Goodwill added each quarter an envoy is posted. */
+export const ENVOY_DRIFT = 0.5;
+/** Cap on accumulated envoy-built goodwill per partner. */
+export const ENVOY_BUILD_CAP = 8;
 export const ENVOY_ASSIGN_PC = 0.5;
 export const ENVOY_UPKEEP_PC = 0.5;
 export const ENVOY_RECALL_PC = 0;
@@ -21,7 +26,11 @@ export const ULTIMATUM_PC = 10;
 export const ULTIMATUM_CD = 6;
 export const ULTIMATUM_WAIT = 2;
 export const ULTIMATUM_JITTER = 0.08;
-export const VISIT_DURATION = 2;
+/** Playable quarters a state visit stays on the board. Both summit papers
+ *  fire on the first Deliver; the extra quarter used to be leftover clock. */
+export const VISIT_DURATION = 1;
+/** Political paper then commercial agenda — sequential, same Deliver. */
+export const SUMMIT_EVENT_BEATS = 2;
 export const POLICY_ALIGN_K = 0.45;
 export const SANCTION_AGAINST_RESIDUAL = -6;
 export const SANCTION_WITH_RESIDUAL = 4;
@@ -94,8 +103,24 @@ export function ensureDiploStocks(e: any) {
   if (!e.diploLedger) e.diploLedger = {};
   if (!e.sanctionStance) e.sanctionStance = {};
   if (!e.relBase) e.relBase = {};
+  if (!e.envoyBuild) e.envoyBuild = {};
   if (!e.ultimatumCd) e.ultimatumCd = {};
   return e;
+}
+
+/** While an envoy is posted, add a little goodwill each quarter (capped). */
+export function tickEnvoyBuild(g: GameState, partnerId: string) {
+  if (!g || !partnerId) return 0;
+  const posted = (g.envoys || []).includes(partnerId);
+  if (!posted) return 0;
+  const e = g.econ;
+  if (!e) return 0;
+  ensureDiploStocks(e);
+  const built = e.envoyBuild[partnerId] || 0;
+  if (built >= ENVOY_BUILD_CAP) return 0;
+  const add = Math.min(ENVOY_DRIFT, ENVOY_BUILD_CAP - built);
+  e.envoyBuild[partnerId] = built + add;
+  return add;
 }
 
 export function beginActiveVisit(
@@ -112,7 +137,7 @@ export function beginActiveVisit(
     startedQ: q,
     endsQ: q + VISIT_DURATION,
     ...(mid === "summit"
-      ? { eventsTotal: VISIT_DURATION, eventsFired: 0 }
+      ? { eventsTotal: SUMMIT_EVENT_BEATS, eventsFired: 0 }
       : {}),
   };
 }
@@ -458,6 +483,14 @@ export function buildRelationModifiers(
   if (envoys.includes(partnerId)) {
     mods.push({ label: "Envoy posted", pts: ENVOY_TARGET, kind: "envoy" });
   }
+  const envoyBuilt = e.envoyBuild[partnerId] || 0;
+  if (envoyBuilt > 0) {
+    mods.push({
+      label: "Envoy goodwill",
+      pts: envoyBuilt,
+      kind: "live",
+    });
+  }
 
   const stance = e.sanctionStance[partnerId];
   if (stance && stance.against) {
@@ -657,6 +690,40 @@ function hasRatifiedDeal(partnerId: string, g: GameState, deps: Deps) {
   return false;
 }
 
+/** Partner's structural export share going to the player — their sales into
+ *  our market, not our sales into theirs. */
+function partnerExportShareToPlayer(
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+) {
+  const { playerCountryId } = deps;
+  const player = playerCountryId ? playerCountryId(g.homeRole) : null;
+  if (!player) return 0;
+  return shareFor(partnerId, player) || 0;
+}
+
+function dealFromMeta(meta: any, deps: Deps) {
+  const id = meta && meta.dealId;
+  if (!id || !deps) return null;
+  if (typeof deps.dealById === "function") {
+    const d = deps.dealById(id);
+    if (d) return d;
+  }
+  return (deps.DEAL_BY_ID && deps.DEAL_BY_ID[id]) || null;
+}
+
+/** Movement / labour deals — not goods FTAs that merely require the player
+ *  to keep borders open. */
+function isMobilityDeal(d: any) {
+  if (!d) return false;
+  return !!(d.ch && d.ch.migrate);
+}
+
+function clampUnit(x: number) {
+  return Math.max(-1, Math.min(1, x));
+}
+
 function topPolicyDivergence(partnerId: string, g: GameState, deps: Deps) {
   const law = g.law || g.draft;
   const pl = partnerLawBag(g, partnerId, deps);
@@ -701,24 +768,32 @@ export function partnerSelfInterest(
   const rel = g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50;
   const share = partnerShare ? partnerShare(g.homeRole, partnerId) : 0;
   const pl = partnerLawBag(g, partnerId, deps);
-  const bilat = (g.econ && g.econ.bilateralX) || {};
-  const exportsToPartner = bilat[partnerId] || 0;
-  const totalX =
-    Object.values(bilat).reduce((s: number, v: any) => s + (v || 0), 0) || 1;
-  const exportShare = exportsToPartner / (totalX as number);
+  const salesShare = partnerExportShareToPlayer(partnerId, g, deps);
 
   if (demandId === "tariffCut") {
     const theirTar = partnerTariffOnPlayer(partnerId, g, deps);
     const ourTar = playerTariffOnPartner(partnerId, g, deps);
     if (theirTar == null || ourTar == null) return 0;
-    if (exportShare > share + 0.03) return 0.45;
-    if (theirTar > ourTar + 2) return -0.35;
-    return 0.1;
+    const dep = clamp01(salesShare / 0.1) * 0.35;
+    /* Reciprocal commercial offer: they gain if we tax them more. Their
+     *  higher duty on us is our grievance, not a reason for them to refuse. */
+    if (meta && meta.reciprocal) {
+      const ourPremium = Math.max(0, ourTar - theirTar);
+      return clampUnit(dep + Math.min(0.35, ourPremium / 8));
+    }
+    const gap = theirTar - ourTar;
+    const gapTerm = Math.max(-0.45, Math.min(0.25, -gap / 8));
+    return clampUnit(gapTerm + dep);
   }
   if (demandId === "marketAccess") {
-    if (pl && pl.policies && pl.policies.openVisas) return 0.4;
-    if (hasRatifiedDeal(partnerId, g, deps)) return -0.2;
-    return pl && pl.policies && pl.policies.closeBorders ? -0.45 : 0.15;
+    const d = dealFromMeta(meta, deps);
+    let s = pl && pl.policies && pl.policies.openVisas ? 0.4 : 0.15;
+    if (hasRatifiedDeal(partnerId, g, deps)) s -= 0.2;
+    if (isMobilityDeal(d) && pl && pl.policies && pl.policies.closeBorders) {
+      s -= 0.45;
+    }
+    s += clamp01(salesShare / 0.1) * 0.25;
+    return clampUnit(s);
   }
   if (demandId === "policyChange") {
     const pl = g.law || g.draft;
@@ -827,6 +902,8 @@ function demandAvailable(
     return theirTar != null && ourTar != null && theirTar >= ourTar + 2;
   }
   if (demandId === "marketAccess") {
+    const theirTar = partnerTariffOnPlayer(partnerId, g, deps);
+    if (theirTar == null || theirTar <= 0) return false;
     return !hasRatifiedDeal(partnerId, g, deps) && share >= 0.06;
   }
   if (demandId === "policyChange") {
@@ -849,6 +926,188 @@ export function interestTag(interest: number) {
   if (interest >= 0.25) return "In their interest";
   if (interest <= -0.25) return "Against their interest";
   return "Mixed";
+}
+
+export const COMMERCIAL_ACCEPT_P = 0.5;
+
+/** Joint score for a summit agenda. Extra items they like sweeten the
+ *  package; they do not multiply independent chances (that made adding a
+ *  popular treaty look worse). */
+export function commercialPackageScore(
+  parts: { p?: number; ok?: boolean; pending?: boolean }[],
+) {
+  const list = (parts || []).filter(Boolean);
+  if (!list.length) return { p: 0, ok: false, pending: false };
+  if (list.some((x) => x.pending)) return { p: 1, ok: true, pending: true };
+  const first = list[0];
+  if (!first) return { p: 0, ok: false, pending: false };
+  let p = clamp01(first.p != null ? +first.p : first.ok ? 1 : 0);
+  for (let i = 1; i < list.length; i++) {
+    const item = list[i];
+    if (!item) continue;
+    const extra = clamp01(item.p != null ? +item.p : item.ok ? 1 : 0);
+    p = clamp01(p + 0.22 * (extra - COMMERCIAL_ACCEPT_P));
+  }
+  return { p, ok: p >= COMMERCIAL_ACCEPT_P, pending: false };
+}
+
+function commercialDeclineReason(opts: {
+  pName: string;
+  kind: "tariff" | "deal";
+  size: number;
+  warmth: number;
+  interest: number;
+  mobilityBlocked: boolean;
+  delta?: number;
+  askDrag?: number;
+  imbDrag?: number;
+}) {
+  const {
+    pName,
+    kind,
+    size,
+    warmth,
+    interest,
+    mobilityBlocked,
+    delta,
+    askDrag,
+    imbDrag,
+  } = opts;
+  const drags: { w: number; text: string }[] = [];
+  if (mobilityBlocked) {
+    drags.push({
+      w: 0.5,
+      text: "This accord covers movement — they keep strict border caps",
+    });
+  }
+  if (kind === "tariff" && askDrag != null && askDrag > 0.02 && delta != null) {
+    drags.push({
+      w: askDrag,
+      text: "A −" + delta + "pt cut is too deep for them at present",
+    });
+  }
+  if (kind === "tariff" && imbDrag != null && imbDrag > 0.02) {
+    drags.push({
+      w: imbDrag,
+      text: "They will not cut further than you do at present",
+    });
+  }
+  if (size < 0.35) {
+    drags.push({
+      w: 0.14 * (0.5 - size),
+      text: "A much larger economy needs warmer relations before it will sign",
+    });
+  }
+  if (interest < 0) {
+    drags.push({
+      w: 0.24 * Math.abs(interest),
+      text:
+        kind === "deal"
+          ? pName + " is not interested in this treaty at present"
+          : pName + " will not reciprocate this cut at present",
+    });
+  }
+  if (warmth < 0.45) {
+    drags.push({
+      w: 0.38 * (0.45 - warmth),
+      text: "Relations are still too cool for this offer",
+    });
+  }
+  drags.sort((a, b) => b.w - a.w);
+  return drags.length ? drags[0].text : pName + " declines this offer";
+}
+
+/** Deterministic chance a partner signs a reciprocal cut or bilateral treaty.
+ *  Warmth, relative size and self-interest move the score — their MFN on us
+ *  is not a reason for them to refuse. */
+export function commercialAcceptScore(
+  kind: "tariff" | "deal",
+  partnerId: string,
+  g: GameState,
+  deps: Deps,
+  meta?: any,
+) {
+  const rel = g.rel && g.rel[partnerId] != null ? g.rel[partnerId] : 50;
+  const d = kind === "deal" ? dealFromMeta(meta, deps) : null;
+  if (kind === "deal" && !d) {
+    return { ok: false, p: 0, reason: "Unknown deal", floor: 45, rel };
+  }
+  const floor =
+    kind === "deal" && d && d.need && d.need.relation != null
+      ? d.need.relation
+      : 45;
+  const named = deps.partnerById && deps.partnerById(partnerId);
+  const pName = (named && named.name) || partnerId;
+  const demandId = kind === "tariff" ? "tariffCut" : "marketAccess";
+  const interest = partnerSelfInterest(demandId, partnerId, g, deps, {
+    ...meta,
+    reciprocal: true,
+  });
+  const { realmGdpBn, playerCountryId } = deps;
+  const player = playerCountryId ? playerCountryId(g.homeRole) : partnerId;
+  const gdpP = realmGdpBn ? realmGdpBn(player, g) : 1;
+  const gdpR = realmGdpBn ? realmGdpBn(partnerId, g) : 1;
+  const ratio = gdpR > 0 ? gdpP / gdpR : 1;
+  /* Below the treaty floor warmth is 0 — not a hard p=0. Gifts, modest
+     asks and size still move the score. Above the floor the usual 45→70
+     ramp applies (kept so China still refuses an equal 2pt at 50). */
+  const warmth = clamp01((rel - floor) / Math.max(1, 70 - floor));
+  const size = clamp01(Math.log2(Math.max(0.12, ratio)) * 0.35 + 0.5);
+  const theirDelta =
+    kind === "tariff"
+      ? meta && meta.theirDelta != null
+        ? +meta.theirDelta
+        : meta && meta.delta != null
+          ? +meta.delta
+          : 2
+      : 2;
+  const ourDelta =
+    kind === "tariff"
+      ? meta && meta.ourDelta != null
+        ? +meta.ourDelta
+        : theirDelta
+      : theirDelta;
+  const ask = (theirDelta - 2) / 2;
+  const sizeGap = 1 - size;
+  const askDrag = Math.max(0, 0.1 * ask + 0.16 * ask * sizeGap);
+  const imbalance = theirDelta - ourDelta;
+  const imbDrag = (Math.max(0, imbalance) / 6) * 0.22;
+  /* Each extra point we cut beyond what we ask is a real sweetener. */
+  const giftBoost = 0.09 * Math.max(0, ourDelta - theirDelta);
+
+  const p = clamp01(
+    0.3 +
+      0.38 * warmth +
+      0.24 * interest +
+      0.14 * size -
+      0.1 * ask -
+      0.16 * ask * sizeGap -
+      imbDrag +
+      giftBoost,
+  );
+  const ok = p >= COMMERCIAL_ACCEPT_P;
+
+  const pl = partnerLawBag(g, partnerId, deps);
+  const mobilityBlocked = !!(
+    isMobilityDeal(d) &&
+    pl &&
+    pl.policies &&
+    pl.policies.closeBorders
+  );
+  const reason = ok
+    ? null
+    : commercialDeclineReason({
+        pName,
+        kind,
+        size,
+        warmth,
+        interest,
+        mobilityBlocked,
+        delta: kind === "tariff" ? theirDelta : undefined,
+        askDrag: kind === "tariff" ? askDrag : undefined,
+        imbDrag: kind === "tariff" ? imbDrag : undefined,
+      });
+  return { ok, p, reason, floor, rel };
 }
 
 export function baseP(
@@ -1287,6 +1546,21 @@ export function rollMissionEvent(
   det: boolean,
   eventIndex?: number,
 ) {
+  if (
+    missionId === "summit" &&
+    eventIndex === 1 &&
+    deps.buildSummitCommercialEvent
+  ) {
+    return deps.buildSummitCommercialEvent(partnerId, g);
+  }
+  if (
+    missionId === "summit" &&
+    eventIndex !== 1 &&
+    deps.isHumanMpSeat &&
+    deps.isHumanMpSeat(g, partnerId)
+  ) {
+    return null;
+  }
   const pool = MISSION_EVENTS.filter((ev) => {
     if (!ev.missions.includes(missionId)) return false;
     if (ev.cond && !(ev.cond as any)(partnerId, g, deps)) return false;

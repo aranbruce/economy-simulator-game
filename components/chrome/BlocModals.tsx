@@ -137,8 +137,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
     (byRegion[r] ||= []).push(c);
   }
 
-  const canStage =
-    !!selected && !selected.staged && !selected.blockers.length;
+  const canStage = !!selected && !selected.staged && !selected.blockers.length;
   const confirmContent = !selected
     ? { b: "No candidate selected", e: null as string | null }
     : selected.staged
@@ -147,7 +146,9 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
         ? { b: "Not eligible", e: selected.blockers[0] }
         : {
             b: `Propose ${selected.partner.name}`,
-            e: "12 capital · added to your bill",
+            e:
+              (selected.poach ? `Poach from ${selected.homeBlocName} · ` : "") +
+              `${selected.capital} capital · added to your bill`,
           };
 
   return (
@@ -157,9 +158,10 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
         id="dpBody"
       >
         <Hint>
-          Choose a partner to invite. Every other bloc member must approve. The
-          invitation stages in your bill — use <b>Deliver</b> to send it (12
-          capital).
+          Choose a partner to invite. Members of other blocs can be poached —
+          they leave theirs, then accede to yours. Every other member must
+          approve. The invitation stages in your bill — use <b>Deliver</b> to
+          send it.
         </Hint>
         <div className="scroll-thin -mx-1 my-0 max-h-[min(42vh,320px)] overflow-y-auto px-1">
           {REGION_ORDER.filter((r) => byRegion[r]?.length).map((r) => (
@@ -172,7 +174,9 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
                   ? "In the bill"
                   : c.blockers.length
                     ? c.blockers[0]
-                    : "Eligible";
+                    : c.poach
+                      ? `Poach from ${c.homeBlocName} · ${c.capital} capital`
+                      : `Eligible · ${c.capital} capital`;
                 const statusCls = c.staged
                   ? "text-blue"
                   : c.blockers.length
@@ -229,8 +233,8 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
           </div>
         ) : !candidates.length ? (
           <Hint className="mt-2.5">
-            No eligible partners right now. Countries already in a bloc, with a
-            pending invite, or mid-accession cannot be invited.
+            No eligible partners right now. Current members, pending invites,
+            and countries mid-accession cannot be invited.
           </Hint>
         ) : null}
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   T,
   aggregate,
@@ -11,14 +11,20 @@ import {
   blocMembers,
   blocMemberApprovals,
   blocInviteMemberApprovals,
-  isBlocFounder,
+  isCustomsUnion,
+  hasIndependentCommercialPolicy,
   blocJoinBlockers,
   blocInviteBlockers,
-  blocExternalDealBlockers,
+  unionCommercialDealBlockers,
+  unionAssociationDeal,
+  inviteClauseLabel,
+  inviteCapitalCost,
   dealBlockers,
+  commercialDealDeclineReason,
   dealsForPartner,
   sphereRiskHint,
   effectiveTariff,
+  livePartnerTariffOnPlayer,
   partnerTradeSharePct,
   currencyForSeat,
   CURRENCY_META,
@@ -45,10 +51,12 @@ import {
   getDrawerCat,
   COL,
   lineChartSpec,
+  snapshotPartnerTrade,
+  realmGdpBn,
+  fmtGdpBn,
 } from "../../lib/sim/engine.ts";
 import {
   toggleDraftDeal,
-  toggleBlocExternalDeal,
   toggleBlocAccession,
   withdrawBlocAccessionDraft,
   toggleBlocLeave,
@@ -65,6 +73,7 @@ import { Lever } from "../ui/Lever.tsx";
 import { Button } from "../ui/Button.tsx";
 import { Card, CardCat, CardFoot, CardPrice } from "../ui/Card.tsx";
 import { Callout } from "../ui/Callout.tsx";
+import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 import type { Country, CountryDeal } from "../../lib/sim/countries.ts";
 
 const REGION_ORDER = [
@@ -261,13 +270,13 @@ function AccessionCard({ blocId, G }: { blocId: string; G: any }) {
 
 function BlocMemberView({ G, bid }: { G: any; bid: string }) {
   const bloc = blocById(bid) || G.customBlocs[bid];
+  const cu = isCustomsUnion(bloc);
   const members = blocMembers(bid)
     .map((id: string) => {
       const p = activePartners().find((x: Country) => x.id === id);
       return p ? p.name : id;
     })
     .join(", ");
-  const founder = isBlocFounder();
   const invites = Object.keys(G.draft.blocInvite || {}).filter(
     (cid) => G.draft.blocInvite[cid],
   );
@@ -294,26 +303,24 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
         Member of <b>{bloc ? bloc.name : bid}</b>
         {members ? ` with ${members}` : ""}.
       </Hint>
-      <Hint>
-        Country-level bilateral deals are suspended while you are in a bloc.
-      </Hint>
+      {cu ? (
+        <Hint>
+          Country-level bilateral deals are suspended in a customs union. A
+          state visit with an independent partner can table a union package;
+          every other member must approve.
+        </Hint>
+      ) : (
+        <Hint>
+          Members keep their own commercial policy — you can still sign
+          bilateral deals.
+        </Hint>
+      )}
       <Hint>
         Any member may propose a new member; every other member must approve.
         Proposals stage in your bill — use <b>Deliver</b> to send the
         invitation.
       </Hint>
-      {founder ? (
-        <Hint>
-          As bloc founder you may ratify external treaties with non-bloc
-          partners from their trade cards.
-        </Hint>
-      ) : G.customBlocs[bid] ? (
-        <Hint>External treaties are negotiated by the bloc founder.</Hint>
-      ) : (
-        <Hint>External treaties are negotiated by the bloc chair.</Hint>
-      )}
       {invites.map((cid) => {
-        const c = activePartners().find((x: Country) => x.id === cid);
         const blockers = blocInviteBlockers(bid, cid);
         const approvals = blocInviteMemberApprovals(bid, cid);
         return (
@@ -323,8 +330,8 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
             id={`bloc-staged-${cid}`}
           >
             <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
-              Propose {c ? c.name : cid} join {bloc ? bloc.name : bid}
-              <CardCat>12 capital</CardCat>
+              {inviteClauseLabel(bid, cid)}
+              <CardCat>{inviteCapitalCost(bid, cid)} capital</CardCat>
             </h4>
             <Hint>
               Deliver this bill to send the invitation. After acceptance,
@@ -366,7 +373,7 @@ function BlocMemberView({ G, bid }: { G: any; bid: string }) {
           title={
             candidates.length
               ? undefined
-              : "No eligible partners — all are in blocs or already invited"
+              : "No eligible partners — all are members, invited, or mid-accession"
           }
           onClick={() => showBlocInviteModal(bid)}
         >
@@ -634,9 +641,7 @@ function TariffScheduleSection({ G }: { G: any }) {
         </div>
       )}
       {playerBloc ? (
-        <Hint>
-          Trade with fellow {playerBloc.name} members is duty-free.
-        </Hint>
+        <Hint>Trade with fellow {playerBloc.name} members is duty-free.</Hint>
       ) : null}
       {Object.keys(usedBlocs).map((bid) => {
         const bloc = blocByIdOrCustom(bid);
@@ -741,45 +746,402 @@ function TradeReadout({ G, Eagg }: { G: any; Eagg: any }) {
   );
 }
 
-function NetTradePanel({ G }: { G: any }) {
-  const hasLog = G.log.length >= 2;
-  if (!hasLog) {
-    return (
-      <div className="p-4 text-xs text-ink-faint">
-        Deliver a bill or two. The chart needs at least two quarters of
-        data.
-      </div>
-    );
-  }
-  const col = (k: string) => G.log.map((r: any) => r[k]);
-  return (
-    <ChartBox
-      title="Exports, imports and the net"
-      caption="Index points — not a currency amount or % of GDP. Competitiveness runs on underlying prices, so a VAT change does not move it on its own."
-    >
-      <LineChartSvg
-        spec={lineChartSpec(
-          [
-            { label: "Exports", color: COL.green, data: col("X") },
-            { label: "Imports", color: COL.ox, data: col("M") },
-            {
-              label: "Net trade",
-              color: COL.ink,
-              data: col("netTrade"),
-              wide: true,
-            },
-          ],
-          { zero: true },
-        )}
-      />
-    </ChartBox>
-  );
-}
-
 const NATION_TH =
   "first:text-left border-b border-edge px-2.5 py-2 text-right text-xs font-bold whitespace-nowrap text-ink-faint uppercase tracking-[.06em]";
 const NATION_TD =
   "first:text-left border-b border-white/5 px-2.5 py-1.5 text-right";
+
+function SortTh({
+  label,
+  col,
+  sort,
+  onSort,
+}: {
+  label: string;
+  col: string;
+  sort: { key: string; dir: "asc" | "desc" };
+  onSort: (col: string) => void;
+}) {
+  const active = sort.key === col;
+  return (
+    <th className={NATION_TH}>
+      <button
+        type="button"
+        className={`cursor-pointer border-0 bg-transparent p-0 font-bold tracking-[.06em] uppercase ${active ? "text-white" : "text-ink-faint hover:text-white"}`}
+        onClick={() => onSort(col)}
+        aria-sort={
+          active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"
+        }
+      >
+        {label}
+        {active ? (sort.dir === "asc" ? " ↑" : " ↓") : ""}
+      </button>
+    </th>
+  );
+}
+
+function useColSort(defaultKey: string, defaultDir: "asc" | "desc" = "desc") {
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({
+    key: defaultKey,
+    dir: defaultDir,
+  });
+  const onSort = (col: string) => {
+    setSort((prev) =>
+      prev.key === col
+        ? { key: col, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key: col, dir: col === "name" ? "asc" : "desc" },
+    );
+  };
+  return { sort, onSort };
+}
+
+function cmpSort(a: number | string, b: number | string, dir: "asc" | "desc") {
+  const mul = dir === "asc" ? 1 : -1;
+  if (typeof a === "string" || typeof b === "string")
+    return mul * String(a).localeCompare(String(b));
+  return mul * ((a as number) - (b as number));
+}
+
+function partnerLineColor(i: number, n: number): string {
+  const hue = Math.round((360 * i) / Math.max(1, n));
+  return `hsl(${hue}, 65%, 62%)`;
+}
+
+function partnerTradeNet(row: { X: number; M: number } | null | undefined) {
+  if (!row) return 0;
+  return row.X - row.M;
+}
+
+function NetTradePanel({ G }: { G: any }) {
+  const { pref } = useCurrencyPref();
+  const fxCode = currencyForSeat(G.homeRole);
+  const ccy = pref.display || fxCode;
+  const { sort, onSort } = useColSort("vol");
+  const hasLog = G.log.length >= 2;
+  if (!hasLog) {
+    return (
+      <div className="p-4 text-xs text-ink-faint">
+        Deliver a bill or two. The chart needs at least two quarters of data.
+      </div>
+    );
+  }
+  const col = (k: string) => G.log.map((r: any) => r[k]);
+  const snap = snapshotPartnerTrade(G);
+  const y = G.econ.gdp != null ? G.econ.gdp : 100;
+  const gdpBn = realmGdpBn("home", G);
+  const toBn = (index: number) => gdpBn * (index / Math.max(y, 1e-6));
+  const partners = activePartners();
+  const named = partners.map((p) => {
+    const row = snap[p.id] || { X: 0, M: 0 };
+    return {
+      id: p.id,
+      name: p.name,
+      X: row.X,
+      M: row.M,
+      net: row.X - row.M,
+      vol: row.X + row.M,
+    };
+  });
+  const rest = snap.rest || { X: 0, M: 0 };
+  const byVol = [...named].sort((a, b) => b.vol - a.vol);
+  const chartIds = [...byVol.slice(0, 8).map((p) => p.id), "rest"];
+  const hasPartnerHist = G.log.every(
+    (r: any) => r.partnerTrade && typeof r.partnerTrade === "object",
+  );
+  const partnerSeries = hasPartnerHist
+    ? chartIds.map((id, i) => ({
+        label:
+          id === "rest"
+            ? "Rest of world"
+            : (named.find((p) => p.id === id) || { name: id }).name,
+        color: partnerLineColor(i, chartIds.length),
+        data: G.log.map((r: any) =>
+          partnerTradeNet(r.partnerTrade && r.partnerTrade[id]),
+        ),
+        wide: i === 0,
+        dash: id === "rest",
+      }))
+    : [];
+  const tableRows = [
+    ...named,
+    {
+      id: "rest",
+      name: "Rest of world",
+      X: rest.X,
+      M: rest.M,
+      net: rest.X - rest.M,
+      vol: rest.X + rest.M,
+    },
+  ].sort((a, b) => {
+    const key = sort.key;
+    if (key === "name") return cmpSort(a.name, b.name, sort.dir);
+    if (key === "X") return cmpSort(a.X, b.X, sort.dir);
+    if (key === "M") return cmpSort(a.M, b.M, sort.dir);
+    if (key === "net") return cmpSort(a.net, b.net, sort.dir);
+    return cmpSort(a.vol, b.vol, sort.dir);
+  });
+  const maxAbsNet = Math.max(1e-9, ...tableRows.map((r) => Math.abs(r.net)));
+  const totalX = named.reduce((s, r) => s + r.X, 0) + rest.X;
+  const totalM = named.reduce((s, r) => s + r.M, 0) + rest.M;
+  const signCls = (v: number) =>
+    v > 0.05 ? "text-green-lt" : v < -0.05 ? "text-red-lt" : "";
+  const money = (index: number) => {
+    const bn = toBn(index);
+    if (bn < 0) return "−" + fmtGdpBn(-bn, ccy, G);
+    return fmtGdpBn(bn, ccy, G);
+  };
+
+  return (
+    <>
+      <ChartBox
+        title="Exports, imports and the net"
+        caption="Index points of the national accounts — the table below is the same split in current GDP. Competitiveness runs on underlying prices, so a VAT change does not move it on its own."
+      >
+        <LineChartSvg
+          spec={lineChartSpec(
+            [
+              { label: "Exports", color: COL.green, data: col("X") },
+              { label: "Imports", color: COL.ox, data: col("M") },
+              {
+                label: "Net trade",
+                color: COL.ink,
+                data: col("netTrade"),
+                wide: true,
+              },
+            ],
+            { zero: true },
+          )}
+        />
+      </ChartBox>
+      <ChartBox
+        title="By partner"
+        caption={`Largest partners on the chart; the table is everyone, in ${ccy}. Totals match headline exports and imports.`}
+      >
+        {partnerSeries.length ? (
+          <LineChartSvg
+            spec={lineChartSpec(partnerSeries, { zero: true })}
+            hideValueLabels
+          />
+        ) : null}
+        <div
+          className={`table-scroll overflow-x-auto ${partnerSeries.length ? "mt-3" : ""}`}
+        >
+          <table className="w-full min-w-100 border-collapse text-xs tabular-nums">
+            <thead>
+              <tr>
+                <SortTh
+                  label="Partner"
+                  col="name"
+                  sort={sort}
+                  onSort={onSort}
+                />
+                <SortTh label="Exports" col="X" sort={sort} onSort={onSort} />
+                <SortTh label="Imports" col="M" sort={sort} onSort={onSort} />
+                <SortTh label="Total" col="vol" sort={sort} onSort={onSort} />
+                <SortTh label="Net" col="net" sort={sort} onSort={onSort} />
+                <th className={`${NATION_TH} w-28`}>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableRows.map((r) => {
+                const frac = Math.abs(r.net) / maxAbsNet;
+                return (
+                  <tr key={r.id}>
+                    <td className={NATION_TD}>
+                      <span className="inline-flex items-center gap-2">
+                        {r.id === "rest" ? (
+                          <span
+                            className="size-5 flex-none rounded-full border border-edge bg-g-1"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <FlagAvatar role={r.id} size="size-5" />
+                        )}
+                        {r.name}
+                      </span>
+                    </td>
+                    <td className={NATION_TD}>{money(r.X)}</td>
+                    <td className={NATION_TD}>{money(r.M)}</td>
+                    <td className={NATION_TD}>{money(r.vol)}</td>
+                    <td className={`${NATION_TD} ${signCls(r.net)}`}>
+                      {money(r.net)}
+                    </td>
+                    <td className={NATION_TD}>
+                      <span className="relative inline-block h-1.25 w-24 overflow-hidden rounded-xs border border-edge bg-g-1 align-middle">
+                        <i
+                          className={`absolute top-0 h-full rounded-none ${r.net >= 0 ? "bg-green" : "bg-red"}`}
+                          style={{
+                            left: r.net >= 0 ? "50%" : `${50 - 50 * frac}%`,
+                            width: `${50 * frac}%`,
+                          }}
+                        />
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+              <tr>
+                <td className={`${NATION_TD} font-[650]`}>Total</td>
+                <td className={`${NATION_TD} font-[650]`}>{money(totalX)}</td>
+                <td className={`${NATION_TD} font-[650]`}>{money(totalM)}</td>
+                <td className={`${NATION_TD} font-[650]`}>
+                  {money(totalX + totalM)}
+                </td>
+                <td
+                  className={`${NATION_TD} font-[650] ${signCls(totalX - totalM)}`}
+                >
+                  {money(totalX - totalM)}
+                </td>
+                <td className={NATION_TD} />
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ChartBox>
+    </>
+  );
+}
+
+function PartnerTariffPanel({ G }: { G: any }) {
+  const { pref } = useCurrencyPref();
+  const fxCode = currencyForSeat(G.homeRole);
+  const ccy = pref.display || fxCode;
+  const { sort, onSort } = useColSort("vol");
+  const snap = snapshotPartnerTrade(G);
+  const y = G.econ.gdp != null ? G.econ.gdp : 100;
+  const gdpBn = realmGdpBn("home", G);
+  const toBn = (index: number) => gdpBn * (index / Math.max(y, 1e-6));
+  const money = (index: number) => {
+    const bn = toBn(index);
+    if (bn < 0) return "−" + fmtGdpBn(-bn, ccy, G);
+    return fmtGdpBn(bn, ccy, G);
+  };
+  const partners = activePartners();
+  const rows = partners.map((p) => {
+    const our = effectiveTariff(p.id, G.draft);
+    const their = livePartnerTariffOnPlayer(p.id, G);
+    const trade = snap[p.id] || { X: 0, M: 0 };
+    return {
+      id: p.id,
+      name: p.name,
+      our,
+      their,
+      X: trade.X,
+      M: trade.M,
+      vol: trade.X + trade.M,
+    };
+  });
+  const byVol = [...rows].sort((a, b) => b.vol - a.vol);
+  const chartIds = byVol.slice(0, 8).map((r) => r.id);
+  const logs = G.log || [];
+  const loggedByPartner = new Map(
+    chartIds.map((id) => [
+      id,
+      logs.map((r: any) => r.partnerTariffs && r.partnerTariffs[id]),
+    ]),
+  );
+  /* Every series shares one x axis, so the live column is appended to all of
+     them or none: a longer series would run off the plot and mislabel its end
+     value against a shorter series[0]. */
+  const showLive = chartIds.some((id) => {
+    const logged = loggedByPartner.get(id) || [];
+    const live = livePartnerTariffOnPlayer(id, G);
+    return (
+      live != null && logged.length > 0 && logged[logged.length - 1] !== live
+    );
+  });
+  const series =
+    logs.length >= 2
+      ? chartIds.map((id, i) => {
+          const logged = loggedByPartner.get(id) || [];
+          const live = livePartnerTariffOnPlayer(id, G);
+          const data = showLive
+            ? [...logged, live != null ? live : logged[logged.length - 1]]
+            : logged;
+          return {
+            label: (rows.find((r) => r.id === id) || { name: id }).name,
+            color: partnerLineColor(i, chartIds.length),
+            data,
+            wide: i === 0,
+          };
+        })
+      : [];
+  const tableRows = [...rows].sort((a, b) => {
+    const key = sort.key;
+    if (key === "name") return cmpSort(a.name, b.name, sort.dir);
+    if (key === "our") return cmpSort(a.our, b.our, sort.dir);
+    if (key === "their")
+      return cmpSort(
+        a.their == null ? -1 : a.their,
+        b.their == null ? -1 : b.their,
+        sort.dir,
+      );
+    if (key === "X") return cmpSort(a.X, b.X, sort.dir);
+    if (key === "M") return cmpSort(a.M, b.M, sort.dir);
+    return cmpSort(a.vol, b.vol, sort.dir);
+  });
+
+  return (
+    <ChartBox
+      title="Duties over time"
+      caption={`Largest partners on the chart; the table is everyone. Our duty is the live draft rate; theirs is the effective levy on our goods. Trade figures are in ${ccy}.`}
+    >
+      {series.some((s) => s.data.filter((v: any) => v != null).length >= 2) ? (
+        <LineChartSvg
+          spec={lineChartSpec(
+            series.filter(
+              (s) => s.data.filter((v: any) => v != null).length >= 2,
+            ),
+            { h: 160 },
+          )}
+          hideValueLabels
+        />
+      ) : (
+        <div className="p-3 text-xs text-ink-faint">
+          Deliver a bill or two. The chart needs at least two quarters of data.
+        </div>
+      )}
+      <div className="table-scroll mt-3 overflow-x-auto">
+        <table className="w-full min-w-100 border-collapse text-xs tabular-nums">
+          <thead>
+            <tr>
+              <SortTh label="Partner" col="name" sort={sort} onSort={onSort} />
+              <SortTh label="Our duty" col="our" sort={sort} onSort={onSort} />
+              <SortTh
+                label="Their duty"
+                col="their"
+                sort={sort}
+                onSort={onSort}
+              />
+              <SortTh label="Exports" col="X" sort={sort} onSort={onSort} />
+              <SortTh label="Imports" col="M" sort={sort} onSort={onSort} />
+              <SortTh label="Total" col="vol" sort={sort} onSort={onSort} />
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map((r) => (
+              <tr key={r.id}>
+                <td className={NATION_TD}>
+                  <span className="inline-flex items-center gap-2">
+                    <FlagAvatar role={r.id} size="size-5" />
+                    {r.name}
+                  </span>
+                </td>
+                <td className={NATION_TD}>{r.our.toFixed(1)}%</td>
+                <td className={NATION_TD}>
+                  {r.their != null ? r.their.toFixed(1) + "%" : "—"}
+                </td>
+                <td className={NATION_TD}>{money(r.X)}</td>
+                <td className={NATION_TD}>{money(r.M)}</td>
+                <td className={NATION_TD}>{money(r.vol)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </ChartBox>
+  );
+}
 
 function NationTable() {
   const rows = nationTableData();
@@ -826,7 +1188,7 @@ function PartnerDealRow({
   staged,
   unmet,
   isBlocExternal,
-  partnerId,
+  declineReason,
 }: {
   d: CountryDeal;
   signed: boolean;
@@ -834,6 +1196,7 @@ function PartnerDealRow({
   unmet: string[];
   isBlocExternal: boolean;
   partnerId: string;
+  declineReason?: string | null;
 }) {
   return (
     <div className="mt-1 border-t border-edge pt-2">
@@ -854,44 +1217,40 @@ function PartnerDealRow({
           Blocked: {unmet.join("; ")}
         </Callout>
       ) : null}
+      {!signed && !unmet.length && declineReason ? (
+        <Callout tone="amber" className="mb-2">
+          {declineReason}
+        </Callout>
+      ) : null}
       <CardFoot>
-        <CardPrice>{signed ? "ratified" : `${d.pc} capital`}</CardPrice>
-        <Button
-          className="ml-auto"
-          danger={staged}
-          disabled={unmet.length > 0 && !staged && !signed}
-          onClick={() =>
-            isBlocExternal
-              ? toggleBlocExternalDeal(d.id, partnerId)
-              : toggleDraftDeal(d.id)
-          }
-        >
-          {isBlocExternal
-            ? staged
-              ? "Cancel"
-              : signed
-                ? "Withdraw"
-                : "Ratify as bloc"
-            : staged
-              ? signed
-                ? "Withdraw"
-                : "Cancel"
-              : "Ratify"}
-        </Button>
+        {signed ? (
+          <>
+            <CardPrice>ratified</CardPrice>
+            <Button
+              className="ml-auto"
+              danger={staged}
+              onClick={() => toggleDraftDeal(d.id)}
+            >
+              {staged ? "Cancel" : "Withdraw"}
+            </Button>
+          </>
+        ) : (
+          <>
+            <CardPrice>summit only</CardPrice>
+            <span className="ml-auto text-xs text-ink-faint">
+              Sign at a summit visit
+            </span>
+          </>
+        )}
       </CardFoot>
     </div>
   );
 }
 
-function PartnerTradeCard({
-  p,
-  G,
-  bilat,
-}: {
-  p: Country;
-  G: any;
-  bilat: any;
-}) {
+function PartnerTradeCard({ p, G, bilat }: { p: Country; G: any; bilat: any }) {
+  const { pref } = useCurrencyPref();
+  const fxCode = currencyForSeat(G.homeRole);
+  const ccy = pref.display || fxCode;
   const rel = G.rel[p.id];
   const Xi = bilat[p.id] || 0;
   const sharePct = partnerTradeSharePct(bilat, p.id);
@@ -900,27 +1259,31 @@ function PartnerTradeCard({
   const stress = G.econ.dealStress[p.id] || 0;
   const bid = countryBlocId(p.id);
   const bloc = bid ? blocById(bid) || G.customBlocs[bid] : null;
-  const playerBid = countryBlocId(playerCountryId());
-  const playerInBloc = !!playerBid;
-  const partnerInBloc = !!bid;
-  const founder = isBlocFounder();
+  const playerId = playerCountryId();
+  const playerIndependent = hasIndependentCommercialPolicy(playerId);
+  const partnerIndependent = hasIndependentCommercialPolicy(p.id);
+  const playerInCu = !playerIndependent;
+  const theirTar = livePartnerTariffOnPlayer(p.id, G);
+  const y = G.econ.gdp != null ? G.econ.gdp : 100;
+  const gdpBn = realmGdpBn("home", G);
+  const snap = snapshotPartnerTrade(G);
+  const row = snap[p.id] || { X: Xi, M: 0 };
+  const money = (index: number) => {
+    const bn = gdpBn * (index / Math.max(y, 1e-6));
+    if (bn < 0) return "−" + fmtGdpBn(-bn, ccy, G);
+    return fmtGdpBn(bn, ccy, G);
+  };
 
   let dealsBody: ReactNode = null;
-  if (playerInBloc && !founder) {
-    dealsBody = (
-      <div className="mt-1.5 block text-xs text-ink-faint">
-        Bilateral deals unavailable while in a trade bloc.
-      </div>
-    );
-  } else if (playerInBloc && founder && !partnerInBloc) {
+  if (playerInCu && partnerIndependent) {
     dealsBody = dealsForPartner(p, G.homeRole).map((d: CountryDeal) => {
       const signed = !!G.law.deals[d.id];
-      const staged = !!(
-        G.draft.blocExternalDeal &&
-        G.draft.blocExternalDeal.dealId === d.id &&
-        G.draft.blocExternalDeal.partnerId === p.id
-      );
-      const unmet = blocExternalDealBlockers(p.id, d.id);
+      const staged = !!G.draft.deals[d.id];
+      const unmet = unionCommercialDealBlockers(p.id, d.id);
+      const declineReason =
+        !signed && !unmet.length
+          ? commercialDealDeclineReason(p.id, d.id, G)
+          : null;
       return (
         <PartnerDealRow
           key={d.id}
@@ -930,14 +1293,48 @@ function PartnerTradeCard({
           unmet={unmet}
           isBlocExternal
           partnerId={p.id}
+          declineReason={declineReason}
         />
       );
     });
-  } else if (!playerInBloc) {
+  } else if (playerIndependent && !partnerIndependent) {
+    const assoc = unionAssociationDeal(bid);
+    if (assoc) {
+      const signed = !!G.law.deals[assoc.id];
+      const staged = !!G.draft.deals[assoc.id];
+      const unmet = unionCommercialDealBlockers(p.id, assoc.id);
+      const declineReason =
+        !signed && !unmet.length
+          ? commercialDealDeclineReason(p.id, assoc.id, G)
+          : null;
+      dealsBody = (
+        <PartnerDealRow
+          d={assoc}
+          signed={signed}
+          staged={staged}
+          unmet={unmet}
+          isBlocExternal
+          partnerId={p.id}
+          declineReason={declineReason}
+        />
+      );
+    } else {
+      dealsBody = (
+        <div className="mt-1.5 block text-xs text-ink-faint">
+          Partner trades through {bloc ? bloc.name : "their bloc"} — bilateral
+          deals unavailable.
+        </div>
+      );
+    }
+  } else if (playerIndependent) {
     dealsBody = dealsForPartner(p, G.homeRole).map((d: CountryDeal) => {
       const signed = !!G.law.deals[d.id];
       const staged = !!G.draft.deals[d.id];
       const unmet = dealBlockers(d);
+      const declineReason =
+        !signed && !unmet.length
+          ? commercialDealDeclineReason(p.id, d.id, G)
+          : null;
       const hint = !signed && !unmet.length ? sphereRiskHint(p.id) : "";
       return (
         <div key={d.id}>
@@ -948,14 +1345,13 @@ function PartnerTradeCard({
             unmet={unmet}
             isBlocExternal={false}
             partnerId={p.id}
+            declineReason={declineReason}
           />
-          {hint ? (
-            <div className="block text-xs text-amber">{hint}</div>
-          ) : null}
+          {hint ? <div className="block text-xs text-amber">{hint}</div> : null}
         </div>
       );
     });
-  } else if (partnerInBloc) {
+  } else {
     dealsBody = (
       <div className="mt-1.5 block text-xs text-ink-faint">
         Partner trades through {bloc ? bloc.name : "their bloc"} — bilateral
@@ -974,9 +1370,7 @@ function PartnerTradeCard({
         {p.name}
         {sharePctLabel ? <CardCat>{T(sharePctLabel)}</CardCat> : null}
       </h4>
-      {bloc ? (
-        <div className="text-xs text-ink-faint">{bloc.name}</div>
-      ) : null}
+      {bloc ? <div className="text-xs text-ink-faint">{bloc.name}</div> : null}
       <p className="m-0 text-xs leading-[1.42] text-ink-soft">{p.blurb}</p>
       <div className="grid grid-cols-[70px_1fr_30px] items-center gap-2 text-xs">
         <span className="text-xs">Relations</span>
@@ -991,9 +1385,10 @@ function PartnerTradeCard({
         </span>
       </div>
       <div className="my-1 block text-xs text-ink-soft">
-        Exports {Xi.toFixed(1)}
-        {sharePct != null ? ` (${Math.round(sharePct)}%)` : ""} · tariff{" "}
-        {effectiveTariff(p.id, G.draft).toFixed(1)}%
+        Exports {money(row.X)}
+        {sharePct != null ? ` (${Math.round(sharePct)}%)` : ""} · imports{" "}
+        {money(row.M)} · our tariff {effectiveTariff(p.id, G.draft).toFixed(1)}%
+        · their tariff on us {theirTar != null ? theirTar.toFixed(1) : "—"}%
       </div>
       {stress >= 1 ? (
         <Callout tone="red">
@@ -1055,6 +1450,10 @@ export function TradePanel() {
     return (
       <>
         <Eyebrow>Partners and agreements</Eyebrow>
+        <Hint>
+          New bilateral treaties are signed at summit visits. Withdrawals still
+          go through your bill.
+        </Hint>
         <PartnerCardsByRegion G={G} />
       </>
     );
@@ -1073,6 +1472,7 @@ export function TradePanel() {
         Customs-union members trade at zero internally.
       </Hint>
       <TradeReadout G={G} Eagg={Eagg} />
+      <PartnerTariffPanel G={G} />
       <TariffScheduleSection G={G} />
     </>
   );

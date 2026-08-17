@@ -128,7 +128,9 @@ in `engine.ts` was replaced with real JSX fed by typed data-returning siblings
 `diploHudChips()`, `briefingData()` (via `components/chrome/BriefingBody.tsx`)
 and the `gameOver()`/`termReview()` verdict payload (via
 `components/chrome/VerdictBody.tsx`)). `despatch()`'s third argument accepts
-either a plain HTML string or `{ kind: "briefing" | "verdict", data }`;
+either a plain HTML string or
+`{ kind: "briefing" | "verdict" | "commercial", data }` (the last one being a
+summit's commercial agenda, via `components/chrome/CommercialAgendaBody.tsx`);
 `DespatchModal.tsx` renders the matching typed component when `kind` is set
 and falls back to `SafeHtml` only for freeform authored copy. That remaining
 authored despatch/coach/event copy (small hand-built HTML with
@@ -202,20 +204,21 @@ a Tailwind class, never a hardcoded inline style.
 
 ## Architecture
 
-| Path                             | Contains                                                                                                                                                                           |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                           | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                           |
-| `lib/sim/engine.ts`              | State, aggregate, step, project, bill, map, events, panel data                                                                                                                     |
-| `lib/sim/statuteBook.ts`         | Pure content data split out of engine.ts: `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                             |
-| `lib/sim/worldTrade.ts`          | Bilateral trade clearing across seats. `flows`/`totals` are keyed by real country ids (`playerCountryId(homeRole)`), not the raw role string — see "The map" below                |
-| `lib/sim/fxAreas.ts`             | Currency-area Taylor rules and FX vs USD                                                                                                                                           |
-| `lib/sim/partners.ts`            | Partner id → ISO country sets for the world map                                                                                                                                    |
-| `lib/map/projection.ts`          | Pure projection/pan-zoom math shared by the 2D map and the 3D overlay (`project()`, `toScreen()`, `wrapDelta()`) so the two layers can't drift out of sync                        |
-| `components/game/GameApp.tsx`    | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                            |
-| `components/map2d/WorldMap.tsx`  | Flat world map: country colours, capital markers, trade lines, diplo badges, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component |
-| `components/map3d/`              | The 3D trade-route boat layer — a WebGL canvas pinned to WorldMap's own pan/zoom, never owning view state itself                                                                  |
-| `public/geo/countries-110m.json` | Natural Earth topojson                                                                                                                                                             |
-| `public/models/`, `public/icons/`| 3D boat asset and the 2D capital-marker SVG — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                               |
+| Path                              | Contains                                                                                                                                                                                                                                                      |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                            | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                                                                                                      |
+| `lib/sim/engine.ts`               | State, aggregate, step, project, bill, map, events, panel data                                                                                                                                                                                                |
+| `lib/sim/statuteBook.ts`          | Pure content data split out of engine.ts: `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                                                                                                        |
+| `lib/sim/parties.ts`              | Pure parties, chamber votes and election seat allocation. Party taste is derived from the same faction `fac` bags content already carries — there is no second authored stance table. Engine glue (seeding, the enact gate, term review) stays in `engine.ts` |
+| `lib/sim/worldTrade.ts`           | Bilateral trade clearing across seats. `flows`/`totals` are keyed by real country ids (`playerCountryId(homeRole)`), not the raw role string — see "The map" below                                                                                            |
+| `lib/sim/fxAreas.ts`              | Currency-area Taylor rules and FX vs USD                                                                                                                                                                                                                      |
+| `lib/sim/partners.ts`             | Partner id → ISO country sets for the world map                                                                                                                                                                                                               |
+| `lib/map/projection.ts`           | Pure projection/pan-zoom math shared by the 2D map and the 3D overlay (`project()`, `toScreen()`, `wrapDelta()`) so the two layers can't drift out of sync                                                                                                    |
+| `components/game/GameApp.tsx`     | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                                                                                                       |
+| `components/map2d/WorldMap.tsx`   | Flat world map: country colours, capital markers, trade lines, diplo badges, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component                                |
+| `components/map3d/`               | The 3D trade-route boat layer — a WebGL canvas pinned to WorldMap's own pan/zoom, never owning view state itself                                                                                                                                              |
+| `public/geo/countries-110m.json`  | Natural Earth topojson                                                                                                                                                                                                                                        |
+| `public/models/`, `public/icons/` | 3D boat asset and the 2D capital-marker SVG — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                                                                                                           |
 
 Engine sections still follow the numbered banners. Section 1's pure content
 data now lives in `lib/sim/statuteBook.ts` (see "TypeScript migration"
@@ -279,6 +282,31 @@ Three copies of the law exist at once, and the distinction matters:
 `billClauses()` is the diff between `law` and `draft`. It generates both the
 displayed clause list and its political capital price. `enact()` copies draft
 over law, charges capital, and runs `step()`.
+
+### Parties and the chamber
+
+`lib/sim/parties.ts` derives five electoral families from the six factions
+already in the model — a party's taste for a clause is its ideology weights
+dotted against that clause's own `fac` bag, so **no content item needs an
+authored party stance**. `G.parties` holds `seats`, `popularity` and
+`rulingId`; a per-seat overlay supplies real names (PSOE, CDU/CSU, LDP) and
+the opening seat layout.
+
+`billVoteData()` scores the staged Programme against the chamber and is the
+second gate on `enact()`, after capital: a sovereign parliament must return a
+majority, a consultative one only advises (voting it down costs patriots), and
+a suppressed one is skipped entirely. Summits and envoys are executive acts —
+`legislativeClauses()` drops them before the vote, since they cost capital but
+never go to the chamber. `whipSpend` buys ayes from your own party at the price
+of capital; it is not a clause, so it is charged through `programmeCost()`
+rather than `billCost()`, and cleared on enact.
+
+**Both gates are enforced server-side in multiplayer, not just in the Dock.**
+Each seat's chamber lives on `politics[seatId].parties` (seeded by
+`defaultMpPolitics`, carried by `exportGameSnapshot`, mounted by
+`mountMpSeatOnSnapshot`), the client sends its `whipSpend` with the draft, and
+`validateMpSubmission()` prices the whip into the capital check and rejects a
+Programme the seat's own chamber votes down.
 
 ### Income tax and national insurance
 
@@ -374,7 +402,7 @@ Natural Earth topojson (`public/geo/countries-110m.json`), coloured by
 must not live in the map module. A canvas failure falls back to a plain
 "could not load" message rendered by `WorldMap.tsx` itself — there is no
 second map implementation to fall back to (the invariant below is about the
-2D canvas *itself* never being allowed to be the single point of failure for
+2D canvas _itself_ never being allowed to be the single point of failure for
 the game; the optional 3D layer described below sits on top of it and is
 separately allowed to fail without affecting either).
 
@@ -443,7 +471,7 @@ ever instantiates the `boat` model.
 - **Assets** (`components/map3d/models.ts`). One `GLTFLoader` + a load-once
   template cache per model key, with `MeshoptDecoder` registered up front for
   any future `--compress meshopt` asset. `Object3D.clone()` shares
-  geometry/material *by reference*, so every instantiation/clone path
+  geometry/material _by reference_, so every instantiation/clone path
   explicitly clones materials — otherwise per-instance relation tinting
   mutates the one shared material every clone points at, compounding darker
   with each new boat. `AXIS_CORRECTIONS` holds a fixed correction quaternion
@@ -579,7 +607,9 @@ Breaking any of these will fail the suite, and should.
   (WebGL or a model load) disables only the boat layer and leaves the 2D map
   untouched. No game logic may live in either map module.
 - **Political capital gates everything.** No path may enact a bill costing more
-  than `G.capital`.
+  than `G.capital`. A sovereign parliament is a second gate: the Programme also
+  needs a chamber majority (`billVoteData()`), except when parliament is
+  suppressed (capital only) or consultative (advisory vote).
 - **Taxes gated on legality must vanish when the law changes.** When a vice
   moves to a state where its duty is invalid, `G.draft.taxes[id].on` is forced
   false by `syncViceTaxes()`.
@@ -1130,8 +1160,6 @@ rather than as a second parallel threshold system.
 Unbuilt ideas, roughly in order of how much they would add:
 
 - Regional breakdown, so spending has geography and elections have marginal seats
-- Parliament: bills passing on faction support rather than a single capital
-  pool, with rebellions
 - Save and load via `localStorage` (note: unavailable inside Claude artifacts,
   fine in a real browser)
 - Difficulty settings, starting from different fiscal inheritances
@@ -1145,4 +1173,10 @@ capital rates, private financial wealth in C and credit, consistent opening
 settle, knowledge stock `R` from the research budget (and research-credit
 effort) feeding TFP growth, derived trend (frontier + `yRel` catch-up +
 demography, not per-realm tfp/labour tables), partner opening macros calibrated
-to IMF WEO / Fiscal Monitor April 2026 across the sovereign seats.
+to IMF WEO / Fiscal Monitor April 2026 across the sovereign seats, parties and
+a parliamentary vote on the Programme (capital **and** a chamber majority;
+ruling-party whip scales with leader approval; elections reallocate seats;
+dictatorships skip or rubber-stamp the vote), union commercial packages at
+CU-boundary summits (preferential overlays that bind every member, plus a union
+association treaty or the independent partner's deals; blocs are still not
+seats).

@@ -107,8 +107,8 @@ export const COACH_STEPS: CoachStepDef[] = [
   },
   {
     id: "accession",
-    title: "The Continental Union",
-    body: "<p>Bigger prize: join the <b>Continental Union</b>. In Trade, open Trade blocs and try <b>Join</b>. France runs the club — and they don’t like you enough yet. You can’t join until that friendship improves.</p>",
+    title: "The European Union",
+    body: "<p>Bigger prize: join the <b>European Union</b>. In Trade, open Trade blocs and try <b>Join</b>. France runs the club — and they don’t like you enough yet. You can’t join until that friendship improves.</p>",
     task: "Bottom left → Trade → Trade blocs; see why Join is blocked.",
     tab: "trade",
     confirmAfter: true,
@@ -140,14 +140,14 @@ export const COACH_STEPS: CoachStepDef[] = [
   {
     id: "warmFrance",
     title: "Make the visit count",
-    body: "<p>Messages about the summit will pop up. Each time, choose the option that <b>improves relations with France</b> — you need them at 52 or higher before the Continental Union will let you apply.</p>",
+    body: "<p>Messages about the summit will pop up. Each time, choose the option that <b>improves relations with France</b> — you need them at 52 or higher before the European Union will let you apply.</p>",
     task: "Get France to 52+ (pick the friendly summit options).",
     tab: null,
   },
   {
     id: "joinCU",
     title: "Apply to join",
-    body: "<p>France is warm enough. Open Trade → Trade blocs and stage <b>Join</b> on the Continental Union. Joining then takes a few turns on its own — no more capital after this bill.</p>",
+    body: "<p>France is warm enough. Open Trade → Trade blocs and stage <b>Join</b> on the European Union. Joining then takes a few turns on its own — no more capital after this bill.</p>",
     task: "Bottom left → Trade → Trade blocs → Join.",
     tab: "trade",
     reopenTab: true,
@@ -163,13 +163,13 @@ export const COACH_STEPS: CoachStepDef[] = [
     id: "accessionWait",
     title: "Wait out joining",
     body: "<p>Joining takes a few turns: apply → line up the rules → full member. Keep pressing <b>Next quarter</b> (bottom right — empty Programme is fine). Watch Trade blocs for progress.</p>",
-    task: "Bottom right → Next quarter until you’re in the Continental Union.",
+    task: "Bottom right → Next quarter until you’re in the European Union.",
     tab: null,
   },
   {
     id: "done",
     title: "You’re away",
-    body: "<p><b>Congratulations</b> — you’ve put together a first plan, warmed up France, and joined the Continental Union. The tutorial is done; the job is yours. Do what you want.</p>",
+    body: "<p><b>Congratulations</b> — you’ve put together a first plan, warmed up France, and joined the European Union. The tutorial is done; the job is yours. Do what you want.</p>",
     task: null,
     tab: null,
   },
@@ -218,10 +218,10 @@ function franceRel(ctx: CoachCtx) {
   return ctx.rel.france;
 }
 
-/** Chair bar for Continental Union apply (see blocs.ts accession.chairRelationMin). */
+/** Chair bar for EU apply (see blocs.ts accession.chairRelationMin). */
 const FRANCE_CU_REL_MIN = 52;
 
-function inContinentalUnion(ctx: CoachCtx) {
+function inEuropeanUnion(ctx: CoachCtx) {
   const bm = ctx && ctx.blocMember;
   if (!bm) return false;
   return bm[playerSeatId(ctx)] === "continental_union";
@@ -361,7 +361,7 @@ export function coachSubtasks(
         },
         {
           id: "join",
-          label: "Under Trade blocs, stage Join on the Continental Union",
+          label: "Under Trade blocs, stage Join on the European Union",
           done: !!(
             draft.blocAccession &&
             draft.blocAccession.blocId === "continental_union"
@@ -369,7 +369,7 @@ export function coachSubtasks(
         },
       ];
     case "accessionWait": {
-      const member = inContinentalUnion(ctx);
+      const member = inEuropeanUnion(ctx);
       const acc = cuAccession(ctx);
       const stepN = member ? 2 : acc && acc.step != null ? acc.step : 0;
       return [
@@ -385,7 +385,7 @@ export function coachSubtasks(
         },
         {
           id: "member",
-          label: "Full Continental Union member",
+          label: "Full European Union member",
           done: member,
         },
       ];
@@ -411,7 +411,7 @@ export function coachAwaitSatisfied(stepIndex: number, ctx: CoachCtx) {
     case "warmFrance":
       return franceRel(ctx) >= FRANCE_CU_REL_MIN;
     case "deliverJoin":
-      return !!cuAccession(ctx) || inContinentalUnion(ctx);
+      return !!cuAccession(ctx) || inEuropeanUnion(ctx);
     default:
       return false;
   }

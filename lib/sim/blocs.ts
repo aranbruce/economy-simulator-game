@@ -1,12 +1,38 @@
 /**
- * Trade bloc templates — predefined unions and custom-alliance shapes.
- * Membership is exclusive: one bloc per country at a time (see engine G.blocMember).
+ * Trade blocs — real-world names, membership limited to seats on this board.
+ *
+ * Exclusive membership is a game rule (one bloc per country), so overlapping
+ * real treaties are collapsed to the deepest or most identity-defining club:
+ *
+ *   European Union  DE FR IT ES NL PL     customs union (Turkey is a CU
+ *                                         partner, not a member — stay out)
+ *   CPTPP           JP AU                 FTA. Members keep their own
+ *                                         commercial policy (extra-bloc FTAs).
+ *                                         Real CPTPP also includes VN, MX, CA,
+ *                                         and the UK; KR is not a member.
+ *   GCC             SA AE                 FTA here (real GCC is a CU; left
+ *                                         as FTA so opening tariffs stay put)
+ *   Mercosur        BR AR                 FTA here (real Mercosur is a CU).
+ *                                         MX was never a member — old "Andes
+ *                                         Pact" geography was wrong.
+ *   ASEAN           ID VN                 FTA / AFTA
+ *
+ * Deliberately not modelled as starting blocs (exclusive membership still
+ * applies — one club per country — even though FTA members may sign extra-
+ * bloc FTAs):
+ *   USMCA  (US/CA/MX)
+ *   AfCFTA (NG/ZA/EG/KE — still shallow)
+ *   RCEP   (would swallow ASEAN + CPTPP + CN)
+ *   EAEU   (only RU is on the board)
+ *
+ * Ids stay stable (`continental_union`, …) so saves/tests/mp snapshots
+ * don't churn; `name` is what the UI shows.
  */
 
 export const BLOC_TEMPLATES = {
   continental_union: {
     id: "continental_union",
-    name: "Continental Union",
+    name: "European Union",
     type: "customs_union",
     defaultCet: 4,
     chair: "france",
@@ -21,12 +47,29 @@ export const BLOC_TEMPLATES = {
         tariffMax: 8,
       },
     },
+    /* Signed at a summit with any member — not a country FTA, and not
+       membership. Preferential access fans out to current members. */
+    externalDeal: {
+      id: "eu_assoc",
+      name: "Association agreement",
+      pc: 18,
+      terms: [
+        "Preferential goods access across the union",
+        "Mutual recognition of standards",
+      ],
+      need: { relation: 50, policyOff: ["closeBorders"] },
+      imp: { open: 4 },
+      ch: { tariffCut: 1.8, access: 2.2 },
+      fac: { business: 6, urban: 2, rural: -3, patriots: -5 },
+      blocId: "continental_union",
+    },
   },
   pacific_accord: {
     id: "pacific_accord",
-    name: "Pacific Accord",
+    name: "CPTPP",
     type: "fta",
-    members: ["japan", "australia", "korea"],
+    chair: "japan",
+    members: ["japan", "australia"],
     accessBonus: 1.08,
     accession: {
       memberRelationMin: 45,
@@ -38,8 +81,9 @@ export const BLOC_TEMPLATES = {
   },
   gulf_council: {
     id: "gulf_council",
-    name: "Gulf Council",
+    name: "Gulf Cooperation Council",
     type: "fta",
+    chair: "saudi",
     members: ["saudi", "uae"],
     accessBonus: 1.06,
     accession: {
@@ -52,9 +96,10 @@ export const BLOC_TEMPLATES = {
   },
   andes_pact: {
     id: "andes_pact",
-    name: "Andes Pact",
+    name: "Mercosur",
     type: "fta",
-    members: ["brazil", "mexico", "argentina"],
+    chair: "brazil",
+    members: ["brazil", "argentina"],
     accessBonus: 1.07,
     accession: {
       memberRelationMin: 45,
@@ -66,8 +111,9 @@ export const BLOC_TEMPLATES = {
   },
   asean_circle: {
     id: "asean_circle",
-    name: "Archipelago Circle",
+    name: "ASEAN",
     type: "fta",
+    chair: "indonesia",
     members: ["indonesia", "vietnam"],
     accessBonus: 1.06,
     accession: {
@@ -117,4 +163,35 @@ export function countriesInBloc(
 
 export function isCustomsUnion(bloc: any) {
   return bloc && bloc.type === "customs_union";
+}
+
+/** Association treaty a custom customs union offers to independent outsiders. */
+export function customUnionAssociationDeal(blocId: string) {
+  return {
+    id: "assoc_" + blocId,
+    name: "Association agreement",
+    pc: 16,
+    terms: [
+      "Preferential goods access across the union",
+      "Mutual recognition of standards",
+    ],
+    need: { relation: 50, policyOff: ["closeBorders"] },
+    imp: { open: 4 },
+    ch: { tariffCut: 1.6, access: 2.0 },
+    fac: { business: 5, urban: 2, rural: -2, patriots: -4 },
+    blocId,
+  };
+}
+
+/** Unaligned and FTA members keep their own commercial policy; CU members do not. */
+export function hasIndependentCommercialPolicy(
+  countryId: string,
+  blocMember?: Record<string, string> | null,
+  customBlocs?: Record<string, any> | null,
+) {
+  if (!countryId) return true;
+  const bid = blocMember && blocMember[countryId];
+  if (!bid) return true;
+  const bloc = blocById(bid) || (customBlocs && customBlocs[bid]);
+  return !isCustomsUnion(bloc);
 }

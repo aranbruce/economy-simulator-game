@@ -3,11 +3,13 @@
 import {
   TABS,
   billClauses,
-  billCost,
+  programmeCost,
   clausesIn,
   capitalShortfallHint,
+  chamberBlocksDeliver,
   getTab,
   isDeliverLocked,
+  majorityShortfallHint,
   setTab,
 } from "../../lib/sim/engine.ts";
 import { TabIcon } from "../../lib/ui/icons.tsx";
@@ -35,7 +37,7 @@ export function Dock({
   const G = useGame();
   const tab = getTab();
   const cl = billClauses();
-  const cost = billCost(cl);
+  const cost = programmeCost(cl);
   const afford = cost <= G.capital;
   const shortBy = Math.max(0, cost - Math.round(G.capital));
 
@@ -64,11 +66,15 @@ export function Dock({
         resolvedLabel = "Term over";
       } else if (cl.length === 0) {
         resolvedLabel = "Next quarter";
-      } else if (afford) {
-        resolvedLabel = "Deliver";
-      } else {
+      } else if (!afford) {
         resolvedLabel = shortBy ? `Need ${shortBy} more` : "Need capital";
         resolvedTitle = capitalShortfallHint(cost, G.capital);
+      } else if (chamberBlocksDeliver()) {
+        resolvedDisabled = true;
+        resolvedLabel = "No majority";
+        resolvedTitle = majorityShortfallHint();
+      } else {
+        resolvedLabel = "Deliver";
       }
     }
   }

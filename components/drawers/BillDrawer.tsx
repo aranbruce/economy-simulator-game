@@ -3,18 +3,24 @@
 import {
   balanceOf,
   billClauses,
+  billVoteData,
   bump,
   capitalOutlook,
   capitalShortfallHint,
+  clausePartyStances,
   fmt,
   impactPanelData,
   impactStripData,
+  programmeCost,
   rateImpactData,
   requestSetup,
+  setWhipSpend,
   sgn,
+  whipSpendOf,
   RATE_FLOOR,
   MANUAL_RATE_MIN,
   ENVOY_UPKEEP_PC,
+  WHIP_MAX,
   clamp,
 } from "../../lib/sim/engine.ts";
 import {
@@ -28,6 +34,8 @@ import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
 import { Lever } from "../ui/Lever.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
 import { ImpactChips, ImpactFactions } from "../ui/ImpactChips.tsx";
+import { ChamberVoteBar } from "../ui/ChamberVote.tsx";
+import { PartyStanceChips } from "../ui/PartyStance.tsx";
 
 function ImpactStrip() {
   const data = impactStripData();
@@ -148,15 +156,54 @@ export function BillDrawer() {
   const G = useGame();
   const cl = billClauses();
   const cost = cl.reduce((a: number, c: any) => a + (c.sunk ? 0 : c.pc), 0);
-  const overspent = cl.length > 0 && cost > G.capital;
+  const total = programmeCost(cl);
+  const overspent = cl.length > 0 && total > G.capital;
   const dr = balanceOf(G.draft, G.econ);
   const cur = balanceOf(G.law, G.econ);
   const delta = dr.balance - cur.balance;
-  const capOutlook = capitalOutlook(cost);
+  const capOutlook = capitalOutlook(total);
+  const vote = billVoteData();
+  const whip = whipSpendOf();
+  const ruling =
+    vote && vote.parties ? vote.parties.find((p: any) => p.ruling) : null;
+  const showWhip =
+    !!vote &&
+    vote.needed &&
+    !vote.advisory &&
+    !!ruling &&
+    (ruling.nay > 0 || whip > 0);
 
   return (
     <>
       <ImpactStrip />
+      <ChamberVoteBar vote={vote} />
+      {showWhip ? (
+        <div className="mb-3 rounded-md border border-edge bg-g-1 px-2.75 py-2.25">
+          <div className="mb-1 text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
+            Whip
+          </div>
+          <Lever
+            id="whipSpend"
+            name="Pressure your party"
+            value={whip}
+            min={0}
+            max={Math.min(WHIP_MAX, Math.max(0, Math.round(G.capital) - cost))}
+            step={1}
+            decimals={0}
+            unit=" cap"
+            onInput={(_id, v) => setWhipSpend(v)}
+            onCommit={(_id, v) => setWhipSpend(v)}
+          />
+          <Hint className="mt-1.5">
+            Spend capital to peel rebels toward aye. Diminishing returns —
+            enough to tip a Split squeaker, not to ram through a bill your whole
+            party hates.
+            {whip > 0
+              ? ` About ${Math.round((vote.whipBoost || 0) * (ruling?.seats || 0))} extra ayes from the whip.`
+              : ""}
+          </Hint>
+        </div>
+      ) : null}
       {cl.length ? (
         <div id="clauses">
           {cl.map((c: any, i: number) => (
@@ -175,7 +222,19 @@ export function BillDrawer() {
               >
                 <CloseIcon />
               </button>
-              <span>{c.label}</span>
+              <span className="min-w-0 flex-1">
+                <span>{c.label}</span>
+                {c.executive ? (
+                  <em className="mt-0.5 block text-xs text-ink-faint not-italic">
+                    Executive — no vote
+                  </em>
+                ) : (
+                  <PartyStanceChips
+                    stances={clausePartyStances(i)}
+                    sandbox={!!G.sandbox}
+                  />
+                )}
+              </span>
               <span className="ml-auto text-xs font-[650] whitespace-nowrap text-accent-lt">
                 {c.sunk ? "paid" : c.pc}
               </span>
@@ -191,7 +250,7 @@ export function BillDrawer() {
       )}
       {overspent ? (
         <Hint className="mt-2.5 text-red">
-          {capitalShortfallHint(cost, G.capital)}
+          {capitalShortfallHint(total, G.capital)}
         </Hint>
       ) : null}
       <div className="mt-3 border-t border-edge pt-2.5 text-sm">
@@ -242,7 +301,15 @@ export function BillDrawer() {
             <div className="flex py-0.75 text-ink-soft">
               <span>For this bill</span>
               <span className="ml-auto font-[650] text-red-lt">
-                −{capOutlook.cost}
+                −{capOutlook.billCost ?? capOutlook.cost}
+              </span>
+            </div>
+          ) : null}
+          {capOutlook.whipSpend > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>Whip</span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.whipSpend}
               </span>
             </div>
           ) : null}
@@ -256,8 +323,18 @@ export function BillDrawer() {
               </span>
             </div>
           ) : null}
+          {capOutlook.fiscalRuleHit > 0 ? (
+            <div className="flex py-0.75 text-ink-soft">
+              <span>Fiscal rule (deficit above 4% of GDP)</span>
+              <span className="ml-auto font-[650] text-red-lt">
+                −{capOutlook.fiscalRuleHit}
+              </span>
+            </div>
+          ) : null}
           <div className="flex py-0.75 text-ink-soft">
-            <span>From popularity ({Math.round(capOutlook.approval)}% approval)</span>
+            <span>
+              From popularity ({Math.round(capOutlook.approval)}% approval)
+            </span>
             <span
               className={`ml-auto font-[650] ${capOutlook.gain >= 0 ? "text-green-lt" : "text-red-lt"}`}
             >
@@ -274,11 +351,14 @@ export function BillDrawer() {
             </span>
           </div>
           <Hint className="mt-1.5">
-            Capital regenerates every quarter, faster the more popular you
-            are. Below about {Math.round(capOutlook.breakeven)}% approval it
-            goes into reverse and capital falls instead of growing.
+            Capital regenerates every quarter, faster the more popular you are.
+            Below about {Math.round(capOutlook.breakeven)}% approval it goes
+            into reverse and capital falls instead of growing.
             {capOutlook.envoyCount > 0
               ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
+              : ""}
+            {capOutlook.fiscalRuleHit > 0
+              ? ` A fiscal rule docks ${capOutlook.fiscalRuleHit} whenever the deficit is above 4% of GDP.`
               : ""}
           </Hint>
         </div>

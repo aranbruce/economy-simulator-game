@@ -32,6 +32,7 @@ import {
   playerCountryId,
   mpDraftBlocGateError,
   inboundNoticeActs,
+  whipSpendOf,
 } from "../../lib/sim/engine.ts";
 import {
   DEFAULT_REALM_ID,
@@ -94,7 +95,12 @@ function errStatus(err: unknown): number | undefined {
  *  doesn't trip Next's dev-mode console-error overlay like a crash. */
 function logMpErrorIfUnexpected(err: unknown) {
   const status = errStatus(err);
-  if (err instanceof MpApiError && status != null && status >= 400 && status < 500) {
+  if (
+    err instanceof MpApiError &&
+    status != null &&
+    status >= 400 &&
+    status < 500
+  ) {
     return;
   }
   console.error(err);
@@ -413,6 +419,28 @@ export default function GameApp() {
           dealProp && dealProp.status === "pending"
             ? "deal:" + (dealProp.fromId || "") + ":" + (dealProp.dealId || "")
             : "";
+        const summitComm = pol && pol.inboundSummitCommercial;
+        const summitDealIds = Array.isArray(summitComm && summitComm.deals)
+          ? summitComm.deals
+              .map((d: any) => d && (d.id || d.dealId))
+              .filter(Boolean)
+              .join(",")
+          : "";
+        const summitKey =
+          summitComm && summitComm.status === "pending"
+            ? "summit:" +
+              (summitComm.fromId || "") +
+              ":" +
+              (summitComm.ourDelta != null
+                ? summitComm.ourDelta
+                : summitComm.delta || "") +
+              ":" +
+              (summitComm.theirDelta != null
+                ? summitComm.theirDelta
+                : summitComm.delta || "") +
+              ":" +
+              summitDealIds
+            : "";
         const notice = pol && pol.inboundNotice;
         const noticeKey =
           notice && notice.status === "pending"
@@ -421,21 +449,43 @@ export default function GameApp() {
                 .map((a: any) => (a.fromId || "") + ":" + (a.kind || ""))
                 .join("|")
             : "";
+        const agendaKey =
+          dealKey &&
+          summitKey &&
+          dealProp &&
+          summitComm &&
+          dealProp.fromId === summitComm.fromId
+            ? "summit-agenda:" + dealKey + ":" + summitKey
+            : "";
         const pendingKey = pending
           ? JSON.stringify(pending)
           : inboundKey
             ? "inbound:" + inboundKey
-            : blocKey || dealKey || noticeKey || null;
+            : blocKey || agendaKey || dealKey || summitKey || noticeKey || null;
         if (G.q !== lastMorningNoteQ.current) {
           /* New quarter: flash once, then summit/event/inbound or morning note. */
           lastMorningNoteQ.current = G.q;
           lastBriefQ.current = G.q;
           lastPresentedPendingKey.current = pendingKey;
-          if (!pending && !inboundKey && !blocKey && !dealKey && !noticeKey) {
+          if (
+            !pending &&
+            !inboundKey &&
+            !blocKey &&
+            !dealKey &&
+            !summitKey &&
+            !noticeKey
+          ) {
             lastBriefingCompleteQ.current = G.q;
           }
           showMpBriefing();
-        } else if (pending || inboundKey || blocKey || dealKey || noticeKey) {
+        } else if (
+          pending ||
+          inboundKey ||
+          blocKey ||
+          dealKey ||
+          summitKey ||
+          noticeKey
+        ) {
           /* Same quarter, another queued event or inbound ask. */
           if (pendingKey === lastPresentedPendingKey.current) return;
           lastPresentedPendingKey.current = pendingKey;
@@ -790,6 +840,7 @@ export default function GameApp() {
         sandbox: !!G.sandbox,
         envoys: clone(G.envoys || [null, null]),
         ultimatums: clone(G.ultimatums || {}),
+        whipSpend: whipSpendOf(G),
       });
       setMpRoom(data.room);
       lastMpVersion.current = data.room.version;
@@ -1157,7 +1208,7 @@ export default function GameApp() {
                 <span>Q{mpRoom.q}</span>
                 <span className="text-ink-soft">
                   {waiting
-                    ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount} · edit to withdraw`
+                    ? `Waiting ${mpRoom.submittedCount}/${mpRoom.humanCount}`
                     : `${mpRoom.submittedCount}/${mpRoom.humanCount} delivered`}
                 </span>
               </div>

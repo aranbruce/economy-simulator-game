@@ -14,6 +14,7 @@
  */
 import type { Faction, Dept, Tax, Policy, Vice, Mission } from "./types.ts";
 import { COUNTRIES } from "./countries.ts";
+import { BLOC_TEMPLATES } from "./blocs.ts";
 
 const FACTIONS = [
   {
@@ -2030,6 +2031,12 @@ COUNTRIES.forEach((p) =>
     (DEAL_BY_ID as any)[d.id] = d;
   }),
 );
+Object.values(BLOC_TEMPLATES).forEach((bloc: any) => {
+  const d = bloc && bloc.externalDeal;
+  if (!d || !d.id) return;
+  d.blocId = bloc.id;
+  (DEAL_BY_ID as any)[d.id] = d;
+});
 /* Diplomatic missions: one-shot bill clauses that add a decaying relImpulse
    rather than a permanent jump mean-reversion would eat in a quarter.
    Improve = summit; deter ladder = protest → ultimatum → sanctions.
