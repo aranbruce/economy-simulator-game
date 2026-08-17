@@ -1034,17 +1034,30 @@ function PartnerTariffPanel({ G }: { G: any }) {
   const byVol = [...rows].sort((a, b) => b.vol - a.vol);
   const chartIds = byVol.slice(0, 8).map((r) => r.id);
   const logs = G.log || [];
+  const loggedByPartner = new Map(
+    chartIds.map((id) => [
+      id,
+      logs.map((r: any) => r.partnerTariffs && r.partnerTariffs[id]),
+    ]),
+  );
+  /* Every series shares one x axis, so the live column is appended to all of
+     them or none: a longer series would run off the plot and mislabel its end
+     value against a shorter series[0]. */
+  const showLive = chartIds.some((id) => {
+    const logged = loggedByPartner.get(id) || [];
+    const live = livePartnerTariffOnPlayer(id, G);
+    return (
+      live != null && logged.length > 0 && logged[logged.length - 1] !== live
+    );
+  });
   const series =
     logs.length >= 2
       ? chartIds.map((id, i) => {
-          const logged = logs.map(
-            (r: any) => r.partnerTariffs && r.partnerTariffs[id],
-          );
+          const logged = loggedByPartner.get(id) || [];
           const live = livePartnerTariffOnPlayer(id, G);
-          const data =
-            live != null && logged.length && logged[logged.length - 1] !== live
-              ? [...logged, live]
-              : logged;
+          const data = showLive
+            ? [...logged, live != null ? live : logged[logged.length - 1]]
+            : logged;
           return {
             label: (rows.find((r) => r.id === id) || { name: id }).name,
             color: partnerLineColor(i, chartIds.length),

@@ -205,8 +205,9 @@ function ProposeAgendaBody({
   data: any;
   optionClassName: string;
 }) {
-  const ourMax = Math.max(0, data.ourMax | 0);
-  const theirMax = Math.max(0, data.theirMax | 0);
+  const canNegotiate = !!data.canNegotiate;
+  const ourMax = canNegotiate ? Math.max(0, data.ourMax | 0) : 0;
+  const theirMax = canNegotiate ? Math.max(0, data.theirMax | 0) : 0;
   const deals = Array.isArray(data.deals) ? data.deals : [];
   const [ourCut, setOurCut] = useState(() => Math.min(2, ourMax));
   const [theirCut, setTheirCut] = useState(() => Math.min(2, theirMax));
@@ -281,7 +282,7 @@ function ProposeAgendaBody({
           ) : null}
         </div>
       ) : null}
-      {data.canNegotiate ? (
+      {canNegotiate ? (
         <div className="mb-3 overflow-hidden rounded-md border border-edge bg-g-1">
           <Lever
             id="summit-our-cut"

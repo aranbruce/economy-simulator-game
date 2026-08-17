@@ -19886,7 +19886,7 @@ function impactStripData() {
     return {
       career: true,
       count: cl.length,
-      cost: billCost(cl),
+      cost: programmeCost(cl),
       bits: cl.slice(0, 6).map((c) => c.label),
       chips: null,
       factions: null,
@@ -19901,7 +19901,7 @@ function impactStripData() {
   return {
     career: false,
     count: cl.length,
-    cost: billCost(cl),
+    cost: programmeCost(cl),
     bits: null,
     chips: impactChipsData(im),
     factions: impactFactionsData(im),
