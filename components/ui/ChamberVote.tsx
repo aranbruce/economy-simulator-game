@@ -79,7 +79,10 @@ function hemicyclePoints(n: number, rows = 6) {
   return { pts, maxR: inner + (rows - 1) * gap };
 }
 
-function seatDots(parties: ChamberPartyRow[], mode: "vote" | "composition"): SeatDot[] {
+function seatDots(
+  parties: ChamberPartyRow[],
+  mode: "vote" | "composition",
+): SeatDot[] {
   const total = Math.max(
     1,
     parties.reduce((s, p) => s + Math.max(0, p.seats), 0),
@@ -161,7 +164,11 @@ export function ChamberVoteBar({ vote }: { vote: ChamberVoteView | null }) {
           {vote.pass ? " pass" : " no majority"}
         </span>
       </div>
-      <ChamberSeating parties={vote.parties} mode="vote" className="mx-auto max-w-80" />
+      <ChamberSeating
+        parties={vote.parties}
+        mode="vote"
+        className="mx-auto max-w-80"
+      />
       <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-g-1">
         <div
           className="h-full bg-green"

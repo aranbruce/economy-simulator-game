@@ -154,7 +154,12 @@ export type PartyOverlay = {
   /** Head-of-government title when the constitution does not already imply
    *  one (presidential calendar → President; hereditary autocracy → Monarch).
    *  Germany's Chancellor and South Africa's President live here. */
-  office?: "Prime Minister" | "President" | "Chancellor" | "Monarch" | "General Secretary";
+  office?:
+    | "Prime Minister"
+    | "President"
+    | "Chancellor"
+    | "Monarch"
+    | "General Secretary";
 };
 
 /** United-front window dressing before fold: 90 for the apparatus, 10 among the rest. */
@@ -174,11 +179,7 @@ const BANNED_SEATS: Record<PartyId, number> = {
   agrarian: 0,
 };
 
-function L(
-  name: string,
-  short: string,
-  color: string,
-): PartyLabel {
+function L(name: string, short: string, color: string): PartyLabel {
   return { name, short, color };
 }
 
@@ -696,7 +697,10 @@ export const PARTY_OVERLAYS: Record<string, PartyOverlay> = {
 };
 
 export const KINGDOM_PARTY_LABELS = PARTY_OVERLAYS.kingdom.labels;
-export const KINGDOM_OPENING_SEATS = PARTY_OVERLAYS.kingdom.seats as Record<PartyId, number>;
+export const KINGDOM_OPENING_SEATS = PARTY_OVERLAYS.kingdom.seats as Record<
+  PartyId,
+  number
+>;
 
 export function partyOverlayKey(role?: string | null) {
   if (!role) return null;
@@ -731,10 +735,9 @@ export function labelledParties(role?: string | null): Party[] {
   });
 }
 
-export function applyPartyLabels<T extends { id: string; name?: string; short?: string; color?: string }>(
-  rows: T[],
-  role?: string | null,
-): T[] {
+export function applyPartyLabels<
+  T extends { id: string; name?: string; short?: string; color?: string },
+>(rows: T[], role?: string | null): T[] {
   const labels = partyLabelsForRole(role);
   if (!labels) return rows;
   return rows.map((r) => {
@@ -775,7 +778,11 @@ export function emptyFac(): Record<FactionId, number> {
   };
 }
 
-export function addFac(into: Record<FactionId, number>, bag: FactionEffects | null | undefined, k = 1) {
+export function addFac(
+  into: Record<FactionId, number>,
+  bag: FactionEffects | null | undefined,
+  k = 1,
+) {
   if (!bag) return into;
   for (const id of FAC_IDS) {
     const v = bag[id];
@@ -873,14 +880,20 @@ export function partyStances(taste: FactionEffects) {
   });
 }
 
-export function policyTaste(policyId: string, enacting: boolean): Record<FactionId, number> {
+export function policyTaste(
+  policyId: string,
+  enacting: boolean,
+): Record<FactionId, number> {
   const p = (POLICY_BY_ID as any)[policyId];
   const bag = emptyFac();
   addFac(bag, p && p.fac, enacting ? 1 : -1);
   return bag;
 }
 
-export function taxTaste(taxId: string, rateDelta: number): Record<FactionId, number> {
+export function taxTaste(
+  taxId: string,
+  rateDelta: number,
+): Record<FactionId, number> {
   const t = (TAX_BY_ID as any)[taxId];
   const bag = emptyFac();
   if (!t || !rateDelta) return bag;
@@ -943,8 +956,12 @@ function incomeNiTaste(prev: any, next: any) {
     ((next.income && next.income.allowance) || 0) -
     ((prev.income && prev.income.allowance) || 0);
   const dEmp =
-    (next.ni && next.ni.empOn === false ? 0 : (next.ni && next.ni.empRate) || 0) -
-    (prev.ni && prev.ni.empOn === false ? 0 : (prev.ni && prev.ni.empRate) || 0);
+    (next.ni && next.ni.empOn === false
+      ? 0
+      : (next.ni && next.ni.empRate) || 0) -
+    (prev.ni && prev.ni.empOn === false
+      ? 0
+      : (prev.ni && prev.ni.empRate) || 0);
   const dEr =
     (next.ni && next.ni.erOn === false ? 0 : (next.ni && next.ni.erRate) || 0) -
     (prev.ni && prev.ni.erOn === false ? 0 : (prev.ni && prev.ni.erRate) || 0);
@@ -1059,7 +1076,10 @@ export function lawDeltaTaste(prev: any, next: any): Record<FactionId, number> {
     if (a && b && a !== b) addFac(bag, groupTaste(grp.id, a, b));
   }
   if ((prev.polity || "democracy") !== (next.polity || "democracy")) {
-    addFac(bag, polityTaste(prev.polity || "democracy", next.polity || "democracy"));
+    addFac(
+      bag,
+      polityTaste(prev.polity || "democracy", next.polity || "democracy"),
+    );
   }
   addFac(bag, sliderTaste(prev, next));
 
@@ -1300,7 +1320,8 @@ export function applyIncumbency(
 
 function applyExponent(shares: Record<PartyId, number>, exp: number) {
   const raw = emptyShares();
-  for (const id of PARTY_IDS) raw[id] = Math.pow(Math.max(shares[id] || 0, 0), exp);
+  for (const id of PARTY_IDS)
+    raw[id] = Math.pow(Math.max(shares[id] || 0, 0), exp);
   return normalizeShares(raw);
 }
 
@@ -1315,7 +1336,11 @@ function ensureWorkingMajority(seats: Record<PartyId, number>) {
     for (const id of PARTY_IDS) {
       if (id === leader) continue;
       if ((out[id] || 0) <= 0) continue;
-      if (!donor || out[id] < out[donor] || (out[id] === out[donor] && id > donor))
+      if (
+        !donor ||
+        out[id] < out[donor] ||
+        (out[id] === out[donor] && id > donor)
+      )
         donor = id;
     }
     if (!donor) break;
@@ -1362,7 +1387,11 @@ export function votingSystemOf(law: any) {
   return (law && law.groups && law.groups.votingSystem) || "majoritySingle";
 }
 
-function splitRemainder(n: number, weights: Record<PartyId, number>, exclude: PartyId) {
+function splitRemainder(
+  n: number,
+  weights: Record<PartyId, number>,
+  exclude: PartyId,
+) {
   const raw = emptyShares();
   for (const id of PARTY_IDS) {
     if (id === exclude) continue;
@@ -1502,7 +1531,8 @@ export function seedParties(
       });
   const seats = layoutSeatsForConstitution({
     popularity,
-    pluralism: authoritarian && pluralism === "multiParty" ? "singleParty" : pluralism,
+    pluralism:
+      authoritarian && pluralism === "multiParty" ? "singleParty" : pluralism,
     votingSystem,
     rulingId,
   });
@@ -1533,8 +1563,7 @@ export function leaderTitle(law: any, polityId?: string, role?: string) {
   const hereditary = groups.hereditary === "hereditary";
   const presidential = groups.electionCalendar === "fixed";
   const powers = groups.parliamentaryPowers;
-  const sovereign =
-    powers !== "suppressed" && powers !== "consultative";
+  const sovereign = powers !== "suppressed" && powers !== "consultative";
   const pinned = partyOverlayForRole(role)?.office;
 
   if (polity === "authoritarian") {

@@ -635,7 +635,7 @@ function snapshotPartnerTrade(g: any) {
   const playerM = totals && totals.M != null ? +totals.M : namedMRaw;
   raw.rest = { X: restX, M: Math.max(0, playerM - namedMRaw) };
 
-  let sumX = namedX + raw.rest.X;
+  const sumX = namedX + raw.rest.X;
   let sumM = namedM + raw.rest.M;
   const targetX = e.X != null ? e.X : sumX;
   const targetM = e.M != null ? e.M : sumM;
@@ -762,8 +762,7 @@ function unionPackageBlockers(g: any, partnerId: any) {
   }
   const min = unionCommercialRelationMin(bound.blocId, g);
   const counterpartId = bound.playerInCu ? bound.outsiderId : partnerId;
-  const rel =
-    g.rel && g.rel[counterpartId] != null ? g.rel[counterpartId] : 50;
+  const rel = g.rel && g.rel[counterpartId] != null ? g.rel[counterpartId] : 50;
   if (rel < min) {
     out.push(
       "relations with partner " + rel.toFixed(0) + " (need " + min + "+)",
@@ -772,12 +771,7 @@ function unionPackageBlockers(g: any, partnerId: any) {
   for (const a of unionPackageApprovals(g, bound)) {
     if (!a.ok) {
       out.push(
-        a.name +
-          " withholds approval (" +
-          a.rel.toFixed(0) +
-          "/" +
-          a.min +
-          ")",
+        a.name + " withholds approval (" + a.rel.toFixed(0) + "/" + a.min + ")",
       );
     }
   }
@@ -1491,8 +1485,7 @@ function applyMpInboundSummitCommercialChoice(
     setG(g);
     g.q = g.q != null ? g.q : 0;
 
-    const cut =
-      inbound.theirDelta != null ? inbound.theirDelta : inbound.delta;
+    const cut = inbound.theirDelta != null ? inbound.theirDelta : inbound.delta;
     const hasTariff = +cut > 0;
     const deals = inboundSummitDeals(inbound);
     const pairedDeal = pendingInboundDealProposal(targetPol);
@@ -1682,7 +1675,9 @@ function timeoutInboundSummitCommercial(g: any) {
 function summitCommercialDealOptions(partnerOrId: any, g: any) {
   const out = [];
   const partnerId =
-    typeof partnerOrId === "string" ? partnerOrId : partnerOrId && partnerOrId.id;
+    typeof partnerOrId === "string"
+      ? partnerOrId
+      : partnerOrId && partnerOrId.id;
   const bound = cuBoundary(g, partnerId);
   if (bound) {
     if (bound.playerInCu) {
@@ -1806,7 +1801,13 @@ function applySummitReciprocalTariff(
   if (isHumanMpSeat(g, partnerId)) {
     if (od > 0) applyDraftOurSummitTariffCut(g, partnerId, od);
     if (td > 0)
-      return parkInboundSummitCommercial(g, playerCountryId(g.homeRole), partnerId, od, td);
+      return parkInboundSummitCommercial(
+        g,
+        playerCountryId(g.homeRole),
+        partnerId,
+        od,
+        td,
+      );
     return od > 0;
   }
   /* Accept against current rates — never after cutting our own draft, or a
@@ -3108,8 +3109,7 @@ function queueSummitVisitEvents(g: any) {
     if (!v || v.missionId !== "summit") continue;
     /* Enact steps the clock before we queue, so left may already be 0. */
     if (v.endsQ < q) continue;
-    const total =
-      v.eventsTotal != null ? v.eventsTotal : SUMMIT_EVENT_BEATS;
+    const total = v.eventsTotal != null ? v.eventsTotal : SUMMIT_EVENT_BEATS;
     const fired = v.eventsFired || 0;
     if (fired >= total) continue;
     const humanHost = isHumanMpSeat(g, pid);
@@ -3138,7 +3138,8 @@ function commercialAgendaDespatchData(
   const room = summitTariffRoom(g, partnerId);
   const bound = cuBoundary(g, partnerId);
   const bloc =
-    bound && (blocById(bound.blocId) || (g.customBlocs && g.customBlocs[bound.blocId]));
+    bound &&
+    (blocById(bound.blocId) || (g.customBlocs && g.customBlocs[bound.blocId]));
   const approvals = bound ? unionPackageApprovals(g, bound) : [];
   const packBlock = bound ? unionPackageBlockers(g, partnerId) : [];
   const deals = summitCommercialDealOptions(partnerId, g).map((d: any) => {
@@ -3205,8 +3206,7 @@ function inboundSummitAgendaDespatchData(
       : prop && prop.delta != null
         ? +prop.delta
         : 0;
-  const ourDelta =
-    prop && prop.ourDelta != null ? +prop.ourDelta : theirDelta;
+  const ourDelta = prop && prop.ourDelta != null ? +prop.ourDelta : theirDelta;
   const law = g && (g.draft || g.law);
   const ourFrom =
     fromId && law
@@ -3222,12 +3222,14 @@ function inboundSummitAgendaDespatchData(
     (blocById(prop.unionBlocId) ||
       (g.customBlocs && g.customBlocs[prop.unionBlocId]));
   const unionName = bloc && bloc.name ? bloc.name : "the union";
-  const ourLabel = prop && prop.unionBlocId
-    ? "Our duty on " + unionName
-    : "Our duty on " + name;
-  const theirLabel = prop && prop.unionBlocId
-    ? unionName + "'s duty on {C}"
-    : name + "'s duty on {C}";
+  const ourLabel =
+    prop && prop.unionBlocId
+      ? "Our duty on " + unionName
+      : "Our duty on " + name;
+  const theirLabel =
+    prop && prop.unionBlocId
+      ? unionName + "'s duty on {C}"
+      : name + "'s duty on {C}";
   let intro = "";
   if (hasTariff && deals.length) {
     intro =
@@ -5328,6 +5330,7 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
         const r = enactHumanSeatOnSnapshot(g, id, draft, {
           envoys: sub.envoys,
           ultimatums: sub.ultimatums,
+          whipSpend: sub.whipSpend,
         });
         if (!r.ok) continue;
       } catch (err) {
@@ -5752,9 +5755,14 @@ function mountMpSeatOnSnapshot(g: any, seatId: any) {
   g.prevLaw = seat.prevLaw || seat.law;
   g.draft = seat.law;
   g.fac = pol.fac;
-  g.parties = pol.parties
-    ? clone(pol.parties)
-    : seedParties(pol.fac || openingFac(g.homeRole), g.law, g.homeRole);
+  if (!pol.parties) {
+    pol.parties = seedParties(
+      pol.fac || openingFac(g.homeRole),
+      g.law,
+      g.homeRole,
+    );
+  }
+  g.parties = clone(pol.parties);
   g.rel = pol.rel;
   g.capital = pol.capital != null ? pol.capital : 42;
   g.mods = Array.isArray(pol.mods) ? pol.mods : [];
@@ -6342,6 +6350,13 @@ function seedMpPolitics(snap: any, humans: any) {
       if (!Array.isArray(pol.mods)) pol.mods = [];
       if (pol.lastEventQ == null) pol.lastEventQ = -3;
       if (pol.nextMajorQ == null) pol.nextMajorQ = scheduleNextMajorQ(0, true);
+      if (!pol.parties || !pol.parties.seats || !pol.parties.rulingId) {
+        pol.parties = seedParties(
+          pol.fac || openingFac(role),
+          lawForRole(role),
+          role,
+        );
+      }
       normalizeDiploPolitics(pol);
     }
     /* Each human needs their own quarter log for the top bar. The host's
@@ -6387,6 +6402,10 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
       fac: o.fac || null,
       rel: o.rel || {},
       capital: o.capital != null ? o.capital : 42,
+      /* The seat's own chamber, so the vote below is scored against its real
+         seat layout rather than one freshly seeded from factions. */
+      parties: o.parties ? clone(o.parties) : null,
+      whipSpend: o.whipSpend != null ? o.whipSpend : 0,
     });
     /* Drop a Found clause that cannot enact — avoids charging capital for a no-op. */
     if (draftCopy.blocCreate && !canCreateCustomBloc()) {
@@ -6397,10 +6416,13 @@ function computeBillCost(law: any, draft: any, ctx: any): any {
       return { ok: false, cost: 0, error: gateErr, clauses: [] };
     }
     const cl = billClauses();
+    const vote = billVoteData();
     return {
       ok: true,
       cost: billCost(cl),
-      passage: pressPassageFromClauses(cl),
+      whipSpend: legislativeClauses(cl).length ? whipSpendOf() : 0,
+      vote,
+      passage: vote ? pressPassageFromVote(vote) : pressPassageFromClauses(cl),
       clauses: cl.map((c) => ({
         label: c.label,
         pc: c.sunk ? 0 : c.pc,
@@ -6491,6 +6513,8 @@ function validateMpSubmission(
     fac: pol.fac,
     rel: pol.rel,
     capital: pol.capital,
+    parties: pol.parties,
+    whipSpend: o.whipSpend,
   });
   if (!priced.ok) return priced;
   /* Persist stripped Found so enact does not reintroduce a dead clause. */
@@ -6527,7 +6551,8 @@ function validateMpSubmission(
   if (!diplo.ok) return diplo;
   const billCost = priced.cost;
   const diploCost = diplo.cost;
-  const total = billCost + diploCost;
+  const whipCost = priced.whipSpend || 0;
+  const total = billCost + diploCost + whipCost;
   if (total > pol.capital) {
     return {
       ok: false,
@@ -6542,13 +6567,37 @@ function validateMpSubmission(
       capital: pol.capital,
     };
   }
+  /* Capital first, then the chamber — the same order solo enact() gates in.
+     The client disables Deliver on a lost vote, but the seat's parties are
+     server-side state, so the majority is checked here too. */
+  if (
+    priced.vote &&
+    priced.vote.needed &&
+    !priced.vote.advisory &&
+    !priced.vote.pass
+  ) {
+    return {
+      ok: false,
+      error:
+        "The chamber voted the Programme down (" +
+        priced.vote.aye +
+        "–" +
+        priced.vote.nay +
+        ")",
+      cost: billCost,
+      diploCost,
+      capital: pol.capital,
+    };
+  }
   return {
     ok: true,
     cost: billCost,
     diploCost,
+    whipCost,
     totalCost: total,
     clauses: priced.clauses,
     passage: priced.passage,
+    vote: priced.vote,
     envoys: diplo.envoys,
     ultimatums: diplo.ultimatums,
   };
@@ -6633,6 +6682,7 @@ function enactHumanSeatOnSnapshot(
     prevLaw: g.prevLaw,
     capital: g.capital,
     fac: g.fac,
+    parties: g.parties,
     rel: g.rel,
     country: g.country,
     envoys: g.envoys,
@@ -6650,6 +6700,9 @@ function enactHumanSeatOnSnapshot(
     g.prevLaw = seat.prevLaw || seat.law;
     g.capital = pol.capital;
     g.fac = pol.fac;
+    /* This seat's chamber, not whichever seat was mounted last — anything
+       reachable from here that reads parties must see the right ones. */
+    g.parties = pol.parties;
     g.rel = pol.rel;
     g.country = pol.country;
     mountDiploOntoGame(g, pol);
@@ -6764,6 +6817,7 @@ function enactHumanSeatOnSnapshot(
     g.prevLaw = saved.prevLaw;
     g.capital = saved.capital;
     g.fac = saved.fac;
+    g.parties = saved.parties;
     g.rel = saved.rel;
     g.country = saved.country;
     g.envoys = saved.envoys;
@@ -6807,6 +6861,17 @@ function exportGameSnapshot(g: any) {
     snap.politics[sid] = normalizeDiploPolitics({
       capital: src.capital != null ? src.capital : 42,
       fac: clone(src.fac || openingFac(src.homeRole || "home")),
+      /* The seat's chamber travels with it — dropping it here re-seeded seats
+         from factions on every export, losing drift and election results. */
+      parties: clone(
+        src.parties ||
+          (prevPol && prevPol.parties) ||
+          seedParties(
+            src.fac || openingFac(src.homeRole || "home"),
+            src.law || lawForRole(src.homeRole || "home"),
+            src.homeRole || "home",
+          ),
+      ),
       rel: clone(src.rel || openingRel(src.homeRole || "home")),
       country: src.country || sid,
       rateManual: !!src.rateManual,
@@ -12302,7 +12367,9 @@ function legislativeClauses(cl?: any) {
 }
 /** Draft used for the chamber vote: same Programme, minus summit missions. */
 function draftForChamberVote(state: any) {
-  const missions = { ...((state && state.draft && state.draft.missions) || {}) };
+  const missions = {
+    ...((state && state.draft && state.draft.missions) || {}),
+  };
   for (const pid of Object.keys(missions)) {
     if (missions[pid] === "summit") delete missions[pid];
   }
@@ -17398,7 +17465,10 @@ function rollEvent() {
   const shiftAge = polityShiftAge();
   if (shiftAge != null && shiftAge > 12) G.polityShift = null;
   /* Mid-term fiscal set-piece: halfway through the current term, and only
-     when the books are actually soft. */ if (!G.setPiece8 && fiscalSetPieceWindow()) {
+     when the books are actually soft. */ if (
+    !G.setPiece8 &&
+    fiscalSetPieceWindow()
+  ) {
     const fiscal = EVENTS.find((e) => e.id === "setPieceFiscal");
     if (fiscal && fiscal.cond()) {
       const p = prepareEvent(fiscal);
@@ -18661,7 +18731,8 @@ function pressPassageFromVote(vote: any): "chamber" | "advisory" | "executive" {
 function pressPassageFromClauses(clauses: any[]) {
   const powers = parliamentPowersOf(G && G.law);
   if (powers === "suppressed") return "executive";
-  if (!(clauses || []).some((c) => !clauseLooksExecutive(c))) return "executive";
+  if (!(clauses || []).some((c) => !clauseLooksExecutive(c)))
+    return "executive";
   if (powers === "consultative") return "advisory";
   return "chamber";
 }
@@ -20028,10 +20099,8 @@ function enact() {
   closeNewsInbox();
   pruneDraftBlocInvites();
   if (G.draft.blocCreate && !canCreateCustomBloc()) G.draft.blocCreate = null;
-  const cl = billClauses(),
-    cost = billCost(cl);
-  const whip = legislativeClauses(cl).length ? whipSpendOf() : 0;
-  const total = cost + whip;
+  const cl = billClauses();
+  const total = programmeCost(cl);
   if (total > G.capital) return;
   const vote = billVoteData();
   if (vote && vote.needed && !vote.advisory && !vote.pass) return;

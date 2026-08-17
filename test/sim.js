@@ -3282,14 +3282,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
       G.missionEvents[0].eventIndex === 1,
     "human-human summit queues only the commercial agenda",
   );
-  const skipped = rollMissionEvent(
-    "summit",
-    "japan",
-    G,
-    diploDeps(),
-    true,
-    0,
-  );
+  const skipped = rollMissionEvent("summit", "japan", G, diploDeps(), true, 0);
   assert(
     !skipped,
     "scripted summit demand paper does not roll vs a human seat",
@@ -3549,10 +3542,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const modest = midCuts.find((o) => o.delta === 1);
   const standard = midCuts.find((o) => o.delta === 2);
   assert(modest && standard, "China summit offers 1pt and 2pt cuts");
-  assert(
-    modest && !modest.disabled,
-    "China takes a modest 1pt trim at 50",
-  );
+  assert(modest && !modest.disabled, "China takes a modest 1pt trim at 50");
   assert(
     standard && standard.disabled,
     "China refuses a 2pt cut at 50 — the ask is too deep",
@@ -3578,13 +3568,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     !blockers.some((b) => /relations below/i.test(b)),
     "treaty relation floor is not a hard Trade-panel block",
   );
-  const cold = commercialAcceptScore(
-    "deal",
-    "china",
-    G,
-    diploDeps(),
-    { dealId: "cn_invest" },
-  );
+  const cold = commercialAcceptScore("deal", "china", G, diploDeps(), {
+    dealId: "cn_invest",
+  });
   assert(
     typeof cold.p === "number" && cold.p > 0,
     "a treaty below its warmth floor still scores, not a hard zero (got " +
@@ -3638,15 +3624,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const hotStd = hotChina.opts.find(
     (o) => o.summitKind === "tariff" && o.delta === 2,
   );
-  assert(
-    hotStd && !hotStd.disabled,
-    "China accepts a 2pt cut at high warmth",
-  );
+  assert(hotStd && !hotStd.disabled, "China accepts a 2pt cut at high warmth");
   const hotDeal = hotChina.opts.find((o) => o.summitKind === "deal");
-  assert(
-    hotDeal && !hotDeal.disabled,
-    "China treaty unlocks at high warmth",
-  );
+  assert(hotDeal && !hotDeal.disabled, "China treaty unlocks at high warmth");
 }
 
 {
@@ -3665,10 +3645,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     ruStd && !ruStd.disabled,
     "Russia accepts a 2pt cut at 50 despite a higher MFN",
   );
-  assert(
-    ruDeep && ruDeep.disabled,
-    "Russia refuses a deeper cut at 50",
-  );
+  assert(ruDeep && ruDeep.disabled, "Russia refuses a deeper cut at 50");
 }
 
 {
@@ -3687,10 +3664,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
       o.ourDelta === Math.floor(ourOpen + 1e-6) &&
       o.theirDelta === Math.floor(theirOpen + 1e-6),
   );
-  assert(
-    toZero,
-    "summit offers cutting each side all the way to 0",
-  );
+  assert(toZero, "summit offers cutting each side all the way to 0");
 }
 
 {
@@ -4243,7 +4217,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   );
   const indiaEv = buildSummitCommercialEvent("india", G);
   assert(
-    indiaEv.opts.some((o) => o.summitKind === "deal" && o.dealId === "in_goods"),
+    indiaEv.opts.some(
+      (o) => o.summitKind === "deal" && o.dealId === "in_goods",
+    ),
     "EU member summit with India offers in_goods as a union treaty",
   );
   assert(
@@ -4356,7 +4332,8 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const frEv = buildSummitCommercialEvent("france", G);
   const tariffOpt = frEv.opts.find((o) => o.summitKind === "tariff");
   const our0 = effectiveTariff("france", G.law);
-  if (tariffOpt) applySummitCommercialOption(tariffOpt, { partnerId: "france" });
+  if (tariffOpt)
+    applySummitCommercialOption(tariffOpt, { partnerId: "france" });
   assert(
     effectiveTariff("france", G.law) === our0,
     "blocked union package does not cut tariffs",
@@ -4381,7 +4358,10 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(access.france > 0, "association fans access to France");
   assert(access.germany > 0, "association fans access to Germany");
   joinBloc("continental_union", G.law);
-  assert(!G.law.deals.eu_assoc, "joining the EU wipes a prior association deal");
+  assert(
+    !G.law.deals.eu_assoc,
+    "joining the EU wipes a prior association deal",
+  );
 }
 
 {
@@ -4408,10 +4388,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     !sameBloc.opts.some((o) => o.summitKind === "tariff"),
     "same-bloc visit has no tariff pack",
   );
-  assert(
-    !cuBoundary(G, "france"),
-    "fellow CU members are not a CU boundary",
-  );
+  assert(!cuBoundary(G, "france"), "fellow CU members are not a CU boundary");
 }
 
 {

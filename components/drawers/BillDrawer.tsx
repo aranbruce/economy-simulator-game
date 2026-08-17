@@ -164,7 +164,8 @@ export function BillDrawer() {
   const capOutlook = capitalOutlook(total);
   const vote = billVoteData();
   const whip = whipSpendOf();
-  const ruling = vote && vote.parties ? vote.parties.find((p: any) => p.ruling) : null;
+  const ruling =
+    vote && vote.parties ? vote.parties.find((p: any) => p.ruling) : null;
   const showWhip =
     !!vote &&
     vote.needed &&
@@ -195,8 +196,8 @@ export function BillDrawer() {
           />
           <Hint className="mt-1.5">
             Spend capital to peel rebels toward aye. Diminishing returns —
-            enough to tip a Split squeaker, not to ram through a bill your
-            whole party hates.
+            enough to tip a Split squeaker, not to ram through a bill your whole
+            party hates.
             {whip > 0
               ? ` About ${Math.round((vote.whipBoost || 0) * (ruling?.seats || 0))} extra ayes from the whip.`
               : ""}
@@ -331,7 +332,9 @@ export function BillDrawer() {
             </div>
           ) : null}
           <div className="flex py-0.75 text-ink-soft">
-            <span>From popularity ({Math.round(capOutlook.approval)}% approval)</span>
+            <span>
+              From popularity ({Math.round(capOutlook.approval)}% approval)
+            </span>
             <span
               className={`ml-auto font-[650] ${capOutlook.gain >= 0 ? "text-green-lt" : "text-red-lt"}`}
             >
@@ -348,9 +351,9 @@ export function BillDrawer() {
             </span>
           </div>
           <Hint className="mt-1.5">
-            Capital regenerates every quarter, faster the more popular you
-            are. Below about {Math.round(capOutlook.breakeven)}% approval it
-            goes into reverse and capital falls instead of growing.
+            Capital regenerates every quarter, faster the more popular you are.
+            Below about {Math.round(capOutlook.breakeven)}% approval it goes
+            into reverse and capital falls instead of growing.
             {capOutlook.envoyCount > 0
               ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
               : ""}

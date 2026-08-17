@@ -789,12 +789,7 @@ export function partnerSelfInterest(
     const d = dealFromMeta(meta, deps);
     let s = pl && pl.policies && pl.policies.openVisas ? 0.4 : 0.15;
     if (hasRatifiedDeal(partnerId, g, deps)) s -= 0.2;
-    if (
-      isMobilityDeal(d) &&
-      pl &&
-      pl.policies &&
-      pl.policies.closeBorders
-    ) {
+    if (isMobilityDeal(d) && pl && pl.policies && pl.policies.closeBorders) {
       s -= 0.45;
     }
     s += clamp01(salesShare / 0.1) * 0.25;
@@ -943,8 +938,7 @@ export function commercialPackageScore(
 ) {
   const list = (parts || []).filter(Boolean);
   if (!list.length) return { p: 0, ok: false, pending: false };
-  if (list.some((x) => x.pending))
-    return { p: 1, ok: true, pending: true };
+  if (list.some((x) => x.pending)) return { p: 1, ok: true, pending: true };
   const first = list[0];
   if (!first) return { p: 0, ok: false, pending: false };
   let p = clamp01(first.p != null ? +first.p : first.ok ? 1 : 0);
@@ -1077,7 +1071,7 @@ export function commercialAcceptScore(
   const sizeGap = 1 - size;
   const askDrag = Math.max(0, 0.1 * ask + 0.16 * ask * sizeGap);
   const imbalance = theirDelta - ourDelta;
-  const imbDrag = Math.max(0, imbalance) / 6 * 0.22;
+  const imbDrag = (Math.max(0, imbalance) / 6) * 0.22;
   /* Each extra point we cut beyond what we ask is a real sweetener. */
   const giftBoost = 0.09 * Math.max(0, ourDelta - theirDelta);
 

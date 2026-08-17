@@ -9,7 +9,10 @@
  * trade for multi-member regions.
  */
 import { writeFileSync } from "fs";
+import { format, resolveConfig } from "prettier";
 import { COUNTRIES as COUNTRY_DEFS } from "../lib/sim/countries.js";
+
+const OUT = "lib/sim/tradeMatrix.ts";
 
 /** Country fractions inside each trade region (must sum to 1). */
 const REGION_MEMBERS = {
@@ -18,7 +21,7 @@ const REGION_MEMBERS = {
     france: 0.18,
     netherlands: 0.16,
     italy: 0.12,
-    spain: 0.10,
+    spain: 0.1,
     poland: 0.08,
   },
   north_america: { united_states: 0.8, canada: 0.2 },
@@ -407,9 +410,10 @@ export function partnerTradeSharePct(
 }
 `;
 
-writeFileSync("lib/sim/tradeMatrix.ts", ts);
-console.log(
-  "Wrote lib/sim/tradeMatrix.ts with",
-  Object.keys(TRADE_MATRIX).length,
-  "rows",
+/* Format on the way out, so re-running the generator never shows up as a
+   formatting-only diff against the checked-in file. */
+writeFileSync(
+  OUT,
+  await format(ts, { ...(await resolveConfig(OUT)), filepath: OUT }),
 );
+console.log("Wrote", OUT, "with", Object.keys(TRADE_MATRIX).length, "rows");

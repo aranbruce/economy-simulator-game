@@ -17,7 +17,12 @@ export function applyRealmLawOverlay(law: any, overlay: any) {
   if (overlay.tariff != null) law.tariff = overlay.tariff;
   if (overlay.tariffCountry) {
     if (!law.tariffSchedule) {
-      law.tariffSchedule = { default: law.tariff, bloc: {}, country: {}, cet: null };
+      law.tariffSchedule = {
+        default: law.tariff,
+        bloc: {},
+        country: {},
+        cet: null,
+      };
     }
     if (!law.tariffSchedule.country) law.tariffSchedule.country = {};
     Object.assign(law.tariffSchedule.country, overlay.tariffCountry);

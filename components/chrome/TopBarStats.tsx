@@ -1,6 +1,15 @@
 "use client";
 
-import { approvalOf, balanceOf, fmt, leaderTitle, qLabel, rulingSeats, CHAMBER_SEATS, parliamentPowersOf } from "../../lib/sim/engine.ts";
+import {
+  approvalOf,
+  balanceOf,
+  fmt,
+  leaderTitle,
+  qLabel,
+  rulingSeats,
+  CHAMBER_SEATS,
+  parliamentPowersOf,
+} from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Chip } from "../ui/Chip.tsx";
 

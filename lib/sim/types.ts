@@ -19,11 +19,7 @@ export type FactionEffects = Partial<Record<FactionId, number>>;
 
 /** Electoral families whose seat shares and whip are derived from factions. */
 export type PartyId =
-  | "social"
-  | "liberal"
-  | "conservative"
-  | "national"
-  | "agrarian";
+  "social" | "liberal" | "conservative" | "national" | "agrarian";
 
 export type PartyStanceKind = "for" | "against" | "split";
 

@@ -137,8 +137,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
     (byRegion[r] ||= []).push(c);
   }
 
-  const canStage =
-    !!selected && !selected.staged && !selected.blockers.length;
+  const canStage = !!selected && !selected.staged && !selected.blockers.length;
   const confirmContent = !selected
     ? { b: "No candidate selected", e: null as string | null }
     : selected.staged
@@ -148,9 +147,7 @@ export function BlocInviteModalBody({ bid }: { bid: string }) {
         : {
             b: `Propose ${selected.partner.name}`,
             e:
-              (selected.poach
-                ? `Poach from ${selected.homeBlocName} · `
-                : "") +
+              (selected.poach ? `Poach from ${selected.homeBlocName} · ` : "") +
               `${selected.capital} capital · added to your bill`,
           };
 

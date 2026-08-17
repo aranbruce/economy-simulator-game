@@ -106,7 +106,7 @@ function TariffMoveRow({
           </b>
         </div>
         <div
-          className="relative h-2 overflow-hidden rounded-xs border border-edge bg-g-0"
+          className="bg-g-0 relative h-2 overflow-hidden rounded-xs border border-edge"
           title={fromR + "% → " + toR + "%"}
         >
           <i
@@ -195,9 +195,7 @@ export function CommercialAgendaBody({
   optionClassName: string;
 }) {
   if (data && data.inbound) return <InboundAgendaBody data={data} />;
-  return (
-    <ProposeAgendaBody data={data} optionClassName={optionClassName} />
-  );
+  return <ProposeAgendaBody data={data} optionClassName={optionClassName} />;
 }
 
 function ProposeAgendaBody({

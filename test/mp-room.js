@@ -280,6 +280,61 @@ async function main() {
   assert.ok(deniedSubmit.error, "submit rejects unaffordable bill");
   assert.match(deniedSubmit.error, /capital/i);
 
+  /* Chamber gate and whip cost, server-side — a seat's parties live in the
+     room snapshot, so the majority cannot be a client-only check. */
+  {
+    _resetRoomsForTests();
+    newGame({ country: "Hostland", homeRole: "home", silent: true });
+    const snapVote = exportGameSnapshot(getG());
+    const h = await createRoom({ hostName: "Alice", role: "home" });
+    await joinRoom(h.room.code, { name: "Bob", role: "germany" });
+    await startRoom(h.room.code, h.token, snapVote);
+    const raw = await loadRoom(h.room.code);
+    const pol = raw.snapshot.politics.kingdom;
+    pol.capital = 80;
+    for (const f of Object.keys(pol.fac)) pol.fac[f] = 40;
+    pol.parties.rulingId = "social";
+    pol.parties.seats = {
+      social: 55,
+      liberal: 10,
+      conservative: 25,
+      national: 5,
+      agrarian: 5,
+    };
+    await saveRoom(raw);
+    const unpopular = clone(raw.snapshot.world.kingdom.law);
+    unpopular.policies.dereg = true;
+
+    const lost = validateMpSubmission(raw.snapshot, "kingdom", unpopular);
+    assert.equal(lost.ok, false, "off-manifesto bill loses the chamber");
+    assert.match(lost.error, /chamber/i);
+    const lostSubmit = await submitBill(h.room.code, h.token, unpopular);
+    assert.ok(lostSubmit.error, "submit rejects a bill the chamber voted down");
+    assert.match(lostSubmit.error, /chamber/i);
+
+    /* Whipping the same bill buys the majority — and is charged for it. */
+    const whipped = validateMpSubmission(raw.snapshot, "kingdom", unpopular, {
+      whipSpend: 20,
+    });
+    assert.ok(whipped.ok, whipped.error);
+    assert.equal(whipped.whipCost, 20, "whip spend is priced into the bill");
+    assert.equal(
+      whipped.totalCost,
+      whipped.cost + 20,
+      "whip adds to the capital charged",
+    );
+
+    /* And it is real capital, not a free pass: 5 short of the whipped total. */
+    const raw2 = await loadRoom(h.room.code);
+    raw2.snapshot.politics.kingdom.capital = whipped.totalCost - 5;
+    await saveRoom(raw2);
+    const tooDear = validateMpSubmission(raw2.snapshot, "kingdom", unpopular, {
+      whipSpend: 20,
+    });
+    assert.equal(tooDear.ok, false, "whip cannot be spent past your capital");
+    assert.match(tooDear.error, /capital/i);
+  }
+
   /* Host leave deletes the room. */
   _resetRoomsForTests();
   const h3 = await createRoom({ hostName: "Alice", role: "home" });
@@ -1824,8 +1879,7 @@ async function main() {
     "inbound summit commercial cleared on accept",
   );
   const afterGuestTar =
-    sumAccepted.room.snapshot.world.germany.law.tariffSchedule.country
-      .kingdom;
+    sumAccepted.room.snapshot.world.germany.law.tariffSchedule.country.kingdom;
   assert.ok(
     afterGuestTar != null && afterGuestTar === beforeGuestTar - 2,
     "accept cuts guest tariff on host exports",
@@ -1845,7 +1899,11 @@ async function main() {
     name: "Bob",
     role: "germany",
   });
-  const stDecSum = await startRoom(hDecSum.room.code, hDecSum.token, snapDecSum);
+  const stDecSum = await startRoom(
+    hDecSum.room.code,
+    hDecSum.token,
+    snapDecSum,
+  );
   assert.ok(!stDecSum.error, stDecSum.error);
   {
     const raw = await loadRoom(hDecSum.room.code);
@@ -1872,8 +1930,7 @@ async function main() {
     "inbound summit commercial cleared on decline",
   );
   assert.ok(
-    !sumDeclined.room.snapshot.world.kingdom.law.tariffSchedule.country
-      .germany,
+    !sumDeclined.room.snapshot.world.kingdom.law.tariffSchedule.country.germany,
     "decline reverts issuer bilateral tariff overlay",
   );
 
@@ -1943,8 +2000,7 @@ async function main() {
     "accept writes the treaty onto the issuer's law",
   );
   const pkgAfterGuestTar =
-    pkgAccepted.room.snapshot.world.germany.law.tariffSchedule.country
-      .kingdom;
+    pkgAccepted.room.snapshot.world.germany.law.tariffSchedule.country.kingdom;
   assert.ok(
     pkgAfterGuestTar != null && pkgAfterGuestTar === pkgBeforeGuestTar - 2,
     "accept also cuts guest tariff on host exports",

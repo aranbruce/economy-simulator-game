@@ -281,8 +281,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
           id: t.id,
           delta:
             s.rate -
-            ((G.law.taxes[t.id] && G.law.taxes[t.id].rate) || s.rate) ||
-            0.01,
+              ((G.law.taxes[t.id] && G.law.taxes[t.id].rate) || s.rate) || 0.01,
         })}
         sandbox={!!G.sandbox}
       />

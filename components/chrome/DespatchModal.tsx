@@ -139,9 +139,7 @@ export function DespatchModal() {
                   }}
                 >
                   <b className="block font-[650] tracking-[-.02em]">{T(o.b)}</b>
-                  {o.e ? (
-                    <em className={skin.optionSub}>{T(o.e)}</em>
-                  ) : null}
+                  {o.e ? <em className={skin.optionSub}>{T(o.e)}</em> : null}
                   {o.hint ? <SafeHtml html={o.hint} /> : null}
                 </button>
               ))}

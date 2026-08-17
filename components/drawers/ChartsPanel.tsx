@@ -156,7 +156,9 @@ export function ChartsPanel() {
      card. */
   const gdpBnOverTime = G.log.map(
     (r: any) =>
-      homeGdp0 * ((r.gdp != null ? r.gdp : 100) / 100) * ((r.fx != null ? r.fx : 100) / 100),
+      homeGdp0 *
+      ((r.gdp != null ? r.gdp : 100) / 100) *
+      ((r.fx != null ? r.fx : 100) / 100),
   );
   const gdpNowRows = [
     {
@@ -200,7 +202,10 @@ export function ChartsPanel() {
           key={r.us ? "home" : r.name}
           className="mb-0.5 grid grid-cols-[8.5rem_1fr_4.5rem] items-center gap-2 text-xs"
         >
-          <span className={`truncate ${r.us ? "font-semibold" : ""}`} title={r.name}>
+          <span
+            className={`truncate ${r.us ? "font-semibold" : ""}`}
+            title={r.name}
+          >
             {r.name}
             {r.us ? " · you" : ""}
           </span>
@@ -249,116 +254,116 @@ export function ChartsPanel() {
             title="Output against potential"
             caption={`Index, 100 at the start of your term. The gap is cyclical pressure on prices. Trend is how fast potential itself expands — currently ${tr != null ? tr.toFixed(2) : "—"}% a year; gap ${fmt(gapPts, 1)} pts.`}
           >
-        <LineChartSvg
-          spec={lineChartSpec([
-            {
-              label: "Actual output",
-              color: COL.ink,
-              data: col("gdp"),
-              wide: true,
-            },
-            {
-              label: "Potential",
-              color: COL.soft,
-              data: col("potential"),
-              dash: true,
-            },
-          ])}
-        />
-      </ChartBox>
-      <ChartBox
-        title="Unemployment"
-        caption="Okun's relationship: output above trend pulls people into work."
-      >
-        <LineChartSvg
-          spec={lineChartSpec([
-            {
-              label: "Unemployment",
-              color: COL.plum,
-              data: col("unemployment"),
-              wide: true,
-            },
-          ])}
-        />
-      </ChartBox>
-      <ChartBox
-        title="Capital stock and the cost of capital"
-        caption="Investment accumulates into the capital stock, which is an argument of potential output. Corporation tax and the policy rate move the user cost, and the user cost moves desired capital."
-      >
-        <LineChartSvg
-          spec={lineChartSpec([
-            {
-              label: "Capital stock",
-              color: COL.blue,
-              data: col("K"),
-              wide: true,
-            },
-          ])}
-        />
-      </ChartBox>
-      <ChartBox
-        title="Trend growth"
-        caption={`Annualised potential growth — the long-run score from TFP, capital and labour. Not outturn GDP. Latest ${tr != null ? tr.toFixed(2) : "—"}% a year.`}
-      >
-        <LineChartSvg
-          spec={lineChartSpec([
-            {
-              label: "Trend growth %",
-              color: COL.green,
-              data: col("trend"),
-              wide: true,
-            },
-            {
-              label: "User cost of capital",
-              color: COL.brass,
-              data: col("userCost"),
-            },
-          ])}
-        />
-      </ChartBox>
-      <ChartBox
-        title="Where output comes from"
-        caption="The national accounts identity. Output is not a growth rate the model invents: it is the sum of these, less imports."
-      >
-        <LineChartSvg
-          spec={lineChartSpec([
-            {
-              label: "Consumption",
-              color: COL.blue,
-              data: col("C"),
-              wide: true,
-            },
-            {
-              label: "Government",
-              color: COL.green,
-              data: col("Gov"),
-              wide: true,
-            },
-            { label: "Investment", color: COL.plum, data: col("I") },
-            { label: "Exports", color: COL.brass, data: col("X") },
-            { label: "Imports", color: COL.ox, data: col("M") },
-          ])}
-        />
-      </ChartBox>
-      <ChartBox
-        title="Net trade"
-        caption="Exports less imports, in index points. Competitiveness runs on underlying prices, so a VAT change does not move it."
-      >
-        <LineChartSvg
-          spec={lineChartSpec(
-            [
-              {
-                label: "Net trade",
-                color: COL.ox,
-                data: col("netTrade"),
-                wide: true,
-              },
-            ],
-            { zero: true },
-          )}
-        />
-      </ChartBox>
-        </>
+            <LineChartSvg
+              spec={lineChartSpec([
+                {
+                  label: "Actual output",
+                  color: COL.ink,
+                  data: col("gdp"),
+                  wide: true,
+                },
+                {
+                  label: "Potential",
+                  color: COL.soft,
+                  data: col("potential"),
+                  dash: true,
+                },
+              ])}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Unemployment"
+            caption="Okun's relationship: output above trend pulls people into work."
+          >
+            <LineChartSvg
+              spec={lineChartSpec([
+                {
+                  label: "Unemployment",
+                  color: COL.plum,
+                  data: col("unemployment"),
+                  wide: true,
+                },
+              ])}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Capital stock and the cost of capital"
+            caption="Investment accumulates into the capital stock, which is an argument of potential output. Corporation tax and the policy rate move the user cost, and the user cost moves desired capital."
+          >
+            <LineChartSvg
+              spec={lineChartSpec([
+                {
+                  label: "Capital stock",
+                  color: COL.blue,
+                  data: col("K"),
+                  wide: true,
+                },
+              ])}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Trend growth"
+            caption={`Annualised potential growth — the long-run score from TFP, capital and labour. Not outturn GDP. Latest ${tr != null ? tr.toFixed(2) : "—"}% a year.`}
+          >
+            <LineChartSvg
+              spec={lineChartSpec([
+                {
+                  label: "Trend growth %",
+                  color: COL.green,
+                  data: col("trend"),
+                  wide: true,
+                },
+                {
+                  label: "User cost of capital",
+                  color: COL.brass,
+                  data: col("userCost"),
+                },
+              ])}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Where output comes from"
+            caption="The national accounts identity. Output is not a growth rate the model invents: it is the sum of these, less imports."
+          >
+            <LineChartSvg
+              spec={lineChartSpec([
+                {
+                  label: "Consumption",
+                  color: COL.blue,
+                  data: col("C"),
+                  wide: true,
+                },
+                {
+                  label: "Government",
+                  color: COL.green,
+                  data: col("Gov"),
+                  wide: true,
+                },
+                { label: "Investment", color: COL.plum, data: col("I") },
+                { label: "Exports", color: COL.brass, data: col("X") },
+                { label: "Imports", color: COL.ox, data: col("M") },
+              ])}
+            />
+          </ChartBox>
+          <ChartBox
+            title="Net trade"
+            caption="Exports less imports, in index points. Competitiveness runs on underlying prices, so a VAT change does not move it."
+          >
+            <LineChartSvg
+              spec={lineChartSpec(
+                [
+                  {
+                    label: "Net trade",
+                    color: COL.ox,
+                    data: col("netTrade"),
+                    wide: true,
+                  },
+                ],
+                { zero: true },
+              )}
+            />
+          </ChartBox>
+        </>,
       )}
     </>
   );
@@ -469,48 +474,51 @@ export function ChartsPanel() {
 
   const politics = withData(
     <>
-    <ChartBox
-      title="Approval by faction"
-      caption="The overall number hides everything interesting."
-    >
-      <LineChartSvg
-        spec={lineChartSpec(
-          FACTIONS.map((f: any, i: number): ChartSeriesInput => ({
-            label: f.name,
-            color: facColors[i],
-            data: G.log.map((r: any) => r.fac[f.id]),
-          })).concat([
-            {
-              label: "Overall",
-              color: COL.soft,
-              data: col("approval"),
-              wide: true,
-              dash: true,
-            },
-          ]),
-        )}
-      />
-    </ChartBox>
-    <ChartBox
-      title="Party vote intention"
-      caption="Tracks vote intention, including government popularity. Seats only move at a term review."
-    >
-      <LineChartSvg
-        spec={lineChartSpec(
-          displayParties()
-            .filter(
-              (p: any) => (G.parties && G.parties.seats && G.parties.seats[p.id]) > 0,
-            )
-            .map((p: any): ChartSeriesInput => ({
-            label: p.short,
-            color: p.color,
-            data: G.log.map((r: any) =>
-              r.parties && r.parties[p.id] != null ? r.parties[p.id] * 100 : 0,
-            ),
-          })),
-        )}
-      />
-    </ChartBox>
+      <ChartBox
+        title="Approval by faction"
+        caption="The overall number hides everything interesting."
+      >
+        <LineChartSvg
+          spec={lineChartSpec(
+            FACTIONS.map((f: any, i: number): ChartSeriesInput => ({
+              label: f.name,
+              color: facColors[i],
+              data: G.log.map((r: any) => r.fac[f.id]),
+            })).concat([
+              {
+                label: "Overall",
+                color: COL.soft,
+                data: col("approval"),
+                wide: true,
+                dash: true,
+              },
+            ]),
+          )}
+        />
+      </ChartBox>
+      <ChartBox
+        title="Party vote intention"
+        caption="Tracks vote intention, including government popularity. Seats only move at a term review."
+      >
+        <LineChartSvg
+          spec={lineChartSpec(
+            displayParties()
+              .filter(
+                (p: any) =>
+                  (G.parties && G.parties.seats && G.parties.seats[p.id]) > 0,
+              )
+              .map((p: any): ChartSeriesInput => ({
+                label: p.short,
+                color: p.color,
+                data: G.log.map((r: any) =>
+                  r.parties && r.parties[p.id] != null
+                    ? r.parties[p.id] * 100
+                    : 0,
+                ),
+              })),
+          )}
+        />
+      </ChartBox>
     </>,
   );
 

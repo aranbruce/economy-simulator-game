@@ -32,6 +32,7 @@ import {
   playerCountryId,
   mpDraftBlocGateError,
   inboundNoticeActs,
+  whipSpendOf,
 } from "../../lib/sim/engine.ts";
 import {
   DEFAULT_REALM_ID,
@@ -839,6 +840,7 @@ export default function GameApp() {
         sandbox: !!G.sandbox,
         envoys: clone(G.envoys || [null, null]),
         ultimatums: clone(G.ultimatums || {}),
+        whipSpend: whipSpendOf(G),
       });
       setMpRoom(data.room);
       lastMpVersion.current = data.room.version;

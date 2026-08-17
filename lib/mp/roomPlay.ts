@@ -63,6 +63,7 @@ export async function startRoom(
 interface SubmitOpts {
   envoys?: unknown;
   ultimatums?: unknown;
+  whipSpend?: number | string | null;
   rateManual?: boolean | null;
   manualRate?: number | string | null;
   sandbox?: boolean | null;
@@ -86,9 +87,13 @@ export async function submitBill(
     return { error: "Already submitted this quarter", status: 409 };
   }
 
+  const whipSpend = Number.isFinite(+(opts.whipSpend as number))
+    ? +(opts.whipSpend as number)
+    : 0;
   const check: any = validateMpSubmission(room.snapshot, player.seatId, draft, {
     envoys: opts.envoys,
     ultimatums: opts.ultimatums,
+    whipSpend,
   });
   if (!check.ok) {
     return {
@@ -118,6 +123,7 @@ export async function submitBill(
     name: player.name,
     cost: check.cost,
     diploCost: check.diploCost || 0,
+    whipSpend: check.whipCost || 0,
     envoys: check.envoys,
     ultimatums: check.ultimatums,
     rateManual: !!pol.rateManual,

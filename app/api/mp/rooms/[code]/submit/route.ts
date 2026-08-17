@@ -16,6 +16,7 @@ export async function POST(
     sandbox: body.sandbox,
     envoys: body.envoys,
     ultimatums: body.ultimatums,
+    whipSpend: body.whipSpend,
   });
   if ("error" in result) {
     return Response.json({ error: result.error }, { status: result.status });
