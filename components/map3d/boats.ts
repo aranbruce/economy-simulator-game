@@ -56,7 +56,7 @@ export function routePhaseSeed(partnerId: string): number {
   for (let i = 0; i < partnerId.length; i++) {
     h = (h * 31 + partnerId.charCodeAt(i)) | 0;
   }
-  return ((h % 1000) + 1000) % 1000 / 1000;
+  return (((h % 1000) + 1000) % 1000) / 1000;
 }
 
 /** Bilateral trade volume for a route, summing both directions of the
@@ -93,26 +93,51 @@ export function relationTint(rel: number): number {
   return 0.7;
 }
 
-export interface Point2 {
+export interface Vec3 {
   x: number;
   y: number;
+  z: number;
 }
 
-/** Quadratic Bézier point + tangent angle, matching the bulge the 2D trade
- *  line already draws (control point raised by bulge above the midpoint). */
-export function tradeCurvePoint(
-  h: Point2,
-  p: Point2,
+/** Control point of the quadratic Bézier a trade route follows. `bulge`
+ *  pushes the midpoint toward the north pole (world -z) so a route arcs
+ *  rather than running dead straight — the same shape the flat map drew,
+ *  now in the ground plane. `lift` raises it, which is what turns the arc
+ *  into something you can see standing off the sea. Boats ride the same
+ *  curve with lift 0, so they sail the arc's ground track. */
+export function routeControl(
+  h: Vec3,
+  p: Vec3,
   bulge: number,
-  t: number,
-): { x: number; y: number; angle: number } {
-  const cx = (h.x + p.x) / 2;
-  const cy = (h.y + p.y) / 2 - bulge;
+  lift: number,
+): Vec3 {
+  return {
+    x: (h.x + p.x) / 2,
+    y: (h.y + p.y) / 2 + lift,
+    z: (h.z + p.z) / 2 - bulge,
+  };
+}
+
+/** Point on a quadratic Bézier at t ∈ [0,1]. */
+export function bezier3(h: Vec3, c: Vec3, p: Vec3, t: number): Vec3 {
   const mt = 1 - t;
-  const x = mt * mt * h.x + 2 * mt * t * cx + t * t * p.x;
-  const y = mt * mt * h.y + 2 * mt * t * cy + t * t * p.y;
+  const a = mt * mt;
+  const b = 2 * mt * t;
+  const d = t * t;
+  return {
+    x: a * h.x + b * c.x + d * p.x,
+    y: a * h.y + b * c.y + d * p.y,
+    z: a * h.z + b * c.z + d * p.z,
+  };
+}
+
+/** Heading (rotation about world +y) of the curve's tangent at t, for a
+ *  model authored -z forward: the Kenney-style convention every asset in
+ *  public/models uses, so no per-model axis correction is needed. */
+export function bezierHeading(h: Vec3, c: Vec3, p: Vec3, t: number): number {
+  const mt = 1 - t;
   // Tangent of a quadratic Bézier: dP/dt = 2(1-t)(C-H) + 2t(P-C)
-  const dx = 2 * mt * (cx - h.x) + 2 * t * (p.x - cx);
-  const dy = 2 * mt * (cy - h.y) + 2 * t * (p.y - cy);
-  return { x, y, angle: Math.atan2(dy, dx) };
+  const dx = 2 * mt * (c.x - h.x) + 2 * t * (p.x - c.x);
+  const dz = 2 * mt * (c.z - h.z) + 2 * t * (p.z - c.z);
+  return Math.atan2(-dx, -dz);
 }

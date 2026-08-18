@@ -57,11 +57,10 @@ import {
   clearMpSession,
 } from "../../lib/mp/session.ts";
 import { saveCurrencyPref } from "../../lib/ui/currencyPref.ts";
-import WorldMap, { type WorldMapHandle } from "../map2d/WorldMap";
-
-/** three.js only loads for clients that actually reach the play phase, not
- *  on setup/lobby screens — see CLAUDE.md's map3d architecture note. */
-const Map3DOverlay = dynamic(() => import("../map3d/Map3DOverlay"), {
+/** The whole map is three.js now, so it can only mount client-side — and it
+ *  is scenery behind the setup screen as well as behind play, so this is
+ *  the one bundle that loads on every phase. */
+const WorldMap3D = dynamic(() => import("../map3d/WorldMap3D"), {
   ssr: false,
 });
 import RealmStats from "../ui/RealmStats";
@@ -116,7 +115,6 @@ export default function GameApp() {
   );
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
-  const worldMapRef = useRef<WorldMapHandle>(null);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [mapMetric, setMapMetric] = useState("countries");
   const [mpSession, setMpSession] = useState<any>(null);
@@ -1126,27 +1124,16 @@ export default function GameApp() {
         }
       >
         {worldOk ? (
-          <>
-            <WorldMap
-              ref={worldMapRef}
-              tick={tick}
-              mapMetric={mapMetric}
-              selectedRole={inSetup ? setupRole : selectedRole}
-              onSelect={onSelect}
-              onFail={onWorldFail}
-              homeIso={homeIso}
-              homeRole={homeRole}
-              setupMode={inSetup}
-            />
-            {phase === "play" && (
-              <Map3DOverlay
-                worldMapRef={worldMapRef}
-                homeIso={homeIso}
-                homeRole={homeRole}
-                tick={tick}
-              />
-            )}
-          </>
+          <WorldMap3D
+            tick={tick}
+            mapMetric={mapMetric}
+            selectedRole={inSetup ? setupRole : selectedRole}
+            onSelect={onSelect}
+            onFail={onWorldFail}
+            homeIso={homeIso}
+            homeRole={homeRole}
+            setupMode={inSetup}
+          />
         ) : (
           phase === "play" && (
             <div id="mapLayer" className="flat-fallback">
