@@ -239,10 +239,7 @@ function ProposeAgendaBody({
   ].filter(Boolean) as { p: number; ok: boolean; pending?: boolean }[];
   const overall = commercialPackageScore(parts);
   const canPropose =
-    parts.length > 0 &&
-    overall.ok &&
-    !data.union?.blocked &&
-    typeof data.onPropose === "function";
+    parts.length > 0 && overall.ok && typeof data.onPropose === "function";
   const union = data.union;
   const ourCutLabel = union
     ? "Our cut on " + (union.name || "the union")
@@ -256,7 +253,7 @@ function ProposeAgendaBody({
       {union && union.approvals && union.approvals.length ? (
         <div className="mb-3">
           <div className="mb-1.5 text-xs font-bold tracking-wider text-ink-faint uppercase">
-            Member approval
+            Member relations
           </div>
           {union.approvals.map((a: any) => (
             <div
@@ -277,9 +274,6 @@ function ProposeAgendaBody({
               </span>
             </div>
           ))}
-          {union.blocked && union.blockReason ? (
-            <div className="mt-1.5 text-xs text-red">{union.blockReason}</div>
-          ) : null}
         </div>
       ) : null}
       {canNegotiate ? (
@@ -375,11 +369,6 @@ function ProposeAgendaBody({
                     {on ? "Include · " : "Add · "}
                     {d.name}
                   </b>
-                  {d.reason ? (
-                    <em className="mt-1 block text-xs text-ink-soft not-italic">
-                      {d.reason}
-                    </em>
-                  ) : null}
                 </button>
               );
             })}

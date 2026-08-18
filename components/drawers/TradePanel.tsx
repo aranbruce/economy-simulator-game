@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   T,
+  theCountry,
   aggregate,
   activePartners,
   countryBlocId,
@@ -20,7 +21,6 @@ import {
   inviteClauseLabel,
   inviteCapitalCost,
   dealBlockers,
-  commercialDealDeclineReason,
   dealsForPartner,
   sphereRiskHint,
   effectiveTariff,
@@ -1186,21 +1186,16 @@ function PartnerDealRow({
   d,
   signed,
   staged,
-  unmet,
   isBlocExternal,
-  declineReason,
 }: {
   d: CountryDeal;
   signed: boolean;
   staged: boolean;
-  unmet: string[];
   isBlocExternal: boolean;
-  partnerId: string;
-  declineReason?: string | null;
 }) {
   return (
     <div className="mt-1 border-t border-edge pt-2">
-      <div className="text-sm font-semibold">
+      <div className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {d.name}
         {isBlocExternal ? <CardCat>bloc treaty</CardCat> : null}
       </div>
@@ -1212,16 +1207,6 @@ function PartnerDealRow({
           </span>
         ))}
       </div>
-      {unmet.length && !signed ? (
-        <Callout tone="red" className="mb-2">
-          Blocked: {unmet.join("; ")}
-        </Callout>
-      ) : null}
-      {!signed && !unmet.length && declineReason ? (
-        <Callout tone="amber" className="mb-2">
-          {declineReason}
-        </Callout>
-      ) : null}
       <CardFoot>
         {signed ? (
           <>
@@ -1276,48 +1261,35 @@ function PartnerTradeCard({ p, G, bilat }: { p: Country; G: any; bilat: any }) {
 
   let dealsBody: ReactNode = null;
   if (playerInCu && partnerIndependent) {
-    dealsBody = dealsForPartner(p, G.homeRole).map((d: CountryDeal) => {
-      const signed = !!G.law.deals[d.id];
-      const staged = !!G.draft.deals[d.id];
-      const unmet = unionCommercialDealBlockers(p.id, d.id);
-      const declineReason =
-        !signed && !unmet.length
-          ? commercialDealDeclineReason(p.id, d.id, G)
-          : null;
-      return (
+    dealsBody = dealsForPartner(p, G.homeRole)
+      .filter(
+        (d: CountryDeal) =>
+          !!G.law.deals[d.id] ||
+          !unionCommercialDealBlockers(p.id, d.id).length,
+      )
+      .map((d: CountryDeal) => (
         <PartnerDealRow
           key={d.id}
           d={d}
-          signed={signed}
-          staged={staged}
-          unmet={unmet}
+          signed={!!G.law.deals[d.id]}
+          staged={!!G.draft.deals[d.id]}
           isBlocExternal
-          partnerId={p.id}
-          declineReason={declineReason}
         />
-      );
-    });
+      ));
   } else if (playerIndependent && !partnerIndependent) {
     const assoc = unionAssociationDeal(bid);
     if (assoc) {
       const signed = !!G.law.deals[assoc.id];
-      const staged = !!G.draft.deals[assoc.id];
-      const unmet = unionCommercialDealBlockers(p.id, assoc.id);
-      const declineReason =
-        !signed && !unmet.length
-          ? commercialDealDeclineReason(p.id, assoc.id, G)
-          : null;
-      dealsBody = (
+      const tableable =
+        signed || !unionCommercialDealBlockers(p.id, assoc.id).length;
+      dealsBody = tableable ? (
         <PartnerDealRow
           d={assoc}
           signed={signed}
-          staged={staged}
-          unmet={unmet}
+          staged={!!G.draft.deals[assoc.id]}
           isBlocExternal
-          partnerId={p.id}
-          declineReason={declineReason}
         />
-      );
+      ) : null;
     } else {
       dealsBody = (
         <div className="mt-1.5 block text-xs text-ink-faint">
@@ -1327,30 +1299,27 @@ function PartnerTradeCard({ p, G, bilat }: { p: Country; G: any; bilat: any }) {
       );
     }
   } else if (playerIndependent) {
-    dealsBody = dealsForPartner(p, G.homeRole).map((d: CountryDeal) => {
-      const signed = !!G.law.deals[d.id];
-      const staged = !!G.draft.deals[d.id];
-      const unmet = dealBlockers(d);
-      const declineReason =
-        !signed && !unmet.length
-          ? commercialDealDeclineReason(p.id, d.id, G)
-          : null;
-      const hint = !signed && !unmet.length ? sphereRiskHint(p.id) : "";
-      return (
-        <div key={d.id}>
-          <PartnerDealRow
-            d={d}
-            signed={signed}
-            staged={staged}
-            unmet={unmet}
-            isBlocExternal={false}
-            partnerId={p.id}
-            declineReason={declineReason}
-          />
-          {hint ? <div className="block text-xs text-amber">{hint}</div> : null}
-        </div>
-      );
-    });
+    dealsBody = dealsForPartner(p, G.homeRole)
+      .filter(
+        (d: CountryDeal) => !!G.law.deals[d.id] || !dealBlockers(d).length,
+      )
+      .map((d: CountryDeal) => {
+        const signed = !!G.law.deals[d.id];
+        const hint = !signed ? sphereRiskHint(p.id) : "";
+        return (
+          <div key={d.id}>
+            <PartnerDealRow
+              d={d}
+              signed={signed}
+              staged={!!G.draft.deals[d.id]}
+              isBlocExternal={false}
+            />
+            {hint ? (
+              <div className="block text-xs text-amber">{hint}</div>
+            ) : null}
+          </div>
+        );
+      });
   } else {
     dealsBody = (
       <div className="mt-1.5 block text-xs text-ink-faint">
@@ -1442,7 +1411,7 @@ export function TradePanel() {
   if (cat === "compare")
     return (
       <>
-        <Eyebrow>How {G.country} compares</Eyebrow>
+        <Eyebrow>How {theCountry(G.country)} compares</Eyebrow>
         <NationTable />
       </>
     );
