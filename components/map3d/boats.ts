@@ -6,6 +6,7 @@
  */
 
 import { wrapDelta } from "../../lib/map/projection.ts";
+import type { ModelKey } from "./models.ts";
 
 /** Every boat moves at the same normalised-board-units/sec SPEED — only the
  *  count varies with trade volume, so a busy route reads as "more boats,"
@@ -83,6 +84,33 @@ export function bucketRoute(vol: number, maxVol: number) {
   const rel = maxVol > 0 ? Math.max(0, Math.min(1, vol / maxVol)) : 0;
   const count = 1 + Math.round(rel * (BOAT_MAX_COUNT - 1));
   return { rel, count };
+}
+
+/** Vessel classes, thinnest route first. A route's share of the busiest
+ *  route's volume picks the class, so trade volume is legible twice over:
+ *  in how many ships a route carries (bucketRoute) and in how big they
+ *  are. `hull` is the length the model is normalised to in world units
+ *  (= degrees of longitude); the three assets differ in hull length but
+ *  share a mast height, so scaling each to its own hull keeps them all
+ *  about equally tall while the hulls read as visibly different ships. */
+export const VESSEL_CLASSES: readonly {
+  key: ModelKey;
+  /** Upper bound (exclusive) on relative volume for this class. */
+  maxRel: number;
+  hull: number;
+}[] = [
+  { key: "shipSmall", maxRel: 0.34, hull: 2.6 },
+  { key: "shipMedium", maxRel: 0.7, hull: 3.2 },
+  { key: "shipLarge", maxRel: Infinity, hull: 4 },
+];
+
+/** Vessel class for a route carrying `rel` (0..1) of the busiest route's
+ *  volume — the same number bucketRoute() already derives. */
+export function vesselForVolume(rel: number) {
+  return (
+    VESSEL_CLASSES.find((v) => rel < v.maxRel) ??
+    VESSEL_CLASSES[VESSEL_CLASSES.length - 1]
+  );
 }
 
 /** Relation score (0-100, same scale as G.rel) → a colour-multiply factor,

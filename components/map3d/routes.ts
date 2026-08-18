@@ -50,11 +50,22 @@ export const ROUTE_BULGE_FRAC = 0.12;
 export const ROUTE_LIFT_FRAC = 0.17;
 const ROUTE_LIFT_MAX = 26;
 
-/** Capital spire dimensions, world units. */
-const PIN_HEIGHT = 3.1;
-const PIN_RADIUS = 0.85;
-const PIN_BASE_R = 1.45;
-const PIN_BASE_H = 0.32;
+/** Capital spire dimensions, world units, authored for PIN_REF_DIST. */
+const PIN_HEIGHT = 1.7;
+const PIN_RADIUS = 0.42;
+const PIN_BASE_R = 0.62;
+const PIN_BASE_H = 0.16;
+
+/** Camera distance the dimensions above are authored at, and the bounds the
+ *  spire is allowed to grow/shrink between. A marker is chrome pointing at
+ *  a place, not a building standing in it: pinned to world size it is a
+ *  sub-pixel speck across the whole board and a tower the size of Iberia up
+ *  close. Scaling with camera distance holds it near a constant size on
+ *  screen, and the clamps keep it from outgrowing a small country when you
+ *  pull right back. */
+const PIN_REF_DIST = 95;
+const PIN_SCALE_MIN = 0.5;
+const PIN_SCALE_MAX = 2.2;
 
 export interface RouteSpec {
   partnerId: string;
@@ -114,6 +125,8 @@ export interface RouteLayer {
   /** Thicken/brighten one route without rebuilding any geometry. */
   setSelectedRoute: (partnerId: string | null) => void;
   setCapitals: (specs: CapitalSpec[]) => void;
+  /** Resize the spires for the current camera distance — call per frame. */
+  setPinScale: (camDist: number) => void;
   dispose: () => void;
 }
 
@@ -173,6 +186,7 @@ export function buildRouteLayer(): RouteLayer {
   let capitals: CapitalEntry[] = [];
   let capitalKey = "";
   let selected: string | null = null;
+  let pinScale = 0;
 
   const clearRoutes = () => {
     for (const route of routes) {
@@ -265,10 +279,23 @@ export function buildRouteLayer(): RouteLayer {
         pin.add(new Mesh(baseGeom, material));
         pin.add(new Mesh(pinGeom, material));
         pin.position.set(spec.x, pinY(spec.hot), spec.z);
+        if (pinScale > 0) pin.scale.setScalar(pinScale);
         tile.add(pin);
         return pin as Object3D;
       });
       capitals.push({ key: spec.key, nodes, hot: spec.hot });
+    }
+  };
+
+  const setPinScale = (camDist: number) => {
+    const next = Math.max(
+      PIN_SCALE_MIN,
+      Math.min(PIN_SCALE_MAX, camDist / PIN_REF_DIST),
+    );
+    if (next === pinScale) return;
+    pinScale = next;
+    for (const cap of capitals) {
+      for (const node of cap.nodes) node.scale.setScalar(next);
     }
   };
 
@@ -285,5 +312,12 @@ export function buildRouteLayer(): RouteLayer {
     group.clear();
   };
 
-  return { group, setRoutes, setSelectedRoute, setCapitals, dispose };
+  return {
+    group,
+    setRoutes,
+    setSelectedRoute,
+    setCapitals,
+    setPinScale,
+    dispose,
+  };
 }

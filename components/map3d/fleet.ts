@@ -16,8 +16,10 @@ import {
   Vector3,
   type Scene,
 } from "three";
-import { WRAP_OFFSETS } from "../../lib/map/projection.ts";
+import { WRAP_OFFSETS, worldToBoard } from "../../lib/map/projection.ts";
 import { bezier3, bezierHeading, type Vec3 } from "./boats.ts";
+import type { ModelKey } from "./models.ts";
+import { OPEN_SEA, type LandMask } from "./landMask.ts";
 import { routeCurveControl } from "./routes.ts";
 import {
   cloneModelInstance,
@@ -25,14 +27,9 @@ import {
   instantiateModel,
 } from "./models.ts";
 
-/** Hull length in world units (= degrees of longitude). Map-scale rather
- *  than true-scale on purpose: a real ship at this zoom would be a
- *  sub-pixel speck. Applied by measuring the loaded model and normalising
- *  to this length — a raw scale factor would be meaningless, since it means
- *  whatever the artist happened to author the asset at (the current boat's
- *  own units make it about the size of Iberia at scale 1). */
-const BOAT_LENGTH = 3;
-/** Boats ride just clear of the sea plane so they never z-fight it. */
+/** Boats ride just clear of the sea plane so they never z-fight it. The
+ *  models are authored with their keel at the origin, so this floats the
+ *  hull rather than burying it. */
 const BOAT_Y = 0.18;
 
 /** Recurring per-lap fade near each capital. Short on purpose — a brief cue
@@ -46,12 +43,23 @@ const BOAT_FADE_MS = 350;
  *  fading rather than fully visible. */
 const FADE_FRAC_MAX = 0.12;
 
+/** Seconds a ship takes to fade out as it crosses a coastline inland, and
+ *  back in when it reaches water. Routes are Béziers between capitals, so
+ *  many of them cut over continents; a ship is hull-deep in the terrain
+ *  there but its masts still stand above it. Fading rather than cutting
+ *  keeps that from reading as ships blinking on and off at every coast. */
+const LAND_FADE_S = 0.45;
+
 export interface FleetSpec {
   partnerId: string;
   /** World ground anchors, partner end already wrap-adjusted to the short
    *  way round the board. */
   home: Vec3;
   partner: Vec3;
+  /** Which vessel class this route carries, and the world-unit hull length
+   *  its model is normalised to — see VESSEL_CLASSES in boats.ts. */
+  model: ModelKey;
+  hull: number;
   /** How many vessels this route carries, and how long one lap takes. */
   count: number;
   periodS: number;
@@ -65,6 +73,8 @@ interface Boat {
   tiles: Object3D[];
   periodS: number;
   phaseOffset: number;
+  /** 1 at sea, 0 fully inland — eased, see LAND_FADE_S. */
+  seaFade: number;
 }
 
 interface Route {
@@ -74,6 +84,7 @@ interface Route {
   /** Curve control point, cached: it depends only on the anchors. */
   control: Vec3;
   tint: number;
+  model: ModelKey;
   boats: Boat[];
 }
 
@@ -83,15 +94,18 @@ export interface Fleet {
    *  each other by generation — a stale run drops whatever it has made. */
   set: (specs: FleetSpec[]) => void;
   /** Advance every boat. `nowS` is monotonic seconds. */
-  update: (nowS: number) => void;
+  update: (nowS: number, dtS: number) => void;
   dispose: () => void;
 }
 
-/** Uniform scale that makes `obj`'s longest axis BOAT_LENGTH world units. */
-function fitScale(obj: Object3D): number {
+/** Uniform scale that makes `obj` `hull` world units from bow to stern.
+ *  Measured along z, the assets' length axis, rather than off the largest
+ *  dimension of the bounding box — these ships are taller (masts) than they
+ *  are long, so normalising the longest axis would scale every class to the
+ *  same rigging height and leave the hulls stubby and indistinguishable. */
+function fitScale(obj: Object3D, hull: number): number {
   const size = new Box3().setFromObject(obj).getSize(new Vector3());
-  const longest = Math.max(size.x, size.y, size.z);
-  return longest > 1e-6 ? BOAT_LENGTH / longest : 1;
+  return size.z > 1e-6 ? hull / size.z : 1;
 }
 
 function tintMesh(obj: Object3D, factor: number) {
@@ -135,7 +149,7 @@ function setOpacity(obj: Object3D, opacity: number) {
   });
 }
 
-export function createFleet(scene: Scene): Fleet {
+export function createFleet(scene: Scene, land: LandMask = OPEN_SEA): Fleet {
   const routes = new Map<string, Route>();
   let generation = 0;
   let disposed = false;
@@ -175,6 +189,7 @@ export function createFleet(scene: Scene): Fleet {
             partner: spec.partner,
             control: routeCurveControl(spec.home, spec.partner, false),
             tint: spec.tint,
+            model: spec.model,
             boats: [],
           };
           /* Registered before its boats exist, so a dispose() or a
@@ -185,6 +200,14 @@ export function createFleet(scene: Scene): Fleet {
           route.home = spec.home;
           route.partner = spec.partner;
           route.control = routeCurveControl(spec.home, spec.partner, false);
+          if (route.model !== spec.model) {
+            /* The route changed vessel class (its share of world trade moved
+               across a bucket edge). Nothing about an existing hull can be
+               re-used, so drop them and let the loop below re-spawn. */
+            for (const boat of route.boats) boat.tiles.forEach(drop);
+            route.boats = [];
+            route.model = spec.model;
+          }
         }
 
         while (route.boats.length > spec.count) {
@@ -202,9 +225,9 @@ export function createFleet(scene: Scene): Fleet {
           const index = route.boats.length;
           let model: Object3D;
           try {
-            model = await instantiateModel("boat");
+            model = await instantiateModel(spec.model);
           } catch (err) {
-            console.warn("WorldMap3D: boat model failed to load", err);
+            console.warn("WorldMap3D: ship model failed to load", err);
             return;
           }
           if (disposed || gen !== generation) {
@@ -212,7 +235,7 @@ export function createFleet(scene: Scene): Fleet {
             return;
           }
           tintMesh(model, spec.tint);
-          const scale = fitScale(model);
+          const scale = fitScale(model, spec.hull);
           model.scale.setScalar(scale);
           model.visible = false;
           const tiles = WRAP_OFFSETS.map((dx, t) => {
@@ -230,13 +253,15 @@ export function createFleet(scene: Scene): Fleet {
             tiles,
             periodS: spec.periodS,
             phaseOffset: (spec.phase + index / Math.max(1, spec.count)) % 1,
+            seaFade: 1,
           });
         }
       }
     })();
   };
 
-  const update = (nowS: number) => {
+  const update = (nowS: number, dtS: number) => {
+    const step = dtS > 0 ? Math.min(1, dtS / LAND_FADE_S) : 1;
     for (const route of routes.values()) {
       for (const boat of route.boats) {
         const t = (((nowS / boat.periodS + boat.phaseOffset) % 1) + 1) % 1;
@@ -244,13 +269,17 @@ export function createFleet(scene: Scene): Fleet {
           FADE_FRAC_MAX,
           BOAT_FADE_MS / 1000 / boat.periodS,
         );
-        const opacity =
+        const lapFade =
           t < fadeFrac
             ? t / fadeFrac
             : t > 1 - fadeFrac
               ? (1 - t) / fadeFrac
               : 1;
         const p = bezier3(route.home, route.control, route.partner, t);
+        const [nx, ny] = worldToBoard(p.x, p.z);
+        const target = land.at(nx, ny) ? 0 : 1;
+        boat.seaFade += (target - boat.seaFade) * step;
+        const opacity = lapFade * boat.seaFade;
         const heading = bezierHeading(
           route.home,
           route.control,
@@ -258,6 +287,10 @@ export function createFleet(scene: Scene): Fleet {
           t,
         );
         for (const inst of boat.tiles) {
+          if (opacity <= 0.01) {
+            inst.visible = false;
+            continue;
+          }
           inst.position.set(
             p.x + (inst.userData.tileOffset as number),
             BOAT_Y,

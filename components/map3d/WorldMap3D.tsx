@@ -71,8 +71,10 @@ import {
   routeDistance,
   routePhaseSeed,
   routeVolume,
+  vesselForVolume,
 } from "./boats.ts";
 import { clearModelCache } from "./models.ts";
+import { buildLandMask } from "./landMask.ts";
 
 /** Sea colour, and the darkness the fog fades the far board into. Both were
  *  flat canvas fills on the map this replaced. */
@@ -376,7 +378,9 @@ export default function WorldMap3D({
     routeLayerRef.current = routeLayer;
     scene.add(routeLayer.group);
 
-    const fleet = createFleet(scene);
+    /* Rasterised from the polygons already parsed above, so the fleet can
+       ask "is this point at sea?" in one array lookup per boat per frame. */
+    const fleet = createFleet(scene, buildLandMask(countriesRef.current));
     fleetRef.current = fleet;
 
     const overlay = createOverlay(host);
@@ -407,13 +411,20 @@ export default function WorldMap3D({
 
     let raf: number | null = null;
     let cancelled = false;
+    let last = 0;
     const frame = () => {
       if (cancelled) return;
       const { W, H } = sizeRef.current;
       const fog = scene.fog as Fog;
       fog.near = cam.dist * FOG_NEAR_K;
       fog.far = cam.dist * FOG_FAR_K;
-      fleet.update(performance.now() / 1000);
+      routeLayer.setPinScale(cam.dist);
+      const nowS = performance.now() / 1000;
+      /* dt is clamped: a backgrounded tab or a slow first frame would
+         otherwise hand the coastline fade an enormous step. */
+      const dtS = last === 0 ? 0 : Math.min(0.1, nowS - last);
+      last = nowS;
+      fleet.update(nowS, dtS);
       overlay.update(cam, W, H);
       renderer.render(scene, cam.camera);
       raf = requestAnimationFrame(frame);
@@ -691,15 +702,23 @@ export default function WorldMap3D({
     );
     const maxVol = Math.max(0, ...vols);
     const rel = g?.rel || {};
-    const specs: FleetSpec[] = anchors.map((r, i) => ({
-      partnerId: r.partnerId,
-      home: r.home,
-      partner: r.partner,
-      count: bucketRoute(vols[i], maxVol).count,
-      periodS: periodForDistance(routeDistance(r.homeNorm, r.partnerNorm)),
-      tint: relationTint(rel[r.partnerId] ?? 50),
-      phase: routePhaseSeed(r.partnerId),
-    }));
+    const specs: FleetSpec[] = anchors.map((r, i) => {
+      /* One reading of trade volume drives both how many ships a route
+         carries and how big they are. */
+      const { count, rel: share } = bucketRoute(vols[i], maxVol);
+      const vessel = vesselForVolume(share);
+      return {
+        partnerId: r.partnerId,
+        home: r.home,
+        partner: r.partner,
+        model: vessel.key,
+        hull: vessel.hull,
+        count,
+        periodS: periodForDistance(routeDistance(r.homeNorm, r.partnerNorm)),
+        tint: relationTint(rel[r.partnerId] ?? 50),
+        phase: routePhaseSeed(r.partnerId),
+      };
+    });
     fleet.set(specs);
   }, [ready, setupMode, tick, homeRole, routeAnchors]);
 

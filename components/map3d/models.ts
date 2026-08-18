@@ -2,8 +2,13 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { Color, Material, Mesh, MeshStandardMaterial, Object3D } from "three";
 
+/** Every vessel class the fleet can put on a route. All three share one
+ *  external `Textures/colormap.png`, so the browser fetches the texture
+ *  once however many classes a game ends up using. */
 export const MODEL_URLS = {
-  boat: "/models/boats/boat.glb",
+  shipSmall: "/models/ships/ship-small.glb",
+  shipMedium: "/models/ships/ship-medium.glb",
+  shipLarge: "/models/ships/ship-large.glb",
 } as const;
 
 export type ModelKey = keyof typeof MODEL_URLS;
@@ -35,9 +40,9 @@ export function loadModelTemplate(key: ModelKey): Promise<Object3D> {
 
 /** Object3D.clone() shares geometry/material by *reference* across every
  *  clone of a template — fine for geometry (never mutated), but each
- *  instance needs its own material so per-instance tinting (relationTint in
- *  Map3DOverlay) doesn't mutate every other instance sharing the same GLTF
- *  parse. Without this, tinting one boat compounds onto every other boat
+ *  instance needs its own material so per-instance tinting (relationTint,
+ *  applied by fleet.ts) doesn't mutate every other instance sharing the
+ *  same GLTF parse. Without this, tinting one boat compounds onto every other boat
  *  cloned from the same template each time it re-tints, since they'd all be
  *  reading and writing the same shared material.color. */
 function cloneMaterials(root: Object3D) {

@@ -60,7 +60,7 @@ export const LAND_HEIGHT = 1.9;
  *  a colour change. Shared, not private to the terrain: anything planted on
  *  a country's surface — a capital spire, a label anchor — has to rise with
  *  it or it sinks into the slab. */
-export const LAND_LIFT_HOT = 0.55;
+export const LAND_LIFT_HOT = 0.9;
 
 /** Normalised board → world ground position (the y=0 sea plane). The board
  *  is centred on the origin so the wrap tiling below is symmetric, and

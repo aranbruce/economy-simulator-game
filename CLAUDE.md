@@ -9,9 +9,10 @@ congress).
 
 The permanent backdrop is a **fictional packed world map**: only your country
 and the mapped trade-partner realms (real coastlines / silhouettes, invented
-positions on a shared ocean). No other countries are drawn. If the map fails
-to load, it falls back to a plain "could not load" message rather than a
-second map implementation. The map never owns game logic.
+positions on a shared ocean). No other countries are drawn. It is a single
+three.js scene — land extruded into a lit board under a pitched camera. If
+the map fails to load, it falls back to a plain "could not load" message
+rather than a second map implementation. The map never owns game logic.
 
 The live app is Next.js App Router: UI in `components/`, pure sim in
 `lib/sim/`.
@@ -213,12 +214,13 @@ a Tailwind class, never a hardcoded inline style.
 | `lib/sim/worldTrade.ts`           | Bilateral trade clearing across seats. `flows`/`totals` are keyed by real country ids (`playerCountryId(homeRole)`), not the raw role string — see "The map" below                                                                                            |
 | `lib/sim/fxAreas.ts`              | Currency-area Taylor rules and FX vs USD                                                                                                                                                                                                                      |
 | `lib/sim/partners.ts`             | Partner id → ISO country sets for the world map                                                                                                                                                                                                               |
-| `lib/map/projection.ts`           | Pure projection/pan-zoom math shared by the 2D map and the 3D overlay (`project()`, `toScreen()`, `wrapDelta()`) so the two layers can't drift out of sync                                                                                                    |
+| `lib/map/projection.ts`           | Pure board math: equirectangular `project()`, the world-space frame (`boardToWorld()`, `boardToShape()`, `worldToBoard()`), `wrapDelta()` and the wrap tiling. Renderer-free, so the extruder, the camera and the hit test can't drift apart                  |
+| `lib/map/geo.ts`                  | Pure topojson → board polygons: antimeridian splitting, point-in-polygon, centroids. Shared by the terrain builder and the analytic hit test                                                                                                                  |
 | `components/game/GameApp.tsx`     | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                                                                                                       |
-| `components/map2d/WorldMap.tsx`   | Flat world map: country colours, capital markers, trade lines, diplo badges, click-to-trade. Also the fallback path: a canvas failure renders a plain "could not load" message rather than a separate procedural-map component                                |
-| `components/map3d/`               | The 3D trade-route boat layer — a WebGL canvas pinned to WorldMap's own pan/zoom, never owning view state itself                                                                                                                                              |
+| `components/map3d/WorldMap3D.tsx` | The map: WebGL scene setup, the render loop, pointer input, and the sync from game state into the layers below. Calls `onFail` on a WebGL/geo failure — there is no second map implementation                                                                 |
+| `components/map3d/`               | `terrain.ts` extruded countries · `camera.ts` pan/zoom · `routes.ts` trade tubes and capital spires · `fleet.ts` the boats · `overlay.ts` DOM labels/badges · `boats.ts` pure route maths · `models.ts` GLTF loading                                          |
 | `public/geo/countries-110m.json`  | Natural Earth topojson                                                                                                                                                                                                                                        |
-| `public/models/`, `public/icons/` | 3D boat asset and the 2D capital-marker SVG — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                                                                                                           |
+| `public/models/`                  | The three Kenney (CC0) merchant-ship hulls — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                                                                                                            |
 
 Engine sections still follow the numbered banners. Section 1's pure content
 data now lives in `lib/sim/statuteBook.ts` (see "TypeScript migration"
@@ -374,7 +376,7 @@ nothing else in the engine.
 
 ## Layout
 
-The world map is permanent scenery, not a tab. `WorldMap.tsx` sits at z-index 0. Everything else is React, floating over it:
+The world map is permanent scenery, not a tab. `WorldMap3D.tsx` sits at z-index 0. Everything else is React, floating over it:
 
 - Topbar — country, term, and the stat chips (`components/chrome/TopBarStats.tsx`,
   built on `components/ui/Chip.tsx`)
@@ -396,15 +398,19 @@ stubs became unconditional. Clicking a partner on the world map sets
 
 ## The map
 
-**The world map is a 2D canvas** (`components/map2d/WorldMap.tsx`) over
-Natural Earth topojson (`public/geo/countries-110m.json`), coloured by
-`lib/sim/boardMetrics.ts`. Clicking a partner sets `tab = "trade"`. Game logic
-must not live in the map module. A canvas failure falls back to a plain
-"could not load" message rendered by `WorldMap.tsx` itself — there is no
-second map implementation to fall back to (the invariant below is about the
-2D canvas _itself_ never being allowed to be the single point of failure for
-the game; the optional 3D layer described below sits on top of it and is
-separately allowed to fail without affecting either).
+**The world map is one three.js scene** (`components/map3d/WorldMap3D.tsx`)
+over Natural Earth topojson (`public/geo/countries-110m.json`), coloured by
+`lib/sim/boardMetrics.ts`. Clicking a partner sets `tab = "trade"`. Game
+logic must not live in any map module. A WebGL, geometry or geo-fetch
+failure calls `onFail` and the shell shows a plain "could not load" message
+— there is no second map implementation to fall back to, which is the point
+of the invariant below.
+
+This replaced a 2D canvas map with a separate WebGL boat overlay pinned to
+its pan/zoom. Keeping the two in lockstep needed a shared screen-space
+projection and a `getViewport()` seam through a `forwardRef`; folding
+everything into one scene deleted both, along with the flat-SVG capital
+marker that had to fake the boats' lean to match them.
 
 An earlier hand-rolled procedural country generator (radial-noise coastline,
 nine regions carved by nearest seed, flood-filled ocean, `LOBES`/`ISLES`/
@@ -416,96 +422,163 @@ breakdown it fed — went with it once `econ.regions` had no remaining reader
 either. A future "regional breakdown" feature (see Backlog) would need to
 rebuild this from scratch.
 
-`lib/map/projection.ts` holds the pure projection/pan-zoom math
-(`project()`, `clampViewport()`, `computePlateLayout()`, `repeatOffsets()`,
-`toScreen()`, `wrapDelta()`) shared between the 2D canvas and the 3D overlay
-below, so the two layers cannot drift apart. `WorldMap` is a `forwardRef`
-exposing one read-only method, `getViewport()`
-(`WorldMapHandle` in `WorldMap.tsx`), computed live from its own pan/zoom
-state — the one seam the 3D layer is allowed to reach through; it owns no
-view state of its own.
+### The board
 
-**Capital markers** are a 2D asset, not 3D: a five-point star in a circle
-outline, `public/icons/capital-marker.svg`, loaded once as a lazy-singleton
-`Image` and drawn via `drawImage()` in `drawCapitalMarker()`. Each `Country`
-in `lib/sim/countries.ts` carries a real-world `capital: { lat, lng }` — the
-board's countries sit at their real geographic positions (only the politics
-are fictional; see "Naming"), so real capital coordinates are directly usable
-with `project()`. Markers scale with zoom (multiplied by the map's own
-`scale`, unlike the fixed-pixel diplo badges below) and are tinted to match
-the country-stroke ink (cream when hot, dark brown otherwise) via a small
-scratch canvas composited with `source-in`. Shown for every `PARTNERS` entry
-during country selection (there's no committed home yet to filter against),
-and for home + `activePartners(hRole)` during play. Two 3D approaches (a
-Sketchfab city scene, then a composed Kenney building cluster) were tried and
-dropped for style mismatch — see `public/models/NOTICE.md`.
+`lib/map/projection.ts` defines the world: **1 unit = 1 degree of longitude**,
+y up, north at -z, board centred on the origin. Every other world constant
+(`LAND_HEIGHT`, camera distances, pin and boat sizes) is readable as
+"degrees across" because of that. `boardToWorld()` places a point on the sea
+plane; `boardToShape()` places it in the 2D plane an extruded mesh is
+authored in before `rotateX(-π/2)` stands it up. `WRAP_OFFSETS` tiles the
+board three times east/west — a fixed budget, not a computed one, because
+the camera's own `MAX_DIST` bounds the visible ground width well under
+3 × `BOARD_W` and each extra copy is ~180 more meshes.
 
-**Trade lines** are dashed quadratic Béziers anchored at the same capital
-coordinates as the markers above (not a country's polygon centroid, which is
-still used for the diplo-marker badges and realm labels) — so the line, the
-3D boat layer below, and the marker all agree on where a route starts and
-ends. `wrapDelta()` routes the shorter way round the antimeridian wrap, so
-e.g. a UK↔Japan line crosses the Pacific instead of drawing the long way
-across the whole plate.
+**Land is extruded, and that is where borders come from.** `terrain.ts`
+turns each country's polygons into a slab standing on the sea, with its top
+face and its side wall on separate materials (`ExtrudeGeometry` emits caps
+as material 0 and walls as material 1). Two neighbours each raise their own
+wall, so the shared edge is a real crease under the scene lighting — there
+is no stroke pass anywhere in the map, and `LAND_HEIGHT` has to stay clearly
+nonzero for that reason. Tiles share geometry _and_ materials by reference
+(`Object3D.clone()` deep-copies neither), so a colour change is written once
+and shows on all three copies; only the per-mesh `LAND_LIFT_HOT` lift has to
+be set per tile.
 
-### The 3D trade-route layer
+**Antimeridian pieces overlap slightly.** `lib/map/geo.ts` splits a ring that
+crosses ±180 as it always did, but now widens each piece a fraction of a
+degree past the cut (`SEAM_OVERLAP_NX`). A bare cut on flat fills was
+invisible; on extruded land it leaves a _vertical wall_ down the seam, and
+with the board tiled the two halves of Russia meet wall-to-wall and read as
+a dark crack through the country. The overlap buries each wall inside the
+neighbouring tile's land.
 
-`components/map3d/Map3DOverlay.tsx` is an optional WebGL layer of animated
-boats along each trade route, mounted as a sibling of `WorldMap` and gated
-the same way (only once the 2D map has already succeeded). It never touches
-`onFail`/`worldOk` — a WebGL failure or a model load failure only disables
-this layer (`console.warn` + `setFailed(true)`, component renders `null`);
-the 2D map, its trade lines and its capital markers keep working untouched.
-Capital markers themselves are **not** part of this layer (see above) — an
-earlier 3D marker attempt was abandoned, so `components/map3d/` today only
-ever instantiates the `boat` model.
+**Picking is analytic, not a raycast against the meshes.** `pickAt()` casts
+the pointer ray to a plane through the middle of the land slab and runs
+`pointInPolys()` on the same polygons `terrain.ts` extruded. That is exact,
+cheap enough to run on every `pointermove` across ~180 countries, and cannot
+disagree with what is drawn.
 
-- **Sync.** Every animation frame calls `worldMapRef.current?.getViewport()`
-  and reprojects through the same `project()`/`toScreen()`/`wrapDelta()`
-  `WorldMap` itself uses, via an **orthographic** camera sized in CSS-pixel
-  units — panning/zooming the 2D map moves the 3D layer in lockstep with no
-  duplicated math. The overlay runs its **own** `requestAnimationFrame` loop
-  (paused on `document.visibilitychange`), because `WorldMap`'s own `paint()`
-  is on-demand only (fires on interaction, not continuously) and boat
-  position/opacity must advance with elapsed time regardless.
-- **Assets** (`components/map3d/models.ts`). One `GLTFLoader` + a load-once
-  template cache per model key, with `MeshoptDecoder` registered up front for
-  any future `--compress meshopt` asset. `Object3D.clone()` shares
-  geometry/material _by reference_, so every instantiation/clone path
-  explicitly clones materials — otherwise per-instance relation tinting
-  mutates the one shared material every clone points at, compounding darker
-  with each new boat. `AXIS_CORRECTIONS` holds a fixed correction quaternion
-  per model key for assets (Kenney-style packs, typically) authored Y-up/
-  -Z-forward against a camera that looks straight down with no tilt; add an
-  entry only if a future model needs it. See `public/models/NOTICE.md` for
-  the full orientation writeup and the asset-optimisation notes (texture
-  downsampling, `gltf-transform optimize`, GPU-flag profiling gotcha).
-- **Volume, not invention** (`components/map3d/boats.ts`, pure — reads
-  `G.worldTrade`/`G.rel`, never mutates `G` or calls into `engine.ts`, per
-  the map module's "no game logic" rule above). Boat count per route is
-  relative bucketing of `G.worldTrade.flows` (both directions summed) against
-  the busiest current route, not an absolute threshold. **Gotcha**:
-  `G.worldTrade` is keyed by real country ids
-  (`playerCountryId(homeRole)`), not the raw role string — the default
-  "home" role's live data actually lives under `"kingdom"`, since
+### The camera
+
+`camera.ts` owns pan and zoom as ground-plane maths, with **yaw fixed at
+north-up**: the board is an atlas and its labels are horizontal text, so a
+free-spinning camera would cost both for no gameplay gain.
+
+- **Pan** grabs the world point under the pointer and keeps it there,
+  re-derived from the live camera each move so it self-corrects while the
+  pitch is changing under a simultaneous pinch-zoom.
+- **Zoom** is camera distance, anchored on the cursor. Pitch is a function of
+  distance (`pitchForDist`), so pulling back rises toward a readable plan and
+  closing in drops toward an oblique view of the relief. Because pitch moves
+  with distance the anchor correction isn't closed-form; two passes converge
+  well inside a pixel.
+- **`PITCH_NEAR` must stay comfortably above half the vertical FOV.** Below
+  that the top of the frustum points above the horizon and the frame fills
+  with empty sky past the edge of the board — which is also why the scene
+  needs no sky at all.
+
+### Routes, capitals and boats
+
+Each `Country` in `lib/sim/countries.ts` carries a real-world
+`capital: { lat, lng }` — the board's countries sit at their real geographic
+positions (only the politics are fictional; see "Naming"), so real capital
+coordinates are directly usable. Routes, spires and boats all anchor there,
+never on a polygon centroid (which is still what the labels and diplomacy
+badges use), so every layer agrees on where a route starts and ends.
+
+- **Trade routes** (`routes.ts`) are tubes on a quadratic Bézier that both
+  bulges north in the ground plane and lifts in y, so they stand off the sea
+  instead of lying on it. `wrapDelta()` takes the short way round the
+  antimeridian, so e.g. UK↔Japan crosses the Pacific. Selection changes the
+  material, never the geometry — so picking a partner rebuilds nothing.
+- **Capital markers** are geometry now, not an asset: a five-sided spire on a
+  disc, planted at `LAND_HEIGHT` (a pin at y=0 is buried inside its own
+  country's slab) and rising with `LAND_LIFT_HOT` when the realm is lit.
+  Shown for every `PARTNERS` entry during country selection (there's no
+  committed home yet to filter against), and for home + `activePartners(hRole)`
+  during play. They scale with camera distance (`setPinScale`) rather than
+  holding a fixed world size: a marker points at a place rather than standing
+  in it, and pinned to the board it is a sub-pixel speck across the whole
+  world and a tower the size of Iberia up close.
+- **Ships** (`fleet.ts`) ride the same curve's ground track just above the
+  sea. `fleet.set()` **diffs** rather than rebuilds: `tick` bumps on every UI
+  edit as well as every quarter, and a teardown each time would restart every
+  ship at its phase offset.
+- **Volume is legible twice.** `bucketRoute()` already returns a route's
+  share of the busiest route's volume; that same number picks the _vessel
+  class_ (`VESSEL_CLASSES` / `vesselForVolume()` in `boats.ts`) as well as
+  the ship count, so a thin route carries one small hull and a fat one
+  carries three large ones. Changing class is the one edit `fleet.set()`
+  can't diff — the hulls are dropped and respawned.
+- **Ships fade out over land** (`landMask.ts`). Routes are Béziers between
+  capitals and plenty of them cut across continents. The hull is buried in
+  the terrain there, but masts stand ~1 unit proud of `LAND_HEIGHT` and read
+  as a fleet parked in the Alps. Testing each ship against ~180 polygons per
+  frame is far too slow, so the same polygons are filled into an offscreen 2D
+  canvas once and read back as a bitmap — build costs milliseconds, lookup is
+  one array index. The fade is eased rather than cut, or ships blink on and
+  off at every coastline.
+- **Model scale is normalised, not authored.** `fleet.ts` measures the loaded
+  model and scales it to a hull length in world units — the **z** extent
+  specifically, not the largest axis, since these ships are taller (masts)
+  than they are long and normalising the longest axis would scale every class
+  to the same rigging height. A raw scale factor would mean whatever the
+  artist happened to author at.
+
+`components/map3d/boats.ts` stays pure (reads `G.worldTrade`/`G.rel`, never
+mutates `G` or calls into `engine.ts`, per the map module's "no game logic"
+rule above) and holds the route maths every layer shares: Bézier point,
+heading, lap timing, and the volume → boat-count bucketing.
+
+- **Volume, not invention.** Boat count per route is relative bucketing of
+  `G.worldTrade.flows` (both directions summed) against the busiest current
+  route, not an absolute threshold. **Gotcha**: `G.worldTrade` is keyed by
+  real country ids (`playerCountryId(homeRole)`), not the raw role string —
+  the default "home" role's live data actually lives under `"kingdom"`, since
   `NATION_PROFILE` has both as distinct entries and only the id matching
   `playerCountryId(g.homeRole)` gets the live econ substituted in (see
   `seatsFromWorld` in `worldTrade.ts`). Indexing by the raw role string
   silently reads a stale/static profile entry instead — a real bug caught
   once while wiring this up.
-- **Motion.** Every boat moves at the same shared `BOAT_SPEED`
-  (normalised-board-units/second); `periodForDistance()` turns a route's
-  actual distance into its lap time so a longer route doesn't visibly outrun
-  a shorter one, and `routePhaseSeed()` gives each partner a different
-  deterministic phase so routes don't launch in lockstep. Wrap-tile clones
-  (one mesh per antimeridian-wrapped copy the 2D map is currently tiling)
-  are grown and shrunk per frame to match `repeatOffsets()` rather than
-  capped at a fixed count, so a wide zoomed-out viewport is never
-  short a tile. A brief opacity fade runs only in a small window at each
-  capital end of a lap (clamped so a short route can't spend a large
-  fraction of its crossing fading) — there is deliberately no separate
-  spawn fade, since `MeshStandardMaterial`'s transparent render path washes
-  out the relation tint for the first instants of visibility.
+- **Motion.** Every boat moves at the same shared `BOAT_SPEED`;
+  `periodForDistance()` turns a route's actual distance into its lap time so
+  a longer route doesn't visibly outrun a shorter one, and `routePhaseSeed()`
+  gives each partner a different deterministic phase so routes don't launch
+  in lockstep. A brief opacity fade runs only in a small window at each
+  capital end of a lap (clamped so a short route can't spend a large fraction
+  of its crossing fading) — there is deliberately no separate spawn fade,
+  since `MeshStandardMaterial`'s transparent render path washes out the
+  relation tint for the first instants of visibility.
+- **Assets** (`models.ts`). One `GLTFLoader` + a load-once template cache per
+  model key, with `MeshoptDecoder` registered up front for any future
+  `--compress meshopt` asset. The three hulls share one external
+  `colormap.png`, so the texture is fetched once however many classes a game
+  uses. `Object3D.clone()` shares geometry/material _by reference_, so every
+  instantiation/clone path explicitly clones materials — otherwise
+  per-instance relation tinting mutates the one shared material every clone
+  points at, compounding darker with each new ship. No axis
+  correction is applied: the scene is a genuine y-up world and the assets are
+  Kenney-style (-z forward), which is what `bezierHeading()` computes for.
+  See `public/models/NOTICE.md` for the orientation writeup and the
+  asset-optimisation notes.
+
+### Labels, badges and the paper finish
+
+Realm labels, diplomacy badges and the badge legend are **DOM**
+(`overlay.ts`), pinned to world anchors and repositioned from the render
+loop — the idea behind three.js's own `CSS2DRenderer`, hand-rolled small so
+it composes with React's ownership of the surrounding chrome. They have to
+stay horizontal and constant-size however the camera is pitched, and text
+this way stays real text rather than a texture re-rasterised whenever a
+board-metric label changes. The greedy priority-ordered collision pass from
+the flat map survives unchanged; each anchor is drawn at whichever wrap tile
+sits nearest the middle of the frame rather than once per tile.
+
+The aged-atlas finish is CSS over the canvas, not canvas compositing: a
+sepia/contrast `filter` on the WebGL canvas, a screen-anchored warm glow at
+`mix-blend-soft-light`, and the generated noise tile as a repeating
+`mix-blend-multiply` layer above the labels.
 
 ## Events
 
@@ -602,10 +675,11 @@ Breaking any of these will fail the suite, and should.
 - **Every content item needs a nonzero measurable effect.** The suite asserts
   each policy moves debt, approval or potential. A policy with an empty `imp`
   and `fac` is a bug.
-- **The map must never be load-bearing.** A 2D canvas failure renders a plain
-  "could not load" message rather than blocking play; a 3D-overlay failure
-  (WebGL or a model load) disables only the boat layer and leaves the 2D map
-  untouched. No game logic may live in either map module.
+- **The map must never be load-bearing.** A WebGL, geometry or geo-fetch
+  failure calls `onFail`, and the shell renders a plain "could not load"
+  message rather than blocking play. A _boat model_ failure is narrower
+  still: `console.warn` and no boats, with the board untouched. No game logic
+  may live in any map module.
 - **Political capital gates everything.** No path may enact a bill costing more
   than `G.capital`. A sovereign parliament is a second gate: the Programme also
   needs a chamber majority (`billVoteData()`), except when parliament is

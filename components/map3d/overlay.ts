@@ -157,10 +157,13 @@ function bestScreenPos(
 }
 
 export function createOverlay(container: HTMLElement): MapOverlay {
+  /* overflow-hidden, not decoration: a node whose anchor is off the side of
+     the board is still positioned, just far outside the frame, and without
+     this it would extend the page box and raise scrollbars. */
   const labelHost = document.createElement("div");
-  labelHost.className = "pointer-events-none absolute inset-0";
+  labelHost.className = "pointer-events-none absolute inset-0 overflow-hidden";
   const badgeHost = document.createElement("div");
-  badgeHost.className = "pointer-events-none absolute inset-0";
+  badgeHost.className = "pointer-events-none absolute inset-0 overflow-hidden";
   const legendHost = document.createElement("div");
   legendHost.className =
     "pointer-events-none absolute bottom-6 left-3.5 flex items-center gap-3 text-[11px] font-medium text-[rgba(246,240,226,.6)]";

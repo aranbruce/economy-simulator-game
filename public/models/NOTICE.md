@@ -1,41 +1,56 @@
 # 3D model assets
 
-- `boats/boat.glb` — trade-route marker. A real Kenney-style CC0 asset (its
-  internal mesh node is named `cargo-container-a` — a shipping-container
-  prop, not a boat hull, used deliberately here since it fits the trade
-  theme). Its external texture lives at `boats/Textures/colormap.png`,
-  referenced from the glTF material by that relative path — keep the
-  `Textures/` subfolder alongside the `.glb` if this file is swapped again,
-  or the texture will silently fail to resolve (loader falls back to an
-  untextured material rather than erroring).
+- `ships/ship-small.glb`, `ships/ship-medium.glb`, `ships/ship-large.glb` —
+  the trade-route vessels, from Kenney's **Pirate Kit** (CC0, see
+  `ships/License.txt`; crediting `www.kenney.nl` is appreciated but not
+  required). Three hull sizes of the same merchant ship, picked per route by
+  its share of world trade — see `VESSEL_CLASSES` in
+  `components/map3d/boats.ts`. All three reference one external texture at
+  `ships/Textures/colormap.png` by that relative path, so the browser fetches
+  it once however many classes a game uses — keep the `Textures/` subfolder
+  alongside the `.glb` files if any of them is swapped, or the texture will
+  silently fail to resolve (the loader falls back to an untextured material
+  rather than erroring).
 
-Capital-city markers are **not** a 3D asset — they're an SVG icon
-(`public/icons/capital-marker.svg`, a star in a circle) loaded once and
-drawn onto the 2D canvas via `drawImage()` in `drawCapitalMarker()`,
-`components/map2d/WorldMap.tsx`. Two 3D approaches (a single detailed
-Sketchfab scene, then a composed Kenney building cluster) were tried and
-dropped — style mismatch and, for the first, a CC-BY attribution
-requirement this SVG doesn't carry.
+  These replaced a single `cargo-container-a` prop that stood in for a boat
+  on the flat map. It was chosen when the camera looked straight down and a
+  hull would have been unreadable; in a pitched 3D scene a real hull is both
+  legible and better suited to the board's aged-atlas look.
+
+Capital-city markers are **not** a GLTF asset — they're built as geometry
+in `components/map3d/routes.ts` (a five-sided spire on a disc, planted on
+the land surface), so they carry no licensing of their own. Three earlier
+approaches were tried and dropped: a detailed Sketchfab city scene and a
+composed Kenney building cluster (style mismatch, and for the first a
+CC-BY attribution requirement), then a flat star-in-a-circle SVG drawn
+onto the 2D canvas, which had nowhere sensible to sit once the board
+gained real thickness.
 
 ## Orienting a new model
 
-`components/map3d/Map3DOverlay.tsx`'s camera looks straight down world -Z
-with no tilt. `components/map3d/models.ts`'s `AXIS_CORRECTIONS` holds a
-fixed per-model-key correction quaternion, applied once at instantiation.
-`boat` needs its "forward/length" axis along local X (the per-route heading
-rotation in the overlay rotates around Z assuming that) *and* its
-"up/height" axis along local Z (toward the camera, where it's
-invisible/foreshortened — correct for a top-down view of a hull). Kenney-
-style assets are typically Y-up with -Z forward, so this remaps
-length(Z)->X, width(X)->Y, height(Y)->Z. Add an entry for any future 3D
-model that needs the same treatment; a model authored directly for this
-camera would need none.
+The scene is a genuine 3D world: y up, north at -z, the camera pitched
+above the board (`components/map3d/camera.ts`). Kenney-style assets are
+authored y-up with -z forward, which is exactly what `bezierHeading()` in
+`components/map3d/boats.ts` computes a route heading for — so `boat` needs
+no correction and `instantiateModel()` applies none. An asset authored to
+some other convention would need a per-model-key correction quaternion
+reintroduced in `components/map3d/models.ts`, applied once at
+instantiation.
+
+Scale is normalised, not authored: `fleet.ts` measures the loaded model and
+scales it to a hull length in world units, so a replacement asset does not
+have to be modelled at any particular size. It measures the **z** extent
+specifically, not the largest axis of the bounding box — these ships are
+taller (masts, ~10 units) than they are long (~9-13 units), so normalising
+the longest axis would scale every class to the same rigging height and
+leave the hulls stubby and indistinguishable.
 
 Also note: `Object3D.clone()` shares geometry/material *by reference*
-across every clone of a template, so `instantiateModel()` explicitly clones
-each mesh's material per instance — without that, per-instance tinting
-(`relationTint` in `Map3DOverlay.tsx`) would mutate the one shared material
-every clone points at, compounding darker with every new instance.
+across every clone of a template, so `instantiateModel()` explicitly
+clones each mesh's material per instance — without that, per-instance
+tinting (`relationTint`, applied by `fleet.ts`) would mutate the one shared
+material every clone points at, compounding darker with every new
+instance.
 
 ## Optimising a large/detailed source asset
 
