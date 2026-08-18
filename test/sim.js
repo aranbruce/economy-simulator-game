@@ -121,7 +121,6 @@ import {
   canNegotiateUnionCommercial,
   canNegotiateReciprocalTariffs,
   unionAssociationDeal,
-  unionPackageBlockers,
   ratifyBilateralDealWithPartner,
   beginEpisode,
   endEpisode,
@@ -192,7 +191,6 @@ import {
   buildSummitCommercialEvent,
   previewSummitTariff,
   commercialAcceptScore,
-  commercialDealDeclineReason,
   commercialPackageScore,
   diploDeps,
   snapshotPartnerTariffs,
@@ -229,6 +227,9 @@ import {
   chamberBlocksDeliver,
   leaderTitle,
   impactStripData,
+  grade,
+  governmentScoreData,
+  T,
 } from "../lib/sim/engine.ts";
 import { PARTY_OVERLAYS, partyOverlayForRole } from "../lib/sim/parties.ts";
 import { sharedCamp } from "../lib/sim/diplomacy.ts";
@@ -236,6 +237,12 @@ import { COUNTRIES } from "../lib/sim/countries.ts";
 import { REALM_LAW } from "../lib/sim/realmLaws.ts";
 import { partnerForIso } from "../lib/sim/partners.ts";
 import { PLAYABLE_REALMS } from "../lib/sim/realms.ts";
+import {
+  theCountry,
+  TheCountry,
+  takesThe,
+  countryPhrase,
+} from "../lib/sim/countryPhrase.ts";
 import { FLAG_CODE } from "../lib/ui/flags.ts";
 import { REALM_FILL } from "../lib/sim/boardMetrics.ts";
 
@@ -3482,7 +3489,7 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G = getG();
   const usaEv = buildSummitCommercialEvent("united_states", G);
   const usaTariff = usaEv.opts.find((o) => o.summitKind === "tariff");
-  assert(usaTariff && !usaTariff.disabled, "USA reciprocal tariff is offered");
+  assert(usaTariff, "USA reciprocal tariff is offered");
   const usaTheir0 = livePartnerTariffOnPlayer("united_states");
   const usaOur0 =
     G.law.tariffSchedule.country.united_states != null
@@ -3520,12 +3527,10 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const chinaEv = buildSummitCommercialEvent("china", G);
   const chinaTariff = chinaEv.opts.find((o) => o.summitKind === "tariff");
   assert(chinaTariff, "summit shows reciprocal tariff option for china");
-  const chinaEqual2 = chinaEv.opts.find(
-    (o) => o.summitKind === "tariff" && (o.delta === 2 || o.theirDelta === 2),
-  );
+  const chinaEqual2 = previewSummitTariff("china", 2, 2);
   assert(
-    chinaEqual2 && chinaEqual2.disabled && chinaEqual2.blockReason,
-    "reciprocal 2pt tariff disabled when partner would decline",
+    chinaEqual2 && !chinaEqual2.ok,
+    "reciprocal 2pt tariff declined when partner would refuse",
   );
   assert(
     chinaEv.opts.some((o) => o.summitKind === "decline"),
@@ -3543,18 +3548,22 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const modest = midCuts.find((o) => o.delta === 1);
   const standard = midCuts.find((o) => o.delta === 2);
   assert(modest && standard, "China summit offers 1pt and 2pt cuts");
-  assert(modest && !modest.disabled, "China takes a modest 1pt trim at 50");
   assert(
-    standard && standard.disabled,
+    previewSummitTariff("china", 1, 1).ok,
+    "China takes a modest 1pt trim at 50",
+  );
+  const china2 = previewSummitTariff("china", 2, 2);
+  assert(
+    china2 && !china2.ok,
     "China refuses a 2pt cut at 50 — the ask is too deep",
   );
   assert(
-    standard.blockReason && !/tax our exports/i.test(standard.blockReason),
+    china2.reason && !/tax our exports/i.test(china2.reason),
     "China 2pt decline is not 'they tax us more'",
   );
   const midDeal = midChina.opts.find((o) => o.summitKind === "deal");
   assert(
-    midDeal && !midDeal.disabled,
+    midDeal,
     "China treaty can still be tabled at 50 — acceptance is the package, not a gate",
   );
 }
@@ -3583,15 +3592,10 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     cold.reason && !/too low for this treaty/i.test(cold.reason),
     "decline copy is the scored reason, not a relation veto",
   );
-  const uiReason = commercialDealDeclineReason("china", "cn_invest", G);
-  assert(
-    uiReason && !/too low for this treaty/i.test(uiReason),
-    "Trade panel decline reason is scored, not a relation veto",
-  );
   const coldEv = buildSummitCommercialEvent("china", G);
   const invest = coldEv.opts.find((o) => o.dealId === "cn_invest");
   assert(
-    invest && !invest.disabled,
+    invest,
     "China investment treaty is still tableable below its old relation floor",
   );
 }
@@ -3607,11 +3611,12 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.law.tariffSchedule.country.china = their0;
   G.draft.tariffSchedule.country.china = their0;
   const matchedChina = buildSummitCommercialEvent("china", G);
-  const matchedStd = matchedChina.opts.find(
-    (o) => o.summitKind === "tariff" && o.delta === 2,
+  assert(
+    matchedChina.opts.some((o) => o.summitKind === "tariff" && o.delta === 2),
+    "matching rates at 50 still offers a 2pt China cut",
   );
   assert(
-    matchedStd && matchedStd.disabled,
+    !previewSummitTariff("china", 2, 2).ok,
     "matching rates at 50 does not unlock a 2pt China cut",
   );
 }
@@ -3625,9 +3630,13 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const hotStd = hotChina.opts.find(
     (o) => o.summitKind === "tariff" && o.delta === 2,
   );
-  assert(hotStd && !hotStd.disabled, "China accepts a 2pt cut at high warmth");
+  assert(hotStd, "China summit still offers a 2pt cut at high warmth");
+  assert(
+    previewSummitTariff("china", 2, 2).ok,
+    "China accepts a 2pt cut at high warmth",
+  );
   const hotDeal = hotChina.opts.find((o) => o.summitKind === "deal");
-  assert(hotDeal && !hotDeal.disabled, "China treaty unlocks at high warmth");
+  assert(hotDeal, "China treaty can be tabled at high warmth");
 }
 
 {
@@ -3642,11 +3651,16 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   const ruDeep = ruEv.opts.find(
     (o) => o.summitKind === "tariff" && o.delta > 2,
   );
+  assert(ruStd, "Russia summit offers a 2pt cut");
   assert(
-    ruStd && !ruStd.disabled,
+    previewSummitTariff("russia", 2, 2).ok,
     "Russia accepts a 2pt cut at 50 despite a higher MFN",
   );
-  assert(ruDeep && ruDeep.disabled, "Russia refuses a deeper cut at 50");
+  assert(ruDeep, "Russia summit offers a deeper cut");
+  assert(
+    !previewSummitTariff("russia", ruDeep.ourDelta, ruDeep.theirDelta).ok,
+    "Russia refuses a deeper cut at 50",
+  );
 }
 
 {
@@ -4325,19 +4339,20 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.rel.netherlands = 55;
   G.rel.poland = 55;
   G.draft = clone(G.law);
-  const blocked = unionPackageBlockers(G, "france");
+  const coolPreview = previewSummitTariff("france", 2, 2);
   assert(
-    blocked.some((b) => /Germany withholds/i.test(b)),
-    "a cool Germany blocks the union package",
+    coolPreview && !coolPreview.ok,
+    "a cool Germany still drags a standard union cut below accept",
   );
   const frEv = buildSummitCommercialEvent("france", G);
-  const tariffOpt = frEv.opts.find((o) => o.summitKind === "tariff");
+  const standard = frEv.opts.find(
+    (o) => o.summitKind === "tariff" && (o.delta === 2 || o.theirDelta === 2),
+  );
   const our0 = effectiveTariff("france", G.law);
-  if (tariffOpt)
-    applySummitCommercialOption(tariffOpt, { partnerId: "france" });
+  if (standard) applySummitCommercialOption(standard, { partnerId: "france" });
   assert(
     effectiveTariff("france", G.law) === our0,
-    "blocked union package does not cut tariffs",
+    "declined 2pt union cut does not land",
   );
 }
 
@@ -8012,6 +8027,106 @@ for (const c of COUNTRIES) {
   termReview();
   assert(!G.over, "sandbox election loss still returns you");
   assert(G.term === t0 + 1, "sandbox election still increments term");
+}
+
+newGame({ silent: true });
+G = getG();
+{
+  const data = governmentScoreData();
+  const total = data.factors.reduce((a, f) => a + f.value, 0);
+  assert(data.factors.length === 8, "government score has eight factors");
+  assert(
+    data.factors.every((f) => f.value >= 0 && f.value <= 6),
+    "each government-score factor is 0–6",
+  );
+  assert(
+    Math.abs(total / 48 - data.pct) < 1e-9,
+    "government score pct is total/48",
+  );
+  assert(data.letter === grade(), "grade() is governmentScoreData().letter");
+  assert(
+    ["A", "B", "C", "D", "E"].includes(data.letter),
+    `opening letter grade is A–E (got ${data.letter})`,
+  );
+  assert(
+    data.pct > 0.34 && data.pct < 0.9,
+    `opening government score is mid-band (got ${(data.pct * 100).toFixed(0)}/100, ${data.letter})`,
+  );
+}
+
+{
+  assert(takesThe("United Kingdom"), "UK takes the");
+  assert(takesThe("United States"), "US takes the");
+  assert(takesThe("United Arab Emirates"), "UAE takes the");
+  assert(takesThe("Netherlands"), "Netherlands takes the");
+  assert(takesThe("the Kingdom"), "leading the takes the");
+  assert(takesThe("European Union"), "EU takes the");
+  assert(!takesThe("France"), "France does not take the");
+  assert(!takesThe("South Korea"), "South Korea does not take the");
+  assert(
+    theCountry("United Kingdom") === "the United Kingdom",
+    "UK prose is the United Kingdom",
+  );
+  assert(
+    TheCountry("United Kingdom") === "The United Kingdom",
+    "UK sentence-start is The United Kingdom",
+  );
+  assert(theCountry("France") === "France", "France prose is bare");
+  assert(TheCountry("France") === "France", "France sentence-start is bare");
+  assert(
+    countryPhrase("the United States", false) === "the United States",
+    "existing the-prefix is not doubled",
+  );
+  newGame({ country: "United Kingdom" });
+  G = getG();
+  assert(
+    T("{C} has a deficit.") === "The United Kingdom has a deficit.",
+    "T() caps the at sentence start",
+  );
+  assert(
+    T("Order books in {C} are thinning.") ===
+      "Order books in the United Kingdom are thinning.",
+    "T() keeps the mid-sentence",
+  );
+  assert(
+    T("Bank of {C}") === "Bank of the United Kingdom",
+    "T() adds the after of",
+  );
+  assert(
+    T("{C}'s government chose to wait.") ===
+      "The United Kingdom's government chose to wait.",
+    "T() caps possessive at sentence start",
+  );
+  assert(
+    T("the {C} is in surplus.") === "The United Kingdom is in surplus.",
+    "T() does not double a written the",
+  );
+  assert(
+    T("<p>{C} has a deficit.</p>") ===
+      "<p>The United Kingdom has a deficit.</p>",
+    "T() caps the after a <p>",
+  );
+  newGame({ country: "France" });
+  G = getG();
+  assert(
+    T("{C} has a deficit.") === "France has a deficit.",
+    "T() leaves France bare at sentence start",
+  );
+  assert(
+    T("Order books in {C} are thinning.") ===
+      "Order books in France are thinning.",
+    "T() leaves France bare mid-sentence",
+  );
+  newGame({ country: "The Kingdom" });
+  G = getG();
+  assert(
+    T("{C} has a deficit.") === "The Kingdom has a deficit.",
+    "T() keeps The Kingdom at sentence start",
+  );
+  assert(
+    T("in {C}") === "in the Kingdom",
+    "T() lowercases the on The Kingdom mid-sentence",
+  );
 }
 
 if (failed) {

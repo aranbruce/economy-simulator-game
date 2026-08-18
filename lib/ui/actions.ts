@@ -1,6 +1,7 @@
 import {
   getG,
   bump,
+  countryLabel,
   syncServiceHolds,
   clamp,
   playerCountryId,
@@ -362,6 +363,6 @@ export function setLawField(
 
 export function setCountryName(name: string) {
   const G = getG();
-  G.country = (name || "").trim() || "United Kingdom";
+  G.country = countryLabel((name || "").trim()) || "United Kingdom";
   bump();
 }

@@ -5,6 +5,12 @@
  */
 import type { GameState } from "./types.ts";
 import { shareFor } from "./tradeMatrix.ts";
+import {
+  countryAt,
+  capSentenceThe,
+  replaceCountryToken,
+  theCountry,
+} from "./countryPhrase.ts";
 
 /** Engine hooks injected so this module stays free of circular imports on
  * the full engine bag — untyped until Phase 4's engine.js pass. */
@@ -955,7 +961,6 @@ function commercialDeclineReason(opts: {
   pName: string;
   kind: "tariff" | "deal";
   size: number;
-  warmth: number;
   interest: number;
   mobilityBlocked: boolean;
   delta?: number;
@@ -966,7 +971,6 @@ function commercialDeclineReason(opts: {
     pName,
     kind,
     size,
-    warmth,
     interest,
     mobilityBlocked,
     delta,
@@ -995,7 +999,7 @@ function commercialDeclineReason(opts: {
   if (size < 0.35) {
     drags.push({
       w: 0.14 * (0.5 - size),
-      text: "A much larger economy needs warmer relations before it will sign",
+      text: pName + " is a much larger economy",
     });
   }
   if (interest < 0) {
@@ -1005,12 +1009,6 @@ function commercialDeclineReason(opts: {
         kind === "deal"
           ? pName + " is not interested in this treaty at present"
           : pName + " will not reciprocate this cut at present",
-    });
-  }
-  if (warmth < 0.45) {
-    drags.push({
-      w: 0.38 * (0.45 - warmth),
-      text: "Relations are still too cool for this offer",
     });
   }
   drags.sort((a, b) => b.w - a.w);
@@ -1100,7 +1098,6 @@ export function commercialAcceptScore(
         pName,
         kind,
         size,
-        warmth,
         interest,
         mobilityBlocked,
         delta: kind === "tariff" ? theirDelta : undefined,
@@ -1604,9 +1601,14 @@ export function formatMissionTokens(
   partnerName: string,
   rivalName?: string,
 ) {
-  return String(s || "")
-    .replace(/\{P\}/g, partnerName || "a partner")
-    .replace(/\{R\}/g, rivalName || "a rival");
+  const out = String(s || "")
+    .replace(/\{P\}/g, (_m, offset, full) =>
+      countryAt(full, offset, partnerName || "a partner"),
+    )
+    .replace(/\{R\}/g, (_m, offset, full) =>
+      countryAt(full, offset, rivalName || "a rival"),
+    );
+  return capSentenceThe(out);
 }
 
 export function formatMissionEventText(ev: any, g: GameState, deps: Deps) {
@@ -1618,6 +1620,9 @@ export function formatMissionEventText(ev: any, g: GameState, deps: Deps) {
     ev.rivalName,
   );
   if (T) text = T(text);
-  else text = text.replace(/\{C\}/g, g.country || "The Kingdom");
+  else
+    text = capSentenceThe(
+      replaceCountryToken(text, "{C}", g.country || "United Kingdom"),
+    );
   return text;
 }
