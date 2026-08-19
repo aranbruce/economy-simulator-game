@@ -147,13 +147,28 @@ function seatLabel(id: string) {
   return COUNTRIES.find((c) => c.id === id)?.name || id;
 }
 
-function isPlayerSeat(id: string, g: any) {
+/** The live `G` bag, only the fields these two helpers actually read. */
+type MapGameBag = {
+  homeRole?: string;
+  econ?: {
+    gdp?: number;
+    nations?: Record<string, { y?: number }>;
+  };
+  world?: Record<string, { econ?: { gdp?: number } }>;
+};
+
+function isPlayerSeat(id: string, g: MapGameBag) {
   const playerId = playerCountryId(g?.homeRole);
   return id === playerId || id === "home" || id === "kingdom";
 }
 
 /** Directed flow index → display currency, same scaling as TradePanel. */
-function flowAmountLabel(fromId: string, index: number, g: any, ccy: string) {
+function flowAmountLabel(
+  fromId: string,
+  index: number,
+  g: MapGameBag,
+  ccy: string,
+) {
   if (!(index > 0) || !g?.econ) return "—";
   const gdpBn = realmGdpBn(isPlayerSeat(fromId, g) ? "home" : fromId, g);
   const y = isPlayerSeat(fromId, g)
@@ -703,6 +718,11 @@ export default function WorldMap3D({
       oceanRef.current = null;
       setGlReady(false);
     };
+    // Layer *_REV constants are HMR remount keys: bumping one in a sibling
+    // module changes the imported number, so this effect tears down and
+    // rebuilds the WebGL scene. They are module-scope numbers, so the
+    // exhaustive-deps rule thinks they are inert — they are not.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     geoReady,
     fail,
@@ -1461,7 +1481,7 @@ export default function WorldMap3D({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
-        className="absolute inset-0 block size-full cursor-grab [filter:sepia(0.08)_saturate(0.86)_contrast(1.05)_brightness(1.04)]"
+        className="absolute inset-0 block size-full cursor-grab filter-[sepia(0.08)_saturate(0.86)_contrast(1.05)_brightness(1.04)]"
         aria-label={
           setupMode ? "Choose your country on the world map" : "World map"
         }

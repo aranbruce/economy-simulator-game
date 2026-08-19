@@ -51,7 +51,7 @@ export function loadModelTemplate(key: ModelKey): Promise<Object3D> {
 /** Object3D.clone() shares geometry/material by *reference* across every
  *  clone of a template — fine for geometry (never mutated), but each
  *  instance needs its own material so per-instance tinting (relationTint in
- *  Map3DOverlay) doesn't mutate every other instance sharing the same GLTF
+ *  WorldMap3D) doesn't mutate every other instance sharing the same GLTF
  *  parse. Without this, tinting one boat compounds onto every other boat
  *  cloned from the same template each time it re-tints, since they'd all be
  *  reading and writing the same shared material.color. */
