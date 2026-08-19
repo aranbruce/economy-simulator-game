@@ -29,10 +29,10 @@ const ROUTE_LIFT = 0.05;
 export const ROUTES_REV = 69;
 /** Shared ink for every dashed lane — highways and on-ramps. */
 const ROUTE_COLOR = 0x945d35;
-/** The same ink lifted for the selected seat's lanes and the one under the
- *  pointer. A second shared material rather than a per-route clone: the
- *  highlight is a two-state thing, so two materials cover every route and
- *  switching one is a pointer swap, not a rebuild. */
+/** The same ink lifted, for the lanes of the seat the board is focused on.
+ *  A second shared material rather than a per-route clone: the highlight is
+ *  a two-state thing, so two materials cover every route and switching one
+ *  is a pointer swap, not a geometry rebuild. */
 const ROUTE_COLOR_HOT = 0xe8b86a;
 
 /** Densify a sea-lane along its own segments. A Catmull-Rom used to cut
@@ -136,8 +136,6 @@ export interface RouteLayer {
   setRoutes: (specs: RouteSpec[]) => void;
   /** Brighten one route without rebuilding any geometry. */
   setSelectedRoute: (partnerId: string | null) => void;
-  /** Brighten the pointer-hovered lane. */
-  setHoveredRoute: (key: string | null) => void;
   /** Drape every lane onto the live sea surface. */
   update: (nowS: number) => void;
   dispose: () => void;
@@ -162,17 +160,13 @@ export function buildRouteLayer(): RouteLayer {
    *  this is called whenever `tick` bumps, which includes every UI edit. */
   let routeKey = "";
   let selected: string | null = null;
-  let hovered: string | null = null;
 
-  /** A lane is lit when the pointer is on it, or when it belongs to the
-   *  seat the board is focused on. `route.material` is the route's own ink
-   *  only when it owns one; otherwise both states come from the two shared
-   *  materials above. */
+  /** A lane is lit when it belongs to the seat the board is focused on.
+   *  `route.material` is the route's own ink only when it owns one;
+   *  otherwise both states come from the two shared materials above. */
   const paintMaterials = () => {
     for (const route of routes) {
-      const hot =
-        (hovered != null && route.key === hovered) ||
-        (selected != null && route.owners.includes(selected));
+      const hot = selected != null && route.owners.includes(selected);
       const mat = route.ownedMat
         ? route.material
         : hot
@@ -255,17 +249,10 @@ export function buildRouteLayer(): RouteLayer {
     paintMaterials();
   };
 
-  const setHoveredRoute = (key: string | null) => {
-    if (key === hovered) return;
-    hovered = key;
-    paintMaterials();
-  };
-
 
   const dispose = () => {
     clearRoutes();
     routeKey = "";
-    hovered = null;
     selected = null;
     laneMat.dispose();
     laneHotMat.dispose();
@@ -276,7 +263,6 @@ export function buildRouteLayer(): RouteLayer {
     group,
     setRoutes,
     setSelectedRoute,
-    setHoveredRoute,
     update,
     dispose,
   };
