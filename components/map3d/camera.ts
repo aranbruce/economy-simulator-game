@@ -92,6 +92,16 @@ export class MapCamera {
     this.camera.updateMatrixWorld();
   }
 
+  /** Centre the view on a normalised board point (capital, country
+   *  centroid, …). Zoom is left as it is — callers that want a particular
+   *  scale set `dist` first. */
+  focusAt(nx: number, ny: number, aspect: number) {
+    const [x, z] = boardToWorld(nx, ny);
+    this.focusX = x;
+    this.focusZ = z;
+    this.apply(aspect);
+  }
+
   /** 0 (fully zoomed in) → 1 (fully zoomed out). Feeds anything that should
    *  thin out as the board recedes. */
   get zoomOut(): number {

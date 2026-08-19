@@ -29,6 +29,11 @@ export function realmById(id: string) {
   return PLAYABLE_REALMS.find((r) => r.id === id) || PLAYABLE_REALMS[0];
 }
 
+/** Opening picker choice: any mapped seat, equally likely. */
+export function randomPlayableRealm() {
+  return PLAYABLE_REALMS[(Math.random() * PLAYABLE_REALMS.length) | 0];
+}
+
 export function realmByRole(role?: string | null) {
   if (!role || role === "home") return PLAYABLE_REALMS[0];
   return (

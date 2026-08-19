@@ -1,119 +1,147 @@
 /**
- * Trade-route arcs and capital markers as real scene geometry.
+ * Trade-route sea lanes as real scene geometry.
  *
- * Both were flat canvas drawings on the map this replaced — a dashed
- * quadratic Bézier and a star-in-a-circle SVG. In the three.js scene they
- * are a tube standing off the sea and a small spire planted on the land,
- * sharing the exact curve and anchor points the boat layer animates along
- * so line, boat and marker still agree on where a route runs.
+ * Lanes follow the maritime path WorldMap3D computed (Suez, Panama, the
+ * long way around land) so the dashed line and the boats agree.
  *
- * No game logic here: the caller resolves which partners are active and
- * hands over world-space anchors.
+ * No game logic here: the caller hands over world-space polylines.
  */
 
-import {
-  ConeGeometry,
-  CylinderGeometry,
-  Group,
-  Mesh,
-  MeshBasicMaterial,
-  MeshStandardMaterial,
-  Object3D,
-  QuadraticBezierCurve3,
-  TubeGeometry,
-  Vector3,
-  type BufferGeometry,
-  type Material,
-} from "three";
-import {
-  LAND_HEIGHT,
-  LAND_LIFT_HOT,
-  WRAP_OFFSETS,
-} from "../../lib/map/projection.ts";
-import { routeControl, type Vec3 } from "./boats.ts";
+import { Group, Vector3 } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { WRAP_OFFSETS } from "../../lib/map/projection.ts";
+import { unwrapSeaPath } from "../../lib/map/seaRoutes.ts";
+import { type Vec3 } from "./boats.ts";
+import { seaHeight } from "./sea.ts";
 
-/** Tube radius, world units (= degrees of longitude). One radius for every
- *  route: selection reads through the brighter, more opaque material below
- *  rather than through geometry, so picking a partner never has to rebuild
- *  a single tube. */
-const ROUTE_RADIUS = 0.2;
-/** Lengthwise segments of a route tube. Enough that a long arc stays
- *  smooth; the tube is thin, so radial segments can stay low. */
-const ROUTE_STEPS = 48;
-const ROUTE_RADIAL = 5;
+/** World-unit width of a lane — thin on purpose, a plotted shipping line
+ *  rather than a pipe. Selection reads through the brighter material, not
+ *  a thicker stroke, so picking a partner never rebuilds geometry. */
+const ROUTE_WIDTH = 0.12;
+const ROUTE_DASH = 0.48;
+const ROUTE_GAP = 0.32;
+/** Hair above the local sea so the stroke sits on the water with the
+ *  boats rather than on a flat plane they then parallax off. */
+const ROUTE_LIFT = 0.05;
+/** Bump so WorldMap3D remounts when lane look changes. */
+export const ROUTES_REV = 68;
+/** Shared ink for every dashed lane — highways and on-ramps. */
+const ROUTE_COLOR = 0x945d35;
 
-/** Arc shape, as fractions of the route's own straight-line length: how far
- *  the midpoint is pushed north in the ground plane, and how high it is
- *  lifted. Proportional rather than fixed so a short hop and an ocean
- *  crossing both read as the same kind of curve. */
-export const ROUTE_BULGE_FRAC = 0.12;
-export const ROUTE_LIFT_FRAC = 0.17;
-const ROUTE_LIFT_MAX = 26;
+/** Densify a sea-lane along its own segments. A Catmull-Rom used to cut
+ *  corners through land; boats and dashes have to stay on the water. */
+export function resampleLane(path: Vec3[]): Vec3[] {
+  if (path.length < 2) return path;
+  const unwrapped = unwrapSeaPath(path);
+  const out: Vec3[] = [];
+  const spacing = 1.15;
+  for (let i = 0; i < unwrapped.length - 1; i++) {
+    const a = unwrapped[i]!,
+      b = unwrapped[i + 1]!;
+    const d = Math.hypot(b.x - a.x, b.z - a.z);
+    const n = Math.max(1, Math.ceil(d / spacing));
+    for (let k = 0; k < n; k++) {
+      const t = k / n;
+      out.push({
+        x: a.x + (b.x - a.x) * t,
+        y: 0,
+        z: a.z + (b.z - a.z) * t,
+      });
+    }
+  }
+  const last = unwrapped[unwrapped.length - 1]!;
+  out.push({ x: last.x, y: 0, z: last.z });
+  return out;
+}
 
-/** Capital spire dimensions, world units. */
-const PIN_HEIGHT = 3.1;
-const PIN_RADIUS = 0.85;
-const PIN_BASE_R = 1.45;
-const PIN_BASE_H = 0.32;
+function writeDrapedLane(
+  geometry: LineGeometry,
+  pts: Vector3[],
+  dx: number,
+  nowS: number,
+) {
+  const start = geometry.attributes.instanceStart;
+  const end = geometry.attributes.instanceEnd;
+  if (!start || !end) return;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]!,
+      b = pts[i + 1]!;
+    start.setXYZ(i, a.x, seaHeight(a.x + dx, a.z, nowS) + ROUTE_LIFT, a.z);
+    end.setXYZ(i, b.x, seaHeight(b.x + dx, b.z, nowS) + ROUTE_LIFT, b.z);
+  }
+  start.needsUpdate = true;
+}
+
+/** Deterministic block facing, ±~30°. Stops every capital reading as the
+ *  same axis-aligned stamp. */
+export function capitalYaw(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  }
+  return ((h >>> 0) / 4294967296 - 0.5) * 1.05;
+}
 
 export interface RouteSpec {
-  partnerId: string;
-  /** World ground anchors — the partner end is already wrap-adjusted to the
-   *  short way round the board. */
-  home: Vec3;
-  partner: Vec3;
-}
-
-export interface CapitalSpec {
+  /** Stable id for the stroke (owners joined). */
   key: string;
-  x: number;
-  z: number;
-  hot: boolean;
+  /** Partners that use this segment — selected if any of them is picked. */
+  owners: string[];
+  /** World-space sea-lane polyline — already wrap-adjusted. */
+  path: Vec3[];
+  /** Debug paint: coloured spine vs blue on-ramp. */
+  kind?: "highway" | "stub";
+  color?: number;
 }
 
-/** Curve control point for a route, in world space. Exported so the boat
- *  layer rides the identical curve rather than a re-derived lookalike. */
-export function routeCurveControl(home: Vec3, partner: Vec3, lift: boolean) {
-  const len = Math.hypot(partner.x - home.x, partner.z - home.z);
-  return routeControl(
-    home,
-    partner,
-    len * ROUTE_BULGE_FRAC,
-    lift ? Math.min(ROUTE_LIFT_MAX, len * ROUTE_LIFT_FRAC) : 0,
-  );
-}
-
-function toVector3(v: Vec3) {
-  return new Vector3(v.x, v.y, v.z);
-}
-
-/** Pins are planted on the land surface, not the sea plane — the board has
- *  real thickness, so a pin at y=0 is buried inside its own country's slab
- *  with only its tip poking out — and they rise with a lit country. */
-function pinY(hot: boolean) {
-  return LAND_HEIGHT + (hot ? LAND_LIFT_HOT : 0);
+function routeMaterial(color: number): LineMaterial {
+  return new LineMaterial({
+    color,
+    linewidth: ROUTE_WIDTH,
+    worldUnits: true,
+    dashed: true,
+    dashSize: ROUTE_DASH,
+    gapSize: ROUTE_GAP,
+    transparent: true,
+    opacity: 0.48,
+    depthWrite: false,
+    toneMapped: false,
+    fog: false,
+  });
 }
 
 interface RouteEntry {
-  partnerId: string;
-  meshes: Mesh[];
-  geometry: BufferGeometry;
+  key: string;
+  owners: string[];
+  kind: "highway" | "stub";
+  material: LineMaterial;
+  ownedMat: boolean;
+  lines: Line2[];
+  geometries: LineGeometry[];
+  /** Centre-tile XZ of the drawn polyline. Y is sampled per wrap tile. */
+  pts: Vector3[];
 }
 
-interface CapitalEntry {
+export interface RouteHit {
   key: string;
-  nodes: Object3D[];
-  hot: boolean;
+  owners: string[];
 }
 
 export interface RouteLayer {
   group: Group;
-  /** Rebuild the route tubes. Cheap enough to call whenever the active
+  /** Rebuild the dashed lanes. Cheap enough to call whenever the active
    *  partner set changes; not something to call per frame. */
   setRoutes: (specs: RouteSpec[]) => void;
-  /** Thicken/brighten one route without rebuilding any geometry. */
+  /** Brighten one route without rebuilding any geometry. */
   setSelectedRoute: (partnerId: string | null) => void;
-  setCapitals: (specs: CapitalSpec[]) => void;
+  /** Brighten the pointer-hovered lane. */
+  setHoveredRoute: (key: string | null) => void;
+  /** Nearest lane to a ground point, or null if none is within `maxDist`. */
+  hitTest: (x: number, z: number, maxDist: number) => RouteHit | null;
+  /** Drape every lane onto the live sea surface. */
+  update: (nowS: number) => void;
   dispose: () => void;
 }
 
@@ -126,58 +154,27 @@ export function buildRouteLayer(): RouteLayer {
     return tile;
   });
 
-  /* depthWrite off so a route arcing over land doesn't punch a hole in the
-     terrain behind it; the tube is translucent and reads as a plotted line
-     on an atlas rather than a solid pipe. */
-  const routeMat = new MeshBasicMaterial({
-    color: 0x64d2ff,
-    transparent: true,
-    opacity: 0.16,
-    depthWrite: false,
-  });
-  const routeMatSelected = new MeshBasicMaterial({
-    color: 0x9ee3ff,
-    transparent: true,
-    opacity: 0.42,
-    depthWrite: false,
-  });
-
-  const pinGeom = new ConeGeometry(PIN_RADIUS, PIN_HEIGHT, 5);
-  pinGeom.translate(0, PIN_BASE_H + PIN_HEIGHT / 2, 0);
-  const baseGeom = new CylinderGeometry(PIN_BASE_R, PIN_BASE_R, PIN_BASE_H, 12);
-  baseGeom.translate(0, PIN_BASE_H / 2, 0);
-
-  /* Even a "cold" capital is a marker, not scenery: unlit dark geometry on
-     dark land just reads as a rendering fault. Warm bronze with a trace of
-     emissive keeps it legible against every board-metric colour. */
-  const pinCold = new MeshStandardMaterial({
-    color: 0xd9bd85,
-    emissive: 0x6a4a14,
-    emissiveIntensity: 0.55,
-    roughness: 0.42,
-    metalness: 0.4,
-  });
-  const pinHot = new MeshStandardMaterial({
-    color: 0xf2d9a0,
-    emissive: 0x8a5f18,
-    emissiveIntensity: 0.7,
-    roughness: 0.3,
-    metalness: 0.55,
-  });
+  const laneMat = routeMaterial(ROUTE_COLOR);
 
   let routes: RouteEntry[] = [];
   /** Signature of the routes currently built, so a re-sync that changes
    *  nothing about the partner set or its anchors rebuilds no geometry —
    *  this is called whenever `tick` bumps, which includes every UI edit. */
   let routeKey = "";
-  let capitals: CapitalEntry[] = [];
-  let capitalKey = "";
   let selected: string | null = null;
+  let hovered: string | null = null;
+
+  const paintMaterials = () => {
+    for (const route of routes) {
+      for (const line of route.lines) line.material = route.material;
+    }
+  };
 
   const clearRoutes = () => {
     for (const route of routes) {
-      for (const mesh of route.meshes) mesh.removeFromParent();
-      route.geometry.dispose();
+      for (const line of route.lines) line.removeFromParent();
+      for (const geometry of route.geometries) geometry.dispose();
+      if (route.ownedMat) route.material.dispose();
     }
     routes = [];
   };
@@ -186,104 +183,114 @@ export function buildRouteLayer(): RouteLayer {
     const key = specs
       .map(
         (s) =>
-          `${s.partnerId}:${s.home.x.toFixed(2)},${s.home.z.toFixed(2)}>` +
-          `${s.partner.x.toFixed(2)},${s.partner.z.toFixed(2)}`,
+          `${s.key}:${(s.color ?? 0).toString(16)}:` +
+          s.path.map((p) => `${p.x.toFixed(1)},${p.z.toFixed(1)}`).join(">"),
       )
       .join("|");
     if (key === routeKey) return;
     routeKey = key;
     clearRoutes();
     for (const spec of specs) {
-      const control = routeCurveControl(spec.home, spec.partner, true);
-      const curve = new QuadraticBezierCurve3(
-        toVector3(spec.home),
-        toVector3(control),
-        toVector3(spec.partner),
-      );
-      const geometry = new TubeGeometry(
-        curve,
-        ROUTE_STEPS,
-        ROUTE_RADIUS,
-        ROUTE_RADIAL,
-        false,
-      );
-      const material: Material =
-        spec.partnerId === selected ? routeMatSelected : routeMat;
-      const meshes = tiles.map((tile) => {
-        const mesh = new Mesh(geometry, material);
-        mesh.renderOrder = 2;
-        tile.add(mesh);
-        return mesh;
+      if (spec.path.length < 2) continue;
+      const kind = spec.kind === "stub" ? "stub" : "highway";
+      const pts = spec.path.map((p) => new Vector3(p.x, 0, p.z));
+      const geometries: LineGeometry[] = [];
+      const lines = tiles.map((tile) => {
+        const geometry = new LineGeometry();
+        geometry.setFromPoints(pts);
+        writeDrapedLane(geometry, pts, tile.position.x, 0);
+        const line = new Line2(geometry, laneMat);
+        line.computeLineDistances();
+        line.renderOrder = 2;
+        line.frustumCulled = false;
+        tile.add(line);
+        geometries.push(geometry);
+        return line;
       });
-      routes.push({ partnerId: spec.partnerId, meshes, geometry });
+      routes.push({
+        key: spec.key,
+        owners: spec.owners,
+        kind,
+        material: laneMat,
+        ownedMat: false,
+        lines,
+        geometries,
+        pts,
+      });
+    }
+  };
+
+  const update = (nowS: number) => {
+    for (const route of routes) {
+      for (let t = 0; t < route.geometries.length; t++) {
+        writeDrapedLane(
+          route.geometries[t]!,
+          route.pts,
+          tiles[t]!.position.x,
+          nowS,
+        );
+      }
     }
   };
 
   const setSelectedRoute = (partnerId: string | null) => {
     if (partnerId === selected) return;
     selected = partnerId;
+    paintMaterials();
+  };
+
+  const setHoveredRoute = (key: string | null) => {
+    if (key === hovered) return;
+    hovered = key;
+    paintMaterials();
+  };
+
+  const hitTest = (x: number, z: number, maxDist: number): RouteHit | null => {
+    let best: RouteEntry | null = null;
+    let bestD = maxDist;
     for (const route of routes) {
-      const material =
-        route.partnerId === selected ? routeMatSelected : routeMat;
-      for (const mesh of route.meshes) mesh.material = material;
-    }
-  };
-
-  const clearCapitals = () => {
-    for (const cap of capitals) {
-      for (const node of cap.nodes) node.removeFromParent();
-    }
-    capitals = [];
-  };
-
-  const setCapitals = (specs: CapitalSpec[]) => {
-    const key = specs.map((s) => s.key).join("|");
-    if (key === capitalKey) {
-      /* Same set of capitals, only their lit state may have moved — swap
-         materials rather than rebuilding meshes, since this runs on every
-         hover change. */
-      for (let i = 0; i < capitals.length; i++) {
-        const next = specs[i];
-        if (!next || next.hot === capitals[i].hot) continue;
-        capitals[i].hot = next.hot;
-        const material = next.hot ? pinHot : pinCold;
-        for (const node of capitals[i].nodes) {
-          node.position.y = pinY(next.hot);
-          node.traverse((child) => {
-            if (child instanceof Mesh) child.material = material;
-          });
+      const pts = route.pts;
+      if (pts.length < 2) continue;
+      for (const dx of WRAP_OFFSETS) {
+        for (let i = 1; i < pts.length; i++) {
+          const a = pts[i - 1]!,
+            b = pts[i]!;
+          const ax = a.x + dx,
+            az = a.z;
+          const bx = b.x + dx,
+            bz = b.z;
+          const vx = bx - ax,
+            vz = bz - az;
+          const len2 = vx * vx + vz * vz || 1e-9;
+          let t = ((x - ax) * vx + (z - az) * vz) / len2;
+          if (t < 0) t = 0;
+          else if (t > 1) t = 1;
+          const d = Math.hypot(x - (ax + t * vx), z - (az + t * vz));
+          if (d < bestD) {
+            bestD = d;
+            best = route;
+          }
         }
       }
-      return;
     }
-    clearCapitals();
-    capitalKey = key;
-    for (const spec of specs) {
-      const material = spec.hot ? pinHot : pinCold;
-      const nodes = tiles.map((tile) => {
-        const pin = new Group();
-        pin.add(new Mesh(baseGeom, material));
-        pin.add(new Mesh(pinGeom, material));
-        pin.position.set(spec.x, pinY(spec.hot), spec.z);
-        tile.add(pin);
-        return pin as Object3D;
-      });
-      capitals.push({ key: spec.key, nodes, hot: spec.hot });
-    }
+    return best ? { key: best.key, owners: best.owners } : null;
   };
 
   const dispose = () => {
     clearRoutes();
     routeKey = "";
-    clearCapitals();
-    pinGeom.dispose();
-    baseGeom.dispose();
-    routeMat.dispose();
-    routeMatSelected.dispose();
-    pinCold.dispose();
-    pinHot.dispose();
+    hovered = null;
+    laneMat.dispose();
     group.clear();
   };
 
-  return { group, setRoutes, setSelectedRoute, setCapitals, dispose };
+  return {
+    group,
+    setRoutes,
+    setSelectedRoute,
+    setHoveredRoute,
+    hitTest,
+    update,
+    dispose,
+  };
 }

@@ -168,9 +168,12 @@ import {
   assignEnvoy,
   recallEnvoy,
   issueUltimatum,
+  withdrawUltimatum,
   processUltimatums,
   canIssueUltimatum,
+  canWithdrawUltimatum,
   addDiploLedger,
+  setSanctionStance,
   applySphereTrespassOnDeal,
   ENVOY_ASSIGN_PC,
   ENVOY_TARGET,
@@ -6062,6 +6065,42 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   newGame();
   G = getG();
   G.capital = 50;
+  G.rel.russia = 30;
+  ensureSched(G.law);
+  G.law.tariffSchedule.country.russia = 4;
+  const pat0 = G.fac.patriots;
+  const biz0 = G.fac.business;
+  assert(issueUltimatum("russia", "tariffCut"), "issue for same-quarter withdraw");
+  assert(canWithdrawUltimatum("russia"), "withdraw available before Deliver");
+  assert(
+    (G.econ.diploLedger.russia || []).some((x) => x.id === "ultimatum_issued_" + G.q),
+    "issue writes ledger",
+  );
+  assert(withdrawUltimatum("russia"), "withdraw same quarter");
+  assert(G.capital === 50, "withdraw refunds capital");
+  assert(!G.ultimatums.russia, "withdraw clears pending ultimatum");
+  assert(
+    !(G.econ.diploLedger.russia || []).some((x) => x.id === "ultimatum_issued_" + G.q),
+    "withdraw removes issued ledger",
+  );
+  assert(G.fac.patriots === pat0, "withdraw reverses patriot bump");
+  assert(G.fac.business === biz0, "withdraw reverses business hit");
+  assert(withdrawUltimatum("russia"), "duplicate withdraw is idempotent");
+  assert(canIssueUltimatum("russia").ok, "can re-issue after withdraw");
+  assert(issueUltimatum("russia", "tariffCut"), "re-issue after withdraw");
+  G.q = (G.q || 0) + 1;
+  assert(!canWithdrawUltimatum("russia"), "no withdraw after the quarter advances");
+  assert(!withdrawUltimatum("russia"), "withdraw fails after Deliver");
+  assert(
+    G.ultimatums.russia && G.ultimatums.russia.status === "pending",
+    "still pending after failed withdraw",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 50;
   G.rel.france = 40;
   assert(canIssueUltimatum("france").ok, "ultimatum available at rel 40");
   assert(issueUltimatum("france", "political"), "issue ultimatum to France");
@@ -6151,6 +6190,48 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(
     !diploMapMarkers(G).some((m) => m.kind === "ultimatum"),
     "resolved ultimatum drops from map markers",
+  );
+}
+
+{
+  newGame();
+  G = getG();
+  G.capital = 80;
+  G.rel.russia = 40;
+  assignEnvoy("russia");
+  G.draft.missions = { russia: "summit" };
+  addDiploLedger(G, "russia", {
+    id: "mission_demarche_0",
+    label: "Formal protest",
+    pts: -3,
+  });
+  setSanctionStance(G, "russia", { against: true });
+  issueUltimatum("russia", "tariffCut");
+  const stacked = diploMapMarkers(G);
+  const russiaKinds = stacked
+    .filter((m) => m.partnerId === "russia")
+    .map((m) => m.kind)
+    .sort();
+  assert(
+    russiaKinds.includes("envoy") &&
+      russiaKinds.includes("summit_staged") &&
+      russiaKinds.includes("protest") &&
+      russiaKinds.includes("sanctions") &&
+      russiaKinds.includes("ultimatum"),
+    "one partner can show envoy, staged summit, protest, sanctions and ultimatum",
+  );
+
+  G.draft.missions = { germany: "demarche", france: "sanctionsPosture" };
+  const staged = diploMapMarkers(G);
+  assert(
+    staged.some((m) => m.partnerId === "germany" && m.kind === "protest_staged"),
+    "staged protest marker",
+  );
+  assert(
+    staged.some(
+      (m) => m.partnerId === "france" && m.kind === "sanctions_staged",
+    ),
+    "staged sanctions marker",
   );
 }
 

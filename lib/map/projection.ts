@@ -50,17 +50,41 @@ export const BOARD_W = 360;
  *  degrees-per-unit scale, so the plate is never distorted. */
 export const BOARD_H = LAT_MAX - LAT_MIN;
 
-/** How far the land is raised above the sea plane. Small next to BOARD_W
- *  (land reads as relief, not as towers) but large enough that a country's
- *  extruded side wall is a visible border against its neighbour. */
-export const LAND_HEIGHT = 1.9;
+/** How far the land is raised above the sea plane. Tall enough that the
+ *  slab throws a readable drop on the water under the raking lamp, still
+ *  small next to BOARD_W so countries read as relief, not towers. */
+export const LAND_HEIGHT = 0.6;
+/** How far trees, peaks, cities and diplo tokens are planted into the
+ *  cap. The raking lamp otherwise throws their drop from the bulky top
+ *  of the mesh and leaves a halo at the foot — the same gap the country
+ *  walls had on the water. */
+export const LAND_PLANT_SINK = 0.06;
+/** How far the slab continues below the still-water line, so the sea
+ *  meets the side wall instead of leaving a gap under the country. The
+ *  top face stays at LAND_HEIGHT; trees and cities do not move. */
+export const LAND_DRAFT = 0.22;
 
 /** Extra height a lit country (home / hovered / selected) is raised by, so
  *  picking one reads as the land lifting off the board rather than only as
  *  a colour change. Shared, not private to the terrain: anything planted on
  *  a country's surface — a capital spire, a label anchor — has to rise with
  *  it or it sinks into the slab. */
-export const LAND_LIFT_HOT = 0.55;
+export const LAND_LIFT_HOT = 0.2;
+
+/** Added on top of LAND_LIFT_HOT when a country that is already lit (the
+ *  player's seat, or the selected picker country) is also hovered. Without
+ *  this, hovering the default-home UK is a no-op: it is already at the hot
+ *  height, so the slab never appears to rise or fall. */
+export const LAND_LIFT_HOVER = 0.2;
+
+/** World-space extra Y for a country's slab. Hover of a cold country matches
+ *  the rest-hot height; hover of an already-lit country adds LAND_LIFT_HOVER
+ *  so the pointer still reads as a lift. */
+export function landLift(restHot: boolean, hovered: boolean): number {
+  if (restHot && hovered) return LAND_LIFT_HOT + LAND_LIFT_HOVER;
+  if (restHot || hovered) return LAND_LIFT_HOT;
+  return 0;
+}
 
 /** Normalised board → world ground position (the y=0 sea plane). The board
  *  is centred on the origin so the wrap tiling below is symmetric, and

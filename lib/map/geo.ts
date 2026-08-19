@@ -7,7 +7,7 @@
  * Everything here works in normalised board coords (see lib/map/projection).
  */
 
-import { project, type Point } from "./projection.ts";
+import { BOARD_H, BOARD_W, project, type Point } from "./projection.ts";
 
 export type Ring = Point[];
 /** [outer, ...holes] */
@@ -229,4 +229,91 @@ export function polysCentroid(polys: Polys): Point {
     }
   }
   return best ? ringCentroid(best) : [0.5, 0.5];
+}
+
+function worldSep(a: Point, b: Point) {
+  return Math.hypot((a[0] - b[0]) * BOARD_W, (a[1] - b[1]) * BOARD_H);
+}
+
+/** Outer ring that contains `p`, else the nearest landmass — so London
+ *  walks onto Great Britain, not toward Northern Ireland. */
+function homeRing(p: Point, polys: Polys): Ring | null {
+  for (const rings of polys) {
+    const outer = rings[0];
+    if (!outer || outer.length < 3) continue;
+    if (!pointInRing(p[0], p[1], outer)) continue;
+    let hole = false;
+    for (let r = 1; r < rings.length; r++) {
+      if (pointInRing(p[0], p[1], rings[r]!)) {
+        hole = true;
+        break;
+      }
+    }
+    if (!hole) return outer;
+  }
+  let best: Ring | null = null;
+  let bestD = Infinity;
+  for (const rings of polys) {
+    const outer = rings[0];
+    if (!outer || outer.length < 3) continue;
+    const d = worldSep(p, ringCentroid(outer));
+    if (d < bestD) {
+      bestD = d;
+      best = outer;
+    }
+  }
+  return best;
+}
+
+/** Radius of the Kenney city cluster, world units. Used to tell "the pin
+ *  is on land but the block hangs into the sea" from a true inland seat. */
+const CAPITAL_FOOTPRINT = 0.85;
+/** Furthest a pin may walk toward the interior. London's Thames bite on
+ *  110m is under a degree; this is a ceiling, not a target. */
+const CAPITAL_MAX_SHIFT = 2.6;
+
+function wetFraction(nx: number, ny: number, polys: Polys, rWorld: number) {
+  const dx = rWorld / BOARD_W;
+  const dy = rWorld / BOARD_H;
+  let wet = 0;
+  let n = 0;
+  const sample = (u: number, v: number) => {
+    n++;
+    if (!pointInPolys(nx + u * dx, ny + v * dy, polys)) wet++;
+  };
+  sample(0, 0);
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2;
+    sample(Math.cos(a), Math.sin(a));
+  }
+  return n ? wet / n : 1;
+}
+
+/**
+ * Slide a capital that sits in the sea (or whose city footprint hangs off
+ * a simplified 110m coast) toward the interior of its own landmass. No-op
+ * when the pin already has land under the cluster.
+ */
+export function pullInland(p: Point, polys: Polys): Point {
+  if (!polys.length) return p;
+  const ring = homeRing(p, polys);
+  if (!ring) return p;
+  const c = ringCentroid(ring);
+  let best: Point = p;
+  let bestWet = wetFraction(p[0], p[1], polys, CAPITAL_FOOTPRINT);
+  if (bestWet === 0) return p;
+  let x = p[0];
+  let y = p[1];
+  for (let i = 0; i < 36; i++) {
+    x += (c[0] - x) * 0.12;
+    y += (c[1] - y) * 0.12;
+    if (worldSep(p, [x, y]) > CAPITAL_MAX_SHIFT) break;
+    const w = wetFraction(x, y, polys, CAPITAL_FOOTPRINT);
+    if (w < bestWet - 1e-6) {
+      bestWet = w;
+      best = [x, y];
+    }
+    if (w === 0) break;
+  }
+  return best;
 }

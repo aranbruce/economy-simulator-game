@@ -4,6 +4,21 @@ import { Color, Material, Mesh, MeshStandardMaterial, Object3D } from "three";
 
 export const MODEL_URLS = {
   boat: "/models/boats/boat.glb",
+  treeDefault: "/models/trees/tree_default.glb",
+  treeCone: "/models/trees/tree_cone.glb",
+  treeOak: "/models/trees/tree_oak.glb",
+  treePalm: "/models/trees/tree_palm.glb",
+  buildingA: "/models/cities/building-a.glb",
+  buildingC: "/models/cities/building-c.glb",
+  buildingE: "/models/cities/building-e.glb",
+  cloudA: "/models/clouds/cloud-a.glb",
+  cloudE: "/models/clouds/cloud-e.glb",
+  mountainHill: "/models/mountains/hill.glb",
+  mountainPeak: "/models/mountains/peak.glb",
+  mountainRange: "/models/mountains/range.glb",
+  tent: "/models/diplo/tent.glb",
+  envoy: "/models/diplo/envoy.glb",
+  target: "/models/diplo/target.glb",
 } as const;
 
 export type ModelKey = keyof typeof MODEL_URLS;
@@ -104,11 +119,10 @@ export function clearModelCache() {
 /** A ready-to-place instance with its own materials.
  *
  *  No axis correction is applied or needed: the scene is a genuine 3D world
- *  with y up, and every asset in public/models is Kenney-style — authored
- *  y-up with -z forward, the same convention `bezierHeading()` computes a
- *  route heading for. An asset authored to some other convention would need
- *  a per-key correction quaternion reintroduced here; see
- *  public/models/NOTICE.md. */
+ *  with y up, and every asset in public/models is authored y-up with
+ *  -z forward (Kenney boats, trees and buildings; Quaternius clouds).
+ *  An asset authored to some other convention would need a per-key
+ *  correction quaternion reintroduced here; see public/models/NOTICE.md. */
 export async function instantiateModel(key: ModelKey): Promise<Object3D> {
   const template = await loadModelTemplate(key);
   const inner = template.clone(true);

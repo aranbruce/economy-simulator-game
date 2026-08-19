@@ -24,37 +24,37 @@ export const BOARD_METRICS = [
 ];
 
 /** Fixed fills so each country reads apart — used by Countries view and setup.
- *  A warm ochre/terracotta/olive family (aged-atlas palette), not the cool
- *  blue-grey set this used to be — no blues or purples in the roster. */
+ *  Rose / rust / gold family (#D4896E, #C46B2E, #F2C14A and kin), kept
+ *  saturated enough to lift off the scenery tan. */
 export const REALM_FILL: Record<string, string> = {
-  home: "#c9a25c",
-  kingdom: "#c9a25c",
-  germany: "#a86a48",
-  france: "#8f8049",
-  italy: "#b5714a",
-  spain: "#8b6b3f",
-  netherlands: "#71805a",
-  poland: "#9c8c4f",
-  united_states: "#a2825a",
-  canada: "#7a8a5a",
-  china: "#b08050",
-  russia: "#8a7060",
-  india: "#c07a3a",
-  brazil: "#9a5a45",
-  mexico: "#8a6a4a",
-  argentina: "#a87850",
-  japan: "#b06a5a",
-  korea: "#9a7a4a",
-  australia: "#7a9060",
-  indonesia: "#8a9a5a",
-  vietnam: "#6a8a55",
-  turkey: "#a6704a",
-  saudi: "#c09050",
-  uae: "#d0a060",
-  nigeria: "#8aa060",
-  south_africa: "#9aa070",
-  egypt: "#b09a5a",
-  kenya: "#7a9a50",
+  home: "#D4896E",
+  kingdom: "#D4896E",
+  germany: "#C46B2E",
+  france: "#F2C14A",
+  italy: "#E07040",
+  spain: "#E8A85C",
+  netherlands: "#D89848",
+  poland: "#F0D46A",
+  united_states: "#B85A2C",
+  canada: "#E09050",
+  china: "#E8B040",
+  russia: "#A84A28",
+  india: "#F5C84E",
+  brazil: "#E08840",
+  mexico: "#D4A058",
+  argentina: "#B04830",
+  japan: "#D4A048",
+  korea: "#D06038",
+  australia: "#F0B838",
+  indonesia: "#C87848",
+  vietnam: "#D48838",
+  turkey: "#B05030",
+  saudi: "#F5D070",
+  uae: "#D08040",
+  nigeria: "#D07038",
+  south_africa: "#E8C070",
+  egypt: "#C07040",
+  kenya: "#E09858",
 };
 const HOME_MARK = "#D4AF69";
 const NO_BLOC_FILL = "#4a3a28";
@@ -174,8 +174,7 @@ export function boardMetricColour(
 ) {
   if (!G) return METRIC_MISSING;
   if (metric === "countries") {
-    if (role === "home") return HOME_MARK;
-    return REALM_FILL[role] || "#6a7a94";
+    return REALM_FILL[role] || "#D4896E";
   }
   if (metric === "blocs") {
     if (role === "home" && !roleBlocId(role, G)) return HOME_MARK;

@@ -9,14 +9,13 @@ import {
 } from "react";
 import { feature } from "topojson-client";
 import {
+  ACESFilmicToneMapping,
   AmbientLight,
   Color,
   DirectionalLight,
   Fog,
   HemisphereLight,
-  Mesh,
-  MeshStandardMaterial,
-  PlaneGeometry,
+  PCFShadowMap,
   Scene,
   Vector3,
   WebGLRenderer,
@@ -27,8 +26,12 @@ import {
   activePartners,
   diploMapMarkers,
   playerCountryId,
+  realmGdpBn,
+  fmtGdpBn,
+  currencyForSeat,
 } from "../../lib/sim/engine.ts";
 import { COUNTRIES } from "../../lib/sim/countries.ts";
+import { majorTradePairs, bilateralWeight } from "../../lib/sim/tradeMatrix.ts";
 import {
   HOME_ISO,
   partnerForIso,
@@ -42,7 +45,9 @@ import {
 import { realmByRole } from "../../lib/sim/realms.ts";
 import {
   LAND_HEIGHT,
+  BOARD_W,
   boardToWorld,
+  landLift,
   project,
   worldToBoard,
   wrapDelta,
@@ -51,51 +56,157 @@ import {
   geomToPolys,
   pointInPolys,
   polysCentroid,
+  pullInland,
   type Polys,
 } from "../../lib/map/geo.ts";
+import { punchCanalHoles } from "../../lib/map/canals.ts";
 import { MapCamera } from "./camera.ts";
-import { buildTerrain, type CountryPaint, type Terrain } from "./terrain.ts";
-import { buildRouteLayer, type RouteLayer, type RouteSpec } from "./routes.ts";
+import {
+  buildTerrain,
+  TERRAIN_REV,
+  type CountryPaint,
+  type Terrain,
+} from "./terrain.ts";
+import {
+  buildRouteLayer,
+  resampleLane,
+  ROUTES_REV,
+  type RouteLayer,
+  type RouteSpec,
+} from "./routes.ts";
 import { createFleet, type Fleet, type FleetSpec } from "./fleet.ts";
+import { createSea, SEA_SHADER_REV, SEA_Y, type Sea } from "./sea.ts";
+import { createBoardGrid, BOARD_GRID_REV } from "./boardGrid.ts";
+import { createSky, type Sky } from "./sky.ts";
+import { createScenery, SCENERY_REV, type Scenery } from "./scenery.ts";
+import {
+  createDiploProps,
+  DIPLO_PROPS_REV,
+  type DiploKind,
+  type DiploProps,
+  type DiploPropSpec,
+} from "./diploProps.ts";
+import {
+  buildOceanGrid,
+  pathLength,
+  planNetwork,
+  type OceanGrid,
+} from "../../lib/map/seaRoutes.ts";
 import {
   createOverlay,
   DIPLO_MARKER_ORDER,
+  diploLegendKind,
   type BadgeSpec,
   type LabelSpec,
   type MapOverlay,
 } from "./overlay.ts";
 import {
+  createRealmLabels,
+  REALM_LABELS_REV,
+  type RealmLabels,
+} from "./realmLabels.ts";
+import {
   bucketRoute,
   periodForDistance,
   relationTint,
-  routeDistance,
   routePhaseSeed,
-  routeVolume,
 } from "./boats.ts";
 import { clearModelCache } from "./models.ts";
+import { queryPointTraffic, type PairLane } from "./laneHover.ts";
+import RouteHoverTip, { type HoverPairRow } from "./RouteHoverTip.tsx";
+import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
 
-/** Sea colour, and the darkness the fog fades the far board into. Both were
- *  flat canvas fills on the map this replaced. */
-const OCEAN = 0x3c4a3f;
-const HORIZON = 0x1b130c;
-const SCENERY_FILL = "#3a3226";
-const SETUP_SELECTED = "#D4AF69";
+/** Darkness the fog fades the far board into — a parchment dusk, not
+ *  a black void, so the plate reads as a document on a desk. */
+const HORIZON = 0x3a3228;
+/** Muted atlas inks for countries that are not a playable seat — hashed
+ *  per ISO so neighbours don't melt into one tan, the way Suzerain's
+ *  yellows and ochres sit apart. Kept duller than REALM_FILL. */
+const SCENERY_FILLS = [
+  "#A48B62",
+  "#B49A70",
+  "#8C7354",
+  "#9A8868",
+  "#B8A47C",
+  "#8A7A58",
+  "#A08058",
+  "#94866A",
+];
 const HOVER_LIFT = 1.1;
+
+function sceneryFill(iso: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < iso.length; i++) {
+    h = Math.imul(h ^ iso.charCodeAt(i), 16777619);
+  }
+  return SCENERY_FILLS[(h >>> 0) % SCENERY_FILLS.length]!;
+}
+
+function seatLabel(id: string) {
+  if (id === "kingdom" || id === "home") return "United Kingdom";
+  return COUNTRIES.find((c) => c.id === id)?.name || id;
+}
+
+function isPlayerSeat(id: string, g: any) {
+  const playerId = playerCountryId(g?.homeRole);
+  return id === playerId || id === "home" || id === "kingdom";
+}
+
+/** Directed flow index → display currency, same scaling as TradePanel. */
+function flowAmountLabel(fromId: string, index: number, g: any, ccy: string) {
+  if (!(index > 0) || !g?.econ) return "—";
+  const gdpBn = realmGdpBn(isPlayerSeat(fromId, g) ? "home" : fromId, g);
+  const y = isPlayerSeat(fromId, g)
+    ? g.econ.gdp != null
+      ? g.econ.gdp
+      : 100
+    : (g.world?.[fromId]?.econ?.gdp ??
+      g.econ.nations?.[fromId]?.y ??
+      100);
+  const bn = gdpBn * (index / Math.max(y, 1e-6));
+  return fmtGdpBn(bn, ccy, g);
+}
+
+/** Bump when key/fill lights or the shadow recipe change so the WebGL
+ *  scene remounts. */
+const MAP_LIGHT_REV = 5;
+/** Key-light offset from the focus. High enough to keep country walls
+ *  from reading as cliffs, low enough that trees and peaks throw a
+ *  drop you can actually see (the old 520-up lamp sat almost vertical). */
+const SUN_OFF_X = -280;
+const SUN_OFF_Y = 300;
+const SUN_OFF_Z = -210;
+/** Kenney tokens sit just off the capital star so they do not cover it. */
+const DIPLO_OFFSET: Record<DiploKind, [number, number]> = {
+  envoy: [1.45, 0.2],
+  summit: [0.2, 1.5],
+  protest: [-0.2, -1.5],
+  sanctions: [1.35, 1.25],
+  ultimatum: [-1.45, 0.2],
+};
+
+function visualDiploKind(kind: string): DiploKind | null {
+  const visual = diploLegendKind(kind);
+  if (
+    visual === "envoy" ||
+    visual === "summit" ||
+    visual === "protest" ||
+    visual === "sanctions" ||
+    visual === "ultimatum"
+  ) {
+    return visual;
+  }
+  return null;
+}
+
 /** Antarctica — not on the board. */
 const SKIP_ISO = new Set(["010"]);
-
-/** How far the sea extends past the board. Only ever seen edge-on through
- *  fog, so it just has to outrun the far plane of any allowed zoom. */
-const SEA_SIZE = 5000;
-/** The sea sits a hair below y=0 so it can't z-fight the underside of the
- *  land slabs standing on it. */
-const SEA_Y = -0.15;
 
 /** Fog distances as multiples of the camera's own distance to the board, so
  *  the depth cue reads the same at every zoom instead of swallowing the
  *  whole frame when you pull back. */
-const FOG_NEAR_K = 0.9;
-const FOG_FAR_K = 3.4;
+const FOG_NEAR_K = 1.2;
+const FOG_FAR_K = 3.8;
 
 /** Screen-pixel drag before a press stops counting as a click. */
 const CLICK_SLOP = 4;
@@ -174,6 +285,25 @@ function polysForRole(
   return polys.length ? polys : null;
 }
 
+/** Real capital lat/lng, pulled onto the 110m landmass when the pin (or
+ *  the city cluster around it) would otherwise sit in the sea. */
+function capitalOnBoard(
+  cap: { lat: number; lng: number },
+  iso: string,
+  countries: CountryFeature[],
+): [number, number] {
+  const [nx, ny] = project(cap.lng, cap.lat);
+  const feat = countries.find((c) => c.iso === String(iso).padStart(3, "0"));
+  return feat?.polys.length ? pullInland([nx, ny], feat.polys) : [nx, ny];
+}
+
+function capitalOfRole(role: string | null | undefined) {
+  if (!role) return null;
+  const iso = String(realmByRole(role).iso || "").padStart(3, "0");
+  const country = COUNTRIES.find((c) => c.iso === iso);
+  return country?.capital ? { cap: country.capital, iso: country.iso } : null;
+}
+
 /** A small warm-tinted noise tile, generated once, used as the repeating
  *  paper grain over the whole scene — the aged-atlas finish the flat map
  *  composited in canvas, now a CSS layer above the WebGL canvas. */
@@ -243,6 +373,15 @@ export default function WorldMap3D({
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayHostRef = useRef<HTMLDivElement>(null);
+  const routeTipRef = useRef<HTMLDivElement>(null);
+  const hoverLaneKeyRef = useRef<string | null>(null);
+  const pairLanesRef = useRef<PairLane[]>([]);
+  const paintGuidesRef = useRef<
+    { path: { x: number; y: number; z: number }[]; edges?: string[] }[]
+  >([]);
+  const hubEdgesRef = useRef<
+    { key: string; path: { x: number; y: number; z: number }[] }[]
+  >([]);
 
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const sceneRef = useRef<Scene | null>(null);
@@ -251,12 +390,37 @@ export default function WorldMap3D({
   const routeLayerRef = useRef<RouteLayer | null>(null);
   const fleetRef = useRef<Fleet | null>(null);
   const overlayRef = useRef<MapOverlay | null>(null);
+  const labelsRef = useRef<RealmLabels | null>(null);
+  const seaRef = useRef<Sea | null>(null);
+  const skyRef = useRef<Sky | null>(null);
+  const sceneryRef = useRef<Scenery | null>(null);
+  const diploPropsRef = useRef<DiploProps | null>(null);
+  const oceanRef = useRef<OceanGrid | null>(null);
   const sizeRef = useRef({ W: 1, H: 1 });
 
   const countriesRef = useRef<CountryFeature[]>([]);
   const hoverRoleRef = useRef<string | null>(null);
   const hoverIsoRef = useRef<string | null>(null);
   const failed = useRef(false);
+  const selectedRoleRef = useRef(selectedRole);
+  selectedRoleRef.current = selectedRole;
+  const setupModeRef = useRef(setupMode);
+  setupModeRef.current = setupMode;
+  const { pref } = useCurrencyPref();
+  const displayCcyRef = useRef("USD");
+  displayCcyRef.current =
+    pref.display || currencyForSeat(getG()?.homeRole) || "USD";
+  const didFocusSetupRef = useRef(false);
+
+  const focusSetupCapital = useCallback((role: string | null | undefined) => {
+    const cam = camRef.current;
+    const cap = capitalOfRole(role);
+    if (!cam || !cap) return false;
+    const [nx, ny] = capitalOnBoard(cap.cap, cap.iso, countriesRef.current);
+    const { W, H } = sizeRef.current;
+    cam.focusAt(nx, ny, W / H);
+    return true;
+  }, []);
 
   const pointersRef = useRef(new Map<number, { x: number; y: number }>());
   const panRef = useRef<{
@@ -269,6 +433,7 @@ export default function WorldMap3D({
 
   const [geoReady, setGeoReady] = useState(false);
   const [glReady, setGlReady] = useState(false);
+  const [hoverPairs, setHoverPairs] = useState<HoverPairRow[] | null>(null);
   const ready = geoReady && glReady;
 
   const fail = useCallback(() => {
@@ -303,6 +468,7 @@ export default function WorldMap3D({
             return { iso, polys };
           })
           .filter((c): c is CountryFeature => c != null);
+        punchCanalHoles(countriesRef.current);
         setGeoReady(true);
       })
       .catch((err) => {
@@ -324,13 +490,21 @@ export default function WorldMap3D({
 
     let renderer: WebGLRenderer;
     try {
-      renderer = new WebGLRenderer({ canvas, antialias: true });
+      renderer = new WebGLRenderer({
+        canvas,
+        antialias: true,
+        powerPreference: "high-performance",
+      });
     } catch (err) {
       console.error("WorldMap3D: WebGL unavailable", err);
       fail();
       return;
     }
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.toneMapping = ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.12;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = PCFShadowMap;
     rendererRef.current = renderer;
 
     const scene = new Scene();
@@ -338,39 +512,67 @@ export default function WorldMap3D({
     scene.fog = new Fog(HORIZON, 100, 400);
     sceneRef.current = scene;
 
-    scene.add(new AmbientLight(0xfff2e0, 0.5));
-    scene.add(new HemisphereLight(0x9fb8c9, 0x2a2114, 0.55));
-    /* One low sun from the north-west. Land is extruded, so a raking key
-       light is what turns each country's side wall into a visible border
-       and gives the board its relief. */
-    const sun = new DirectionalLight(0xfff3e0, 1.25);
-    sun.position.set(-260, 320, -180);
+    scene.add(new AmbientLight(0xfff4e8, 0.5));
+    scene.add(new HemisphereLight(0xe8dcc8, 0x3a3228, 0.42));
+    /* Desk lamp from the north-west: relief is a short drop on the
+       paper, not a wall of black cliffs. */
+    const sun = new DirectionalLight(0xfff6ea, 1.15);
+    sun.position.set(SUN_OFF_X, SUN_OFF_Y, SUN_OFF_Z);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    /* No normalBias — it shrinks trunks and mountain feet in the shadow
+       map and leaves a gap at the base. A hair of constant bias is enough
+       to keep self-shadow acne off the slabs. */
+    sun.shadow.bias = -0.00015;
+    sun.shadow.normalBias = 0;
+    sun.shadow.radius = 1;
+    sun.shadow.camera.near = 20;
+    sun.shadow.camera.far = 900;
     scene.add(sun);
+    scene.add(sun.target);
+    const fill = new DirectionalLight(0xe8d8c0, 0.32);
+    fill.position.set(180, 220, 200);
+    scene.add(fill);
 
-    const seaGeom = new PlaneGeometry(SEA_SIZE, SEA_SIZE);
-    const seaMat = new MeshStandardMaterial({
-      color: OCEAN,
-      roughness: 0.88,
-      metalness: 0.04,
-    });
-    const sea = new Mesh(seaGeom, seaMat);
-    sea.rotation.x = -Math.PI / 2;
-    sea.position.y = SEA_Y;
-    scene.add(sea);
+    const sky = createSky();
+    skyRef.current = sky;
+    scene.add(sky.mesh);
+
+    const sea = createSea(countriesRef.current);
+    seaRef.current = sea;
+    scene.add(sea.mesh);
+
+    const grid = createBoardGrid();
+    scene.add(grid.group);
 
     let terrain: Terrain;
     try {
       terrain = buildTerrain(countriesRef.current);
     } catch (err) {
       console.error("WorldMap3D: terrain build failed", err);
+      grid.dispose();
+      sea.dispose();
+      sky.dispose();
       renderer.dispose();
       rendererRef.current = null;
       sceneRef.current = null;
+      seaRef.current = null;
+      skyRef.current = null;
       fail();
       return;
     }
     terrainRef.current = terrain;
     scene.add(terrain.group);
+
+    oceanRef.current = buildOceanGrid(countriesRef.current);
+
+    const scenery = createScenery(countriesRef.current);
+    sceneryRef.current = scenery;
+    scene.add(scenery.group);
+
+    const diploProps = createDiploProps();
+    diploPropsRef.current = diploProps;
+    scene.add(diploProps.group);
 
     const routeLayer = buildRouteLayer();
     routeLayerRef.current = routeLayer;
@@ -381,6 +583,10 @@ export default function WorldMap3D({
 
     const overlay = createOverlay(host);
     overlayRef.current = overlay;
+
+    const labels = createRealmLabels();
+    labelsRef.current = labels;
+    scene.add(labels.group);
 
     const cam = new MapCamera();
     camRef.current = cam;
@@ -402,6 +608,9 @@ export default function WorldMap3D({
       cam.apply(W / H);
     };
     resize();
+    if (setupModeRef.current && focusSetupCapital(selectedRoleRef.current)) {
+      didFocusSetupRef.current = true;
+    }
     window.addEventListener("resize", resize);
     setGlReady(true);
 
@@ -413,8 +622,30 @@ export default function WorldMap3D({
       const fog = scene.fog as Fog;
       fog.near = cam.dist * FOG_NEAR_K;
       fog.far = cam.dist * FOG_FAR_K;
-      fleet.update(performance.now() / 1000);
+      const nowS = performance.now() / 1000;
+      sea.update(nowS);
+      sky.update(cam.camera.position);
+      scenery.update(nowS);
+      routeLayer.update(nowS);
+      fleet.update(nowS);
+      /* Keep the shadow frustum around whatever is in frame, otherwise a
+         single map for the whole 360° board is a few texels per country. */
+      sun.target.position.set(cam.focusX, 0, cam.focusZ);
+      sun.position.set(
+        cam.focusX + SUN_OFF_X,
+        SUN_OFF_Y,
+        cam.focusZ + SUN_OFF_Z,
+      );
+      const shadowSpan = Math.max(36, cam.dist * 0.72);
+      const shadowCam = sun.shadow.camera;
+      shadowCam.left = -shadowSpan;
+      shadowCam.right = shadowSpan;
+      shadowCam.top = shadowSpan;
+      shadowCam.bottom = -shadowSpan;
+      shadowCam.updateProjectionMatrix();
+      sun.target.updateMatrixWorld();
       overlay.update(cam, W, H);
+      labels.update(cam, W, H);
       renderer.render(scene, cam.camera);
       raf = requestAnimationFrame(frame);
     };
@@ -448,9 +679,13 @@ export default function WorldMap3D({
       fleet.dispose();
       routeLayer.dispose();
       terrain.dispose();
+      scenery.dispose();
+      diploProps.dispose();
+      sea.dispose();
+      grid.dispose();
+      sky.dispose();
       overlay.dispose();
-      seaGeom.dispose();
-      seaMat.dispose();
+      labels.dispose();
       renderer.dispose();
       clearModelCache();
       rendererRef.current = null;
@@ -460,18 +695,57 @@ export default function WorldMap3D({
       routeLayerRef.current = null;
       fleetRef.current = null;
       overlayRef.current = null;
+      labelsRef.current = null;
+      seaRef.current = null;
+      skyRef.current = null;
+      sceneryRef.current = null;
+      diploPropsRef.current = null;
+      oceanRef.current = null;
       setGlReady(false);
     };
-  }, [geoReady, fail]);
+  }, [
+    geoReady,
+    fail,
+    focusSetupCapital,
+    SEA_SHADER_REV,
+    REALM_LABELS_REV,
+    TERRAIN_REV,
+    BOARD_GRID_REV,
+    MAP_LIGHT_REV,
+    ROUTES_REV,
+    SCENERY_REV,
+    DIPLO_PROPS_REV,
+  ]);
+
+  /* Setup: centre on the opening random pick once the board is up. Later
+     clicks only change the highlighted seat — the player keeps the view.
+     Zoom is left alone so a player who has already pinched in stays there. */
+  useEffect(() => {
+    if (!setupMode) {
+      didFocusSetupRef.current = false;
+      return;
+    }
+    if (!ready || didFocusSetupRef.current) return;
+    if (focusSetupCapital(selectedRole)) didFocusSetupRef.current = true;
+  }, [setupMode, selectedRole, ready, focusSetupCapital]);
 
   /* ── Painting: colours, labels, badges, capitals ──────────────────── */
 
   const syncPaint = useCallback(() => {
     const terrain = terrainRef.current;
     const overlay = overlayRef.current;
+    const realmLabels = labelsRef.current;
     const routeLayer = routeLayerRef.current;
+    const scenery = sceneryRef.current;
     const countries = countriesRef.current;
-    if (!terrain || !overlay || !routeLayer || !countries.length) return;
+    if (
+      !terrain ||
+      !overlay ||
+      !realmLabels ||
+      !routeLayer ||
+      !countries.length
+    )
+      return;
 
     const G = getG();
     const hRole = homeRole || G?.homeRole || "home";
@@ -479,30 +753,88 @@ export default function WorldMap3D({
     const hoverRole = hoverRoleRef.current;
     const hoverIso = hoverIsoRef.current;
 
-    const isSelected = (role: string | null) => selectedRole === role;
+    const isSelected = (role: string | null) => !!role && selectedRole === role;
+    /* Setup hovers by ISO so only the pointed-at country lifts, not a
+       whole bloc. Require hoverRole too — that is pickRole, so scenery
+       land (no seat) never raises. Both-null used to match every
+       unassigned country and leave the rest of the board stuck up. */
     const isHovered = (role: string | null, iso: string) =>
-      setupMode ? hoverIso === iso : hoverRole === role;
-    const isHot = (role: string | null, iso: string) =>
-      !!role && (isSelected(role) || isHovered(role, iso) || role === "home");
+      setupMode
+        ? hoverRole != null && hoverIso != null && hoverIso === iso
+        : role != null && hoverRole === role;
+    /* Home is permanently lit in play so your seat stays popped out of the
+       board. In setup there is no committed home yet — ISO 826 still maps
+       to the "home" role as the picker default, and treating that as rest-
+       hot left the UK stuck at the raised height, so hovering it could
+       never lift or drop the slab. */
+    const isRestHot = (role: string | null) =>
+      !!role && (isSelected(role) || (!setupMode && role === "home"));
 
     const colours = new Map<string, CountryPaint>();
+    const isoLift = new Map<string, number>();
     for (const c of countries) {
       const role = roleForFeature(c.iso, hRole, hIso);
       let fill: string;
       if (!role) {
-        fill = SCENERY_FILL;
+        fill = sceneryFill(c.iso);
       } else if (setupMode) {
         fill = isSelected(role)
-          ? SETUP_SELECTED
-          : (REALM_FILL as Record<string, string>)[role] || "#6a7a94";
+          ? liftColour(
+              (REALM_FILL as Record<string, string>)[role] || "#D4896E",
+              1.12,
+            )
+          : (REALM_FILL as Record<string, string>)[role] || "#D4896E";
       } else {
         fill = roleColour(role, mapMetric ?? null, selectedRole ?? null);
       }
-      const hot = isHot(role, c.iso);
+      const restHot = isRestHot(role);
+      const hovered = isHovered(role, c.iso);
+      const hot = restHot || hovered;
+      const lift = landLift(restHot, hovered);
+      if (lift) isoLift.set(c.iso, lift);
       if (hot && !setupMode) fill = liftColour(fill, HOVER_LIFT);
-      colours.set(c.iso, { fill, hot });
+      colours.set(c.iso, { fill, hot, lift });
     }
     terrain.paint(colours);
+    scenery?.setHot(isoLift);
+
+    /* Capital spires. Shown for every realm during country selection
+       (there's no committed home yet to filter against), and for home plus
+       the active partners once a game is running. Built before labels so
+       a name sitting on a capital (or on a neighbour) can be nudged off. */
+    const capitalSources = setupMode
+      ? PARTNERS.filter((c) => c.capital).map((c) => ({
+          cap: c.capital,
+          /* ISO 826 is the "home" picker seat, not the "kingdom" partner —
+             using c.id here left the UK capital out of the selected-role
+             rest-hot set while the land itself was in it. */
+          role: realmRoleForIso(c.iso) || c.id,
+          iso: c.iso,
+        }))
+      : (() => {
+          const home = PARTNERS.find((c) => c.iso === (hIso || HOME_ISO));
+          return [
+            ...(home?.capital
+              ? [{ cap: home.capital, role: "home", iso: home.iso }]
+              : []),
+            ...activePartners(hRole)
+              .filter((p) => p.capital)
+              .map((p) => ({ cap: p.capital, role: p.id, iso: p.iso })),
+          ];
+        })();
+    const capitalSpecs = capitalSources.map(({ cap, role, iso }) => {
+      const [nx, ny] = capitalOnBoard(cap, iso, countries);
+      const [wx, wz] = boardToWorld(nx, ny);
+      const restHot = isRestHot(role);
+      const hovered = isHovered(role, iso);
+      return {
+        key: role,
+        x: wx,
+        z: wz,
+        hot: restHot || hovered,
+        lift: landLift(restHot, hovered),
+      };
+    });
 
     /* Labels: one per realm still on the board. */
     const labelRoles = setupMode
@@ -529,7 +861,13 @@ export default function WorldMap3D({
           ? name
           : boardMetricMapLabel(role, mapMetric ?? null, name, G);
       }
-      const hot = isSelected(role) || hoverRole === role;
+      const iso =
+        role === "home" && !setupMode
+          ? String(hIso || HOME_ISO).padStart(3, "0")
+          : String(realmByRole(role).iso).padStart(3, "0");
+      const restHot = isRestHot(role);
+      const hovered = isHovered(role, iso);
+      const hot = restHot || hovered;
       labels.push({
         key: role,
         text: rawText.toUpperCase(),
@@ -538,13 +876,21 @@ export default function WorldMap3D({
            player's own realm should keep its label even when neither
            selected nor hovered. */
         priority: hot || role === "home" ? 1 : 0,
-        anchor: new Vector3(wx, LAND_HEIGHT, wz),
+        anchor: new Vector3(wx, LAND_HEIGHT + landLift(restHot, hovered), wz),
       });
     }
-    overlay.setLabels(labels);
+    realmLabels.setLabels(
+      labels,
+      capitalSpecs.map((c) => ({ x: c.x, z: c.z })),
+    );
+    scenery?.setLabelClear(realmLabels.clearBoxes());
+    scenery?.setCapitals(capitalSpecs);
 
-    /* Diplomatic activity badges (play only). */
+    /* Diplomatic activity: Kenney tokens at the capital, legend only
+       as chrome. Every live kind on a partner is planted — envoy, summit,
+       protest, sanctions, ultimatum. */
     const badges: BadgeSpec[] = [];
+    const diploSpecs: DiploPropSpec[] = [];
     if (!setupMode && G) {
       const byPartner = new Map<string, string[]>();
       for (const m of diploMapMarkers(G)) {
@@ -552,58 +898,52 @@ export default function WorldMap3D({
         if (list) list.push(m.kind);
         else byPartner.set(m.partnerId, [m.kind]);
       }
+      const capByRole = new Map(capitalSpecs.map((c) => [c.key, c]));
       for (const [partnerId, kinds] of byPartner) {
-        const polys = polysForRole(
-          partnerId,
-          countries,
-          hRole,
-          hIso,
-          setupMode,
+        const sorted = [...kinds].sort(
+          (a, b) =>
+            DIPLO_MARKER_ORDER.indexOf(diploLegendKind(a)) -
+            DIPLO_MARKER_ORDER.indexOf(diploLegendKind(b)),
         );
-        if (!polys) continue;
-        const [nx, ny] = polysCentroid(polys);
-        const [wx, wz] = boardToWorld(nx, ny);
         badges.push({
           key: partnerId,
-          kinds: [...kinds].sort(
-            (a, b) =>
-              DIPLO_MARKER_ORDER.indexOf(a) - DIPLO_MARKER_ORDER.indexOf(b),
-          ),
-          anchor: new Vector3(wx, LAND_HEIGHT, wz),
+          kinds: sorted,
+          anchor: new Vector3(0, 0, 0),
         });
+        const cap = capByRole.get(partnerId);
+        if (!cap) continue;
+        const planted = new Set<DiploKind>();
+        for (const kind of sorted) {
+          const visual = visualDiploKind(kind);
+          if (!visual || planted.has(visual)) continue;
+          planted.add(visual);
+          const [ox, oz] = DIPLO_OFFSET[visual];
+          diploSpecs.push({
+            key: `${partnerId}:${visual}`,
+            kind: visual,
+            x: cap.x + ox,
+            z: cap.z + oz,
+            lift: cap.lift,
+          });
+        }
       }
     }
     overlay.setBadges(badges);
+    diploPropsRef.current?.setProps(diploSpecs);
 
-    /* Capital spires. Shown for every realm during country selection
-       (there's no committed home yet to filter against), and for home plus
-       the active partners once a game is running. */
-    const capitalSources = setupMode
-      ? PARTNERS.filter((c) => c.capital).map((c) => ({
-          cap: c.capital,
-          role: c.id,
-          iso: c.iso,
-        }))
-      : (() => {
-          const home = PARTNERS.find((c) => c.iso === (hIso || HOME_ISO));
-          return [
-            ...(home?.capital
-              ? [{ cap: home.capital, role: "home", iso: home.iso }]
-              : []),
-            ...activePartners(hRole)
-              .filter((p) => p.capital)
-              .map((p) => ({ cap: p.capital, role: p.id, iso: p.iso })),
-          ];
-        })();
-    routeLayer.setCapitals(
-      capitalSources.map(({ cap, role, iso }) => {
-        const [nx, ny] = project(cap.lng, cap.lat);
-        const [wx, wz] = boardToWorld(nx, ny);
-        return { key: role, x: wx, z: wz, hot: isHot(role, iso) };
-      }),
-    );
+    const focusSeat = setupMode
+      ? selectedRole
+        ? selectedRole === "home"
+          ? "kingdom"
+          : selectedRole
+        : null
+      : selectedRole
+        ? selectedRole === "home"
+          ? "kingdom"
+          : selectedRole
+        : playerCountryId(hRole);
+    routeLayer.setSelectedRoute(focusSeat);
 
-    routeLayer.setSelectedRoute(setupMode ? null : (selectedRole ?? null));
     // tick isn't read directly above; it's the cache-busting signal that
     // makes this callback's identity change on every game tick, which
     // re-fires the [ready, syncPaint] effect below and re-reads getG().
@@ -618,90 +958,142 @@ export default function WorldMap3D({
 
   /* ── Trade routes and their boats ─────────────────────────────────── */
 
-  /** Home and partner capitals as world-space anchors, the partner end
-   *  already taken the short way round the wrap. Shared by the route tubes
-   *  and the fleet so the two can't disagree about where a route runs. */
-  const routeAnchors = useCallback(() => {
-    const G = getG();
-    const hRole = homeRole || G?.homeRole || "home";
-    const hIso = homeIso || G?.homeIso || HOME_ISO;
-    const home = PARTNERS.find((c) => c.iso === (hIso || HOME_ISO));
-    if (!home?.capital) return [];
-    const [hnx, hny] = project(home.capital.lng, home.capital.lat);
-    const [hx, hz] = boardToWorld(hnx, hny);
-    return activePartners(hRole)
-      .filter((p) => p.capital)
-      .map((p) => {
-        const [rawNx, ny] = project(p.capital.lng, p.capital.lat);
-        /* Short way round the wrap, not straight across the whole board —
-           see wrapDelta's own doc comment. */
-        const nx = hnx + wrapDelta(hnx, rawNx);
-        const [px, pz] = boardToWorld(nx, ny);
+  /** Capitals of every mapped realm, in world space. Shared by the dashed
+   *  world network and the fleet. */
+  const routeSeats = useCallback(() => {
+    const countries = countriesRef.current;
+    const out: { id: string; x: number; z: number; nx: number; ny: number }[] =
+      [];
+    for (const c of PARTNERS) {
+      if (!c.capital) continue;
+      const [nx, ny] = capitalOnBoard(c.capital, c.iso, countries);
+      const [x, z] = boardToWorld(nx, ny);
+      out.push({ id: c.id, x, z, nx, ny });
+    }
+    return out;
+  }, []);
+
+  const plannedLanes = useCallback(() => {
+    const ocean = oceanRef.current;
+    const seats = routeSeats();
+    if (!seats.length) return { boats: [], draw: [], edges: [] };
+    const byId = new Map(seats.map((s) => [s.id, s]));
+    const pairs = majorTradePairs(seats.map((s) => s.id));
+    const legs = pairs
+      .map((pair) => {
+        const a = byId.get(pair.a);
+        const b = byId.get(pair.b);
+        if (!a || !b) return null;
+        /* Keep both seats on the centre plate. wrapDelta used to slide
+           the far capital onto a wrap tile; that stub missed the highway
+           index and Australia–US never got boats. */
+        const to = ocean
+          ? { x: b.x, y: 0, z: b.z }
+          : (() => {
+              const nx = a.nx + wrapDelta(a.nx, b.nx);
+              const [px, pz] = boardToWorld(nx, b.ny);
+              return { x: px, y: 0, z: pz };
+            })();
         return {
-          partnerId: p.id,
-          homeNorm: [hnx, hny] as [number, number],
-          partnerNorm: [nx, ny] as [number, number],
-          home: { x: hx, y: 0, z: hz },
-          partner: { x: px, y: 0, z: pz },
+          id: pair.a + "+" + pair.b,
+          from: { x: a.x, y: 0, z: a.z },
+          to,
+          owners: [pair.a, pair.b],
         };
-      });
-  }, [homeRole, homeIso]);
+      })
+      .filter((leg): leg is NonNullable<typeof leg> => !!leg);
+    if (!ocean) {
+      return {
+        boats: legs.map((l) => ({
+          id: l.id,
+          owners: l.owners,
+          path: [l.from, l.to],
+          edges: [] as string[],
+        })),
+        draw: legs.map((l) => ({
+          owners: l.owners,
+          path: [l.from, l.to],
+          kind: "highway" as const,
+          highwayId: l.id,
+          color: 0xff453a,
+          edges: [] as string[],
+        })),
+        edges: [] as { key: string; path: typeof legs[0]["from"][] }[],
+      };
+    }
+    return planNetwork(ocean, legs);
+  }, [routeSeats]);
 
   useEffect(() => {
     if (!ready) return;
     const routeLayer = routeLayerRef.current;
     if (!routeLayer) return;
-    if (setupMode) {
-      routeLayer.setRoutes([]);
-      return;
-    }
-    const specs: RouteSpec[] = routeAnchors().map((r) => ({
-      partnerId: r.partnerId,
-      home: r.home,
-      partner: r.partner,
+    const planned = plannedLanes();
+    const specs: RouteSpec[] = planned.draw.map((lane, i) => ({
+      key: (lane.highwayId || lane.kind || "highway") + "#" + i,
+      owners: lane.owners,
+      kind: lane.kind,
+      color: lane.color,
+      path: resampleLane(lane.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
     }));
     routeLayer.setRoutes(specs);
-  }, [ready, setupMode, routeAnchors]);
+  }, [ready, plannedLanes, setupMode]);
 
   useEffect(() => {
     if (!ready) return;
     const fleet = fleetRef.current;
     if (!fleet) return;
-    if (setupMode) {
-      fleet.set([]);
-      return;
-    }
-    const anchors = routeAnchors();
+    const planned = plannedLanes();
     const g = getG();
-    /* g.worldTrade is keyed by real country ids (from NATION_PROFILE /
-       worldSeatIds), not raw role strings — the default "home" role's live
-       data actually lives under "kingdom" (playerCountryId("home")), since
-       NATION_PROFILE has both as distinct entries and only the id matching
-       playerCountryId(g.homeRole) gets the live econ substituted in (see
-       seatsFromWorld in worldTrade.ts). Indexing by the raw role would
-       silently read "home"'s stale/static profile entry instead. */
-    const playerId = playerCountryId(homeRole);
-    const vols = anchors.map((r) =>
-      routeVolume(
-        g,
-        playerId,
-        r.partnerId,
-        COUNTRIES.find((c) => c.id === r.partnerId)?.tradeShare || 0,
-      ),
-    );
-    const maxVol = Math.max(0, ...vols);
+    const flows = g?.worldTrade?.flows;
     const rel = g?.rel || {};
-    const specs: FleetSpec[] = anchors.map((r, i) => ({
-      partnerId: r.partnerId,
-      home: r.home,
-      partner: r.partner,
-      count: bucketRoute(vols[i], maxVol).count,
-      periodS: periodForDistance(routeDistance(r.homeNorm, r.partnerNorm)),
-      tint: relationTint(rel[r.partnerId] ?? 50),
-      phase: routePhaseSeed(r.partnerId),
+    const shown = planned.boats.filter((r) => r.path.length >= 2);
+    const lanes: PairLane[] = shown.map((r) => {
+      const a = r.owners[0] || "";
+      const b = r.owners[1] || "";
+      const ab = flows?.[a]?.[b] || 0;
+      const ba = flows?.[b]?.[a] || 0;
+      const live = ab + ba;
+      return {
+        id: r.id,
+        owners: r.owners,
+        path: resampleLane(r.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
+        vol: live > 0 ? live : bilateralWeight(a, b),
+        ab,
+        ba,
+        directed: live > 0,
+        edges: r.edges,
+      };
+    });
+    pairLanesRef.current = lanes;
+    paintGuidesRef.current = planned.draw.map((lane) => ({
+      path: resampleLane(lane.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
+      edges: lane.edges,
     }));
+    hubEdgesRef.current = (planned.edges || []).map((e) => ({
+      key: e.key,
+      path: resampleLane(e.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
+    }));
+    const maxVol = Math.max(0, ...lanes.map((l) => l.vol));
+    const homeId = g ? playerCountryId(g.homeRole) : "";
+    const specs: FleetSpec[] = lanes.map((l) => {
+      const other =
+        l.owners.find((o) => o !== homeId) || l.owners[0] || l.id;
+      return {
+        partnerId: l.id,
+        path: l.path,
+        count: bucketRoute(
+          l.vol,
+          maxVol,
+          pathLength(l.path) / BOARD_W,
+        ).count,
+        periodS: periodForDistance(pathLength(l.path) / BOARD_W),
+        tint: relationTint(rel[other] ?? 50),
+        phase: routePhaseSeed(l.id),
+      };
+    });
     fleet.set(specs);
-  }, [ready, setupMode, tick, homeRole, routeAnchors]);
+  }, [ready, setupMode, tick, homeRole, plannedLanes]);
 
   /* ── Pointer input ────────────────────────────────────────────────── */
 
@@ -790,6 +1182,25 @@ export default function WorldMap3D({
     if (canvas) canvas.style.cursor = cursor;
   }, []);
 
+  const hideRouteHover = useCallback(() => {
+    const had = hoverLaneKeyRef.current != null;
+    hoverLaneKeyRef.current = null;
+    if (had) setHoverPairs(null);
+  }, []);
+
+  const placeRouteTip = useCallback((clientX: number, clientY: number) => {
+    const tip = routeTipRef.current;
+    const wrap = wrapRef.current;
+    if (!tip || !wrap) return;
+    const rect = wrap.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const y = clientY - rect.top + 16;
+    const flip = x > rect.width - 340;
+    tip.style.left = x + "px";
+    tip.style.top = y + "px";
+    tip.style.transform = flip ? "translateX(-108%)" : "translateX(14px)";
+  }, []);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap || !ready) return;
@@ -864,6 +1275,7 @@ export default function WorldMap3D({
       }
       pinchRef.current.dist = mid.dist;
       panTo(mid.x, mid.y);
+      hideRouteHover();
       return;
     }
 
@@ -877,18 +1289,107 @@ export default function WorldMap3D({
       if (movedRef.current) {
         panTo(e.clientX, e.clientY);
         setCursor("grabbing");
+        hideRouteHover();
         return;
       }
     }
 
+    let traffic = null as ReturnType<typeof queryPointTraffic>;
+    if (!setupMode && cam) {
+      const ndc = ndcAt(e.clientX, e.clientY);
+      const sea = ndc ? cam.groundAt(ndc.x, ndc.y, SEA_Y) : null;
+      if (sea) {
+        /* World units = degrees. The dashed stroke is 0.12° wide on a
+           1° ocean grid; a sub-degree pick radius misses the South
+           Pacific spine the boats do not always sit on. */
+        const maxD = Math.max(2.4, Math.min(7, cam.dist * 0.028));
+        traffic = queryPointTraffic(
+          pairLanesRef.current,
+          paintGuidesRef.current,
+          hubEdgesRef.current,
+          sea.x,
+          sea.z,
+          maxD,
+          2.2,
+        );
+      }
+    }
+    if (traffic) {
+      setCursor("pointer");
+      const key = traffic.lanes
+        .map((l) => l.id + ":" + l.ab.toFixed(2) + ":" + l.ba.toFixed(2))
+        .join("|");
+      if (hoverLaneKeyRef.current !== key) {
+        hoverLaneKeyRef.current = key;
+        const g = getG();
+        const ccy = displayCcyRef.current;
+        const total = traffic.lanes.reduce((s, l) => {
+          if (l.directed) return s + l.ab + l.ba;
+          return s + l.vol;
+        }, 0);
+        const rows: HoverPairRow[] = [];
+        for (const l of traffic.lanes) {
+          const a = l.owners[0] || "";
+          const b = l.owners[1] || "";
+          if (l.directed) {
+            if (l.ab > 0) {
+              rows.push({
+                id: l.id + ">ab",
+                fromRole: a,
+                fromLabel: seatLabel(a),
+                toRole: b,
+                toLabel: seatLabel(b),
+                amount: flowAmountLabel(a, l.ab, g, ccy),
+                share: total > 0 ? l.ab / total : 0,
+              });
+            }
+            if (l.ba > 0) {
+              rows.push({
+                id: l.id + ">ba",
+                fromRole: b,
+                fromLabel: seatLabel(b),
+                toRole: a,
+                toLabel: seatLabel(a),
+                amount: flowAmountLabel(b, l.ba, g, ccy),
+                share: total > 0 ? l.ba / total : 0,
+              });
+            }
+          } else {
+            rows.push({
+              id: l.id,
+              fromRole: a,
+              fromLabel: seatLabel(a),
+              toRole: b,
+              toLabel: seatLabel(b),
+              amount: "—",
+              share: total > 0 ? l.vol / total : 0,
+            });
+          }
+        }
+        rows.sort((x, y) => y.share - x.share);
+        setHoverPairs(rows);
+      }
+      placeRouteTip(e.clientX, e.clientY);
+      if (hoverRoleRef.current || hoverIsoRef.current) {
+        hoverRoleRef.current = null;
+        hoverIsoRef.current = null;
+        syncPaint();
+        onHover?.(null);
+      }
+      return;
+    }
+    if (hoverLaneKeyRef.current) hideRouteHover();
+
     const hit = pickAt(e.clientX, e.clientY);
     const nextRole = hit ? (setupMode ? hit.pickRole : hit.role) : null;
-    const nextIso = hit && setupMode ? hit.iso : null;
+    /* Setup: only a pickable seat counts as hovered. Scenery land still
+       ray-hits, but must not lift or change the cursor. */
+    const nextIso = hit && setupMode && hit.pickRole ? hit.iso : null;
+    const canPick = setupMode ? !!hit?.pickRole : !!hit?.role;
+    setCursor(canPick ? "pointer" : "grab");
     if (nextRole !== hoverRoleRef.current || nextIso !== hoverIsoRef.current) {
       hoverRoleRef.current = nextRole;
       hoverIsoRef.current = nextIso;
-      const canPick = setupMode ? !!hit?.pickRole : !!hit?.role;
-      setCursor(canPick ? "pointer" : "grab");
       syncPaint();
       onHover?.(hit);
     }
@@ -930,6 +1431,7 @@ export default function WorldMap3D({
       panRef.current = null;
       pinchRef.current = null;
     }
+    hideRouteHover();
     if (hoverRoleRef.current || hoverIsoRef.current) {
       hoverRoleRef.current = null;
       hoverIsoRef.current = null;
@@ -945,7 +1447,7 @@ export default function WorldMap3D({
     <div
       id="worldMapLayer"
       ref={wrapRef}
-      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#57685a_0%,#3c4a3f_58%,#1b130c_100%)]"
+      className="fixed inset-0 z-0 bg-[radial-gradient(ellipse_at_50%_45%,#7a6a52_0%,#4a4034_55%,#3a3228_100%)]"
     >
       {!ready && (
         <div className="absolute inset-0 grid place-items-center text-sm text-white/40">
@@ -959,7 +1461,7 @@ export default function WorldMap3D({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onPointerLeave={onPointerLeave}
-        className="absolute inset-0 block size-full cursor-grab [filter:sepia(0.14)_saturate(0.82)_contrast(1.07)_brightness(1.02)]"
+        className="absolute inset-0 block size-full cursor-grab [filter:sepia(0.08)_saturate(0.86)_contrast(1.05)_brightness(1.04)]"
         aria-label={
           setupMode ? "Choose your country on the world map" : "World map"
         }
@@ -969,7 +1471,7 @@ export default function WorldMap3D({
           camera moves rather than sliding around the board. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_48%,rgba(70,51,27,.5)_0%,rgba(8,5,3,0)_72%)] mix-blend-soft-light"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_50%_44%,rgba(255,236,200,.16)_0%,rgba(20,16,12,0)_50%,rgba(22,16,10,.28)_100%)]"
       />
       <div
         ref={overlayHostRef}
@@ -982,6 +1484,13 @@ export default function WorldMap3D({
           style={{ backgroundImage: `url(${grain})` }}
         />
       )}
+      <div
+        ref={routeTipRef}
+        className="pointer-events-none absolute z-10"
+        hidden={!hoverPairs}
+      >
+        <RouteHoverTip pairs={hoverPairs} />
+      </div>
     </div>
   );
 }

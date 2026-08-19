@@ -278,9 +278,9 @@ button:disabled {
   pointer-events: none;
   background: radial-gradient(
     ellipse at 50% 46%,
-    transparent 46%,
-    rgba(2, 4, 10, 0.55) 80%,
-    rgba(2, 4, 10, 0.85) 100%
+    transparent 52%,
+    rgba(22, 14, 8, 0.16) 78%,
+    rgba(12, 8, 5, 0.38) 100%
   );
 }
 

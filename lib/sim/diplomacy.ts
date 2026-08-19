@@ -572,35 +572,53 @@ export function emptyEnvoys() {
   return Array(ENVOY_SLOTS).fill(null);
 }
 
-/** Map overlay markers for active diplomatic activity (envoy, summit, ultimatum). */
+/** Map overlay markers for active diplomatic activity. Each live kind on a
+ *  partner is listed separately (envoy, summit, protest, sanctions, ultimatum). */
 export function diploMapMarkers(g: GameState) {
   if (!g) return [];
   const out: { partnerId: string; kind: string }[] = [];
   const visits = g.activeVisits || {};
   const ultimatums = g.ultimatums || {};
   const missions = (g.draft && g.draft.missions) || {};
+  const stance = (g.econ && g.econ.sanctionStance) || {};
   const visitActive = (pid: string) => visitQuartersLeft(g, pid) > 0;
+  const seen = new Set<string>();
+  const push = (partnerId: string, kind: string) => {
+    const key = partnerId + ":" + kind;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ partnerId, kind });
+  };
 
   for (const pid of g.envoys || []) {
-    if (pid) out.push({ partnerId: pid, kind: "envoy" });
+    if (pid) push(pid, "envoy");
   }
   for (const pid of Object.keys(visits)) {
     const v = visits[pid];
     if (!visitActive(pid)) continue;
-    if ((v.missionId || "summit") === "summit") {
-      out.push({ partnerId: pid, kind: "summit" });
-    }
+    if ((v.missionId || "summit") === "summit") push(pid, "summit");
   }
   for (const pid of Object.keys(missions)) {
-    if (missions[pid] !== "summit") continue;
-    if (visitActive(pid)) continue;
-    out.push({ partnerId: pid, kind: "summit_staged" });
+    const mid = missions[pid];
+    if (mid === "summit") {
+      if (!visitActive(pid)) push(pid, "summit_staged");
+    } else if (mid === "demarche") {
+      if (!hasFormalProtest(g.econ, pid)) push(pid, "protest_staged");
+    } else if (mid === "sanctionsPosture") {
+      if (!(stance[pid] && stance[pid].against)) push(pid, "sanctions_staged");
+    }
+  }
+  for (const pid of Object.keys(stance)) {
+    if (stance[pid] && stance[pid].against) push(pid, "sanctions");
+  }
+  if (g.econ) {
+    for (const pid of Object.keys(g.econ.diploLedger || {})) {
+      if (hasFormalProtest(g.econ, pid)) push(pid, "protest");
+    }
   }
   for (const pid of Object.keys(ultimatums)) {
     const u = ultimatums[pid];
-    if (u && u.status === "pending") {
-      out.push({ partnerId: pid, kind: "ultimatum" });
-    }
+    if (u && u.status === "pending") push(pid, "ultimatum");
   }
   return out;
 }

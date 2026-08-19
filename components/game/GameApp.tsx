@@ -39,6 +39,7 @@ import {
   realmById,
   realmByRole,
   homeIsoForRealm,
+  randomPlayableRealm,
 } from "../../lib/sim/realms.ts";
 import {
   getMpRoom,
@@ -110,9 +111,7 @@ export default function GameApp() {
   const [realmId, setRealmId] = useState(DEFAULT_REALM_ID);
   const [homeIso, setHomeIso] = useState<string | null>(null);
   const [homeRole, setHomeRole] = useState("home");
-  const [setupRole, setSetupRole] = useState(
-    () => realmById(DEFAULT_REALM_ID).role,
-  );
+  const [setupRole, setSetupRole] = useState(() => randomPlayableRealm().role);
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -338,8 +337,12 @@ export default function GameApp() {
           ) {
             return false;
           }
-          if (act === "issueUltimatum" && q.action === "issueUltimatum")
+          if (
+            (act === "issueUltimatum" || act === "withdrawUltimatum") &&
+            (q.action === "issueUltimatum" || q.action === "withdrawUltimatum")
+          ) {
             return false;
+          }
           if (
             act === "withdrawBlocAccession" &&
             q.action === "withdrawBlocAccession"
@@ -1175,7 +1178,7 @@ export default function GameApp() {
           <>
             <div
               id="vignette"
-              className="pointer-events-none fixed inset-0 z-1 bg-[radial-gradient(ellipse_at_50%_46%,transparent_46%,rgba(2,4,10,.55)_80%,rgba(2,4,10,.85)_100%)]"
+              className="pointer-events-none fixed inset-0 z-1 bg-[radial-gradient(ellipse_at_50%_46%,transparent_52%,rgba(22,14,8,.16)_78%,rgba(12,8,5,.38)_100%)]"
             />
             <div id="quarterFlash" hidden aria-live="polite">
               <div className="quarter-flash-inner">

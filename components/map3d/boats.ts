@@ -7,18 +7,18 @@
 
 import { wrapDelta } from "../../lib/map/projection.ts";
 
-/** Every boat moves at the same normalised-board-units/sec SPEED — only the
- *  count varies with trade volume, so a busy route reads as "more boats,"
- *  not "boats that inexplicably move faster." periodForDistance() below
- *  turns that shared speed into a per-route lap time: a route's `t` still
- *  runs 0→1 over one lap, but a longer route takes proportionally longer to
- *  complete it, rather than every route completing its lap in the same
- *  fixed time regardless of how far apart its endpoints are (which is what
- *  made distant routes' boats visibly outrun nearby ones). */
+/** Every boat moves at the same normalised-board-units/sec SPEED — count
+ *  varies with trade volume *and* path length, so a busy Channel hop stays
+ *  a couple of hulls while a trans-Pacific lane can carry more without
+ *  those hulls racing to finish the lap. periodForDistance() turns that
+ *  shared speed into a per-route lap time. */
 export const BOAT_SPEED = 0.007; // normalised board units / second
 export const BOAT_MIN_PERIOD_S = 10;
-export const BOAT_MAX_PERIOD_S = 70;
-export const BOAT_MAX_COUNT = 3;
+/** Hard cap so a busy trans-Pacific lane does not grow a fleet. */
+export const BOAT_MAX_COUNT = 8;
+/** Extra hulls available per normalised board-unit of path (a ~0.5 Pacific
+ *  crossing adds about two slots before volume scales them). */
+const BOAT_LEN_SPAN = 0.22;
 
 /** Shortest-path distance between two normalised board points, wrapping at
  *  the antimeridian the same way the map itself does (a route that crosses
@@ -34,14 +34,11 @@ export function routeDistance(
   return Math.hypot(dx, dy);
 }
 
-/** Lap time for a route of this distance at the shared BOAT_SPEED, clamped
- *  so a near-zero-distance or extreme-distance route doesn't produce a
- *  degenerate (near-instant or near-frozen) lap. */
+/** Lap time for a route of this distance at the shared BOAT_SPEED.
+ *  Only a floor — long ocean legs keep the same hull speed rather than
+ *  being squeezed into a short lap. */
 export function periodForDistance(dist: number): number {
-  return Math.max(
-    BOAT_MIN_PERIOD_S,
-    Math.min(BOAT_MAX_PERIOD_S, dist / BOAT_SPEED),
-  );
+  return Math.max(BOAT_MIN_PERIOD_S, dist / BOAT_SPEED);
 }
 
 /** Deterministic [0,1) seed per partner id, so every route's boats start at
@@ -75,13 +72,21 @@ export function routeVolume(
   return total > 0 ? total : fallbackTradeShare;
 }
 
-/** Volume relative to the busiest current route (0..1) → boat count.
- *  Relative, not absolute, so it doesn't need a hand-tuned magic threshold
- *  in trade-volume units. Arrival frequency is controlled by BOAT_SPEED /
- *  periodForDistance, not by dropping the per-route count. */
-export function bucketRoute(vol: number, maxVol: number) {
+/** Volume relative to the busiest current route (0..1), then a length
+ *  budget, → boat count. Short hops stay at 1–2 hulls even when busy;
+ *  a long Pacific lane can fill out toward BOAT_MAX_COUNT. Arrival
+ *  frequency is still BOAT_SPEED / periodForDistance. */
+export function bucketRoute(
+  vol: number,
+  maxVol: number,
+  pathLenNorm = 0,
+) {
   const rel = maxVol > 0 ? Math.max(0, Math.min(1, vol / maxVol)) : 0;
-  const count = 1 + Math.round(rel * (BOAT_MAX_COUNT - 1));
+  const span = 2 + Math.max(0, pathLenNorm) / BOAT_LEN_SPAN;
+  const count = Math.max(
+    pathLenNorm > 0.25 ? 3 : 1,
+    Math.min(BOAT_MAX_COUNT, Math.round(rel * span)),
+  );
   return { rel, count };
 }
 

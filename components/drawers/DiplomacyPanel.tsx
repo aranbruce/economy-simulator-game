@@ -15,6 +15,7 @@ import {
   ICONS,
   relationTarget,
   canIssueUltimatum,
+  canWithdrawUltimatum,
   concedeP,
   ultimatumDemandsFor,
   ultimatumQuartersLeft,
@@ -34,10 +35,12 @@ import {
   assignEnvoyAction,
   recallEnvoyAction,
   issueUltimatumAction,
+  withdrawUltimatumAction,
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
+import { CloseIcon } from "../../lib/ui/icons.tsx";
 import type { Country } from "../../lib/sim/countries.ts";
 import type { Mission } from "../../lib/sim/types.ts";
 
@@ -96,12 +99,22 @@ function EnvoySummary({ G }: { G: any }) {
               </span>
             );
           const p = partnerById(id);
+          const name = p ? p.name : id;
           return (
             <span
               key={i}
-              className={`${DIPLO_SLOT_BASE} border-green/28 bg-green/8 text-green-lt`}
+              className={`${DIPLO_SLOT_BASE} inline-flex items-center gap-1 border-green/28 bg-green/8 pr-1 text-green-lt`}
             >
-              {p ? p.name : id}
+              {name}
+              <button
+                type="button"
+                className="grid size-4 cursor-pointer place-items-center rounded-sm text-green-lt/70 hover:bg-red/18 hover:text-red-lt [&>svg]:size-2.5"
+                aria-label={"Recall envoy from " + name}
+                title="Recall envoy"
+                onClick={() => recallEnvoyAction(id)}
+              >
+                <CloseIcon />
+              </button>
             </span>
           );
         })}
@@ -109,7 +122,7 @@ function EnvoySummary({ G }: { G: any }) {
       <div className="mt-1.5 text-xs leading-[1.4] text-ink-soft">
         Assign costs {ENVOY_ASSIGN_PC} capital · posted envoys warm relations
         each quarter · missions go into the bill · ultimatums spend capital
-        immediately
+        immediately (withdraw before Deliver)
       </div>
     </div>
   );
@@ -255,6 +268,7 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
     const ultOdds = Math.round(
       concedeP(p.id, u.demand, G, diploDeps(), false, ultMeta) * 100,
     );
+    const canWithdraw = canWithdrawUltimatum(p.id, G);
     return (
       <div className="flex flex-col gap-1 rounded-sm border border-red/24 bg-red/10 px-2.75 py-2.5 text-xs leading-[1.35]">
         <strong className="font-[650] text-white">Ultimatum issued</strong>
@@ -265,6 +279,16 @@ function UltimatumSection({ p, G }: { p: Country; G: any }) {
         <span className="text-xs text-ink-faint">
           Estimated ~{ultOdds}% chance they concede
         </span>
+        {canWithdraw ? (
+          <Button
+            danger
+            className="mt-1 w-full text-center"
+            title="Refund capital · only until you Deliver"
+            onClick={() => withdrawUltimatumAction(p.id)}
+          >
+            Withdraw · refund {ULTIMATUM_PC} cap
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -459,7 +483,9 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
           Ultimatum
           <span className="text-xs font-medium tracking-normal text-ink-faint normal-case">
             {ultPending
-              ? "Response pending"
+              ? canWithdrawUltimatum(p.id, G)
+                ? "Withdraw before Deliver"
+                : "Response pending"
               : `${ULTIMATUM_PC} cap · immediate`}
           </span>
         </div>
