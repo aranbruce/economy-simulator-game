@@ -725,6 +725,9 @@ export default function WorldMap3D({
       sceneryRef.current = null;
       diploPropsRef.current = null;
       oceanRef.current = null;
+      /* Drop the memoised plan with the grid it was keyed on, so a torn-down
+         scene does not keep one dead OceanGrid alive until the next call. */
+      planRef.current = { ocean: null, plan: null };
       setGlReady(false);
     };
     // Layer *_REV constants are HMR remount keys: bumping one in a sibling
@@ -1064,13 +1067,35 @@ export default function WorldMap3D({
     const routeLayer = routeLayerRef.current;
     if (!routeLayer) return;
     const planned = plannedLanes();
-    const specs: RouteSpec[] = planned.draw.map((lane, i) => ({
-      key: (lane.highwayId || lane.kind || "highway") + "#" + i,
-      owners: lane.owners,
-      kind: lane.kind,
-      color: lane.color,
-      path: resampleLane(lane.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
-    }));
+    /* planNetwork() knows who uses a port on-ramp but leaves the shared
+       ocean trunks with no owners — a trunk is common carriageway, so it
+       has none of its own. Attribute one back through the hub-edge keys
+       both sides already carry: a trunk belongs to every seat whose pair
+       lane routes over one of its edges. Without this, selecting a partner
+       lit only the two short stubs at either end and left the ocean lane
+       between them cold. */
+    const ownersByEdge = new Map<string, Set<string>>();
+    for (const lane of planned.boats) {
+      for (const key of lane.edges || []) {
+        let set = ownersByEdge.get(key);
+        if (!set) ownersByEdge.set(key, (set = new Set()));
+        for (const o of lane.owners) set.add(o);
+      }
+    }
+    const specs: RouteSpec[] = planned.draw.map((lane, i) => {
+      const owners = new Set(lane.owners);
+      for (const key of lane.edges || []) {
+        const via = ownersByEdge.get(key);
+        if (via) for (const o of via) owners.add(o);
+      }
+      return {
+        key: (lane.highwayId || lane.kind || "highway") + "#" + i,
+        owners: [...owners],
+        kind: lane.kind,
+        color: lane.color,
+        path: resampleLane(lane.path.map((p) => ({ x: p.x, y: 0, z: p.z }))),
+      };
+    });
     routeLayer.setRoutes(specs);
   }, [ready, plannedLanes, setupMode]);
 
