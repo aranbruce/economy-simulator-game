@@ -492,8 +492,11 @@ canal transits (`lib/map/canals.ts`) for Suez and Panama, so a ship sails
 round a landmass rather than through it. This is why there is no
 land-fade machinery: routes never cross land in the first place. `routes.ts`
 drapes the painted lane onto the live sea surface every frame via
-`seaHeight()`, and `pathAt()` in `seaRoutes.ts` gives a position and heading
-at any point along a lane.
+`seaHeight()`. `prepareSeaPath()` in `seaRoutes.ts` unwraps a lane across
+the antimeridian and tabulates its cumulative length once, and
+`pathAtPrepared()` binary-searches that table for a position and heading at
+any point along it — the sampler runs per boat per frame, so the unwrap and
+the length sum must not happen there.
 
 **Volume, not invention** (`components/map3d/boats.ts`, pure — reads
 `G.worldTrade`/`G.rel`, never mutates `G` or calls into `engine.ts`, per the
