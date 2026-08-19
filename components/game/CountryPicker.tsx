@@ -18,6 +18,7 @@ import {
 } from "../../lib/sim/engine.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
 import { SegControl } from "../ui/SegControl.tsx";
+import { Hint } from "../ui/Typography.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
 import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 
@@ -77,11 +78,7 @@ interface CountryPickerProps {
     sandbox: boolean;
     tutorial: boolean;
   }) => void;
-  onMultiplayer?: (opts: {
-    realm: any;
-    name: string;
-    sandbox: boolean;
-  }) => void;
+  onMultiplayer?: () => void;
   onResume?: () => void;
   initialId?: string | null;
 }
@@ -99,7 +96,6 @@ export default function CountryPicker({
   const [sandbox, setSandbox] = useState(false);
   const books = openingBooks(realm.role);
   const meta = polityOf(realm.role);
-  const name = realm.name.slice(0, 34);
 
   return (
     <div
@@ -143,9 +139,7 @@ export default function CountryPicker({
           </div>
         </div>
 
-        <p className="m-0 text-xs leading-[1.35] text-ink-soft">
-          {modeHint(sandbox, meta)}
-        </p>
+        <Hint>{modeHint(sandbox, meta)}</Hint>
       </HudFrame>
 
       <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
@@ -176,7 +170,7 @@ export default function CountryPicker({
           <SetupGoButton
             onClick={() =>
               onStart({
-                country: name,
+                country: realm.name,
                 homeRole: realm.role,
                 homeIso: homeIsoForRealm(realm),
                 realmId: realm.id,
@@ -206,7 +200,7 @@ export default function CountryPicker({
           {typeof onMultiplayer === "function" && (
             <SetupGoButton
               secondary
-              onClick={() => onMultiplayer({ realm, name, sandbox })}
+              onClick={() => onMultiplayer()}
             >
               Multiplayer lobby
             </SetupGoButton>
