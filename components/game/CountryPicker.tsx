@@ -17,6 +17,7 @@ import {
   polityOf,
 } from "../../lib/sim/engine.ts";
 import { HudFrame } from "../ui/HudFrame.tsx";
+import { SegControl } from "../ui/SegControl.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
 import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 
@@ -31,7 +32,6 @@ function openingBooks(role: string) {
     debt: pins.debt,
     deficit,
     inflation: pins.inflation,
-    trend: pins.trend,
     rate: pins.rate,
     unemployment: pins.unemployment,
     gdpBn: gdp0ForSeat(role),
@@ -109,9 +109,6 @@ export default function CountryPicker({
       aria-labelledby="setupTitle"
     >
       <HudFrame className="setup-banner hud-surface pointer-events-auto w-[min(520px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] self-center px-5 pt-4 pb-3.5">
-        <div className="text-xs font-bold tracking-[.14em] text-accent-lt uppercase">
-          Commission
-        </div>
         <h1
           id="setupTitle"
           className="my-1.5 font-display text-[clamp(24px,3.6vw,30px)] leading-[1.1] font-normal tracking-tight"
@@ -122,52 +119,46 @@ export default function CountryPicker({
           Ten realms on a real map. Click any country in a bloc to take that
           seat — the books open to that realm’s inheritance.
         </p>
+        <div
+          className="mt-3 flex flex-row items-center justify-between gap-2 border-t border-white/8 pt-2 pb-1"
+          role="group"
+          aria-labelledby="setupMode"
+        >
+          <span
+            id="setupMode"
+            className="text-xs font-bold tracking-widest text-ink-faint uppercase"
+          >
+            Mode
+          </span>
+          <div className="w-full max-w-55">
+            <SegControl
+              mini
+              value={sandbox ? "sandbox" : "career"}
+              options={[
+                ["career", "Career"],
+                ["sandbox", "Sandbox"],
+              ]}
+              onChange={(v) => setSandbox(v === "sandbox")}
+            />
+          </div>
+        </div>
+
+        <p className="m-0 text-xs leading-[1.35] text-ink-soft">
+          {modeHint(sandbox, meta)}
+        </p>
       </HudFrame>
 
       <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(780px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex min-w-0 flex-1 flex-col gap-0">
-          <div className="mb-2.5 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
-            <div className="flex min-w-0 flex-1 flex-col gap-0.75">
-              <div className="flex items-center gap-3">
-                <FlagAvatar role={playerCountryId(realm.role)} size="size-12" />
-                <strong className="text-xl">{realm.name}</strong>
-              </div>
-              <em>{realm.blurb}</em>
+          <div className="mb-2.5 flex min-w-0 flex-1 flex-col gap-0.75">
+            <div className="flex items-center gap-3">
+              <FlagAvatar role={playerCountryId(realm.role)} size="size-12" />
+              <strong className="text-xl">{realm.name}</strong>
             </div>
-            <div
-              className="flex max-w-[min(240px,44%)] flex-none flex-col items-end gap-1.25 max-sm:max-w-none max-sm:items-start"
-              role="group"
-              aria-label="Game mode"
-            >
-              <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
-                Mode
-              </span>
-              <div className="flex w-full gap-0.5 rounded-sm bg-g-1 p-0.5">
-                <button
-                  type="button"
-                  aria-pressed={!sandbox}
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
-                  onClick={() => setSandbox(false)}
-                >
-                  Career
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={sandbox}
-                  onClick={() => setSandbox(true)}
-                  title="Cannot be removed from office"
-                  className="flex-1 cursor-pointer rounded border-0 bg-transparent px-1 py-1.25 text-xs font-semibold tracking-[.01em] text-ink-soft transition-colors duration-150 hover:text-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent aria-pressed:bg-g-4 aria-pressed:text-white aria-pressed:shadow-spec"
-                >
-                  Sandbox
-                </button>
-              </div>
-              <p className="m-0 text-right text-xs leading-[1.35] text-ink-soft max-sm:text-left">
-                {modeHint(sandbox, meta)}
-              </p>
-            </div>
+            <em>{realm.blurb}</em>
           </div>
           <div
-            className="grid grid-cols-3 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 max-sm:grid-cols-2"
+            className="grid grid-cols-2 gap-x-2.5 gap-y-1.5 border-t border-white/8 pt-2.5 min-[400px]:grid-cols-3 md:grid-cols-6"
             aria-label={`Opening books for ${realm.name}`}
           >
             <SetupStat label="Polity" value={meta.label} />
@@ -178,11 +169,10 @@ export default function CountryPicker({
               label="Inflation"
               value={books.inflation.toFixed(1) + "%"}
             />
-            <SetupStat label="Trend" value={books.trend.toFixed(1) + "%"} />
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 max-sm:flex-col max-sm:items-stretch">
+        <div className="mt-2 flex flex-wrap items-center justify-start gap-2 max-sm:flex-col max-sm:items-stretch">
           <SetupGoButton
             onClick={() =>
               onStart({
