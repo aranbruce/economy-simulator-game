@@ -12784,9 +12784,9 @@ const esc = (s: any) =>
    The procedurally generated fictional-country canvas that used to live here
    (radial-noise coastline, nine regions by nearest seed, flood-filled ocean)
    has been fully replaced by the real Natural-Earth/topojson map component
-   (components/map2d/WorldMap.tsx + lib/sim/boardMetrics.ts); a canvas-load
-   failure now falls back to a plain message in WorldMap.tsx itself, not to
-   any function here. REGIONS, initRegions() and stepRegions() (the per-region
+   (components/map3d/WorldMap3D.tsx + lib/sim/boardMetrics.ts); a map-load
+   failure now falls back to a plain message in the shell, not to any
+   function here. REGIONS, initRegions() and stepRegions() (the per-region
    approval/unemployment/prosperity breakdown the procedural map's choropleth
    used to read) were removed with it, once nothing consumed econ.regions
    either. A future "regional breakdown" feature (CLAUDE.md's Backlog) would

@@ -29,9 +29,10 @@ export interface Country {
   tradeShare: number;
   blurb: string;
   deals: CountryDeal[];
-  /** Real-world capital lat/lng, for the 3D map layer's capital-city markers.
-   *  `iso` is a real ISO-3166 numeric code plotted on the unmodified Natural
-   *  Earth topojson (see WorldMap.tsx) — countries sit at their real
+  /** Real-world capital lat/lng, for the map's capital spires and the
+   *  anchors its trade routes run between. `iso` is a real ISO-3166 numeric
+   *  code plotted on the unmodified Natural Earth topojson (see
+   *  components/map3d/WorldMap3D.tsx) — countries sit at their real
    *  geographic position on this board (only the politics are fictional), so
    *  real capital coordinates land correctly; do not swap these for invented
    *  positions. */
