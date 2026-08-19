@@ -805,6 +805,69 @@ export function shareFor(
   return 0;
 }
 
+function matrixRow(id: string): Record<string, number> {
+  if (TRADE_MATRIX[id]) return TRADE_MATRIX[id]!;
+  if (id === "kingdom") return TRADE_MATRIX.home || {};
+  return {};
+}
+
+function rowKey(row: Record<string, number>, to: string): string {
+  if (row[to] != null) return to;
+  if (to === "kingdom" && row.home != null) return "home";
+  if (to === "home" && row.kingdom != null) return "kingdom";
+  return to;
+}
+
+/** Two-way structural trade weight between seats (home ↔ kingdom aliases). */
+export function bilateralWeight(a: string, b: string): number {
+  const ra = matrixRow(a);
+  const rb = matrixRow(b);
+  return (ra[rowKey(ra, b)] || 0) + (rb[rowKey(rb, a)] || 0);
+}
+
+/** Undirected major lanes: each seat keeps its busiest partners, merged
+ *  so UK–Germany is drawn once even if both list each other. */
+export function majorTradePairs(
+  ids: string[],
+  perSeat = 4,
+): { a: string; b: string; w: number }[] {
+  const seen = new Set<string>();
+  const out: { a: string; b: string; w: number }[] = [];
+  for (const id of ids) {
+    const top = ids
+      .filter((j) => j !== id)
+      .map((j) => ({ j, w: bilateralWeight(id, j) }))
+      .filter((x) => x.w > 0)
+      .sort((x, y) => y.w - x.w)
+      .slice(0, perSeat);
+    for (const { j, w } of top) {
+      const a = id < j ? id : j;
+      const b = id < j ? j : id;
+      const k = a + ">" + b;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ a, b, w });
+    }
+  }
+  return out;
+}
+
+/** Outbound partners for a picker seat, busiest first. */
+export function topTradeLanes(
+  role: string,
+  limit = 5,
+): { id: string; w: number }[] {
+  const row = matrixRow(role === "home" ? "kingdom" : role);
+  return Object.entries(row)
+    .filter(([, w]) => w > 0)
+    .sort((x, y) => y[1]! - x[1]!)
+    .slice(0, limit)
+    .map(([id, w]) => ({
+      id: id === "home" ? "kingdom" : id,
+      w: w!,
+    }));
+}
+
 /** Percent label for UI, e.g. "18% of {C}'s trade". */
 export function shareLabel(
   homeRole: string | null | undefined,

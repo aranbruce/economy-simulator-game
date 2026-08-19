@@ -2342,6 +2342,46 @@ function issueUltimatum(partnerId: any, demandId: any) {
   return true;
 }
 
+function ultimatumSentQ(g: any, u: any) {
+  if (!u) return null;
+  if (u.sentQ != null) return u.sentQ;
+  if (u.expiresQ != null) return u.expiresQ - ULTIMATUM_WAIT;
+  return null;
+}
+
+/** Same-quarter undo only — after Deliver the demand is already in flight. */
+function canWithdrawUltimatum(partnerId: any, g?: any) {
+  const state = g || getG();
+  if (!state || !partnerId) return false;
+  const u = state.ultimatums && state.ultimatums[partnerId];
+  if (!u || u.status !== "pending") return false;
+  return ultimatumSentQ(state, u) === (state.q || 0);
+}
+
+function withdrawUltimatum(partnerId: any) {
+  const g = getG();
+  if (!g || !partnerId) return false;
+  const existing = g.ultimatums && g.ultimatums[partnerId];
+  /* Idempotent: already gone is the desired state. */
+  if (!existing || existing.status !== "pending") return true;
+  if (ultimatumSentQ(g, existing) !== (g.q || 0)) return false;
+  g.capital = clamp((g.capital || 0) + ULTIMATUM_PC, 0, 100);
+  if (g.fac) {
+    g.fac.patriots = clamp((g.fac.patriots || 50) - 3, 2, 96);
+    g.fac.business = clamp((g.fac.business || 50) + 2, 2, 96);
+  }
+  const ledger =
+    g.econ && g.econ.diploLedger && g.econ.diploLedger[partnerId];
+  if (Array.isArray(ledger)) {
+    const id = "ultimatum_issued_" + (g.q || 0);
+    const i = ledger.findIndex((x: any) => x && x.id === id);
+    if (i >= 0) ledger.splice(i, 1);
+  }
+  delete g.ultimatums[partnerId];
+  clearInboundUltimatum(g, playerCountryId(g.homeRole), partnerId);
+  return true;
+}
+
 function processUltimatums(g: any, det: any) {
   const state = g || getG();
   if (!state || !state.ultimatums) return;
@@ -5787,6 +5827,9 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
               ? "cooldown " + check.cooldown + "Q"
               : "Could not issue ultimatum";
       }
+    } else if (action === "withdrawUltimatum") {
+      ok = withdrawUltimatum(o.partnerId);
+      if (!ok) error = "Cannot withdraw after Deliver";
     } else if (action === "withdrawBlocAccession") {
       ok = withdrawBlocAccession(g, seatId);
       if (!ok) error = "No accession to cancel";
@@ -5972,6 +6015,9 @@ function applyLocalMpDiploAction(action: any, opts: any) {
             ? "cooldown " + check.cooldown + "Q"
             : "Could not issue ultimatum";
     }
+  } else if (action === "withdrawUltimatum") {
+    ok = withdrawUltimatum(o.partnerId);
+    if (!ok) error = "Cannot withdraw after Deliver";
   } else if (action === "withdrawBlocAccession") {
     ok = withdrawBlocAccession(g);
     if (!ok) error = "No accession to cancel";
@@ -12690,9 +12736,9 @@ const esc = (s: any) =>
    The procedurally generated fictional-country canvas that used to live here
    (radial-noise coastline, nine regions by nearest seed, flood-filled ocean)
    has been fully replaced by the real Natural-Earth/topojson map component
-   (components/map2d/WorldMap.tsx + lib/sim/boardMetrics.ts); a canvas-load
-   failure now falls back to a plain message in WorldMap.tsx itself, not to
-   any function here. REGIONS, initRegions() and stepRegions() (the per-region
+   (components/map3d/WorldMap3D.tsx + lib/sim/boardMetrics.ts); a map-load
+   failure now falls back to a plain message in the shell, not to any
+   function here. REGIONS, initRegions() and stepRegions() (the per-region
    approval/unemployment/prosperity breakdown the procedural map's choropleth
    used to read) were removed with it, once nothing consumed econ.regions
    either. A future "regional breakdown" feature (CLAUDE.md's Backlog) would
@@ -20716,6 +20762,8 @@ export {
   assignEnvoy,
   recallEnvoy,
   issueUltimatum,
+  withdrawUltimatum,
+  canWithdrawUltimatum,
   processUltimatums,
   diploDeps,
   seedGameRelBase,

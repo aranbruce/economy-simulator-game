@@ -962,6 +962,44 @@ async function main() {
   );
   assert.equal(gInb.kingdom.demand, "tariffCut");
 
+  const hostCapAfterIssue = hostUltGuest.room.snapshot.politics.kingdom.capital;
+  const hostWithdraw = await applyDiploAction(hIn.room.code, hIn.token, {
+    action: "withdrawUltimatum",
+    partnerId: "germany",
+  });
+  assert.ok(!hostWithdraw.error, hostWithdraw.error);
+  assert.ok(
+    !(
+      hostWithdraw.room.snapshot.politics.kingdom.ultimatums &&
+      hostWithdraw.room.snapshot.politics.kingdom.ultimatums.germany
+    ),
+    "host outbound cleared on withdraw",
+  );
+  assert.ok(
+    !(
+      hostWithdraw.room.snapshot.politics.germany.inboundUltimatums &&
+      hostWithdraw.room.snapshot.politics.germany.inboundUltimatums.kingdom
+    ),
+    "guest inbound cleared on withdraw",
+  );
+  assert.equal(
+    Math.round(hostWithdraw.room.snapshot.politics.kingdom.capital),
+    Math.round(hostCapAfterIssue + ULTIMATUM_PC),
+    "withdraw refunds ultimatum capital",
+  );
+
+  const hostReissue = await applyDiploAction(hIn.room.code, hIn.token, {
+    action: "issueUltimatum",
+    partnerId: "germany",
+    demandId: "tariffCut",
+  });
+  assert.ok(!hostReissue.error, hostReissue.error);
+  assert.ok(
+    hostReissue.room.snapshot.politics.germany.inboundUltimatums &&
+      hostReissue.room.snapshot.politics.germany.inboundUltimatums.kingdom,
+    "re-issue parks inbound again",
+  );
+
   /* Guest concedes — tariff schedule on germany falls; both seats get alerts. */
   const schedBefore =
     (hostUltGuest.room.snapshot.world.germany.law.tariffSchedule &&

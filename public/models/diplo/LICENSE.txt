@@ -1,0 +1,29 @@
+	
+
+	Mini Characters (1.0) — envoy.glb (character-male-d), Textures/mini.png
+	Survival Kit (2.0) — tent.glb, Textures/survival.png
+	Blaster Kit (2.1) — target.glb (target-large), Textures/blaster.png
+
+	Created/distributed by Kenney (www.kenney.nl)
+	
+			------------------------------
+
+	License: (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+	You can use this content for personal, educational, and commercial purposes.
+
+	Support by crediting 'Kenney' or 'www.kenney.nl' (this is not a requirement)
+
+			------------------------------
+
+	• Website : www.kenney.nl
+	• Donate  : www.kenney.nl/donate
+
+	• Patreon : patreon.com/kenney
+	
+	Follow on social media for updates:
+
+	• Twitter:   twitter.com/KenneyNL
+	• Instagram: instagram.com/kenney_nl
+	• Mastodon:  mastodon.gamedev.place/@kenney

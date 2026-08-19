@@ -1,41 +1,27 @@
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import {
-  Color,
-  Group,
-  Material,
-  Matrix4,
-  Mesh,
-  MeshStandardMaterial,
-  Object3D,
-  Quaternion,
-  Vector3,
-} from "three";
+import { Color, Material, Mesh, MeshStandardMaterial, Object3D } from "three";
 
 export const MODEL_URLS = {
   boat: "/models/boats/boat.glb",
+  treeDefault: "/models/trees/tree_default.glb",
+  treeCone: "/models/trees/tree_cone.glb",
+  treeOak: "/models/trees/tree_oak.glb",
+  treePalm: "/models/trees/tree_palm.glb",
+  buildingA: "/models/cities/building-a.glb",
+  buildingC: "/models/cities/building-c.glb",
+  buildingE: "/models/cities/building-e.glb",
+  cloudA: "/models/clouds/cloud-a.glb",
+  cloudE: "/models/clouds/cloud-e.glb",
+  mountainHill: "/models/mountains/hill.glb",
+  mountainPeak: "/models/mountains/peak.glb",
+  mountainRange: "/models/mountains/range.glb",
+  tent: "/models/diplo/tent.glb",
+  envoy: "/models/diplo/envoy.glb",
+  target: "/models/diplo/target.glb",
 } as const;
 
 export type ModelKey = keyof typeof MODEL_URLS;
-
-/** Map3DOverlay's camera looks straight down world -Z with no tilt, so a
- *  model needs its "forward/length" axis along local X (the per-route
- *  heading rotation in Map3DOverlay rotates around Z assuming that) and its
- *  "up/height" axis along local Z, toward the camera — invisible/
- *  foreshortened there, which is correct for a true top-down view of a
- *  hull or a container's roof. Kenney-style assets are typically authored
- *  Y-up with -Z forward, so remap length(Z)->X, width(X)->Y, height(Y)->Z.
- *  Add an entry here per model key only if that asset needs it — a model
- *  authored directly for this camera would need none. */
-const AXIS_CORRECTIONS: Partial<Record<ModelKey, Quaternion>> = {
-  boat: new Quaternion().setFromRotationMatrix(
-    new Matrix4().makeBasis(
-      new Vector3(0, 1, 0),
-      new Vector3(0, 0, 1),
-      new Vector3(1, 0, 0),
-    ),
-  ),
-};
 
 /** One shared loader + a load-once cache of the parsed template scene per
  *  model, so every instance clones a single GLTF parse rather than
@@ -65,7 +51,7 @@ export function loadModelTemplate(key: ModelKey): Promise<Object3D> {
 /** Object3D.clone() shares geometry/material by *reference* across every
  *  clone of a template — fine for geometry (never mutated), but each
  *  instance needs its own material so per-instance tinting (relationTint in
- *  Map3DOverlay) doesn't mutate every other instance sharing the same GLTF
+ *  WorldMap3D) doesn't mutate every other instance sharing the same GLTF
  *  parse. Without this, tinting one boat compounds onto every other boat
  *  cloned from the same template each time it re-tints, since they'd all be
  *  reading and writing the same shared material.color. */
@@ -106,9 +92,7 @@ export function cloneModelInstance(src: Object3D): Object3D {
   copy.traverse((child) => {
     if (!(child instanceof Mesh)) return;
     const raw = child.userData.baseColor as
-      | Color
-      | { r: number; g: number; b: number }
-      | undefined;
+      Color | { r: number; g: number; b: number } | undefined;
     if (!raw || typeof raw.r !== "number") {
       delete child.userData.baseColor;
       return;
@@ -132,18 +116,16 @@ export function clearModelCache() {
   cache.clear();
 }
 
-/** Returns an instance ready to have position/rotation/scale driven
- *  externally with no orientation knowledge required of the caller — any
- *  fixed axis correction is baked into a child, wrapped in an identity
- *  group, so callers can freely rotate the returned object for heading. */
+/** A ready-to-place instance with its own materials.
+ *
+ *  No axis correction is applied or needed: the scene is a genuine 3D world
+ *  with y up, and every asset in public/models is authored y-up with
+ *  -z forward (Kenney boats, trees and buildings; Quaternius clouds).
+ *  An asset authored to some other convention would need a per-key
+ *  correction quaternion reintroduced here; see public/models/NOTICE.md. */
 export async function instantiateModel(key: ModelKey): Promise<Object3D> {
   const template = await loadModelTemplate(key);
   const inner = template.clone(true);
   cloneMaterials(inner);
-  const correction = AXIS_CORRECTIONS[key];
-  if (!correction) return inner;
-  inner.quaternion.copy(correction);
-  const wrapper = new Group();
-  wrapper.add(inner);
-  return wrapper;
+  return inner;
 }

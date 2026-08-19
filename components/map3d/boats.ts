@@ -5,43 +5,24 @@
  * logic" rule in CLAUDE.md.
  */
 
-import { wrapDelta } from "../../lib/map/projection.ts";
-
-/** Every boat moves at the same normalised-board-units/sec SPEED — only the
- *  count varies with trade volume, so a busy route reads as "more boats,"
- *  not "boats that inexplicably move faster." periodForDistance() below
- *  turns that shared speed into a per-route lap time: a route's `t` still
- *  runs 0→1 over one lap, but a longer route takes proportionally longer to
- *  complete it, rather than every route completing its lap in the same
- *  fixed time regardless of how far apart its endpoints are (which is what
- *  made distant routes' boats visibly outrun nearby ones). */
+/** Every boat moves at the same normalised-board-units/sec SPEED — count
+ *  varies with trade volume *and* path length, so a busy Channel hop stays
+ *  a couple of hulls while a trans-Pacific lane can carry more without
+ *  those hulls racing to finish the lap. periodForDistance() turns that
+ *  shared speed into a per-route lap time. */
 export const BOAT_SPEED = 0.007; // normalised board units / second
 export const BOAT_MIN_PERIOD_S = 10;
-export const BOAT_MAX_PERIOD_S = 70;
-export const BOAT_MAX_COUNT = 3;
+/** Hard cap so a busy trans-Pacific lane does not grow a fleet. */
+export const BOAT_MAX_COUNT = 8;
+/** Extra hulls available per normalised board-unit of path (a ~0.5 Pacific
+ *  crossing adds about two slots before volume scales them). */
+const BOAT_LEN_SPAN = 0.22;
 
-/** Shortest-path distance between two normalised board points, wrapping at
- *  the antimeridian the same way the map itself does (a route that crosses
- *  the date line shouldn't be timed as if it went the long way around).
- *  Safe to call with either raw or already wrap-adjusted points — wrapDelta
- *  is idempotent once a point is within half the plate width of home. */
-export function routeDistance(
-  home: readonly [number, number],
-  partner: readonly [number, number],
-): number {
-  const dx = wrapDelta(home[0], partner[0]);
-  const dy = partner[1] - home[1];
-  return Math.hypot(dx, dy);
-}
-
-/** Lap time for a route of this distance at the shared BOAT_SPEED, clamped
- *  so a near-zero-distance or extreme-distance route doesn't produce a
- *  degenerate (near-instant or near-frozen) lap. */
+/** Lap time for a route of this distance at the shared BOAT_SPEED.
+ *  Only a floor — long ocean legs keep the same hull speed rather than
+ *  being squeezed into a short lap. */
 export function periodForDistance(dist: number): number {
-  return Math.max(
-    BOAT_MIN_PERIOD_S,
-    Math.min(BOAT_MAX_PERIOD_S, dist / BOAT_SPEED),
-  );
+  return Math.max(BOAT_MIN_PERIOD_S, dist / BOAT_SPEED);
 }
 
 /** Deterministic [0,1) seed per partner id, so every route's boats start at
@@ -56,32 +37,24 @@ export function routePhaseSeed(partnerId: string): number {
   for (let i = 0; i < partnerId.length; i++) {
     h = (h * 31 + partnerId.charCodeAt(i)) | 0;
   }
-  return ((h % 1000) + 1000) % 1000 / 1000;
+  return (((h % 1000) + 1000) % 1000) / 1000;
 }
 
-/** Bilateral trade volume for a route, summing both directions of the
- *  already-cleared flow. Falls back to the partner's static tradeShare
- *  only if worldTrade hasn't run yet (e.g. the very first tick). */
-export function routeVolume(
-  g: any,
-  homeRole: string,
-  partnerId: string,
-  fallbackTradeShare: number,
-): number {
-  const flows = g?.worldTrade?.flows;
-  const out = flows?.[homeRole]?.[partnerId] || 0;
-  const inbound = flows?.[partnerId]?.[homeRole] || 0;
-  const total = out + inbound;
-  return total > 0 ? total : fallbackTradeShare;
-}
-
-/** Volume relative to the busiest current route (0..1) → boat count.
- *  Relative, not absolute, so it doesn't need a hand-tuned magic threshold
- *  in trade-volume units. Arrival frequency is controlled by BOAT_SPEED /
- *  periodForDistance, not by dropping the per-route count. */
-export function bucketRoute(vol: number, maxVol: number) {
+/** Volume relative to the busiest current route (0..1), then a length
+ *  budget, → boat count. Short hops stay at 1–2 hulls even when busy;
+ *  a long Pacific lane can fill out toward BOAT_MAX_COUNT. Arrival
+ *  frequency is still BOAT_SPEED / periodForDistance. */
+export function bucketRoute(
+  vol: number,
+  maxVol: number,
+  pathLenNorm = 0,
+) {
   const rel = maxVol > 0 ? Math.max(0, Math.min(1, vol / maxVol)) : 0;
-  const count = 1 + Math.round(rel * (BOAT_MAX_COUNT - 1));
+  const span = 2 + Math.max(0, pathLenNorm) / BOAT_LEN_SPAN;
+  const count = Math.max(
+    pathLenNorm > 0.25 ? 3 : 1,
+    Math.min(BOAT_MAX_COUNT, Math.round(rel * span)),
+  );
   return { rel, count };
 }
 
@@ -93,26 +66,8 @@ export function relationTint(rel: number): number {
   return 0.7;
 }
 
-export interface Point2 {
+export interface Vec3 {
   x: number;
   y: number;
-}
-
-/** Quadratic Bézier point + tangent angle, matching the bulge the 2D trade
- *  line already draws (control point raised by bulge above the midpoint). */
-export function tradeCurvePoint(
-  h: Point2,
-  p: Point2,
-  bulge: number,
-  t: number,
-): { x: number; y: number; angle: number } {
-  const cx = (h.x + p.x) / 2;
-  const cy = (h.y + p.y) / 2 - bulge;
-  const mt = 1 - t;
-  const x = mt * mt * h.x + 2 * mt * t * cx + t * t * p.x;
-  const y = mt * mt * h.y + 2 * mt * t * cy + t * t * p.y;
-  // Tangent of a quadratic Bézier: dP/dt = 2(1-t)(C-H) + 2t(P-C)
-  const dx = 2 * mt * (cx - h.x) + 2 * t * (p.x - cx);
-  const dy = 2 * mt * (cy - h.y) + 2 * t * (p.y - cy);
-  return { x, y, angle: Math.atan2(dy, dx) };
+  z: number;
 }

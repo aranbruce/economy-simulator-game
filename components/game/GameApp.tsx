@@ -39,6 +39,7 @@ import {
   realmById,
   realmByRole,
   homeIsoForRealm,
+  randomPlayableRealm,
 } from "../../lib/sim/realms.ts";
 import {
   getMpRoom,
@@ -57,11 +58,10 @@ import {
   clearMpSession,
 } from "../../lib/mp/session.ts";
 import { saveCurrencyPref } from "../../lib/ui/currencyPref.ts";
-import WorldMap, { type WorldMapHandle } from "../map2d/WorldMap";
-
-/** three.js only loads for clients that actually reach the play phase, not
- *  on setup/lobby screens — see CLAUDE.md's map3d architecture note. */
-const Map3DOverlay = dynamic(() => import("../map3d/Map3DOverlay"), {
+/** The whole map is three.js now, so it can only mount client-side — and it
+ *  is scenery behind the setup screen as well as behind play, so this is
+ *  the one bundle that loads on every phase. */
+const WorldMap3D = dynamic(() => import("../map3d/WorldMap3D"), {
   ssr: false,
 });
 import RealmStats from "../ui/RealmStats";
@@ -111,12 +111,9 @@ export default function GameApp() {
   const [realmId, setRealmId] = useState(DEFAULT_REALM_ID);
   const [homeIso, setHomeIso] = useState<string | null>(null);
   const [homeRole, setHomeRole] = useState("home");
-  const [setupRole, setSetupRole] = useState(
-    () => realmById(DEFAULT_REALM_ID).role,
-  );
+  const [setupRole, setSetupRole] = useState(() => randomPlayableRealm().role);
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
-  const worldMapRef = useRef<WorldMapHandle>(null);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [mapMetric, setMapMetric] = useState("countries");
   const [mpSession, setMpSession] = useState<any>(null);
@@ -340,8 +337,22 @@ export default function GameApp() {
           ) {
             return false;
           }
-          if (act === "issueUltimatum" && q.action === "issueUltimatum")
+          /* An issue supersedes a queued issue (the newest demand wins) and
+             a withdraw supersedes either. But an issue must NOT drop a
+             queued withdraw: issueUltimatum() is idempotent on a pending
+             ultimatum, so if the seat still holds the old one server-side,
+             the re-issue returns ok without changing the demand and the
+             player's new demand is silently lost. The withdraw has to go
+             first for the re-issue to land. */
+          if (
+            q.action === "issueUltimatum" &&
+            (act === "issueUltimatum" || act === "withdrawUltimatum")
+          ) {
             return false;
+          }
+          if (act === "withdrawUltimatum" && q.action === "withdrawUltimatum") {
+            return false;
+          }
           if (
             act === "withdrawBlocAccession" &&
             q.action === "withdrawBlocAccession"
@@ -1126,27 +1137,16 @@ export default function GameApp() {
         }
       >
         {worldOk ? (
-          <>
-            <WorldMap
-              ref={worldMapRef}
-              tick={tick}
-              mapMetric={mapMetric}
-              selectedRole={inSetup ? setupRole : selectedRole}
-              onSelect={onSelect}
-              onFail={onWorldFail}
-              homeIso={homeIso}
-              homeRole={homeRole}
-              setupMode={inSetup}
-            />
-            {phase === "play" && (
-              <Map3DOverlay
-                worldMapRef={worldMapRef}
-                homeIso={homeIso}
-                homeRole={homeRole}
-                tick={tick}
-              />
-            )}
-          </>
+          <WorldMap3D
+            tick={tick}
+            mapMetric={mapMetric}
+            selectedRole={inSetup ? setupRole : selectedRole}
+            onSelect={onSelect}
+            onFail={onWorldFail}
+            homeIso={homeIso}
+            homeRole={homeRole}
+            setupMode={inSetup}
+          />
         ) : (
           phase === "play" && (
             <div id="mapLayer" className="flat-fallback">
@@ -1188,7 +1188,7 @@ export default function GameApp() {
           <>
             <div
               id="vignette"
-              className="pointer-events-none fixed inset-0 z-1 bg-[radial-gradient(ellipse_at_50%_46%,transparent_46%,rgba(2,4,10,.55)_80%,rgba(2,4,10,.85)_100%)]"
+              className="pointer-events-none fixed inset-0 z-1 bg-[radial-gradient(ellipse_at_50%_46%,transparent_52%,rgba(22,14,8,.16)_78%,rgba(12,8,5,.38)_100%)]"
             />
             <div id="quarterFlash" hidden aria-live="polite">
               <div className="quarter-flash-inner">

@@ -20,6 +20,7 @@ import {
   assignEnvoy,
   recallEnvoy,
   issueUltimatum,
+  withdrawUltimatum,
   hideDespatchShell,
   CUSTOM_BLOC_TEMPLATES,
   syncPolityFromGroups,
@@ -301,6 +302,17 @@ export function issueUltimatumAction(
     return;
   }
   if (issueUltimatum(partnerId, demandId)) bump();
+}
+
+export function withdrawUltimatumAction(partnerId: string) {
+  const G = getG();
+  if (G.mp && typeof G.mp.onDiploAction === "function") {
+    Promise.resolve(
+      G.mp.onDiploAction({ action: "withdrawUltimatum", partnerId }),
+    );
+    return;
+  }
+  if (withdrawUltimatum(partnerId)) bump();
 }
 
 export function setSandboxMode(sandbox: boolean) {
