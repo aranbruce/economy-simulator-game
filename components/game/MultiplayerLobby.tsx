@@ -51,7 +51,6 @@ export default function MultiplayerLobby({
         : "join"
       : "menu",
   );
-  const [name, setName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyAction, setBusyAction] = useState(""); // create | join | ""
@@ -109,7 +108,7 @@ export default function MultiplayerLobby({
     setError("");
     try {
       const data = await createMpRoom({
-        hostName: name.trim() || realm.name,
+        hostName: realm.name,
         role: realm.role,
       });
       setSession({ code: data.room.code, token: data.token, room: data.room });
@@ -128,7 +127,7 @@ export default function MultiplayerLobby({
     setError("");
     try {
       const data = await joinMpRoom(joinCode.trim().toUpperCase(), {
-        name: name.trim() || realm.name,
+        name: realm.name,
         role: realm.role,
       });
       setSession({ code: data.room.code, token: data.token, room: data.room });
@@ -328,43 +327,20 @@ export default function MultiplayerLobby({
       </HudFrame>
       <HudFrame className="setup-dock hud-surface pointer-events-auto flex w-[min(820px,100%)] animate-[panelIn_0.18s_cubic-bezier(.22,1,.3,1)] flex-col items-stretch gap-3 self-center px-4 py-3.5">
         <div className="flex w-full flex-col gap-3.5">
-          <div className="grid grid-cols-[minmax(0,1.35fr)_minmax(180px,0.85fr)] items-end gap-x-4 gap-y-3 border-b border-white/8 pb-3 max-md:grid-cols-1">
-            <div className="flex min-w-0 flex-1 flex-col gap-0">
-              <div className="mb-0 flex items-start justify-between gap-x-4.5 gap-y-3 max-sm:flex-col max-sm:items-stretch">
-                <div className="flex min-w-0 flex-1 flex-col gap-0.75">
-                  <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
-                    Your seat
-                  </span>
-                  <div className="flex items-center gap-2.5">
-                    <FlagAvatar
-                      role={playerCountryId(realm.role)}
-                      size="size-10"
-                    />
-                    <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
-                      {realm.name}
-                    </strong>
-                  </div>
-                  <em className="text-xs leading-[1.4] text-ink-soft not-italic">
-                    Click another country on the map to change seat — it must be
-                    free when you enter.
-                  </em>
-                </div>
-              </div>
+          <div className="flex min-w-0 flex-1 flex-col gap-0 border-b border-white/8 pb-3">
+            <span className="text-xs font-bold tracking-widest text-accent-lt uppercase">
+              Your seat
+            </span>
+            <div className="flex items-center gap-2.5">
+              <FlagAvatar role={playerCountryId(realm.role)} size="size-10" />
+              <strong className="font-display text-xl leading-[1.15] font-normal tracking-[-.02em]">
+                {realm.name}
+              </strong>
             </div>
-            <label className="flex w-full min-w-35 flex-1 flex-col gap-1.25">
-              <span className="text-xs font-bold tracking-widest text-ink-faint uppercase">
-                Display name
-              </span>
-              <input
-                type="text"
-                maxLength={34}
-                value={name}
-                placeholder={realm.name}
-                onChange={(e) => setName(e.target.value)}
-                aria-label="Display name in the lobby"
-                className="w-full rounded-sm border border-edge bg-g-3 px-2.75 py-2.25 text-base font-semibold tracking-[-.02em] text-white placeholder:font-medium placeholder:text-ink-faint focus:outline-2 focus:outline-offset-1 focus:outline-accent"
-              />
-            </label>
+            <em className="text-xs leading-[1.4] text-ink-soft not-italic">
+              Click another country on the map to change seat — it must be
+              free when you enter.
+            </em>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 max-md:grid-cols-1">
