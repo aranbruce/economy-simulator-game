@@ -15,6 +15,8 @@ import {
   activePartners,
   lineChartSpec,
   getDrawerCat,
+  TheCountry,
+  theCountry,
 } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
@@ -195,7 +197,7 @@ export function ChartsPanel() {
   const gdpNow = (
     <ChartBox
       title="GDP now"
-      caption={`Nominal size of every mapped economy, in ${anchorCcy}. ${G.country} is ${gdpFmt(realmGdpBn("home", G))}.`}
+      caption={`Nominal size of every mapped economy, in ${anchorCcy}. ${TheCountry(G.country)} is ${gdpFmt(realmGdpBn("home", G))}.`}
     >
       {gdpNowRows.map((r) => (
         <div
@@ -234,7 +236,7 @@ export function ChartsPanel() {
         <>
           <ChartBox
             title="GDP over time"
-            caption={`Cash size of ${G.country}, not the 100-at-term-start index. A stronger currency raises the ${anchorCcy} figure; a weaker one cuts it.`}
+            caption={`Cash size of ${theCountry(G.country)}, not the 100-at-term-start index. A stronger currency raises the ${anchorCcy} figure; a weaker one cuts it.`}
           >
             <LineChartSvg
               spec={lineChartSpec(
@@ -396,7 +398,7 @@ export function ChartsPanel() {
       </ChartBox>
       <ChartBox
         title="Gilt yield"
-        caption={`What the market charges ${G.country} to borrow.`}
+        caption={`What the market charges ${theCountry(G.country)} to borrow.`}
       >
         <LineChartSvg
           spec={lineChartSpec([

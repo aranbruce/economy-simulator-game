@@ -4,6 +4,7 @@ import {
   FACTIONS,
   approvalOf,
   electionAtRisk,
+  governmentScoreData,
   ongoingSituations,
   reviewNoun,
   seatRows,
@@ -26,12 +27,30 @@ interface Flag {
   state: "alert" | "good" | "";
 }
 
+function scoreTone(value: number, max = 6): "good" | "alert" | "" {
+  const pct = value / max;
+  if (pct > 0.66) return "good";
+  if (pct < 0.34) return "alert";
+  return "";
+}
+
+function scoreBarColor(tone: "good" | "alert" | "") {
+  return tone === "good"
+    ? "var(--green)"
+    : tone === "alert"
+      ? "var(--red)"
+      : "var(--amber)";
+}
+
 export function OverviewPanel() {
   const G = useGame();
   const e = G.econ;
   const situations = ongoingSituations(G);
   const appr = approvalOf(G.fac);
   const risk = electionAtRisk();
+  const score = governmentScoreData();
+  const scorePct = Math.round(score.pct * 100);
+  const scoreState = scoreTone(score.pct, 1);
   const noun = reviewNoun();
   const nounLabel = noun.charAt(0).toUpperCase() + noun.slice(1);
 
@@ -75,6 +94,60 @@ export function OverviewPanel() {
 
   return (
     <>
+      <Eyebrow>Overall score</Eyebrow>
+      <Card hoverable={false} className="mb-4">
+        <div className="flex items-baseline gap-2.5">
+          <span
+            className={`font-display text-2xl leading-none font-normal ${STATE_VALUE_COLOR[scoreState] || "text-ink-soft"}`}
+          >
+            {score.letter}
+          </span>
+          <span className="text-xs font-[650] text-ink-faint">
+            {scorePct}/100
+          </span>
+          <span className="ml-auto text-xs text-ink-faint">
+            How the government is doing, right now
+          </span>
+        </div>
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.max(0, Math.min(100, scorePct))}%`,
+              background: scoreBarColor(scoreState),
+            }}
+          />
+        </div>
+        <div className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-1.5">
+          {score.factors.map((f) => {
+            const tone = scoreTone(f.value);
+            return (
+              <div key={f.label} title={f.label}>
+                <div className="flex items-baseline gap-1.5 text-xs">
+                  <span className="min-w-0 truncate text-ink-faint">
+                    {f.label}
+                  </span>
+                  <span
+                    className={`ml-auto shrink-0 font-[650] tabular-nums ${STATE_VALUE_COLOR[tone] || "text-ink-soft"}`}
+                  >
+                    {f.value.toFixed(1)}
+                  </span>
+                </div>
+                <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.max(0, Math.min(100, (f.value / 6) * 100))}%`,
+                      background: scoreBarColor(tone),
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+
       {otherSituations.length > 0 ? (
         <>
           <Eyebrow>Ongoing situations</Eyebrow>

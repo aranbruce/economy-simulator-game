@@ -16,6 +16,8 @@ import {
   fmtFxRate,
   CURRENCY_META,
   partnerTradeSharePct,
+  theCountry,
+  T,
 } from "../../lib/sim/engine.ts";
 import { roleCountryId } from "../../lib/sim/boardMetrics.ts";
 import type { GameState } from "../../lib/sim/types.ts";
@@ -186,8 +188,9 @@ function toneOf(v: number, invert: boolean) {
 }
 
 function vsHomeGdpNote(ratio: number, homeName: string) {
-  if (ratio >= 0.95 && ratio <= 1.05) return `About the size of ${homeName}`;
-  return `${ratio.toFixed(1)}× ${homeName}`;
+  if (ratio >= 0.95 && ratio <= 1.05)
+    return `About the size of ${theCountry(homeName)}`;
+  return `${ratio.toFixed(1)}× ${theCountry(homeName)}`;
 }
 
 /**
@@ -267,7 +270,7 @@ export default function RealmStats({
       </div>
 
       <p className="mb-3.5 text-sm leading-[1.4] text-paper-ink-soft">
-        {String(snap.blurb).replace(/\{C\}/g, homeName)}
+        {T(String(snap.blurb))}
       </p>
 
       <div className="mb-3 grid grid-cols-2 gap-x-4.5 gap-y-3.5 max-md:gap-x-3.5 max-md:gap-y-2.5">
@@ -304,7 +307,7 @@ export default function RealmStats({
               ? G?.log?.length
                 ? "Last quarter, annualised"
                 : "Trend (before first outturn)"
-              : `${sgn(snap.vsHomeGrowth, 1)} pts vs ${homeName}`
+              : `${sgn(snap.vsHomeGrowth, 1)} pts vs ${theCountry(homeName)}`
           }
           tone={toneOf(snap.growth, false)}
         />
@@ -342,7 +345,7 @@ export default function RealmStats({
           <Stat
             label="Share of your trade"
             value={snap.tradeSharePct.toFixed(0) + "%"}
-            note={`Of ${homeName}'s exports`}
+            note={`Of ${theCountry(homeName)}'s exports`}
           />
         )}
       </div>

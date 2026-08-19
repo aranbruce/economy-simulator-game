@@ -12,6 +12,15 @@ import {
   resolveHomeRole,
 } from "./countries.ts";
 import {
+  theCountry,
+  TheCountry,
+  countryPhrase,
+  countryLabel,
+  countryAt,
+  capSentenceThe,
+  precededByThe,
+} from "./countryPhrase.ts";
+import {
   BLOC_TEMPLATES,
   CUSTOM_BLOC_TEMPLATES,
   blocById,
@@ -753,29 +762,35 @@ function unionPackageApprovals(g: any, bound: any) {
   );
 }
 
-function unionPackageBlockers(g: any, partnerId: any) {
-  const out = [];
+function unionCommercialDealBlockers(partnerId: any, dealId: any, g?: any) {
+  return unionDealContentBlockers(partnerId, dealId, g);
+}
+
+/** Host score, capped by the coolest union member. Warmth is never a veto. */
+function commercialScore(
+  kind: "tariff" | "deal",
+  partnerId: any,
+  g: any,
+  meta?: any,
+) {
+  const deps = diploDeps();
+  const host = commercialAcceptScore(kind, partnerId, g, deps, meta);
+  if (isHumanMpSeat(g, partnerId)) return host;
   const bound = cuBoundary(g, partnerId);
-  if (!bound) {
-    out.push("not a customs-union boundary");
-    return out;
-  }
-  const min = unionCommercialRelationMin(bound.blocId, g);
-  const counterpartId = bound.playerInCu ? bound.outsiderId : partnerId;
-  const rel = g.rel && g.rel[counterpartId] != null ? g.rel[counterpartId] : 50;
-  if (rel < min) {
-    out.push(
-      "relations with partner " + rel.toFixed(0) + " (need " + min + "+)",
-    );
-  }
+  if (!bound) return host;
+  let p = host.p != null ? +host.p : host.ok ? 1 : 0;
+  let reason = host.reason;
   for (const a of unionPackageApprovals(g, bound)) {
-    if (!a.ok) {
-      out.push(
-        a.name + " withholds approval (" + a.rel.toFixed(0) + "/" + a.min + ")",
-      );
+    if (!a || a.id === partnerId) continue;
+    const r = commercialAcceptScore(kind, a.id, g, deps, meta);
+    const rp = r.p != null ? +r.p : r.ok ? 1 : 0;
+    if (rp < p) {
+      p = rp;
+      if (!r.ok) reason = r.reason;
     }
   }
-  return out;
+  const ok = p >= COMMERCIAL_ACCEPT_P;
+  return Object.assign({}, host, { p, ok, reason: ok ? null : reason });
 }
 
 function unionDealContentBlockers(partnerId: any, dealId: any, g?: any) {
@@ -804,13 +819,6 @@ function unionDealContentBlockers(partnerId: any, dealId: any, g?: any) {
     }).forEach((b: any) => out.push(b));
   }
   return out;
-}
-
-function unionCommercialDealBlockers(partnerId: any, dealId: any, g?: any) {
-  const state = g || getG();
-  return unionPackageBlockers(state, partnerId).concat(
-    unionDealContentBlockers(partnerId, dealId, state),
-  );
 }
 
 function cutCountryRateOnLaw(
@@ -1012,7 +1020,7 @@ function aiAcceptsReciprocalTariff(
 ) {
   const od = ourDelta != null ? +ourDelta : SUMMIT_TARIFF_DELTA;
   const td = theirDelta != null ? +theirDelta : od;
-  return commercialAcceptScore("tariff", partnerId, g, diploDeps(), {
+  return commercialScore("tariff", partnerId, g, {
     ourDelta: od,
     theirDelta: td,
     delta: td,
@@ -1028,7 +1036,7 @@ function summitAgendaParts(
 ) {
   const parts: { p: number; ok: boolean; pending?: boolean }[] = [];
   if ((+ourDelta || 0) > 0 || (+theirDelta || 0) > 0) {
-    const r = commercialAcceptScore("tariff", partnerId, g, diploDeps(), {
+    const r = commercialScore("tariff", partnerId, g, {
       ourDelta: +ourDelta || 0,
       theirDelta: +theirDelta || 0,
       delta: +theirDelta || 0,
@@ -1037,7 +1045,7 @@ function summitAgendaParts(
   }
   for (const id of Array.isArray(dealIds) ? dealIds : []) {
     if (!id) continue;
-    const r = commercialAcceptScore("deal", partnerId, g, diploDeps(), {
+    const r = commercialScore("deal", partnerId, g, {
       dealId: id,
     });
     parts.push({ p: r.p, ok: !!r.ok });
@@ -1061,23 +1069,9 @@ function aiAcceptsSummitAgenda(
 function aiAcceptsBilateralDeal(g: any, partnerId: any, dealId: any) {
   const d = dealById(dealId, g);
   if (!d) return false;
-  return commercialAcceptScore("deal", partnerId, g, diploDeps(), {
+  return commercialScore("deal", partnerId, g, {
     dealId,
   }).ok;
-}
-
-function summitDealBlockReason(g: any, partnerId: any, dealId: any) {
-  const d = dealById(dealId, g);
-  if (!d) return null;
-  if (cuBoundary(g, partnerId)) {
-    const unmet = unionCommercialDealBlockers(partnerId, dealId, g);
-    if (unmet.length) return unmet[0];
-  } else if (dealBlockers(d).length) return null;
-  if (isHumanMpSeat(g, partnerId)) return null;
-  const r = commercialAcceptScore("deal", partnerId, g, diploDeps(), {
-    dealId,
-  });
-  return r.ok ? null : r.reason;
 }
 
 function enactBilateralDealOnLaw(g: any, dealId: any) {
@@ -1117,7 +1111,7 @@ function ratifyBilateralDealWithPartner(
     return { ok: true, already: true };
 
   const playerId = playerCountryId(g.homeRole);
-  const pName = partnerById(pid)?.name || pid;
+  const pName = theCountry(partnerById(pid)?.name || pid);
 
   if (isHumanMpSeat(g, pid)) {
     if (!parkInboundDealProposal(g, playerId, pid, dealId)) {
@@ -1232,55 +1226,18 @@ function tariffPackageLabel(
   );
 }
 
-function summitReciprocalTariffBlockReason(
-  g: any,
-  partnerId: any,
-  ourDelta?: any,
-  theirDelta?: any,
-) {
-  if (!canNegotiateTariffs(g, partnerId)) return null;
-  if (isHumanMpSeat(g, partnerId)) return null;
-  const od = ourDelta != null ? +ourDelta : SUMMIT_TARIFF_DELTA;
-  const td = theirDelta != null ? +theirDelta : od;
-  const r = commercialAcceptScore("tariff", partnerId, g, diploDeps(), {
-    ourDelta: od,
-    theirDelta: td,
-    delta: td,
-  });
-  return r.ok ? null : r.reason;
-}
-
 function previewSummitTariff(partnerId: any, ourDelta: any, theirDelta: any) {
   const g = getG();
   if (!g || !partnerId) return { ok: false, reason: "No partner" };
   if (!canNegotiateTariffs(g, partnerId))
     return { ok: false, reason: "Cannot negotiate tariffs here" };
-  const packBlock = unionPackageBlockers(g, partnerId);
-  if (cuBoundary(g, partnerId) && packBlock.length)
-    return { ok: false, reason: packBlock[0], p: 0 };
   if (isHumanMpSeat(g, partnerId))
     return { ok: true, reason: null, pending: true, p: 1 };
-  return commercialAcceptScore("tariff", partnerId, g, diploDeps(), {
+  return commercialScore("tariff", partnerId, g, {
     ourDelta,
     theirDelta,
     delta: theirDelta,
   });
-}
-
-/** Why an unsigned bilateral deal would be declined if offered at a summit. */
-function commercialDealDeclineReason(partnerId: any, dealId: any, g?: any) {
-  const state = g || getG();
-  const d = dealById(dealId, state);
-  if (!d || !state) return null;
-  if (isHumanMpSeat(state, partnerId)) return null;
-  if (cuBoundary(state, partnerId)) {
-    const unmet = unionCommercialDealBlockers(partnerId, dealId, state);
-    if (unmet.length) return unmet[0];
-  } else if (dealBlockers(d).length) return null;
-  const r = commercialAcceptScore("deal", partnerId, state, diploDeps(), {
-    dealId,
-  });
-  return r.ok ? null : r.reason;
 }
 
 function formatSummitCommercialOpt(
@@ -1288,19 +1245,15 @@ function formatSummitCommercialOpt(
   ctx: any,
   pName: string,
   rivalName: string,
-  commercial: boolean,
+  _commercial: boolean,
   onPick: (opt: any) => void,
 ) {
-  const blocked = !!(o.disabled && o.blockReason);
   return {
     b: formatMissionTokens(o.b, pName, rivalName),
-    e: blocked ? o.blockReason : formatMissionTokens(o.e, pName, rivalName),
-    hint: blocked ? "" : missionOptionHint(o, ctx),
-    disabled: blocked,
-    f: () => {
-      if (blocked) return;
-      onPick(o);
-    },
+    e: formatMissionTokens(o.e, pName, rivalName),
+    hint: missionOptionHint(o, ctx),
+    disabled: false,
+    f: () => onPick(o),
   };
 }
 
@@ -1619,7 +1572,7 @@ function applyMpInboundSummitCommercialChoice(
         });
       }
       const p = partnerById(seatId);
-      const name = p ? p.name : seatId;
+      const name = theCountry(p ? p.name : seatId);
       if (getG().brief) {
         const note = accept
           ? name +
@@ -1714,12 +1667,6 @@ function buildSummitCommercialEvent(partnerId: any, g: any) {
   const room = summitTariffRoom(g, partnerId);
   if (canNegotiateTariffs(g, partnerId) && room) {
     for (const pack of summitTariffPackages(g, partnerId)) {
-      const blockReason = summitReciprocalTariffBlockReason(
-        g,
-        partnerId,
-        pack.ourDelta,
-        pack.theirDelta,
-      );
       const depth = Math.max(pack.ourDelta, pack.theirDelta);
       const pts = depth <= 1 ? 3 : depth >= 4 ? 5 : 4;
       opts.push({
@@ -1729,13 +1676,11 @@ function buildSummitCommercialEvent(partnerId: any, g: any) {
           room.ourMax,
           room.theirMax,
         ),
-        e: blockReason || "Country rates on both statute books",
+        e: "Country rates on both statute books",
         summitKind: "tariff",
         ourDelta: pack.ourDelta,
         theirDelta: pack.theirDelta,
         delta: pack.delta,
-        disabled: !!blockReason,
-        blockReason,
         setRel: { _partner: depth <= 1 ? 3 : depth >= 4 ? 6 : 5 },
         fac: { business: depth <= 1 ? 2 : 3, patriots: -1 },
         relImpulse: pts,
@@ -1744,14 +1689,11 @@ function buildSummitCommercialEvent(partnerId: any, g: any) {
     }
   }
   for (const d of summitCommercialDealOptions(partnerId, g)) {
-    const reason = summitDealBlockReason(g, partnerId, d.id);
     opts.push({
       b: "Sign " + d.name.toLowerCase(),
-      e: reason || "Treaty enters force when both sides agree",
+      e: "Treaty enters force when both sides agree",
       summitKind: "deal",
       dealId: d.id,
-      disabled: false,
-      blockReason: reason,
       setRel: { _partner: SUMMIT_DEAL_REL },
       fac: { business: 2 },
       relImpulse: SUMMIT_DEAL_IMPULSE,
@@ -1785,8 +1727,6 @@ function applySummitReciprocalTariff(
   skipAccept?: boolean,
 ) {
   if (!canNegotiateTariffs(g, partnerId)) return false;
-  if (cuBoundary(g, partnerId) && unionPackageBlockers(g, partnerId).length)
-    return false;
   const room = summitTariffRoom(g, partnerId);
   if (!room) return false;
   const od = Math.max(
@@ -1845,14 +1785,6 @@ function applySummitCommercialOption(opt: any, ctx: any) {
     bump();
     return;
   }
-  if (
-    partnerId &&
-    cuBoundary(g, partnerId) &&
-    unionPackageBlockers(g, partnerId).length
-  ) {
-    bump();
-    return;
-  }
 
   const dealIds: string[] = [];
   if (Array.isArray(opt.dealIds)) {
@@ -1878,7 +1810,7 @@ function applySummitCommercialOption(opt: any, ctx: any) {
     if (g.rel && g.rel[partnerId] != null) {
       g.rel[partnerId] = clamp(g.rel[partnerId] - 2, 5, 95);
     }
-    const pName = partnerById(partnerId)?.name || partnerId;
+    const pName = theCountry(partnerById(partnerId)?.name || partnerId);
     if (g.brief) {
       g.brief = [
         pName + " declined the commercial agenda — nothing signed this visit.",
@@ -1920,7 +1852,7 @@ function applySummitCommercialOption(opt: any, ctx: any) {
           ctx,
         );
       } else {
-        const pName = partnerById(partnerId)?.name || partnerId;
+        const pName = theCountry(partnerById(partnerId)?.name || partnerId);
         if (g.brief) {
           g.brief = [
             pName +
@@ -2340,7 +2272,7 @@ function finishOutboundUltimatum(
     deps,
   );
   const p = partnerById(targetId);
-  const name = p ? p.name : targetId;
+  const name = theCountry(p ? p.name : targetId);
   const note = concede
     ? name + " conceded to our ultimatum."
     : name + " defied our ultimatum.";
@@ -2729,11 +2661,11 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
       );
     }
     const p = partnerById(seatId);
-    const name = p ? p.name : seatId;
+    const name = theCountry(p ? p.name : seatId);
     if (getG().brief) {
       const note = accept
-        ? name + " accepts the invitation to " + blocName + "."
-        : name + " declines the invitation to " + blocName + ".";
+        ? name + " accepts the invitation to " + theCountry(blocName) + "."
+        : name + " declines the invitation to " + theCountry(blocName) + ".";
       getG().brief = [note].concat(getG().brief).slice(0, 3);
     }
     syncMpPoliticsFromG(iPol);
@@ -2952,7 +2884,7 @@ function applyMpInboundDealChoice(g: any, seatId: any, accept: any) {
       );
     }
     const p = partnerById(seatId);
-    const name = p ? p.name : seatId;
+    const name = theCountry(p ? p.name : seatId);
     if (getG().brief) {
       const note = accept
         ? name + " accepts the treaty — " + dealName + "."
@@ -3181,7 +3113,6 @@ function commercialAgendaDespatchData(
     bound &&
     (blocById(bound.blocId) || (g.customBlocs && g.customBlocs[bound.blocId]));
   const approvals = bound ? unionPackageApprovals(g, bound) : [];
-  const packBlock = bound ? unionPackageBlockers(g, partnerId) : [];
   const deals = summitCommercialDealOptions(partnerId, g).map((d: any) => {
     if (isHumanMpSeat(g, partnerId)) {
       return {
@@ -3190,10 +3121,9 @@ function commercialAgendaDespatchData(
         ok: true,
         p: 1,
         pending: true,
-        reason: null,
       };
     }
-    const r = commercialAcceptScore("deal", partnerId, g, diploDeps(), {
+    const r = commercialScore("deal", partnerId, g, {
       dealId: d.id,
     });
     return {
@@ -3201,7 +3131,6 @@ function commercialAgendaDespatchData(
       name: d.name,
       ok: r.ok,
       p: r.p,
-      reason: r.reason,
     };
   });
   return {
@@ -3209,7 +3138,7 @@ function commercialAgendaDespatchData(
     hint: bound
       ? "This agenda is with " +
         (bloc && bloc.name ? bloc.name : "the union") +
-        ". Preferential duties bind every member; the host still accepts or declines the package."
+        ". Preferential duties bind every member. Cool members drag acceptance; they do not veto."
       : "Cut duties, table any unsigned treaty, or both. The whole agenda is accepted or declined together. Offering a deeper cut than you ask of them improves acceptance.",
     partnerId,
     partnerName: pName,
@@ -3225,8 +3154,6 @@ function commercialAgendaDespatchData(
           blocId: bound.blocId,
           name: (bloc && bloc.name) || bound.blocId,
           approvals,
-          blocked: packBlock.length > 0,
-          blockReason: packBlock[0] || null,
         }
       : null,
   };
@@ -3238,6 +3165,7 @@ function inboundSummitAgendaDespatchData(
   name: any,
   deals: { id: string; label: string; terms: string[] }[],
 ) {
+  name = theCountry(name);
   const g = getG();
   const fromId = prop && prop.fromId;
   const theirDelta =
@@ -3261,7 +3189,7 @@ function inboundSummitAgendaDespatchData(
     prop.unionBlocId &&
     (blocById(prop.unionBlocId) ||
       (g.customBlocs && g.customBlocs[prop.unionBlocId]));
-  const unionName = bloc && bloc.name ? bloc.name : "the union";
+  const unionName = theCountry(bloc && bloc.name ? bloc.name : "the union");
   const ourLabel =
     prop && prop.unionBlocId
       ? "Our duty on " + unionName
@@ -3425,7 +3353,9 @@ function processActiveVisits(g: any, briefExtra: any) {
   for (const pid of ended) {
     delete g.activeVisits[pid];
     const p = partnerById(pid);
-    briefExtra.push("State visit with " + (p ? p.name : pid) + " concluded.");
+    briefExtra.push(
+      "State visit with " + theCountry(p ? p.name : pid) + " concluded.",
+    );
   }
 }
 
@@ -3881,13 +3811,13 @@ function inviteCapitalCost(destBlocId: any, candidateId: any) {
 function inviteClauseLabel(destBlocId: any, candidateId: any) {
   const c = partnerById(candidateId);
   const dest = blocByIdOrCustom(destBlocId);
-  const destName = dest ? dest.name : "bloc";
-  const name = c ? c.name : candidateId;
+  const destName = theCountry(dest ? dest.name : "bloc");
+  const name = theCountry(c ? c.name : candidateId);
   if (!isPoachCandidate(destBlocId, candidateId)) {
     return "Propose " + name + " join " + destName;
   }
   const home = blocByIdOrCustom(countryBlocId(candidateId));
-  const homeName = home ? home.name : "their bloc";
+  const homeName = theCountry(home ? home.name : "their bloc");
   return "Propose " + name + " leave " + homeName + " and join " + destName;
 }
 function applyPoachDepartureHits(
@@ -4528,7 +4458,10 @@ function processBlocInvites(g: any) {
               "+)"
             : "";
         notes.push(
-          (p ? p.name : cid) + " declines the bloc invitation" + why + ".",
+          theCountry(p ? p.name : cid) +
+            " declines the bloc invitation" +
+            why +
+            ".",
         );
       }
       delete state.blocInvites[cid];
@@ -4550,9 +4483,9 @@ function processBlocInvites(g: any) {
         };
         delete state.blocInvites[cid];
         notes.push(
-          (p ? p.name : cid) +
+          theCountry(p ? p.name : cid) +
             " begins accession to " +
-            (bloc ? bloc.name : inv.blocId) +
+            theCountry(bloc ? bloc.name : inv.blocId) +
             ".",
         );
         notifyBlocInviteAccept(
@@ -4640,7 +4573,9 @@ function processBlocAccessions(g: any) {
       if (acc.self || cid === player) state.blocAccession = null;
       if (state.politics && state.politics[cid])
         state.politics[cid].blocAccession = null;
-      notes.push((p ? p.name : cid) + " accession stalls and is withdrawn.");
+      notes.push(
+        theCountry(p ? p.name : cid) + " accession stalls and is withdrawn.",
+      );
       continue;
     }
     /* One accession stage per quarter (policy alignment → treaty → join). */
@@ -4771,7 +4706,7 @@ function playerAccessionGate(state: any, blocId: any, phase: any) {
         const p = partnerById(m);
         return (
           "relations with " +
-          (p ? p.name : m) +
+          theCountry(p ? p.name : m) +
           " " +
           rel.toFixed(0) +
           " (need " +
@@ -7648,28 +7583,42 @@ const taxGroup = (id: any) =>
 const clone = (o: any) => JSON.parse(JSON.stringify(o));
 /* Copy carries {C}/{P}/{S} tokens. Applied where authored text reaches the
    screen: modal despatches, the morning briefing, card blurbs, stamps, and
-   floating press clippings. */ const T = (str: any) =>
-  String(str)
-    .replace(/\{C\}/g, (G && G.country) || "United Kingdom")
-    .replace(/\{P\}/g, () => {
+   floating press clippings. Country names that take a definite article
+   (United Kingdom, United States, …) pick up "the"/"The" from the
+   surrounding sentence — see lib/sim/countryPhrase.ts. */ const T = (
+  str: any,
+) => {
+  const out = String(str)
+    .replace(/\{C\}/g, (_m, offset, full) =>
+      countryAt(full, offset, (G && G.country) || "United Kingdom"),
+    )
+    .replace(/\{P\}/g, (_m, offset, full) => {
       const id = G && G.eventFocus;
       const p = id && partnerById(id);
-      return p ? p.name : "a partner";
+      return countryAt(full, offset, p ? p.name : "a partner");
     })
-    .replace(/\{S\}/g, () => {
+    .replace(/\{S\}/g, (_m, offset, full) => {
       const ids = G && G.eventSponsors;
       if (!ids || !ids.length) return "allies";
       const names = ids
         .map((id: any) => {
           const p = partnerById(id);
-          return p ? p.name : null;
+          return p ? theCountry(p.name) : null;
         })
         .filter(Boolean);
       if (!names.length) return "allies";
-      if (names.length === 1) return names[0];
-      if (names.length === 2) return names[0] + " and " + names[1];
-      return names.slice(0, -1).join(", ") + ", and " + names[names.length - 1];
+      let joined;
+      if (names.length === 1) joined = names[0];
+      else if (names.length === 2) joined = names[0] + " and " + names[1];
+      else
+        joined =
+          names.slice(0, -1).join(", ") + ", and " + names[names.length - 1];
+      if (precededByThe(full.slice(0, offset)))
+        return joined.replace(/^the\s+/i, "");
+      return joined;
     });
+  return capSentenceThe(out);
+};
 const fmt = function (v: any, d: any = 1) {
   return (v >= 0 ? "" : "-") + Math.abs(v).toFixed(d);
 };
@@ -8577,7 +8526,10 @@ function openingBrief(pins: any, country: any) {
       "% — workable, not comfortable.";
   }
   return [
-    "You have the keys to the Treasury of " + country + ". " + fiscal,
+    "You have the keys to the Treasury of " +
+      theCountry(country) +
+      ". " +
+      fiscal,
     "The Bank sets interest rates, not you. The statute book is yours: rates, structures, laws, treaties. All of it costs political capital, and you start with very little.",
   ];
 }
@@ -11013,7 +10965,7 @@ function govDemandShares(law: any, econ: any) {
           briefExtra.push(
             (DEAL_BY_ID as any)[softest].name +
               " with " +
-              p.name +
+              theCountry(p.name) +
               " collapsed under diplomatic strain.",
           );
           addDiploLedger(g, p.id, {
@@ -12359,7 +12311,7 @@ function billClauses() {
     const p = partnerById(pid);
     if (!m || !p) continue;
     out.push({
-      label: m.name + " with " + p.name,
+      label: m.name + " with " + theCountry(p.name),
       pc: m.pc,
       executive: mid === "summit",
       undo: () => {
@@ -12375,7 +12327,7 @@ function billClauses() {
     if (!pid || baseEnv.includes(pid)) continue;
     const p = partnerById(pid);
     out.push({
-      label: "Post envoy to " + (p ? p.name : pid),
+      label: "Post envoy to " + theCountry(p ? p.name : pid),
       pc: ENVOY_ASSIGN_PC,
       sunk: true,
       executive: true,
@@ -12392,7 +12344,7 @@ function billClauses() {
     if (!pid || curEnv.includes(pid)) continue;
     const p = partnerById(pid);
     out.push({
-      label: "Recall envoy from " + (p ? p.name : pid),
+      label: "Recall envoy from " + theCountry(p ? p.name : pid),
       pc: 0,
       executive: true,
       undo: () => {
@@ -13502,7 +13454,7 @@ function ongoingSituations(g?: any) {
     out.push({
       id: "visit:" + id,
       kind: "visit",
-      label: "State visit — " + (p ? p.name : id),
+      label: "State visit — " + theCountry(p ? p.name : id),
       sub: `${left} quarter${left === 1 ? "" : "s"} left`,
       left,
     });
@@ -14139,7 +14091,7 @@ function applyRecessPartnerShocks() {
 }
 function makeSlowdownMajor(cfg: any) {
   const pid = cfg.partner;
-  const name = cfg.name;
+  const name = theCountry(cfg.name);
   const court = cfg.court || [];
   return {
     id: cfg.id,
@@ -14208,7 +14160,7 @@ function makeSlowdownMajor(cfg: any) {
 }
 function makeBilateralTariffMajor(cfg: any) {
   const pid = cfg.partner;
-  const name = cfg.name;
+  const name = theCountry(cfg.name);
   const up = !!cfg.up;
   const delta = up ? 8 : -8;
   return {
@@ -16882,7 +16834,7 @@ const EVENTS = [
   makeSlowdownMajor({
     id: "usSlowdown",
     partner: "united_states",
-    name: "the United States",
+    name: "United States",
     court: ["mexico", "canada"],
   }),
   makeSlowdownMajor({
@@ -16894,13 +16846,13 @@ const EVENTS = [
   makeBilateralTariffMajor({
     id: "usTariffUp",
     partner: "united_states",
-    name: "the United States",
+    name: "United States",
     up: true,
   }),
   makeBilateralTariffMajor({
     id: "usTariffDown",
     partner: "united_states",
-    name: "the United States",
+    name: "United States",
     up: false,
   }),
   makeBilateralTariffMajor({
@@ -18151,8 +18103,8 @@ function showMpBriefing(opts?: any) {
     const freshUlt = diploOutcomeAlertsForBrief(alertSrc, G.q);
     for (const a of freshUlt) {
       const p = partnerById(a.partnerId);
-      const name = p ? p.name : a.partnerId;
-      const demand = a.label || a.demand || "your demand";
+      const name = theCountry(p ? p.name : a.partnerId);
+      const demand = theCountry(a.label || a.demand || "your demand");
       let line;
       if (a.kind === "ult_concede") {
         line = name + " conceded to our ultimatum — " + demand + ".";
@@ -18252,7 +18204,7 @@ function showMpInboundUltimatum(fromId: any, ult: any) {
     else render();
   };
   const p = partnerById(fromId);
-  const name = p ? p.name : fromId;
+  const name = theCountry(p ? p.name : fromId);
   const demand = ult.label || ult.demand || "a diplomatic concession";
   const body =
     "<p>" +
@@ -18287,10 +18239,10 @@ function showMpInboundBlocInvite(inv: any) {
   };
   const fromId = inv.fromId;
   const p = partnerById(fromId);
-  const name = p ? p.name : fromId;
+  const name = theCountry(p ? p.name : fromId);
   const bloc =
     blocById(inv.blocId) || (G.customBlocs && G.customBlocs[inv.blocId]);
-  const blocName = bloc ? bloc.name : inv.blocId;
+  const blocName = theCountry(bloc ? bloc.name : inv.blocId);
   const body =
     "<p>" +
     T(
@@ -18324,7 +18276,7 @@ function showMpInboundDealProposal(prop: any) {
   };
   const fromId = prop.fromId;
   const p = partnerById(fromId);
-  const name = p ? p.name : fromId;
+  const name = theCountry(p ? p.name : fromId);
   const dealName = prop.label || prop.dealId || "a treaty";
   const terms =
     Array.isArray(prop.terms) && prop.terms.length
@@ -18365,7 +18317,7 @@ function showMpInboundSummitCommercial(prop: any) {
   };
   const fromId = prop.fromId;
   const p = partnerById(fromId);
-  const name = p ? p.name : fromId;
+  const name = theCountry(p ? p.name : fromId);
   const theirDelta =
     prop.theirDelta != null
       ? +prop.theirDelta
@@ -18425,7 +18377,7 @@ function showMpInboundNotice(notice: any) {
   const acts = inboundNoticeActs(notice);
   const nameOf = (id: any) => {
     const p = partnerById(id);
-    return p ? p.name : id;
+    return theCountry(p ? p.name : id);
   };
   const paraFor = (act: any) => {
     const name = nameOf(act.fromId);
@@ -18840,14 +18792,14 @@ function composePress(input: any) {
   }
   const ultOutcomes = (input && input.ultimatumOutcomes) || [];
   for (const u of ultOutcomes) {
-    const name = partnerName(u.partnerId);
-    const demand = u.label || u.demand || "your demand";
+    const name = theCountry(partnerName(u.partnerId));
+    const demand = theCountry(u.label || u.demand || "your demand");
     const impact = ultimatumPressImpactText(u.impacts);
     if (u.kind === "ult_concede") {
       clips.push({
         kind: "ultimatum",
         masthead: "The Diplomatic Courier",
-        headline: name + " backs down",
+        headline: T(name + " backs down"),
         lede: T(
           name +
             " has conceded to {C}'s ultimatum — " +
@@ -18950,7 +18902,7 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: name + " joins " + demand,
+        headline: T(name + " joins " + demand),
         lede: T(
           name +
             " is now a full member of " +
@@ -18975,7 +18927,7 @@ function composePress(input: any) {
       clips.push({
         kind: "ultimatum",
         masthead: "The Trade Gazette",
-        headline: name + " leaves " + demand,
+        headline: T(name + " leaves " + demand),
         lede: T(name + " has left " + demand + ". {C} remains a member."),
         kicker: date,
       });
@@ -19376,27 +19328,45 @@ function checkCrises(_res: any) {
     );
   }
 }
-function grade() {
+/** The same 8-factor composite gameOver()'s verdict grades on, exposed live
+ *  so the Overview drawer can show "how well you're doing" continuously
+ *  rather than only once, at the very end of a game that (outside sandbox)
+ *  most runs never reach. Pure read of the current econ/faction state. */
+function governmentScoreData() {
   const e = G.econ;
-  let s = 0;
-  s += clamp((e.gdp / e.potential - 1) * 10 + 3, 0, 6);
-  s += clamp(6 - Math.abs(e.inflation - 2) * 1.2, 0, 6);
-  s += clamp(6 - (e.unemployment - 4) * 1.1, 0, 6);
-  s += clamp(6 - (e.debt - 90) * 0.06, 0, 6);
-  s += clamp((e.services - 35) * 0.15, 0, 6);
-  s += clamp((approvalOf(G.fac) - 25) * 0.14, 0, 6);
-  s += clamp((e.liberty - 30) * 0.09, 0, 6);
-  s += clamp(6 - (e.gini - 28) * 0.22, 0, 6);
-  const pct = s / 48;
-  return pct > 0.8
-    ? "A"
-    : pct > 0.66
-      ? "B"
-      : pct > 0.5
-        ? "C"
-        : pct > 0.34
-          ? "D"
-          : "E";
+  const s = clamp((e.gdp / e.potential - 1) * 10 + 3, 0, 6);
+  const factors = [
+    { label: "Output vs potential", value: s },
+    {
+      label: "Inflation",
+      value: clamp(6 - Math.abs(e.inflation - 2) * 1.2, 0, 6),
+    },
+    {
+      label: "Unemployment",
+      value: clamp(6 - (e.unemployment - 4) * 1.1, 0, 6),
+    },
+    { label: "Debt", value: clamp(6 - (e.debt - 90) * 0.06, 0, 6) },
+    { label: "Public services", value: clamp((e.services - 35) * 0.15, 0, 6) },
+    { label: "Approval", value: clamp((approvalOf(G.fac) - 25) * 0.14, 0, 6) },
+    { label: "Civil liberty", value: clamp((e.liberty - 30) * 0.09, 0, 6) },
+    { label: "Inequality", value: clamp(6 - (e.gini - 28) * 0.22, 0, 6) },
+  ];
+  const total = factors.reduce((a, f) => a + f.value, 0);
+  const pct = total / 48;
+  const letter =
+    pct > 0.8
+      ? "A"
+      : pct > 0.66
+        ? "B"
+        : pct > 0.5
+          ? "C"
+          : pct > 0.34
+            ? "D"
+            : "E";
+  return { pct, letter, factors };
+}
+function grade() {
+  return governmentScoreData().letter;
 }
 function gameOver(g: any, title: any, text: any) {
   /* Sandbox keeps you in office. The crisis still happened and the briefing
@@ -20752,7 +20722,6 @@ export {
   canNegotiateReciprocalTariffs,
   dealById,
   unionAssociationDeal,
-  unionPackageBlockers,
   unionCommercialDealBlockers,
   applyMpInboundNoticeChoice,
   inboundNoticeActs,
@@ -20814,7 +20783,6 @@ export {
   commercialAcceptScore,
   COMMERCIAL_ACCEPT_P,
   commercialPackageScore,
-  commercialDealDeclineReason,
   partnerTariffOnPlayer,
   ultimatumOutcomeImpacts,
   rollMissionEvent,
@@ -20990,6 +20958,7 @@ export {
   rateImpactData,
   approvalOf,
   grade,
+  governmentScoreData,
   gameOver,
   election,
   checkCrises,
@@ -21041,6 +21010,10 @@ export {
   renderPanel,
   $,
   T,
+  theCountry,
+  TheCountry,
+  countryPhrase,
+  countryLabel,
   setOnState,
   setOnDespatchChange,
   setOnBlocModal,

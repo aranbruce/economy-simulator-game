@@ -47,7 +47,7 @@ export function Chip({
 
   return (
     <div
-      className="flex min-w-16.5 flex-none flex-col justify-center border-r border-edge px-2.75 py-1 text-right last:border-r-0"
+      className="flex min-w-16.5 flex-none flex-col justify-center border-r border-edge px-2.75 py-1 text-right last:border-r-0 max-lg:px-1"
       title={title || undefined}
     >
       <div className="text-xs font-semibold tracking-[.07em] whitespace-nowrap text-ink-faint uppercase">

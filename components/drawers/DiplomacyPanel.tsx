@@ -2,6 +2,7 @@
 
 import {
   T,
+  theCountry,
   activePartners,
   partnerById,
   countryBlocId,
@@ -414,7 +415,7 @@ function PartnerDiploCard({ p, G }: { p: Country; G: any }) {
         <div
           className={`min-w-10.5 flex-none rounded-sm bg-(--rel-col,var(--ink-soft)) px-2 py-1.5 text-center text-base leading-none font-bold text-white ${REL_BADGE_SHADOW[tone]}`}
           style={{ ["--rel-col" as any]: relCol }}
-          title={`Relations with ${p.name}`}
+          title={`Relations with ${theCountry(p.name)}`}
         >
           {rel.toFixed(0)}
         </div>

@@ -4,7 +4,6 @@ import {
   approvalOf,
   balanceOf,
   fmt,
-  leaderTitle,
   qLabel,
   rulingSeats,
   CHAMBER_SEATS,
@@ -94,7 +93,7 @@ export function TopBarStats() {
 
   return (
     <div
-      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:grid max-md:w-full max-md:flex-[1_1_100%] max-md:grid-cols-12 max-md:overflow-x-visible max-md:*:col-span-3 md:justify-stretch md:overflow-x-visible max-md:[&>*:nth-child(4)]:border-r-0 max-md:[&>*:nth-child(n+5)]:col-span-4 max-md:[&>*:nth-child(n+5)]:border-t max-md:[&>*:nth-child(n+5)]:border-edge"
+      className="hud-surface ml-auto flex scrollbar-none items-stretch justify-between overflow-x-auto p-1 max-md:ml-0 max-md:grid max-md:w-full max-md:flex-[1_1_100%] max-md:grid-cols-4 max-md:overflow-x-visible max-md:*:min-w-0 md:justify-stretch md:overflow-x-visible max-md:[&>*:nth-child(4n)]:border-r-0 max-md:[&>*:nth-child(n+5)]:border-t max-md:[&>*:nth-child(n+5)]:border-edge"
       id="tbStats"
     >
       {chips.map((c) => (
@@ -115,7 +114,7 @@ export function TopBarTerm() {
       id="tbTerm"
       className="mt-0.5 block text-xs font-medium tracking-[.06em] text-ink-faint uppercase max-md:text-xs max-sm:max-w-[38vw] max-sm:truncate"
     >
-      {leaderTitle()} · {termLabel} term · {qLabel(G, G.q)}
+      {termLabel} term · {qLabel(G, G.q)}
     </small>
   );
 }

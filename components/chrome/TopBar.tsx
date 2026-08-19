@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { setCountryName } from "../../lib/ui/actions.ts";
-import { playerCountryId } from "../../lib/sim/engine.ts";
+import { playerCountryId, countryLabel } from "../../lib/sim/engine.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { FlagAvatar } from "../ui/FlagAvatar.tsx";
 import { TopBarStats, TopBarTerm } from "./TopBarStats.tsx";
@@ -61,7 +61,7 @@ export function TopBar() {
                 setEditing(true);
               }}
             >
-              {G.country}
+              {countryLabel(G.country)}
             </button>
           )}
           <TopBarTerm />
