@@ -871,8 +871,23 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     }
   })();
 
+  /* Trees and mountains are only hidden by the *footprint* of a label or a
+     capital — nearLabel() reads x/z/halfW/halfD and nearCity() reads x/z,
+     and nothing else. syncPaint() re-sends both lists on every hover, where
+     all that actually moved is a country's lift, so both setters gate their
+     full instance rewrite on a signature of the fields the rewrite reads.
+     Without this, hovering a country rewrites every tree and mountain
+     matrix, each against a scan of every capital and label. */
+  let labelSig = "";
+  let capSig = "";
+
   const setLabelClear = (boxes: SceneryLabelClear[]) => {
     liveLabels = boxes;
+    const sig = boxes
+      .map((b) => b.x + "," + b.z + "," + b.halfW + "," + b.halfD)
+      .join("|");
+    if (sig === labelSig) return;
+    labelSig = sig;
     rewriteTrees();
     rewriteMountains();
   };
@@ -881,8 +896,12 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     const key = specs.map((s) => s.key).join("|");
     for (const spec of specs) capitalLift.set(spec.key, spec.lift);
     liveCaps = specs;
-    rewriteTrees();
-    rewriteMountains();
+    const sig = specs.map((s) => s.key + "," + s.x + "," + s.z).join("|");
+    if (sig !== capSig) {
+      capSig = sig;
+      rewriteTrees();
+      rewriteMountains();
+    }
     if (key === capitalKey) {
       for (const node of capitalNodes) {
         const k = node.userData.capitalKey as string;

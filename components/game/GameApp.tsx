@@ -337,10 +337,20 @@ export default function GameApp() {
           ) {
             return false;
           }
+          /* An issue supersedes a queued issue (the newest demand wins) and
+             a withdraw supersedes either. But an issue must NOT drop a
+             queued withdraw: issueUltimatum() is idempotent on a pending
+             ultimatum, so if the seat still holds the old one server-side,
+             the re-issue returns ok without changing the demand and the
+             player's new demand is silently lost. The withdraw has to go
+             first for the re-issue to land. */
           if (
-            (act === "issueUltimatum" || act === "withdrawUltimatum") &&
-            (q.action === "issueUltimatum" || q.action === "withdrawUltimatum")
+            q.action === "issueUltimatum" &&
+            (act === "issueUltimatum" || act === "withdrawUltimatum")
           ) {
+            return false;
+          }
+          if (act === "withdrawUltimatum" && q.action === "withdrawUltimatum") {
             return false;
           }
           if (

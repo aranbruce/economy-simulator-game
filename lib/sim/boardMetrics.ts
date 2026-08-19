@@ -174,6 +174,11 @@ export function boardMetricColour(
 ) {
   if (!G) return METRIC_MISSING;
   if (metric === "countries") {
+    /* The player's own seat is "home" whatever realm they took (see
+       partnerForIso), and REALM_FILL.home is the UK's fill — so without
+       this override a non-UK player paints identically to the UK partner
+       seat. The blocs and relations branches below mark home the same way. */
+    if (role === "home") return HOME_MARK;
     return REALM_FILL[role] || "#D4896E";
   }
   if (metric === "blocs") {

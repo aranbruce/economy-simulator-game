@@ -191,9 +191,14 @@ function bakeShore(water: Uint8Array): Uint8Array {
     for (let dr = -1; dr <= 1; dr++) {
       for (let dc = -1; dc <= 1; dc++) {
         if (!dr && !dc) continue;
-        const nr = r + dr,
-          nc = c + dc;
-        if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+        const nr = r + dr;
+        if (nr < 0 || nr >= ROWS) continue;
+        /* Columns wrap: this is a global grid, so column 0 borders
+           COLS-1 across the antimeridian. localIndex() already wraps on
+           the read side, and clamping here instead priced the water off
+           Chukotka and the Aleutians as open ocean because the land on
+           the far side of the dateline was invisible to the fill. */
+        const nc = ((c + dc) % COLS + COLS) % COLS;
         const ni = nr * COLS + nc;
         const nd = d + 1;
         if (nd >= shore[ni]!) continue;
@@ -1598,37 +1603,58 @@ export function pathLength(pts: SeaPt[]): number {
   return n;
 }
 
-export function pathAt(
-  pts: SeaPt[],
+/** A lane unwrapped once, with its cumulative arc length. Boats sample
+ *  their lane every frame, so the unwrap and the length sum are hoisted
+ *  out of the sampler: sampling used to allocate two whole copies of the
+ *  polyline per boat per frame (one to unwrap, one inside pathLength()),
+ *  neither of which changes between frames. */
+export interface SeaPath {
+  pts: SeaPt[];
+  /** cum[i] is the distance from the start to pts[i]; cum[0] is 0. */
+  cum: number[];
+  length: number;
+}
+
+export function prepareSeaPath(pts: SeaPt[]): SeaPath {
+  const path = unwrapSeaPath(pts);
+  const cum = new Array<number>(path.length);
+  let total = 0;
+  cum[0] = 0;
+  for (let i = 1; i < path.length; i++) {
+    total += Math.hypot(path[i]!.x - path[i - 1]!.x, path[i]!.z - path[i - 1]!.z);
+    cum[i] = total;
+  }
+  return { pts: path, cum, length: total };
+}
+
+/** Position and heading a fraction `t` along a prepared lane. */
+export function pathAtPrepared(
+  path: SeaPath,
   t: number,
 ): { x: number; z: number; heading: number } {
-  const path = unwrapSeaPath(pts);
-  if (path.length === 0) return { x: 0, z: 0, heading: 0 };
-  if (path.length === 1) return { x: path[0]!.x, z: path[0]!.z, heading: 0 };
-  const total = pathLength(path);
-  let remain = Math.max(0, Math.min(1, t)) * (total || 1);
-  for (let i = 1; i < path.length; i++) {
-    const a = path[i - 1]!,
-      b = path[i]!;
-    const dx = b.x - a.x,
-      dz = b.z - a.z;
-    const seg = Math.hypot(dx, dz);
-    if (remain > seg && i < path.length - 1) {
-      remain -= seg;
-      continue;
-    }
-    const u = seg > 1e-6 ? remain / seg : 0;
-    return {
-      x: a.x + dx * u,
-      z: a.z + dz * u,
-      heading: Math.atan2(-dx, -dz),
-    };
+  const pts = path.pts;
+  if (pts.length === 0) return { x: 0, z: 0, heading: 0 };
+  if (pts.length === 1) return { x: pts[0]!.x, z: pts[0]!.z, heading: 0 };
+  const target = Math.max(0, Math.min(1, t)) * path.length;
+  /* Binary search the cumulative table rather than walking it: a lane is
+     resampled to hundreds of points and this runs per boat per frame. */
+  let lo = 1,
+    hi = pts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (path.cum[mid]! < target) lo = mid + 1;
+    else hi = mid;
   }
-  const last = path[path.length - 1]!,
-    prev = path[path.length - 2]!;
+  const a = pts[lo - 1]!,
+    b = pts[lo]!;
+  const dx = b.x - a.x,
+    dz = b.z - a.z;
+  const seg = path.cum[lo]! - path.cum[lo - 1]!;
+  const u = seg > 1e-6 ? (target - path.cum[lo - 1]!) / seg : 0;
   return {
-    x: last.x,
-    z: last.z,
-    heading: Math.atan2(-(last.x - prev.x), -(last.z - prev.z)),
+    x: a.x + dx * u,
+    z: a.z + dz * u,
+    heading: Math.atan2(-dx, -dz),
   };
 }
+

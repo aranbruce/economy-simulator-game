@@ -18,7 +18,11 @@ import {
 } from "three";
 import { WRAP_OFFSETS } from "../../lib/map/projection.ts";
 import { type Vec3 } from "./boats.ts";
-import { pathAt, type SeaPt } from "../../lib/map/seaRoutes.ts";
+import {
+  pathAtPrepared,
+  prepareSeaPath,
+  type SeaPath,
+} from "../../lib/map/seaRoutes.ts";
 import { seaHeight } from "./sea.ts";
 import {
   cloneModelInstance,
@@ -76,7 +80,8 @@ interface Boat {
 
 interface Route {
   partnerId: string;
-  path: SeaPt[];
+  /** Unwrapped once per set(), not per frame — see prepareSeaPath. */
+  path: SeaPath;
   tint: number;
   boats: Boat[];
 }
@@ -175,7 +180,7 @@ export function createFleet(scene: Scene): Fleet {
         if (!route) {
           route = {
             partnerId: spec.partnerId,
-            path: spec.path,
+            path: prepareSeaPath(spec.path),
             tint: spec.tint,
             boats: [],
           };
@@ -184,7 +189,7 @@ export function createFleet(scene: Scene): Fleet {
              disposes) whatever has been added so far. */
           routes.set(spec.partnerId, route);
         } else {
-          route.path = spec.path;
+          route.path = prepareSeaPath(spec.path);
         }
 
         while (route.boats.length > spec.count) {
@@ -255,7 +260,7 @@ export function createFleet(scene: Scene): Fleet {
             : t > 1 - fadeFrac
               ? (1 - t) / fadeFrac
               : 1;
-        const p = pathAt(route.path, t);
+        const p = pathAtPrepared(route.path, t);
         for (const inst of boat.tiles) {
           const x = p.x + (inst.userData.tileOffset as number);
           inst.position.set(

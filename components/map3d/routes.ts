@@ -26,9 +26,14 @@ const ROUTE_GAP = 0.32;
  *  boats rather than on a flat plane they then parallax off. */
 const ROUTE_LIFT = 0.05;
 /** Bump so WorldMap3D remounts when lane look changes. */
-export const ROUTES_REV = 68;
+export const ROUTES_REV = 69;
 /** Shared ink for every dashed lane — highways and on-ramps. */
 const ROUTE_COLOR = 0x945d35;
+/** The same ink lifted for the selected seat's lanes and the one under the
+ *  pointer. A second shared material rather than a per-route clone: the
+ *  highlight is a two-state thing, so two materials cover every route and
+ *  switching one is a pointer swap, not a rebuild. */
+const ROUTE_COLOR_HOT = 0xe8b86a;
 
 /** Densify a sea-lane along its own segments. A Catmull-Rom used to cut
  *  corners through land; boats and dashes have to stay on the water. */
@@ -124,11 +129,6 @@ interface RouteEntry {
   pts: Vector3[];
 }
 
-export interface RouteHit {
-  key: string;
-  owners: string[];
-}
-
 export interface RouteLayer {
   group: Group;
   /** Rebuild the dashed lanes. Cheap enough to call whenever the active
@@ -138,8 +138,6 @@ export interface RouteLayer {
   setSelectedRoute: (partnerId: string | null) => void;
   /** Brighten the pointer-hovered lane. */
   setHoveredRoute: (key: string | null) => void;
-  /** Nearest lane to a ground point, or null if none is within `maxDist`. */
-  hitTest: (x: number, z: number, maxDist: number) => RouteHit | null;
   /** Drape every lane onto the live sea surface. */
   update: (nowS: number) => void;
   dispose: () => void;
@@ -155,6 +153,8 @@ export function buildRouteLayer(): RouteLayer {
   });
 
   const laneMat = routeMaterial(ROUTE_COLOR);
+  const laneHotMat = routeMaterial(ROUTE_COLOR_HOT);
+  laneHotMat.opacity = 0.85;
 
   let routes: RouteEntry[] = [];
   /** Signature of the routes currently built, so a re-sync that changes
@@ -164,9 +164,21 @@ export function buildRouteLayer(): RouteLayer {
   let selected: string | null = null;
   let hovered: string | null = null;
 
+  /** A lane is lit when the pointer is on it, or when it belongs to the
+   *  seat the board is focused on. `route.material` is the route's own ink
+   *  only when it owns one; otherwise both states come from the two shared
+   *  materials above. */
   const paintMaterials = () => {
     for (const route of routes) {
-      for (const line of route.lines) line.material = route.material;
+      const hot =
+        (hovered != null && route.key === hovered) ||
+        (selected != null && route.owners.includes(selected));
+      const mat = route.ownedMat
+        ? route.material
+        : hot
+          ? laneHotMat
+          : laneMat;
+      for (const line of route.lines) line.material = mat;
     }
   };
 
@@ -218,6 +230,10 @@ export function buildRouteLayer(): RouteLayer {
         pts,
       });
     }
+    /* A rebuild drops whatever the last paint set, so re-apply the current
+       selection/hover to the fresh lines rather than waiting for the next
+       pointer move to light them. */
+    paintMaterials();
   };
 
   const update = (nowS: number) => {
@@ -245,42 +261,14 @@ export function buildRouteLayer(): RouteLayer {
     paintMaterials();
   };
 
-  const hitTest = (x: number, z: number, maxDist: number): RouteHit | null => {
-    let best: RouteEntry | null = null;
-    let bestD = maxDist;
-    for (const route of routes) {
-      const pts = route.pts;
-      if (pts.length < 2) continue;
-      for (const dx of WRAP_OFFSETS) {
-        for (let i = 1; i < pts.length; i++) {
-          const a = pts[i - 1]!,
-            b = pts[i]!;
-          const ax = a.x + dx,
-            az = a.z;
-          const bx = b.x + dx,
-            bz = b.z;
-          const vx = bx - ax,
-            vz = bz - az;
-          const len2 = vx * vx + vz * vz || 1e-9;
-          let t = ((x - ax) * vx + (z - az) * vz) / len2;
-          if (t < 0) t = 0;
-          else if (t > 1) t = 1;
-          const d = Math.hypot(x - (ax + t * vx), z - (az + t * vz));
-          if (d < bestD) {
-            bestD = d;
-            best = route;
-          }
-        }
-      }
-    }
-    return best ? { key: best.key, owners: best.owners } : null;
-  };
 
   const dispose = () => {
     clearRoutes();
     routeKey = "";
     hovered = null;
+    selected = null;
     laneMat.dispose();
+    laneHotMat.dispose();
     group.clear();
   };
 
@@ -289,7 +277,6 @@ export function buildRouteLayer(): RouteLayer {
     setRoutes,
     setSelectedRoute,
     setHoveredRoute,
-    hitTest,
     update,
     dispose,
   };

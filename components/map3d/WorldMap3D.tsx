@@ -411,6 +411,15 @@ export default function WorldMap3D({
   const sceneryRef = useRef<Scenery | null>(null);
   const diploPropsRef = useRef<DiploProps | null>(null);
   const oceanRef = useRef<OceanGrid | null>(null);
+  /** Memo for the sea-lane solve below. planNetwork() is a BFS/A* over a
+   *  151k-cell grid and the plan depends on nothing that changes during a
+   *  game — capitals and the trade matrix are static, so the only input
+   *  that can move is the ocean grid itself. Keyed on its identity, since
+   *  it is rebuilt (and nulled) with the scene. */
+  const planRef = useRef<{
+    ocean: OceanGrid | null;
+    plan: ReturnType<typeof planNetwork> | null;
+  }>({ ocean: null, plan: null });
   const sizeRef = useRef({ W: 1, H: 1 });
 
   const countriesRef = useRef<CountryFeature[]>([]);
@@ -995,8 +1004,14 @@ export default function WorldMap3D({
 
   const plannedLanes = useCallback(() => {
     const ocean = oceanRef.current;
+    const cached = planRef.current;
+    if (cached.plan && cached.ocean === ocean) return cached.plan;
     const seats = routeSeats();
-    if (!seats.length) return { boats: [], draw: [], edges: [] };
+    const remember = (plan: ReturnType<typeof planNetwork>) => {
+      planRef.current = { ocean, plan };
+      return plan;
+    };
+    if (!seats.length) return remember({ boats: [], draw: [], edges: [] });
     const byId = new Map(seats.map((s) => [s.id, s]));
     const pairs = majorTradePairs(seats.map((s) => s.id));
     const legs = pairs
@@ -1023,7 +1038,7 @@ export default function WorldMap3D({
       })
       .filter((leg): leg is NonNullable<typeof leg> => !!leg);
     if (!ocean) {
-      return {
+      return remember({
         boats: legs.map((l) => ({
           id: l.id,
           owners: l.owners,
@@ -1039,9 +1054,9 @@ export default function WorldMap3D({
           edges: [] as string[],
         })),
         edges: [] as { key: string; path: typeof legs[0]["from"][] }[],
-      };
+      });
     }
-    return planNetwork(ocean, legs);
+    return remember(planNetwork(ocean, legs));
   }, [routeSeats]);
 
   useEffect(() => {
