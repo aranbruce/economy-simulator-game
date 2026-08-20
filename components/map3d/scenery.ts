@@ -8,18 +8,18 @@
  * follow SRTM topography (lib/map/mountainCover.ts). Both are instanced
  * per submesh, one InstancedMesh per wrap tile so off-screen copies can
  * frustum-cull. A cloned Object3D per tree would collapse the frame rate
- * the way the old 1,295-node capital scene did. Capitals are a raised
- * star-in-circle token (the Suzerain atlas mark) with a tight ring of
- * muted Kenney buildings, few enough to clone. Clouds are Quaternius
- * meshes instanced the same way as the trees, drifting on a shared wind.
+ * the way the old 1,295-node capital scene did. Capitals are a landmark
+ * tower on a raised stone plinth, ringed by a dense crowd of low Kenney
+ * buildings, few enough to clone. Clouds are Quaternius meshes instanced
+ * the same way as the trees, drifting on a shared wind.
  */
 
 import {
   Box3,
+  CanvasTexture,
   Color,
   CylinderGeometry,
   DoubleSide,
-  ExtrudeGeometry,
   Group,
   InstancedMesh,
   Mesh,
@@ -27,7 +27,7 @@ import {
   MeshLambertMaterial,
   MeshStandardMaterial,
   Object3D,
-  Shape,
+  SRGBColorSpace,
   TorusGeometry,
   Vector2,
   Vector3,
@@ -99,7 +99,15 @@ const TREE_KEYS: Record<TreeKind, ModelKey> = {
   palm: "treePalm",
 };
 
-const BUILDING_KEYS: ModelKey[] = ["buildingA", "buildingC", "buildingE"];
+const BUILDING_KEYS: ModelKey[] = [
+  "buildingA",
+  "buildingC",
+  "buildingE",
+  "buildingJ",
+  "buildingN",
+  "buildingWideA",
+  "buildingWideB",
+];
 
 const MOUNTAIN_KEYS: Record<MountainKind, ModelKey> = {
   hill: "mountainHill",
@@ -125,16 +133,18 @@ const MOUNTAIN_HEIGHT: Record<MountainKind, number> = {
   range: 1,
 };
 
-/** Ring of low blocks around the token — map glyphs, not a skyline. */
+/** Ring of low blocks around the plaza — map glyphs, not a skyline. */
 const CITY_FOOTPRINT = 0.7;
-/** Uniform shrink on the whole cluster (token, buildings). */
+/** Uniform shrink on the whole cluster (plinth, buildings). */
 const CITY_SCALE = 0.52;
-/** Keep trees out of the cluster so trunks do not poke through the star. */
+/** Keep trees out of the cluster so trunks do not poke through the plinth. */
 const CITY_CLEAR_R = 3.6 * CITY_SCALE;
-/** Ink disc the star sits on, local units before CITY_SCALE. */
-const TOKEN_R = 1.08;
-const STAR_OUTER = 0.74;
-const STAR_INNER = 0.32;
+/** Raised plaza radius, local units before CITY_SCALE — wide enough to hold
+ *  a centred tower plus its rings of support blocks. */
+const PLATFORM_R = 2.0;
+/** Plaza height — tall enough to read as a plinth the buildings stand on,
+ *  not a sticker flat on the ground. */
+const PLATFORM_H = 0.42;
 /** Extra world units around a country name so canopy and peaks sit
  *  clear of the lettering, not under it. Mountains need a wider pad
  *  because the mesh is a bulky footprint, not a trunk. */
@@ -149,42 +159,102 @@ interface CityPiece {
   tint: number;
   model: ModelKey;
   rot: number;
+  /** The centre tower — gets a brighter, less-tinted material so it still
+   *  reads as the landmark against a dense crowd. */
+  landmark?: boolean;
 }
 
-/** Six low blocks around the token. Inward-facing so they read as a
- *  printed town square, not a street grid of towers. */
+/** Support-ring layout for the plaza, shared with `makePlazaTexture()`
+ *  below so the plaza's paving grooves land under the rings of buildings
+ *  they're actually paving, not at arbitrary radii. */
+const HERO_RINGS = [
+  { n: 7, r: 0.82, rSpread: 0.12, hMin: 0.75, hSpread: 0.35 },
+  { n: 10, r: 1.18, rSpread: 0.14, hMin: 0.62, hSpread: 0.28 },
+  { n: 8, r: 1.52, rSpread: 0.14, hMin: 0.55, hSpread: 0.25 },
+];
+
+/** Grayscale paving-and-shadow texture for the plaza top, multiplied by
+ *  PLATFORM_TOP_COLOR rather than baking a colour in. Draws a faint groove
+ *  under each HERO_RINGS radius (real paving seams, not a flat disc) plus
+ *  a soft dark vignette at the centre standing in for the contact shadow a
+ *  dense building cluster would actually cast. */
+function makePlazaTexture(): CanvasTexture {
+  const size = 512;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d")!;
+  const cx = size / 2;
+  const cy = size / 2;
+  const pxPerUnit = (size / 2 / PLATFORM_R) * 0.98;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, size, size);
+
+  for (const ring of HERO_RINGS) {
+    const r = ring.r * pxPerUnit;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = "rgba(40, 32, 20, 0.16)";
+    ctx.stroke();
+  }
+
+  const vignette = ctx.createRadialGradient(
+    cx,
+    cy,
+    0,
+    cx,
+    cy,
+    HERO_RINGS[2]!.r * pxPerUnit * 1.05,
+  );
+  vignette.addColorStop(0, "rgba(30, 24, 16, 0.4)");
+  vignette.addColorStop(0.55, "rgba(30, 24, 16, 0.16)");
+  vignette.addColorStop(1, "rgba(30, 24, 16, 0)");
+  ctx.fillStyle = vignette;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/** A landmark tower dead-centre on the plaza, squat enough to read as a
+ *  building rather than a spike, surrounded by three rings of low support
+ *  blocks so the plaza reads as a small town, not a lone monument. */
 function cityPieces(key: string): CityPiece[] {
-  const seed = { n: hash32(key + ":city") };
-  const n = 6;
+  const seed = { n: hash32(key + ":cityHero3") };
   const pieces: CityPiece[] = [];
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + (rng(seed) - 0.5) * 0.14;
-    const r = 1.58 + rng(seed) * 0.16;
-    pieces.push({
-      dx: Math.cos(a) * r,
-      dz: Math.sin(a) * r,
-      height: 1.05 + rng(seed) * 0.65,
-      footprint: CITY_FOOTPRINT * (0.52 + rng(seed) * 0.22),
-      tint: rng(seed),
-      model: BUILDING_KEYS[Math.floor(rng(seed) * BUILDING_KEYS.length)]!,
-      rot: a + Math.PI + (rng(seed) - 0.5) * 0.12,
-    });
+  pieces.push({
+    dx: 0,
+    dz: 0,
+    height: 1.85 + rng(seed) * 0.45,
+    footprint: CITY_FOOTPRINT * (1.05 + rng(seed) * 0.2),
+    tint: rng(seed),
+    model: BUILDING_KEYS[Math.floor(rng(seed) * BUILDING_KEYS.length)]!,
+    rot: rng(seed) * Math.PI * 2,
+    landmark: true,
+  });
+  for (const ring of HERO_RINGS) {
+    const offset = rng(seed) * Math.PI * 2;
+    for (let i = 0; i < ring.n; i++) {
+      const a = offset + (i / ring.n) * Math.PI * 2 + (rng(seed) - 0.5) * 0.3;
+      const r = ring.r + rng(seed) * ring.rSpread;
+      pieces.push({
+        dx: Math.cos(a) * r,
+        dz: Math.sin(a) * r,
+        height: ring.hMin + rng(seed) * ring.hSpread,
+        footprint: CITY_FOOTPRINT * (0.36 + rng(seed) * 0.18),
+        tint: rng(seed),
+        model: BUILDING_KEYS[Math.floor(rng(seed) * BUILDING_KEYS.length)]!,
+        rot: a + Math.PI + (rng(seed) - 0.5) * 0.12,
+      });
+    }
   }
   return pieces;
-}
-
-function starShape(outer: number, inner: number, points = 5): Shape {
-  const shape = new Shape();
-  for (let i = 0; i < points * 2; i++) {
-    const r = i % 2 === 0 ? outer : inner;
-    const a = -Math.PI / 2 + (i * Math.PI) / points;
-    const x = Math.cos(a) * r;
-    const y = Math.sin(a) * r;
-    if (i === 0) shape.moveTo(x, y);
-    else shape.lineTo(x, y);
-  }
-  shape.closePath();
-  return shape;
 }
 
 function nearCity(
@@ -370,15 +440,6 @@ function styleCloud(root: Object3D) {
         );
     };
     child.material = m;
-  });
-}
-
-function styleKenneyBuilding(root: Object3D) {
-  root.traverse((child) => {
-    if (!(child instanceof Mesh)) return;
-    /* Drop the Kenney commercial colormap — bright windows read as toys
-       on a printed atlas. Parchment Lambert matches the trees. */
-    child.material = new MeshLambertMaterial({ color: 0xcbb392 });
   });
 }
 
@@ -659,49 +720,58 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     }
   };
 
-  /* Star-in-circle token shared across every capital. Ink disc + paper
-     star is the Suzerain capital mark, raised so it casts on the land. */
-  const discGeom = new CylinderGeometry(TOKEN_R, TOKEN_R, 0.07, 36);
-  const ringGeom = new TorusGeometry(TOKEN_R * 0.97, 0.055, 8, 40);
-  ringGeom.rotateX(-Math.PI / 2);
-  const starGeom = new ExtrudeGeometry(starShape(STAR_OUTER, STAR_INNER), {
-    depth: 0.08,
-    bevelEnabled: false,
-  });
-  starGeom.rotateX(-Math.PI / 2);
-  const tokenInkMat = new MeshLambertMaterial({
-    color: 0x2b2417,
-    shadowSide: DoubleSide,
-  });
-  const tokenPaperMat = new MeshLambertMaterial({
-    color: 0xf4ead6,
+  /** Stone: reads as built material matching the buildings on it, and
+   *  sits closer to the board's palette than the paper cream this
+   *  replaced. */
+  const PLATFORM_TOP_COLOR = 0xb0a288;
+  const platformTopMat = new MeshLambertMaterial({
+    color: PLATFORM_TOP_COLOR,
+    map: makePlazaTexture(),
     emissive: 0x6a5c48,
-    emissiveIntensity: 0.2,
+    emissiveIntensity: 0.15,
     shadowSide: DoubleSide,
   });
-  const tokenShared = new Set([tokenInkMat, tokenPaperMat]);
+  /* Country borders on the map use BORDER_INK (terrain.ts, 0x1e1810) —
+     match that for the plinth's side wall and rim so the edge reads as
+     part of the same map, not a sticker stamped onto it. */
+  const platformSideMat = new MeshLambertMaterial({
+    color: 0x1e1810,
+    shadowSide: DoubleSide,
+  });
+  const platformShared = new Set([platformTopMat, platformSideMat]);
 
-  const makeToken = (): Group => {
-    const token = new Group();
-    /* Buildings sink into the slab; the disc is thinner than that
-       sink, so it has to sit on the cap or the ink vanishes up close. */
-    token.position.y = LAND_PLANT_SINK / CITY_SCALE + 0.02;
-    const disc = new Mesh(discGeom, tokenInkMat);
-    disc.position.y = 0.035;
+  /* A raised cylinder plinth — ink side wall, stone top — the centred
+     tower stands on. Buildings stand on its top face, so PLATFORM_BASE_Y
+     (the plinth's own foot) and the block group's y at the call site
+     below must move together. */
+  const PLATFORM_BASE_Y = LAND_PLANT_SINK / CITY_SCALE + 0.02;
+  const platformGeom = new CylinderGeometry(
+    PLATFORM_R,
+    PLATFORM_R,
+    PLATFORM_H,
+    44,
+  );
+  const platformRimGeom = new TorusGeometry(PLATFORM_R * 0.985, 0.05, 8, 48);
+  platformRimGeom.rotateX(-Math.PI / 2);
+
+  const makePlatform = (): Group => {
+    const platform = new Group();
+    platform.position.y = PLATFORM_BASE_Y;
+    const disc = new Mesh(platformGeom, [
+      platformSideMat,
+      platformTopMat,
+      platformSideMat,
+    ]);
+    disc.position.y = PLATFORM_H / 2;
     disc.castShadow = true;
     disc.receiveShadow = true;
-    token.add(disc);
-    const ring = new Mesh(ringGeom, tokenInkMat);
-    ring.position.y = 0.08;
-    ring.castShadow = true;
-    ring.receiveShadow = true;
-    token.add(ring);
-    const star = new Mesh(starGeom, tokenPaperMat);
-    star.position.y = 0.07;
-    star.castShadow = true;
-    star.receiveShadow = true;
-    token.add(star);
-    return token;
+    platform.add(disc);
+    const rim = new Mesh(platformRimGeom, platformSideMat);
+    rim.position.y = PLATFORM_H + 0.02;
+    rim.castShadow = true;
+    rim.receiveShadow = true;
+    platform.add(rim);
+    return platform;
   };
 
   const dropCapitals = () => {
@@ -715,7 +785,7 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
           ? child.material
           : [child.material];
         for (const m of mats) {
-          if (tokenShared.has(m) || seen.has(m)) continue;
+          if (platformShared.has(m) || seen.has(m)) continue;
           seen.add(m);
           m.dispose();
         }
@@ -926,7 +996,6 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
             disposeObject(root);
             return;
           }
-          styleKenneyBuilding(root);
           const size = new Box3().setFromObject(root).getSize(new Vector3());
           templates.set(k, {
             root,
@@ -941,8 +1010,9 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
       for (const spec of specs) {
         if (disposed || gen !== capitalGen) return;
         const city = new Group();
-        city.add(makeToken());
+        city.add(makePlatform());
         const block = new Group();
+        block.position.y = PLATFORM_BASE_Y + PLATFORM_H;
         block.rotation.y = capitalYaw(spec.key);
         const box = new Box3();
         const center = new Vector3();
@@ -974,6 +1044,23 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
               : [child.material];
             for (const m of mats) {
               m.shadowSide = DoubleSide;
+              if (m instanceof MeshStandardMaterial) {
+                /* Kenney's colormap reads as a bright modern render next
+                   to the sepia board — multiply it toward the same warm
+                   parchment range the terrain caps use (terrain.ts'
+                   0xa48b62), lighter than a full crush so window and
+                   facade detail still shows through. The landmark tower
+                   gets a near-white version of the same tint so it still
+                   reads as the hero piece against a dense, evenly-toned
+                   crowd. */
+                m.color.setHex(piece.landmark ? 0xf1e6c4 : 0xe0cf9e);
+                m.color.offsetHSL(
+                  (piece.tint - 0.5) * 0.05,
+                  0,
+                  (piece.tint - 0.5) * 0.14,
+                );
+                continue;
+              }
               if (!(m instanceof MeshLambertMaterial)) continue;
               m.color.offsetHSL(
                 (piece.tint - 0.5) * 0.04,
@@ -1031,11 +1118,11 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
       (batch.mesh.material as MeshLambertMaterial).dispose();
     }
     cloudBatches.length = 0;
-    discGeom.dispose();
-    ringGeom.dispose();
-    starGeom.dispose();
-    tokenInkMat.dispose();
-    tokenPaperMat.dispose();
+    platformGeom.dispose();
+    platformRimGeom.dispose();
+    platformTopMat.map?.dispose();
+    platformTopMat.dispose();
+    platformSideMat.dispose();
     group.clear();
   };
 
