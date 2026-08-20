@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "tsx test/sim.js && tsx test/calibration.js && tsx test/mp-room.js && tsx test/scrollDrawerPartner.js",
+    "test": "tsx test/sim.js && tsx test/calibration.js && tsx test/mp-room.js && tsx test/sp-save.js && tsx test/scrollDrawerPartner.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

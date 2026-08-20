@@ -6810,8 +6810,13 @@ function enactHumanSeatOnSnapshot(
   }
 }
 
-/** Deep snapshot of live G for multiplayer rooms (JSON-safe). */
-function exportGameSnapshot(g: any) {
+/** Deep snapshot of live G. `opts.mode === "solo"` additionally keeps the
+ *  in-progress press inbox and open drawer, for a single-player localStorage
+ *  save (see lib/sp/save.ts) — MP rooms never want mid-clip / mid-drawer
+ *  state carried into a fellow player's mount. */
+function exportGameSnapshot(g: any, opts?: any) {
+  const o = opts || {};
+  const solo = o.mode === "solo";
   const src = g || getG();
   if (!src) return null;
   mirrorPlayerToWorld(src);
@@ -6828,7 +6833,8 @@ function exportGameSnapshot(g: any) {
   snap.q = src.q;
   snap.term = src.term;
   snap.log = clone(src.log || []);
-  snap.press = [];
+  snap.press = solo ? clone(src.press || []) : [];
+  if (solo) snap.tab = tab;
   snap.lastEventQ = src.lastEventQ;
   snap.lastEventId = src.lastEventId;
   snap.ruleBreaches = src.ruleBreaches;
@@ -6932,10 +6938,13 @@ function exportGameSnapshot(g: any) {
 
 /**
  * Load a room snapshot into live G and mount `homeRole` as the local player.
- * Skips the morning-note despatch.
+ * Skips the morning-note despatch. `opts.mode === "solo"` restores the
+ * mid-bill draft, press inbox and open drawer instead of resetting them —
+ * a lockstep MP remount deliberately drops those (see exportGameSnapshot).
  */
 function hydrateGameSnapshot(snap: any, opts: any) {
   const o = opts || {};
+  const solo = o.mode === "solo";
   if (!snap) throw new Error("hydrateGameSnapshot: missing snapshot");
   const homeRole = resolveHomeRole(o.homeRole || snap.homeRole || "home");
   const seatId = o.seatId || playerCountryId(homeRole);
@@ -6979,12 +6988,14 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   getG().econ = bag.econ;
   getG().law = bag.law;
   getG().prevLaw = bag.prevLaw || bag.law;
-  getG().draft = clone(getG().law);
-  getG().draft.blocAccession = null;
-  getG().draft.blocLeave = false;
-  getG().draft.blocCreate = null;
-  getG().draft.blocInvite = {};
-  if (getG().draft.missions) getG().draft.missions = {};
+  if (!solo) {
+    getG().draft = clone(getG().law);
+    getG().draft.blocAccession = null;
+    getG().draft.blocLeave = false;
+    getG().draft.blocCreate = null;
+    getG().draft.blocInvite = {};
+    if (getG().draft.missions) getG().draft.missions = {};
+  }
   /* Top-bar Growth/Balance read G.log — this seat's series only. */
   if (Array.isArray(bag.log) && bag.log.length) {
     getG().log = bag.log;
@@ -7085,11 +7096,19 @@ function hydrateGameSnapshot(snap: any, opts: any) {
   }
   getG().mp = o.mp || null;
   getG().over = !!getG().over;
-  /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
-  getG().brief = [];
-  resetPressUi();
-  getG().press = prevPress;
-  tab = null;
+  if (solo) {
+    /* Press and tab already arrived via setG(clone(snap)) above — snap.press
+       carries the unanswered inbox and snap.tab the open drawer for a solo
+       save (exportGameSnapshot with mode: "solo"), unlike an MP remount. */
+    resetPressUi();
+    tab = snap.tab || null;
+  } else {
+    /* Drop host opening brief; seat briefings come from lastRes / showMpBriefing. */
+    getG().brief = [];
+    resetPressUi();
+    getG().press = prevPress;
+    tab = null;
+  }
   mirrorPlayerToWorld(getG());
   /* mirror rebuilds the player bag — keep the log we just mounted. */
   if (getG().world[seatId]) getG().world[seatId].log = getG().log;
