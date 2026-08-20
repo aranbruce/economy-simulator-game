@@ -3127,6 +3127,109 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     `cutting research decays R slowly, not a cliff (${R0.toFixed(2)} → ${R8.toFixed(2)} in 8Q)`,
   );
 
+  /* The knowledge term is research *intensity*, so it must not grow with the
+     sheer size of the economy. It used to: R accumulates as a share of GDP but
+     was scored against a fixed R0, so a bigger economy scored a bigger TFP
+     bonus, trend accelerated without bound, and an AI seat's GDP overflowed to
+     NaN around Q400. Doubling the whole economy (potential and the stock that
+     the same research share would have built at that size) must leave the
+     contribution unchanged. */
+  newGame();
+  G = getG();
+  const scaled = Object.assign({}, G.econ, {
+    R: G.econ.R * 2,
+    potential: G.econ.potential * 2,
+    gdp: G.econ.gdp * 2,
+  });
+  assert(
+    Math.abs(knowledgeTfp(scaled) - knowledgeTfp(G.econ)) < 1e-9,
+    `knowledge TFP is scale-free (base ${knowledgeTfp(G.econ)}, 2x economy ${knowledgeTfp(scaled)})`,
+  );
+  /* Same research share in an economy ten times the size, same contribution. */
+  const bigger = Object.assign({}, G.econ, {
+    R: G.econ.R * 10,
+    potential: G.econ.potential * 10,
+    gdp: G.econ.gdp * 10,
+  });
+  assert(
+    Math.abs(knowledgeTfp(bigger)) < 1e-9,
+    `a 10x economy at baseline research intensity still contributes zero (got ${knowledgeTfp(bigger)})`,
+  );
+  /* Intensity, not level: more R at unchanged size still helps. */
+  const denser = Object.assign({}, G.econ, { R: G.econ.R * 1.5 });
+  assert(
+    knowledgeTfp(denser) > 1e-6,
+    `raising research intensity at constant size still lifts TFP (got ${knowledgeTfp(denser)})`,
+  );
+}
+
+/* ---- Long-horizon stability ----
+   The calibrated checks above run 20 quarters and scripts/balance-30y.mjs runs
+   120; real saves reach 600+. Nothing used to watch that far out, which is how
+   an unbounded TFP scale effect survived: it was invisible at 30 years and
+   fatal at 100. This walks the default law well past the old failure point and
+   asserts the path stays finite and inside plausible bands, with no clamp
+   propping it up. */
+{
+  newGame();
+  G = getG();
+  const law = G.law;
+  const QUARTERS = 600;
+  const WATCH = [
+    "gdp",
+    "potential",
+    "A",
+    "K",
+    "KG",
+    "R",
+    "I",
+    "C",
+    "X",
+    "M",
+    "L",
+    "inflation",
+    "unemployment",
+    "debt",
+    "rate",
+    "yield",
+    "wageIndex",
+    "worldY",
+  ];
+  let worstTrend = 0;
+  let worstGrowth = 0;
+  let firstBad = null;
+  for (let q = 1; q <= QUARTERS; q++) {
+    const r = step(G, law, law, true);
+    const e = G.econ;
+    if (!firstBad) {
+      const bad = WATCH.filter((k) => e[k] != null && !Number.isFinite(e[k]));
+      if (bad.length) firstBad = { q, bad };
+    }
+    if (Number.isFinite(r.growth))
+      worstGrowth = Math.max(worstGrowth, Math.abs(r.growth));
+    if (Number.isFinite(e.trendGrowth))
+      worstTrend = Math.max(worstTrend, Math.abs(e.trendGrowth));
+  }
+  assert(
+    !firstBad,
+    `every tracked field stays finite over ${QUARTERS}Q` +
+      (firstBad
+        ? ` (${firstBad.bad.join(", ")} went bad at Q${firstBad.q})`
+        : ""),
+  );
+  assert(
+    worstTrend < 6,
+    `trend growth stays plausible over ${QUARTERS}Q without a clamp (peak ${worstTrend.toFixed(2)})`,
+  );
+  assert(
+    worstGrowth < 15,
+    `headline growth stays plausible over ${QUARTERS}Q without a clamp (peak ${worstGrowth.toFixed(2)})`,
+  );
+  assert(
+    G.econ.gdp > 100 && G.econ.gdp < 20000,
+    `${QUARTERS}Q of compounding lands in a sane range (got ${G.econ.gdp.toFixed(0)})`,
+  );
+
   newGame();
   G = getG();
   const edu0 = potentialLevel(G.law, aggregate(G.law), G.econ);
@@ -6085,17 +6188,24 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.law.tariffSchedule.country.russia = 4;
   const pat0 = G.fac.patriots;
   const biz0 = G.fac.business;
-  assert(issueUltimatum("russia", "tariffCut"), "issue for same-quarter withdraw");
+  assert(
+    issueUltimatum("russia", "tariffCut"),
+    "issue for same-quarter withdraw",
+  );
   assert(canWithdrawUltimatum("russia"), "withdraw available before Deliver");
   assert(
-    (G.econ.diploLedger.russia || []).some((x) => x.id === "ultimatum_issued_" + G.q),
+    (G.econ.diploLedger.russia || []).some(
+      (x) => x.id === "ultimatum_issued_" + G.q,
+    ),
     "issue writes ledger",
   );
   assert(withdrawUltimatum("russia"), "withdraw same quarter");
   assert(G.capital === 50, "withdraw refunds capital");
   assert(!G.ultimatums.russia, "withdraw clears pending ultimatum");
   assert(
-    !(G.econ.diploLedger.russia || []).some((x) => x.id === "ultimatum_issued_" + G.q),
+    !(G.econ.diploLedger.russia || []).some(
+      (x) => x.id === "ultimatum_issued_" + G.q,
+    ),
     "withdraw removes issued ledger",
   );
   assert(G.fac.patriots === pat0, "withdraw reverses patriot bump");
@@ -6104,7 +6214,10 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   assert(canIssueUltimatum("russia").ok, "can re-issue after withdraw");
   assert(issueUltimatum("russia", "tariffCut"), "re-issue after withdraw");
   G.q = (G.q || 0) + 1;
-  assert(!canWithdrawUltimatum("russia"), "no withdraw after the quarter advances");
+  assert(
+    !canWithdrawUltimatum("russia"),
+    "no withdraw after the quarter advances",
+  );
   assert(!withdrawUltimatum("russia"), "withdraw fails after Deliver");
   assert(
     G.ultimatums.russia && G.ultimatums.russia.status === "pending",
@@ -6239,7 +6352,9 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   G.draft.missions = { germany: "demarche", france: "sanctionsPosture" };
   const staged = diploMapMarkers(G);
   assert(
-    staged.some((m) => m.partnerId === "germany" && m.kind === "protest_staged"),
+    staged.some(
+      (m) => m.partnerId === "germany" && m.kind === "protest_staged",
+    ),
     "staged protest marker",
   );
   assert(

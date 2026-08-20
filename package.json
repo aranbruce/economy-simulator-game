@@ -14,6 +14,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "balance": "tsx scripts/balance-30y.mjs",
+    "growth-diag": "tsx scripts/growth-diag.mjs",
     "world-modes": "tsx scripts/world-modes-30y.mjs"
   },
   "dependencies": {
