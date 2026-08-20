@@ -649,9 +649,13 @@ export default function WorldMap3D({
 
     let raf: number | null = null;
     let cancelled = false;
-    let lastShadowFocusX = NaN;
-    let lastShadowFocusZ = NaN;
-    let lastShadowDist = NaN;
+    /* Infinity, not NaN: any comparison against NaN (including >) is always
+       false, which would make the very first frame's dirty-check silently
+       skip forever — the only place these get set to a real number is
+       inside that same check. Infinity guarantees frame one is dirty. */
+    let lastShadowFocusX = Infinity;
+    let lastShadowFocusZ = Infinity;
+    let lastShadowDist = Infinity;
     const frame = () => {
       if (cancelled) return;
       const { W, H } = sizeRef.current;

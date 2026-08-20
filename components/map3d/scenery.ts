@@ -854,6 +854,7 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     for (const mesh of capitalBuckets.values()) {
       mesh.removeFromParent();
       (mesh.material as Material).dispose();
+      mesh.customDepthMaterial?.dispose();
       mesh.dispose();
     }
     capitalBuckets.clear();
@@ -1163,6 +1164,16 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
         const srcMat = Array.isArray(srcMesh.material)
           ? srcMesh.material[0]!
           : srcMesh.material;
+        /* All instances in a bucket share this geometry, so its footY/spanY
+           (used to fatten the shadow-map depth at the mesh's own foot,
+           matching what the old per-piece build set on every building) are
+           the same in every instance's local space regardless of its own
+           per-instance scale/position — one depth material per bucket,
+           not per instance. */
+        srcMesh.geometry.computeBoundingBox();
+        const geomBox = srcMesh.geometry.boundingBox;
+        const spanY = geomBox ? geomBox.max.y - geomBox.min.y : 1;
+        const footY = geomBox ? Math.min(0, geomBox.min.y) : 0;
         for (let t = 0; t < WRAP_OFFSETS.length; t++) {
           const bk = bucketKey(modelKey, t);
           /* Flat white: instance colour multiplies the material's own
@@ -1175,6 +1186,7 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
           inst.castShadow = true;
           inst.receiveShadow = true;
           inst.frustumCulled = true;
+          inst.customDepthMaterial = footDepthMaterial(footY, spanY);
           capitalBuckets.set(bk, inst);
           nextIndex.set(bk, 0);
           group.add(inst);
