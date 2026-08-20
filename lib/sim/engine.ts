@@ -9537,10 +9537,13 @@ function potentialLevel(law: any, E: any, econ: any) {
   const gK = ((e.I - (DEPREC / 100) * e.K) / e.K) * 100;
   const gKG =
     (((law.spend.infra / 100) * e.gdp - (DEPREC_G / 100) * e.KG) / e.KG) * 100;
+  /* Upper bound is a runaway-prevention backstop, not a design ceiling — the
+     baseline sits near 1.3-1.5%, so 20 is far above anything reachable short
+     of a pathological stack of capital/knowledge shocks. */
   return clamp(
     gA + ALPHA * gK + ALPHA_G * gKG + (1 - ALPHA - ALPHA_G) * gL,
     -2.5,
-    8,
+    20,
   );
 }
 function approvalOf(fac: any) {
@@ -13048,24 +13051,6 @@ const TABS = [
     wide: true,
   },
 ];
-const ICONS = {
-  coin: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 4.6v6.8M6.2 6.2h3.1a1.4 1.4 0 010 2.8H6.6h3.2"/></svg>',
-  percent:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="5" cy="5" r="2"/><circle cx="11" cy="11" r="2"/><path d="M12.5 3.5l-9 9"/></svg>',
-  scroll:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M4 2.5h7.5v11H4z"/><path d="M6 5.5h3.5M6 8h3.5M6 10.5h2"/></svg>',
-  globe:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 2 1.8 10 0 12M8 2C6.2 4 6.2 12 8 14"/></svg>',
-  seal: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="7" r="4.2"/><path d="M5.2 10.8L4 14l4-1.4L12 14l-1.2-3.2"/><circle cx="8" cy="7" r="1.4"/></svg>',
-  chart:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2.5 13.5h11"/><path d="M4 11V7.5M7 11V4M10 11V8.5M13 11V6"/></svg>',
-  gavel:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M9.5 2.5l4 4-1.6 1.6-4-4z"/><path d="M7.8 4.2l4 4L4.7 15.3l-1.9-1.9z"/><path d="M2 14.5h6"/></svg>',
-  clock:
-    '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="8" r="6"/><path d="M8 4.5v4l2.5 2.5"/></svg>',
-  close:
-    '<svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
-};
 /* --- the top bar --- */ /* `kind` marks a reading the Chancellor does not control, which is worth making
    visually obvious: the Bank rate is a response to your budget, not a lever in
    it. */ /** Quarters of the current term before a snap election is allowed. */
@@ -13483,7 +13468,7 @@ function ongoingSituations(g?: any) {
     out.push({
       id: "episode:" + state.episode.id,
       kind: "episode",
-      label: state.episode.title || "Ongoing episode",
+      label: T(state.episode.title || "Ongoing episode"),
       sub: `${left} quarter${left === 1 ? "" : "s"} left`,
       left,
     });
@@ -21010,7 +20995,6 @@ export {
   fmt,
   sgn,
   clone,
-  ICONS,
   despatch,
   enact,
   projectionModal,

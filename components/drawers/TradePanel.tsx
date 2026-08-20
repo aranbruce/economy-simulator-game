@@ -1216,7 +1216,7 @@ function PartnerDealRow({
               danger={staged}
               onClick={() => toggleDraftDeal(d.id)}
             >
-              {staged ? "Cancel" : "Withdraw"}
+              {staged ? "Withdraw" : "Cancel"}
             </Button>
           </>
         ) : (

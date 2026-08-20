@@ -13,7 +13,6 @@ import {
   ENVOY_DRIFT,
   ENVOY_ASSIGN_PC,
   ULTIMATUM_PC,
-  ICONS,
   relationTarget,
   canIssueUltimatum,
   canWithdrawUltimatum,
@@ -41,7 +40,7 @@ import {
 import { useGame } from "../../lib/ui/useGame.ts";
 import { Eyebrow } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
-import { CloseIcon } from "../../lib/ui/icons.tsx";
+import { CloseIcon, ICONS } from "../../lib/ui/icons.tsx";
 import type { Country } from "../../lib/sim/countries.ts";
 import type { Mission } from "../../lib/sim/types.ts";
 

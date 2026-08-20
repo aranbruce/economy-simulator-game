@@ -1,6 +1,6 @@
 "use client";
 
-const ICONS = {
+export const ICONS = {
   coin: (
     <svg
       width="15"
@@ -95,6 +95,19 @@ const ICONS = {
       <path d="M2.5 5.5h11" />
       <path d="M3.5 7v6M6.5 7v6M9.5 7v6M12.5 7v6" />
       <path d="M2 13h12" />
+    </svg>
+  ),
+  clock: (
+    <svg
+      width="15"
+      height="15"
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+    >
+      <circle cx="8" cy="8" r="6" />
+      <path d="M8 4.5v4l2.5 2.5" />
     </svg>
   ),
   gavel: (
