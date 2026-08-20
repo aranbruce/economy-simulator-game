@@ -153,7 +153,9 @@ function RateImpact() {
 }
 
 /** Integer ledger: each term is rounded in capitalRegenGain / capitalOutlook
- *  before it is summed, so Next turn is always a whole number. */
+ *  before it is summed. Payment is floored at 0 the same way as
+ *  capitalOutlook.afterBill, then regen/upkeep/fiscal run, matching
+ *  outlook.nextQuarter — including when the bill costs more than we have. */
 function CapitalForecast({
   outlook,
 }: {
@@ -165,8 +167,10 @@ function CapitalForecast({
   const upkeep = outlook.envoyCount > 0 ? outlook.envoyUpkeep : 0;
   const fiscal = outlook.fiscalRuleHit > 0 ? outlook.fiscalRuleHit : 0;
   const pop = outlook.gain;
-  const rawNext = start - bill - whip - upkeep - fiscal + pop;
-  const next = clamp(rawNext, 0, 100);
+  const afterBill = outlook.afterBill;
+  const paymentFloor = afterBill - (start - bill - whip);
+  const rawNext = afterBill + pop - upkeep - fiscal;
+  const next = outlook.nextQuarter;
   const clip = rawNext - next;
 
   return (
@@ -188,6 +192,14 @@ function CapitalForecast({
         <div className="flex py-0.75 text-ink-soft">
           <span>Whip</span>
           <span className="ml-auto font-[650] text-red-lt">−{whip}</span>
+        </div>
+      ) : null}
+      {paymentFloor > 0 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>Floor at 0</span>
+          <span className="ml-auto font-[650] text-green-lt">
+            +{paymentFloor}
+          </span>
         </div>
       ) : null}
       {outlook.envoyCount > 0 ? (
