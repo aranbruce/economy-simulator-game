@@ -44,11 +44,19 @@ export function clearBilateralTrade(seats: Record<string, any>) {
       named += w;
       const sj = seats[j];
       const yj = Math.max(0.4, (sj.y || 100) / 100);
+      /* The barrier on i's sales into j is *j's* tariff on i, not i's tariff
+         on j. Reading si.tariff[j] here pointed each leg at the exporter's own
+         schedule, so raising a tariff mostly shrank the exports of whoever
+         imposed it: a 25% wall by A on B cut A→B by 12.6% and B→A by only
+         1.9%, six times harder on the wrong country. The importer's own
+         tariff belongs on its import bill (engine.ts prices that separately),
+         and the exporter's own tariff reaches its exports through the
+         retaliation stock, not through this term. */
       const tariff =
-        si.tariff && si.tariff[j] != null
-          ? si.tariff[j]
-          : si.avgTariff != null
-            ? si.avgTariff
+        sj.tariff && sj.tariff[i] != null
+          ? sj.tariff[i]
+          : sj.avgTariff != null
+            ? sj.avgTariff
             : 3;
       const access = si.access && si.access[j] != null ? si.access[j] : 0;
       const relFac = si.relFac && si.relFac[j] != null ? si.relFac[j] : 1;

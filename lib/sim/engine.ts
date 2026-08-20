@@ -5554,6 +5554,21 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
       if (Array.isArray(g.world[leadId].log)) g.log = g.world[leadId].log;
     }
     setG(g);
+    /* Drop every seat's player alias *before* the trade clear, not after it.
+       enactHumanSeatOnSnapshot mounts each human in turn and mirrors it into
+       the world, and mirrorPlayerToWorld only ever sets `isPlayer` on the seat
+       it mounts — it never clears the previous one. So by the time we get here
+       every human seat carries the flag, and pairTariff/pairAccess read
+       `bag.isPlayer ? g.law : bag.law`: every human's schedule resolved to the
+       lead's law. In a 2+ human room that silently threw away all but one
+       player's tariffs — a 25% wall by the guest cleared as if it were the
+       host's 3% default. The flags were already being cleared, but twenty
+       lines below this, which is after refreshWorldTrade has read them. */
+    if (g.world) {
+      for (const id of Object.keys(g.world)) {
+        if (g.world[id]) g.world[id].isPlayer = false;
+      }
+    }
     mirrorPlayerToWorld(g);
     refreshWorldTrade(g);
     g.q = (g.q || 0) + 1;
@@ -5574,6 +5589,10 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
     g.envoysBaselineQ = null;
     syncNationsFromWorld(g, true);
     if (g.world) {
+      /* Second pass: the pre-clear above is what the trade clear needs, but
+         mirrorPlayerToWorld has re-flagged the lead since. Leave the snapshot
+         with no seat claiming to be the player, so the next resolve — or a
+         client hydrating this snapshot as a different seat — starts clean. */
       for (const id of Object.keys(g.world)) {
         if (g.world[id]) g.world[id].isPlayer = false;
       }
@@ -10320,10 +10339,19 @@ function govDemandShares(law: any, econ: any) {
     (E.open || 0) + e.openEff;
   const cutNow = (E.tariffCut || 0) + e.tariffCutEff;
   const avgTariff = tariffScheduleAverage(law, homeRole, bm);
+  /* Real-exchange-rate competitiveness only — relative prices, openness, FX.
+     Our own tariff is deliberately *not* in here. It used to be, dividing
+     compBase, which pushed it through both trade legs with the sign inverted
+     on each: exports fell (they should be ~flat; a tariff reaches your own
+     exports through retaliation, which e.retaliation already models below and
+     which this term double-counted) and imports *rose*, since M reads
+     compBase with a negative exponent. A 25% wall raised the import bill it
+     was supposed to shut out. `ownBarrier` now carries it, on imports alone,
+     and both are indexed to BASE_TARIFF so the opening schedule stays neutral. */
   const compBase =
-    ((e.worldP / e.priceP) * (1 + openNow / 200) * (1 + BASE_TARIFF / 100)) /
-    (1 + Math.max(0, avgTariff - cutNow) / 100) /
-    Math.max(0.5, e.fx);
+    ((e.worldP / e.priceP) * (1 + openNow / 200)) / Math.max(0.5, e.fx);
+  const ownBarrier =
+    (1 + Math.max(0, avgTariff - cutNow) / 100) / (1 + BASE_TARIFF / 100);
   /* Gravity bilateral exports: X_i ∝ share_i · Y · Y_i^β · comp^ε.
      Partner shocks and partner-specific deals hit the matching bilateral term
      rather than a half-weight add to world demand. */ if (!e.nations) {
@@ -10346,10 +10374,15 @@ function govDemandShares(law: any, econ: any) {
   const shareI = e.shareI != null ? e.shareI : SHARE_I;
   for (const p of partners) {
     const Yi = (e.nations[p.id] && e.nations[p.id].y) || 100;
-    const effT = effectiveTariff(p.id, law, homeRole, bm);
+    /* What blocks this export leg is the partner's wall against us. Their
+       schedule is only visible once world bags exist, so during settle (and
+       for any seat without a live bag) this falls back to BASE_TARIFF and the
+       leg stays neutral, exactly as it did before. */
+    const theirT = livePartnerTariffOnPlayer(p.id, g);
+    const foreignT = theirT != null ? theirT : BASE_TARIFF;
     const comp =
       (compBase * (1 + BASE_TARIFF / 100)) /
-      (1 + Math.max(0, effT - cutNow) / 100);
+      (1 + Math.max(0, foreignT) / 100);
     const access = (e.partnerAccessEff && e.partnerAccessEff[p.id]) || 0;
     const beta =
       NATION_PROFILE[p.id] && NATION_PROFILE[p.id].beta != null
@@ -10400,7 +10433,8 @@ function govDemandShares(law: any, econ: any) {
      government's own purchases. */ const Mstar =
     (shareM / (shareC + shareI + SHARE_G)) *
       domestic *
-      Math.pow(compBase, -ELAST_M) +
+      Math.pow(compBase, -ELAST_M) *
+      Math.pow(ownBarrier, -ELAST_M) +
     ((leak - BASE_LEAK) / 100) * pot;
   /* Exports also grow with the country's own supply capacity, not just world
      demand: a bigger, more productive economy sells more abroad. Without this
