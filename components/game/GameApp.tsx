@@ -114,6 +114,7 @@ export default function GameApp() {
   const [homeIso, setHomeIso] = useState<string | null>(null);
   const [homeRole, setHomeRole] = useState("home");
   const [setupRole, setSetupRole] = useState(() => randomPlayableRealm().role);
+  const [spSave, setSpSave] = useState(() => loadSpSave());
   const [tick, setTick] = useState(0);
   const [worldOk, setWorldOk] = useState(true);
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
@@ -1071,6 +1072,12 @@ export default function GameApp() {
     };
   }, [phase, flushSpSave]);
 
+  /** Re-read the solo save only on entry to the setup screen — not on every
+   *  render while sitting on it (map clicks re-render via setSetupRole). */
+  useEffect(() => {
+    if (phase === "setup") setSpSave(loadSpSave());
+  }, [phase]);
+
   useEffect(() => {
     if (phase !== "play") return;
     const afterNewGame = pendingAfterNewGame.current;
@@ -1262,21 +1269,17 @@ export default function GameApp() {
           )
         )}
 
-        {phase === "setup" &&
-          (() => {
-            const spSave = loadSpSave();
-            return (
-              <CountryPicker
-                selectedRole={setupRole}
-                initialId={realmId}
-                onStart={beginGame}
-                onMultiplayer={() => setPhase("lobby")}
-                onResume={loadMpSession() ? handleResume : undefined}
-                onResumeSolo={spSave ? handleResumeSolo : undefined}
-                resumeSoloMeta={spSave ? spSave.meta : null}
-              />
-            );
-          })()}
+        {phase === "setup" && (
+          <CountryPicker
+            selectedRole={setupRole}
+            initialId={realmId}
+            onStart={beginGame}
+            onMultiplayer={() => setPhase("lobby")}
+            onResume={loadMpSession() ? handleResume : undefined}
+            onResumeSolo={spSave ? handleResumeSolo : undefined}
+            resumeSoloMeta={spSave ? spSave.meta : null}
+          />
+        )}
 
         {phase === "lobby" && (
           <MultiplayerLobby

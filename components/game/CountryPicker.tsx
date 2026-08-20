@@ -21,6 +21,7 @@ import { SegControl } from "../ui/SegControl.tsx";
 import { Hint } from "../ui/Typography.tsx";
 import { SetupGoButton } from "../ui/SetupGoButton.tsx";
 import { FlagAvatar } from "../ui/FlagAvatar.tsx";
+import type { SpSaveMeta } from "../../lib/sp/save.ts";
 
 /** Opening books for a seat — pinsForRole, with home deficit from the UK profile. */
 function openingBooks(role: string) {
@@ -68,11 +69,7 @@ function SetupStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-interface ResumeSoloMeta {
-  country: string;
-  q: number;
-  sandbox: boolean;
-}
+type ResumeSoloMeta = Pick<SpSaveMeta, "country" | "q" | "sandbox">;
 
 interface CountryPickerProps {
   selectedRole?: string | null;
