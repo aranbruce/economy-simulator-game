@@ -10,8 +10,13 @@
  * frustum-cull. A cloned Object3D per tree would collapse the frame rate
  * the way the old 1,295-node capital scene did. Capitals are a landmark
  * tower on a raised stone plinth, ringed by a dense crowd of low Kenney
- * buildings, few enough to clone. Clouds are Quaternius meshes instanced
- * the same way as the trees, drifting on a shared wind.
+ * buildings — 26 cloned Object3Ds per capital, not instanced, measured at
+ * ~69fps average (18.5ms p95) with all 28 sovereign capitals on screen at
+ * once on the country picker; revisit with an InstancedMesh per
+ * (BUILDING_KEYS, wrap-tile) bucket, the way trees are bucketed by kind,
+ * if that stops holding as more building variants or rings are added.
+ * Clouds are Quaternius meshes instanced the same way as the trees,
+ * drifting on a shared wind.
  */
 
 import {
@@ -141,9 +146,6 @@ const CITY_FOOTPRINT = 0.7;
 const CITY_SCALE = 0.52;
 /** Keep trees out of the cluster so trunks do not poke through the plinth. */
 const CITY_CLEAR_R = 3.6 * CITY_SCALE;
-/** Raised plaza radius, local units before CITY_SCALE — wide enough to hold
- *  a centred tower plus its rings of support blocks. */
-const PLATFORM_R = 2.0;
 /** Plaza height — tall enough to read as a plinth the buildings stand on,
  *  not a sticker flat on the ground. */
 const PLATFORM_H = 0.42;
@@ -174,6 +176,14 @@ const HERO_RINGS = [
   { n: 10, r: 1.18, rSpread: 0.14, hMin: 0.62, hSpread: 0.28 },
   { n: 8, r: 1.52, rSpread: 0.14, hMin: 0.55, hSpread: 0.25 },
 ];
+
+/** Raised plaza radius, local units before CITY_SCALE. Derived from the
+ *  outermost HERO_RINGS radius rather than an independently-tuned number,
+ *  so widening a ring can't silently let buildings hang off the plinth's
+ *  edge — the margin (0.34) comfortably covers the largest support
+ *  building's half-footprint (~0.19) plus the ring's own rSpread jitter. */
+const PLATFORM_R =
+  Math.max(...HERO_RINGS.map((r) => r.r + r.rSpread)) + 0.34;
 
 /** Grayscale paving-and-shadow texture for the plaza top, multiplied by
  *  PLATFORM_TOP_COLOR rather than baking a colour in. Draws a faint groove
