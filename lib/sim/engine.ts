@@ -4906,6 +4906,34 @@ function worldRoleForSeat(seatId: any) {
   mirrorPlayerToWorld(g);
   syncNationsFromWorld(g);
   refreshWorldTrade(g);
+  replugWorldOpeningDeficits(g);
+}
+/** Re-zero every seat's opening deficit now that live bilateral trade exists.
+ *
+ *  settleOpeningEcon() runs with `_settling`, so stepWorldPartners (and with it
+ *  refreshWorldTrade) never fires during the 48-quarter run-up — snapshotPartnerTrade()
+ *  falls back to its M≈X approximation throughout. Tariff receipts are priced off
+ *  real per-partner import volume (partnerTariffRevenue), so a settle-time plug
+ *  calibrates otherRevAdj against import volumes that are not the ones the seat
+ *  will actually trade at. Left alone that is a fixed bias per seat, not noise:
+ *  _openingByRole caches each role's settle for the life of the process, and in
+ *  multiplayer every seat is one a human can claim. Re-plug once here, against
+ *  the live bags, so each seat opens on its profile's published deficit. */
+function replugWorldOpeningDeficits(g: any) {
+  if (!g || !g.world) return;
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (!bag || !bag.econ || !bag.law) continue;
+    const deficit0 = pinsForRole(bag.role).deficit0;
+    if (deficit0 == null) continue;
+    plugOpeningDeficit(bag.econ, bag.law, deficit0, {
+      homeRole: bag.role,
+      econ: bag.econ,
+      blocMember: g.blocMember,
+      customBlocs: g.customBlocs,
+      worldTrade: g.worldTrade,
+    });
+  }
 }
 function mirrorPlayerToWorld(g: any) {
   if (!g || !g.econ) return;
@@ -8713,14 +8741,10 @@ function newGame(opts?: any) {
   for (const row of G.log || []) {
     row.partnerTrade = clone(openingTrade);
   }
-  /* Tariff revenue (partnerTariffRevenue()) reads live per-partner import
-     volumes off G.worldTrade — settle never had that (stepWorldPartners is
-     skipped while _settling), so plugOpeningDeficit's settle-time calls fell
-     back to the M≈X approximation in snapshotPartnerTrade() instead. Same
-     root cause as the two flattens just above: recalibrate otherRevAdj now
-     that G.worldTrade is real, then flatten the pre-game financial rows to
-     match, so neither the deficit pin nor the finances chart jumps at Q1. */
-  plugOpeningDeficit(G.econ, G.law, pins.deficit0, G);
+  /* Same flatten again, for the books. initWorldState -> replugWorldOpeningDeficits
+     has just re-zeroed every seat's opening deficit against live trade (see the
+     comment there), including this one; the settle rows were written before that,
+     so restate them or the finances chart steps at Q1. */
   const openingBal = balanceOf(G.law, G.econ, G);
   for (const row of G.log || []) {
     row.balance = openingBal.balance;
