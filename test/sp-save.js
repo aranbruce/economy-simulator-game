@@ -116,6 +116,32 @@ function main() {
   );
   assert.equal(getTab(), null, "non-solo hydrate still closes the drawer");
 
+  /* Trip-wire for a real bug caught in review: a pendingChoice clip's
+     opts[].f is a live closure (bound to the in-flight Deliver call that
+     rolled the event — presentChoice() in engine.ts), and clone() is a
+     JSON round trip, which silently drops function values. A save written
+     while a clip is pendingChoice would restore with the clip still
+     blocking Deliver but every choice button a dead no-op — a permanent
+     soft-lock. GameApp.tsx's flushSpSave() guards against this by skipping
+     the autosave entirely while pressChoicePending() is true; this pins the
+     underlying fact that guard exists to work around. */
+  newGame({ country: "Hostland", homeRole: "home", silent: true });
+  const G3 = getG();
+  presentEventAsPress(sampleEv, () => {});
+  const pendingClip = G3.press.find((c) => c.pendingChoice);
+  assert.ok(pendingClip, "have a pendingChoice clip with live opts");
+  assert.equal(
+    typeof pendingClip.opts[0].f,
+    "function",
+    "the live clip's option is a real closure before any clone",
+  );
+  const clonedClip = clone(pendingClip);
+  assert.equal(
+    clonedClip.opts[0].f,
+    undefined,
+    "clone() drops the closure — a save made mid-clip would ship a dead button",
+  );
+
   console.log("sp-save: ok");
 }
 

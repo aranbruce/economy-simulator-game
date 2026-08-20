@@ -13,6 +13,7 @@ import {
   render,
   projectionModal,
   dismissNewestPress,
+  pressChoicePending,
   getDespatch,
   closeDespatch,
   hideDespatchShell,
@@ -145,7 +146,16 @@ export default function GameApp() {
 
   /** Writes the live single-player game to localStorage. Skips a multiplayer
    *  mount (its own resume path already covers that) and clears the slot
-   *  once a run is over, so Resume never reopens a finished verdict. */
+   *  once a run is over, so Resume never reopens a finished verdict.
+   *
+   *  Also skips while a press clip is pendingChoice: its opts[].f is a live
+   *  JS closure (bound to the in-flight Deliver call that rolled the event —
+   *  see presentChoice() in engine.ts), and clone()/JSON round-tripping
+   *  silently drops function values. A save written mid-clip would restore
+   *  with pressChoicePending() still true but every choice button a no-op,
+   *  soft-locking Deliver with no way out. Skipping just leaves the last
+   *  answered-quarter save in place; once the clip is answered the next bump
+   *  saves the resolved state normally. */
   const flushSpSave = useCallback(() => {
     const g = getG();
     if (!g || g.mp) return;
@@ -153,6 +163,7 @@ export default function GameApp() {
       clearSpSave();
       return;
     }
+    if (pressChoicePending()) return;
     const snap = exportGameSnapshot(g, { mode: "solo" });
     if (!snap) return;
     saveSpGame(snap, {
@@ -167,6 +178,8 @@ export default function GameApp() {
 
   const scheduleSpSave = useCallback(() => {
     if (spAutosaveTimer.current) clearTimeout(spAutosaveTimer.current);
+    const g = getG();
+    if (!g || g.mp) return;
     spAutosaveTimer.current = setTimeout(() => {
       spAutosaveTimer.current = null;
       flushSpSave();
@@ -1249,17 +1262,21 @@ export default function GameApp() {
           )
         )}
 
-        {phase === "setup" && (
-          <CountryPicker
-            selectedRole={setupRole}
-            initialId={realmId}
-            onStart={beginGame}
-            onMultiplayer={() => setPhase("lobby")}
-            onResume={loadMpSession() ? handleResume : undefined}
-            onResumeSolo={loadSpSave() ? handleResumeSolo : undefined}
-            resumeSoloMeta={loadSpSave()?.meta || null}
-          />
-        )}
+        {phase === "setup" &&
+          (() => {
+            const spSave = loadSpSave();
+            return (
+              <CountryPicker
+                selectedRole={setupRole}
+                initialId={realmId}
+                onStart={beginGame}
+                onMultiplayer={() => setPhase("lobby")}
+                onResume={loadMpSession() ? handleResume : undefined}
+                onResumeSolo={spSave ? handleResumeSolo : undefined}
+                resumeSoloMeta={spSave ? spSave.meta : null}
+              />
+            );
+          })()}
 
         {phase === "lobby" && (
           <MultiplayerLobby
