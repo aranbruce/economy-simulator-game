@@ -68,6 +68,12 @@ function SetupStat({ label, value }: { label: string; value: string }) {
   );
 }
 
+interface ResumeSoloMeta {
+  country: string;
+  q: number;
+  sandbox: boolean;
+}
+
 interface CountryPickerProps {
   selectedRole?: string | null;
   onStart: (opts: {
@@ -80,6 +86,8 @@ interface CountryPickerProps {
   }) => void;
   onMultiplayer?: () => void;
   onResume?: () => void;
+  onResumeSolo?: () => void;
+  resumeSoloMeta?: ResumeSoloMeta | null;
   initialId?: string | null;
 }
 
@@ -89,6 +97,8 @@ export default function CountryPicker({
   onStart,
   onMultiplayer,
   onResume,
+  onResumeSolo,
+  resumeSoloMeta,
   initialId,
 }: CountryPickerProps) {
   const initial = realmById(initialId || DEFAULT_REALM_ID);
@@ -166,7 +176,7 @@ export default function CountryPicker({
             <SetupStat label="Bank rate" value={books.rate.toFixed(2) + "%"} />
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap items-center justify-start gap-2 max-sm:flex-col max-sm:items-stretch">
+        <div className="mt-2 flex flex-wrap items-center justify-start gap-2 max-md:grid max-md:grid-cols-2 max-sm:items-stretch">
           <SetupGoButton
             onClick={() =>
               onStart({
@@ -179,8 +189,23 @@ export default function CountryPicker({
               })
             }
           >
-            Get started
+            New game
           </SetupGoButton>
+          {typeof onResumeSolo === "function" && (
+            <SetupGoButton
+              secondary
+              onClick={onResumeSolo}
+              title={
+                resumeSoloMeta
+                  ? `${resumeSoloMeta.country} · Q${resumeSoloMeta.q} · ${
+                      resumeSoloMeta.sandbox ? "Sandbox" : "Career"
+                    }`
+                  : undefined
+              }
+            >
+              Resume game
+            </SetupGoButton>
+          )}
           <SetupGoButton
             secondary
             onClick={() =>
@@ -198,13 +223,11 @@ export default function CountryPicker({
             Tutorial
           </SetupGoButton>
           {typeof onMultiplayer === "function" && (
-            <SetupGoButton
-              secondary
-              onClick={() => onMultiplayer()}
-            >
+            <SetupGoButton secondary onClick={() => onMultiplayer()}>
               Multiplayer lobby
             </SetupGoButton>
           )}
+
           {typeof onResume === "function" && (
             <SetupGoButton secondary onClick={onResume}>
               Resume multiplayer

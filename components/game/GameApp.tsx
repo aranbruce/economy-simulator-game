@@ -57,6 +57,7 @@ import {
   loadMpSession,
   clearMpSession,
 } from "../../lib/mp/session.ts";
+import { saveSpGame, loadSpSave, clearSpSave } from "../../lib/sp/save.ts";
 import { saveCurrencyPref } from "../../lib/ui/currencyPref.ts";
 /** The whole map is three.js now, so it can only mount client-side — and it
  *  is scenery behind the setup screen as well as behind play, so this is
@@ -139,6 +140,38 @@ export default function GameApp() {
   const pendingUnsubmitRef = useRef<Promise<any> | null>(null);
 
   const bump = useCallback(() => setTick((t) => t + 1), []);
+
+  const spAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Writes the live single-player game to localStorage. Skips a multiplayer
+   *  mount (its own resume path already covers that) and clears the slot
+   *  once a run is over, so Resume never reopens a finished verdict. */
+  const flushSpSave = useCallback(() => {
+    const g = getG();
+    if (!g || g.mp) return;
+    if (g.over) {
+      clearSpSave();
+      return;
+    }
+    const snap = exportGameSnapshot(g, { mode: "solo" });
+    if (!snap) return;
+    saveSpGame(snap, {
+      country: g.country,
+      homeRole: g.homeRole,
+      homeIso: g.homeIso,
+      q: g.q,
+      term: g.term,
+      sandbox: !!g.sandbox,
+    });
+  }, []);
+
+  const scheduleSpSave = useCallback(() => {
+    if (spAutosaveTimer.current) clearTimeout(spAutosaveTimer.current);
+    spAutosaveTimer.current = setTimeout(() => {
+      spAutosaveTimer.current = null;
+      flushSpSave();
+    }, 800);
+  }, [flushSpSave]);
 
   const exitMpToSetup = useCallback((notice?: string | null) => {
     clearMpSession();
@@ -632,16 +665,21 @@ export default function GameApp() {
     (opts: any) => {
       if (opts.hydrate) {
         const mp = attachMpEventHandler(opts.mp || null);
+        const solo = opts.mode === "solo";
         hydrateGameSnapshot(opts.hydrate, {
           homeRole: opts.homeRole,
           seatId: opts.seatId || opts.mp?.seatId,
           homeIso: opts.homeIso,
           country: opts.country,
           mp,
+          mode: solo ? "solo" : undefined,
         });
         const G = getG();
         if (G) {
-          G.coachDone = true;
+          /* A solo resume already carries its own coach/coachDone from the
+             save (see hydrateGameSnapshot's solo branch) — an MP remount
+             always forces it done, since a fellow seat's coach never applies. */
+          if (!solo) G.coachDone = true;
           if (mp) G.mp = mp;
         }
       } else {
@@ -653,6 +691,16 @@ export default function GameApp() {
 
   const beginGame = useCallback(
     (opts: any) => {
+      if (!opts.hydrate && !opts.mp) {
+        const existing = loadSpSave();
+        if (existing) {
+          const ok = window.confirm(
+            "Starting a new game will overwrite your saved single-player game. Continue?",
+          );
+          if (!ok) return;
+          clearSpSave();
+        }
+      }
       setRealmId(opts.realmId || DEFAULT_REALM_ID);
       setHomeIso(opts.homeIso);
       setHomeRole(opts.homeRole || "home");
@@ -669,6 +717,22 @@ export default function GameApp() {
     },
     [bootstrapPlay],
   );
+
+  const handleResumeSolo = useCallback(() => {
+    const saved = loadSpSave();
+    if (!saved) return;
+    const meta = saved.meta;
+    const realm = realmByRole(meta.homeRole);
+    beginGame({
+      country: meta.country,
+      homeRole: meta.homeRole,
+      homeIso: meta.homeIso,
+      realmId: realm.id,
+      sandbox: meta.sandbox,
+      hydrate: saved.snap,
+      mode: "solo",
+    });
+  }, [beginGame]);
 
   const enterMpPlay = useCallback(
     (opts: any) => {
@@ -920,7 +984,10 @@ export default function GameApp() {
   unsubmitMpConfirmRef.current = unsubmitMpConfirm;
 
   useEffect(() => {
-    setOnState(() => bump());
+    setOnState(() => {
+      bump();
+      if (phase === "play") scheduleSpSave();
+    });
     setOnTabChange((t: string | null) => {
       if (t) setSelectedRole(null);
     });
@@ -967,7 +1034,29 @@ export default function GameApp() {
       setOnTabChange(null);
       setOnSetup(null);
     };
-  }, [bump, phase, realmId]);
+  }, [bump, phase, realmId, scheduleSpSave]);
+
+  /** Flush a pending debounced save immediately when the tab is being put
+   *  away or closed, so a mid-bill draft isn't lost to the 800ms debounce. */
+  useEffect(() => {
+    if (phase !== "play") return;
+    const onHide = () => {
+      if (spAutosaveTimer.current) {
+        clearTimeout(spAutosaveTimer.current);
+        spAutosaveTimer.current = null;
+      }
+      flushSpSave();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") onHide();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onHide);
+    };
+  }, [phase, flushSpSave]);
 
   useEffect(() => {
     if (phase !== "play") return;
@@ -1167,6 +1256,8 @@ export default function GameApp() {
             onStart={beginGame}
             onMultiplayer={() => setPhase("lobby")}
             onResume={loadMpSession() ? handleResume : undefined}
+            onResumeSolo={loadSpSave() ? handleResumeSolo : undefined}
+            resumeSoloMeta={loadSpSave()?.meta || null}
           />
         )}
 
