@@ -454,6 +454,15 @@ export default function WorldMap3D({
   } | null>(null);
   const pinchRef = useRef<{ dist: number } | null>(null);
   const movedRef = useRef(false);
+  const pendingHoverRef = useRef<{ clientX: number; clientY: number } | null>(
+    null,
+  );
+  const hoverRafRef = useRef<number | null>(null);
+  /* syncPaint runs on every tick (UI edit or quarter advance), not per
+     animation frame, but reusing this Map still beats a fresh allocation
+     each time it fires. (isoLift, the other map syncPaint builds, can't be
+     reused the same way — see the comment at its allocation.) */
+  const paintColoursRef = useRef(new Map<string, CountryPaint>());
 
   const [geoReady, setGeoReady] = useState(false);
   const [glReady, setGlReady] = useState(false);
@@ -640,6 +649,9 @@ export default function WorldMap3D({
 
     let raf: number | null = null;
     let cancelled = false;
+    let lastShadowFocusX = NaN;
+    let lastShadowFocusZ = NaN;
+    let lastShadowDist = NaN;
     const frame = () => {
       if (cancelled) return;
       const { W, H } = sizeRef.current;
@@ -653,21 +665,33 @@ export default function WorldMap3D({
       routeLayer.update(nowS);
       fleet.update(nowS);
       /* Keep the shadow frustum around whatever is in frame, otherwise a
-         single map for the whole 360° board is a few texels per country. */
-      sun.target.position.set(cam.focusX, 0, cam.focusZ);
-      sun.position.set(
-        cam.focusX + SUN_OFF_X,
-        SUN_OFF_Y,
-        cam.focusZ + SUN_OFF_Z,
-      );
-      const shadowSpan = Math.max(36, cam.dist * 0.72);
-      const shadowCam = sun.shadow.camera;
-      shadowCam.left = -shadowSpan;
-      shadowCam.right = shadowSpan;
-      shadowCam.top = shadowSpan;
-      shadowCam.bottom = -shadowSpan;
-      shadowCam.updateProjectionMatrix();
-      sun.target.updateMatrixWorld();
+         single map for the whole 360° board is a few texels per country.
+         The camera is idle most of the time (pan/zoom are interaction-
+         driven), so skip the refit when focus/dist haven't moved. */
+      const SHADOW_EPS = 1e-4;
+      if (
+        Math.abs(cam.focusX - lastShadowFocusX) > SHADOW_EPS ||
+        Math.abs(cam.focusZ - lastShadowFocusZ) > SHADOW_EPS ||
+        Math.abs(cam.dist - lastShadowDist) > SHADOW_EPS
+      ) {
+        lastShadowFocusX = cam.focusX;
+        lastShadowFocusZ = cam.focusZ;
+        lastShadowDist = cam.dist;
+        sun.target.position.set(cam.focusX, 0, cam.focusZ);
+        sun.position.set(
+          cam.focusX + SUN_OFF_X,
+          SUN_OFF_Y,
+          cam.focusZ + SUN_OFF_Z,
+        );
+        const shadowSpan = Math.max(36, cam.dist * 0.72);
+        const shadowCam = sun.shadow.camera;
+        shadowCam.left = -shadowSpan;
+        shadowCam.right = shadowSpan;
+        shadowCam.top = shadowSpan;
+        shadowCam.bottom = -shadowSpan;
+        shadowCam.updateProjectionMatrix();
+        sun.target.updateMatrixWorld();
+      }
       overlay.update(cam, W, H);
       labels.update(cam, W, H);
       renderer.render(scene, cam.camera);
@@ -697,6 +721,11 @@ export default function WorldMap3D({
     return () => {
       cancelled = true;
       if (raf != null) cancelAnimationFrame(raf);
+      if (hoverRafRef.current != null) {
+        cancelAnimationFrame(hoverRafRef.current);
+        hoverRafRef.current = null;
+      }
+      pendingHoverRef.current = null;
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", resize);
       canvas.removeEventListener("webglcontextlost", onContextLost);
@@ -802,7 +831,11 @@ export default function WorldMap3D({
     const isRestHot = (role: string | null) =>
       !!role && (isSelected(role) || (!setupMode && role === "home"));
 
-    const colours = new Map<string, CountryPaint>();
+    const colours = paintColoursRef.current;
+    colours.clear();
+    /* Unlike colours (read synchronously by terrain.paint and discarded),
+       scenery.setHot retains the Map it's given as its own "previous state"
+       for the next diff — it must be a fresh object each call. */
     const isoLift = new Map<string, number>();
     for (const c of countries) {
       const role = roleForFeature(c.iso, hRole, hIso);
@@ -1354,9 +1387,26 @@ export default function WorldMap3D({
       }
     }
 
+    /* Hover hit-testing (a lane-traffic query plus a raycast) is the
+       expensive part of a move, and pointermove can fire faster than the
+       render loop on high-poll-rate devices. Cache the latest position and
+       defer the actual hit-test to at most once per rendered frame — the
+       visible lag is at most one frame. */
+    pendingHoverRef.current = { clientX: e.clientX, clientY: e.clientY };
+    if (hoverRafRef.current == null) {
+      hoverRafRef.current = requestAnimationFrame(() => {
+        hoverRafRef.current = null;
+        const pending = pendingHoverRef.current;
+        if (pending) processHover(pending.clientX, pending.clientY);
+      });
+    }
+  };
+
+  const processHover = (clientX: number, clientY: number) => {
+    const cam = camRef.current;
     let traffic = null as ReturnType<typeof queryPointTraffic>;
     if (!setupMode && cam) {
-      const ndc = ndcAt(e.clientX, e.clientY);
+      const ndc = ndcAt(clientX, clientY);
       const sea = ndc ? cam.groundAt(ndc.x, ndc.y, SEA_Y) : null;
       if (sea) {
         /* World units = degrees. The dashed stroke is 0.12° wide on a
@@ -1429,7 +1479,7 @@ export default function WorldMap3D({
         rows.sort((x, y) => y.share - x.share);
         setHoverPairs(rows);
       }
-      placeRouteTip(e.clientX, e.clientY);
+      placeRouteTip(clientX, clientY);
       if (hoverRoleRef.current || hoverIsoRef.current) {
         hoverRoleRef.current = null;
         hoverIsoRef.current = null;
@@ -1440,7 +1490,7 @@ export default function WorldMap3D({
     }
     if (hoverLaneKeyRef.current) hideRouteHover();
 
-    const hit = pickAt(e.clientX, e.clientY);
+    const hit = pickAt(clientX, clientY);
     const nextRole = hit ? (setupMode ? hit.pickRole : hit.role) : null;
     /* Setup: only a pickable seat counts as hovered. Scenery land still
        ray-hits, but must not lift or change the cursor. */
@@ -1491,6 +1541,11 @@ export default function WorldMap3D({
       panRef.current = null;
       pinchRef.current = null;
     }
+    if (hoverRafRef.current != null) {
+      cancelAnimationFrame(hoverRafRef.current);
+      hoverRafRef.current = null;
+    }
+    pendingHoverRef.current = null;
     hideRouteHover();
     if (hoverRoleRef.current || hoverIsoRef.current) {
       hoverRoleRef.current = null;
