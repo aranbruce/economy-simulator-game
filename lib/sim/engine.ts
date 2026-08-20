@@ -3683,6 +3683,56 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   }
   return out;
 }
+/* Per-partner deal tariff cuts, mirroring partnerAccessTargets() above but for
+   ch.tariffCut — needed so tariff revenue can net a deal's cut against the
+   specific partner it applies to rather than the pooled global E.dealTariffCut
+   the trade-volume side uses. */ function dealTariffCutByPartner(
+  law: any,
+  homeRole: any,
+  blocMember: any,
+) {
+  const g = getG();
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const bm = blocMember != null ? blocMember : (g && g.blocMember) || {};
+  const player = playerCountryId(role);
+  const out: Record<string, any> = {};
+  for (const id in law.deals || {}) {
+    if (!law.deals[id]) continue;
+    const d = dealById(id);
+    if (!d || !d.ch || !d.ch.tariffCut) continue;
+    if (d.blocId) {
+      for (const m of countriesInBloc(d.blocId, bm)) {
+        if (m === player) continue;
+        (out as any)[m] = ((out as any)[m] || 0) + d.ch.tariffCut;
+      }
+    } else if (d.partner) {
+      (out as any)[d.partner] =
+        ((out as any)[d.partner] || 0) + d.ch.tariffCut;
+    }
+  }
+  return out;
+}
+/** Per-partner tariff revenue: each active partner's effective rate (net of
+ *  that partner's phased-in deal cut) times their actual simulated import
+ *  volume, plus the rest-of-world residual priced at the schedule default. */
+function partnerTariffRevenue(law: any, g: any) {
+  const role = (g && g.homeRole) || "home";
+  const bm = (g && g.blocMember) || {};
+  const e = g && g.econ;
+  const cuts = (e && e.tariffCutEffByPartner) || {};
+  const trade = snapshotPartnerTrade(g || {});
+  let rev = 0;
+  for (const p of activePartners(role)) {
+    const rate = Math.max(
+      0,
+      effectiveTariff(p.id, law, role, bm) - ((cuts as any)[p.id] || 0),
+    );
+    rev += (rate / 100) * (((trade as any)[p.id] && (trade as any)[p.id].M) || 0);
+  }
+  const restRate = ensureTariffSchedule(law).default;
+  rev += (restRate / 100) * ((trade.rest && trade.rest.M) || 0);
+  return rev;
+}
 /* Phased trade-depth target: partner access plus tariff integration vs opening. */ function tradeExposureTarget(
   law: any,
   E: any,
@@ -6776,8 +6826,8 @@ function enactHumanSeatOnSnapshot(
             passage: check.passage || pressPassageFromClauses(clauses),
             cost: check.cost || 0,
             balDelta:
-              balanceOf(g.draft, g.econ).balance -
-              balanceOf(g.law, g.econ).balance,
+              balanceOf(g.draft, g.econ, g).balance -
+              balanceOf(g.law, g.econ, g).balance,
             q: g.q != null ? g.q : 0,
           }
         : null;
@@ -8072,13 +8122,14 @@ let _openingByRole: Record<string, any> = {};
   e: any,
   law: any,
   deficit0: any,
+  g?: any,
 ) {
   if (deficit0 == null) {
     e.otherRevAdj = 0;
     return;
   }
   e.otherRevAdj = 0;
-  const measured = -balanceOf(law, e).balance;
+  const measured = -balanceOf(law, e, g).balance;
   e.otherRevAdj = measured - deficit0;
 }
 function freshEcon(pins: any) {
@@ -8255,7 +8306,7 @@ function settleLabel(i: any) {
 }
 function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   if (!row) return;
-  const bal = balanceOf(law, e);
+  const bal = balanceOf(law, e, g);
   row.debt = e.debt;
   row.inflation = e.inflation;
   row.unemployment = e.unemployment;
@@ -8358,7 +8409,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   }
   g.prevLaw = clone(g.law);
   g.draft = clone(g.law);
-  plugOpeningDeficit(g.econ, g.law, pin.deficit0);
+  plugOpeningDeficit(g.econ, g.law, pin.deficit0, g);
   for (let i = 0; i < SETTLE_QUARTERS; i++) {
     step(g, g.law, g.law, true);
     const row = g.log[g.log.length - 1];
@@ -8412,7 +8463,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
       g.manualRate = g.econ.rate;
     }
     renormaliseOpeningLevel(g.econ, g.law);
-    plugOpeningDeficit(g.econ, g.law, pin.deficit0);
+    plugOpeningDeficit(g.econ, g.law, pin.deficit0, g);
   }
   const e = g.econ;
   /* Leave FX at its UIP level under the (possibly Taylor-set) Bank rate. Forcing
@@ -8496,7 +8547,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   e.R = R0;
   e.labourGrowth = impliedLabourGrowth(e, aggregate(g.law));
   e.trendGrowth = potentialGrowth(g.law, aggregate(g.law), e);
-  plugOpeningDeficit(e, g.law, pin.deficit0);
+  plugOpeningDeficit(e, g.law, pin.deficit0, g);
   syncLogRowToEcon(g.log[g.log.length - 1], e, g, g.law);
   return {
     econ: e,
@@ -8661,6 +8712,21 @@ function newGame(opts?: any) {
      pre-game row so the Net trade partner series does not jump at Q1. */
   for (const row of G.log || []) {
     row.partnerTrade = clone(openingTrade);
+  }
+  /* Tariff revenue (partnerTariffRevenue()) reads live per-partner import
+     volumes off G.worldTrade — settle never had that (stepWorldPartners is
+     skipped while _settling), so plugOpeningDeficit's settle-time calls fell
+     back to the M≈X approximation in snapshotPartnerTrade() instead. Same
+     root cause as the two flattens just above: recalibrate otherRevAdj now
+     that G.worldTrade is real, then flatten the pre-game financial rows to
+     match, so neither the deficit pin nor the finances chart jumps at Q1. */
+  plugOpeningDeficit(G.econ, G.law, pins.deficit0, G);
+  const openingBal = balanceOf(G.law, G.econ, G);
+  for (const row of G.log || []) {
+    row.balance = openingBal.balance;
+    row.rev = openingBal.rev.total;
+    row.revEff = openingBal.rev.total;
+    row.spendEff = openingBal.sp.prog + openingBal.sp.interest;
   }
   G.parties = seedParties(G.fac, G.law, G.homeRole);
   G.brief = openingBrief(pins, country);
@@ -9094,6 +9160,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   const pat = partnerAccessTargets(law, role, bm);
   E.partnerAccess = pat;
   E.access = Object.values(pat).reduce((s, v) => s + v, 0);
+  E.partnerTariffCut = dealTariffCutByPartner(law, role, bm);
   E.blackLevel = clamp(10 + E.blk, 0, 78);
   return E;
 }
@@ -9117,7 +9184,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
       return 1;
   }
 }
-function revenue(law: any, E: any, econ?: any) {
+function revenue(law: any, E: any, econ?: any, g?: any) {
   const mult = regimeMultipliers(law);
   const by: Record<string, any> = {};
   let total = 0;
@@ -9147,13 +9214,14 @@ function revenue(law: any, E: any, econ?: any) {
   by.niEmployer = inc.employer;
   total += inc.total;
   const adj = (econ && econ.otherRevAdj) || 0;
-  const hr = (typeof G !== "undefined" && G && G.homeRole) || "home";
-  const avgTariff = tariffScheduleAverage(law, hr);
-  const other = OTHER_REV + adj + E.rev + avgTariff * 0.055;
+  const st = g || (typeof G !== "undefined" ? G : null);
+  const tariffs = partnerTariffRevenue(law, st);
+  const other = OTHER_REV + adj + E.rev;
   return {
-    total: total + other,
+    total: total + other + tariffs,
     by,
     other,
+    tariffs,
     inc,
   };
 }
@@ -9296,9 +9364,9 @@ function spending(law: any, E: any, econ: any) {
     total: prog + interest,
   };
 }
-function balanceOf(law: any, econ: any) {
-  const E = aggregate(law);
-  const rev = revenue(law, E, econ),
+function balanceOf(law: any, econ: any, g?: any) {
+  const E = aggregate(law, g && g.homeRole, g && g.blocMember);
+  const rev = revenue(law, E, econ, g),
     sp = spending(law, E, econ);
   return {
     E,
@@ -10212,6 +10280,14 @@ function govDemandShares(law: any, econ: any) {
     const cur = e.partnerAccessEff[p.id] || 0;
     e.partnerAccessEff[p.id] = cur + (effTarget - cur) * DEAL_PHASE;
   }
+  if (!e.tariffCutEffByPartner) e.tariffCutEffByPartner = {};
+  for (const p of activePartners(homeRole)) {
+    const target = (E.partnerTariffCut && E.partnerTariffCut[p.id]) || 0;
+    const stressed = (e.dealStress[p.id] || 0) >= 1;
+    const effTarget = stressed ? 0 : target;
+    const cur = e.tariffCutEffByPartner[p.id] || 0;
+    e.tariffCutEffByPartner[p.id] = cur + (effTarget - cur) * DEAL_PHASE;
+  }
   const exposureTarget = tradeExposureTarget(law, E, e, homeRole, bm);
   e.tradeDepth += (exposureTarget - e.tradeDepth) * DEAL_PHASE;
   /* Competitiveness is indexed to the opening settings, so a fresh game starts
@@ -10433,8 +10509,13 @@ function govDemandShares(law: any, econ: any) {
      Each component has its own equation in the expenditure block above. The
      fiscal multiplier is not set anywhere: it emerges from the marginal
      propensity to consume, the tax take out of income and import leakage,
-     which is where multipliers come from in the first place. */ const revShare =
-    revenue(law, E, e).total;
+     which is where multipliers come from in the first place. Tariff revenue
+     is excluded here: its demand effect is already priced in through import
+     competitiveness (compBase, below) hitting CPI directly, so routing it
+     through the same household-tax share as income tax/VAT would squeeze
+     disposable income twice for the same pound of tariff. */ const revBag =
+    revenue(law, E, e, g);
+  const revShare = revBag.total - revBag.tariffs;
   const prevY = e.gdp;
   const acct = expenditureStep(e, law, E, revShare, mS, g, det);
   /* Elevated gilt yields hit borrowers as a credit-spread shock attributed to
@@ -10659,7 +10740,7 @@ function govDemandShares(law: any, econ: any) {
        db = (r - g)/(1 + g) * b - primary balance
      the standard accumulation identity, plus a convex risk premium in the
      yield: markets ignore the debt level until they abruptly do not. */ const rev =
-      revenue(law, E, e),
+      revenue(law, E, e, g),
     sp = spending(law, E, e);
   /* ---- Growth is not fiscally neutral ----
      Spending is a plan in real terms, set against trend output, so its share of
@@ -13364,6 +13445,7 @@ function compositionBarData() {
   for (const id in rev.by) {
     (groups as any)[taxGroup(id)] += (rev.by as any)[id];
   }
+  groups.tariffs = rev.tariffs;
   groups.other = rev.other;
   const names: Record<string, string> = {
     income: "Income tax and NI",
@@ -13371,6 +13453,7 @@ function compositionBarData() {
     corporate: "Corporate",
     wealth: "Capital & land",
     vice: "Duties on regulated goods",
+    tariffs: "Tariffs",
     other: "Other receipts",
   };
   const cols: Record<string, string> = {
@@ -13379,6 +13462,7 @@ function compositionBarData() {
     corporate: COL.blue,
     wealth: COL.plum,
     vice: COL.green,
+    tariffs: COL.ox,
     other: COL.soft,
   };
   const total = Object.values(groups).reduce((a: any, b: any) => a + b, 0) || 1;
@@ -19773,7 +19857,13 @@ function impactFactionsData(im: any) {
    an explicit allowlist, checked by a test below, so a future field added to
    MUTABLE can't silently go unaccounted-for in simulate() the way CLAUDE.md
    warns about — it will either need to be threaded into `sim` or added here
-   with the same justification. */
+   with the same justification. `worldTrade` is the one exception to "no
+   effect on the numbers": tariff revenue now reads it (partnerTariffRevenue()),
+   but it's still correctly omitted from the initial clone, for a different
+   reason — stepWorldPartners() -> refreshWorldTrade() regenerates it fresh
+   every quarter inside simulate()'s own loop (step() is always called with
+   `sim` itself as `g`, so it reads sim's own freshly-cleared trade, never
+   live G's), so no t=0 clone is needed even though it now matters. */
 const SIMULATE_OMITS = [
   "over",
   "lowRun",
