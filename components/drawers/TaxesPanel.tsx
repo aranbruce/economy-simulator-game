@@ -18,13 +18,15 @@ import {
   compositionBarData,
   effectiveBands,
   itemPartyStances,
-  withIncomeOn,
-  withNi,
   TAPER_RATE,
   isFlatIncome,
   isDualCapital,
   getDrawerCat,
+  setTab,
+  setDrawerCat,
+  LAW_GROUP_BY_ID,
 } from "../../lib/sim/engine.ts";
+import { queueDrawerLawScroll } from "../../lib/scrollDrawerPartner.ts";
 import {
   introduceTax,
   abolishTax,
@@ -41,7 +43,7 @@ import {
 } from "../../lib/ui/actions.ts";
 import { useGame } from "../../lib/ui/useGame.ts";
 import { useCurrencyPref } from "../../lib/ui/useCurrencyPref.ts";
-import { Eyebrow, Hint, Panel } from "../ui/Typography.tsx";
+import { Eyebrow, Hint } from "../ui/Typography.tsx";
 import { Button } from "../ui/Button.tsx";
 import { CardPrice } from "../ui/Card.tsx";
 import { PartyStanceChips } from "../ui/PartyStance.tsx";
@@ -146,10 +148,9 @@ function CtrlRow({
 }
 
 /** A capital-income rate (dividend / savings / dual capital) with its own
- *  Abolish/Reintroduce toggle — unlike income tax and NI there's no separate
- *  on/off flag in the data model, so 0% *is* "abolished"; this just gives
- *  each rate the same affordance individually rather than only as one
- *  combined category. */
+ *  Abolish/Introduce toggle — unlike income tax and NI there's no separate
+ *  on/off flag in the data model, so 0% *is* off; this just gives each rate
+ *  the same affordance individually rather than only as one combined category. */
 function CapitalRateRow({
   name,
   value,
@@ -168,16 +169,18 @@ function CapitalRateRow({
     <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-sm last:border-b-0">
       <div className="flex w-full items-baseline gap-2">
         <span className="font-[550]">{name}</span>
-        <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
-          {on ? `${value}%` : "abolished"}
-        </span>
+        {on ? (
+          <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
+            {value}%
+          </span>
+        ) : null}
         <Button
           danger={on}
           tiny
-          className="ml-2"
+          className={on ? "ml-2" : "ml-auto"}
           onClick={() => onSet(on ? 0 : defaultValue)}
         >
-          {on ? "Abolish" : "Reintroduce"}
+          {on ? "Abolish" : "Introduce"}
         </Button>
       </div>
       {on ? (
@@ -193,11 +196,38 @@ function CapitalRateRow({
           onKeyUp={(e) => onSet(parseFloat(e.currentTarget.value))}
         />
       ) : null}
-      <div className="mt-0.5 text-xs text-ink-faint">
-        {on ? note : "Scrapped. Set a rate again to reintroduce it."}
-      </div>
+      {on ? <div className="mt-0.5 text-xs text-ink-faint">{note}</div> : null}
     </div>
   );
+}
+
+/** Where a gated tax's `req` lives in the Laws drawer — vice ladder or a
+ *  law-group card. Polity-gated reqs have no single card to open. */
+function reqLawTarget(req: string[] | undefined): {
+  menu: string;
+  cardId: string;
+  name: string;
+} | null {
+  const key = req?.[0];
+  if (!key || key === "polity") return null;
+  const [kind, id] = key.includes(":") ? key.split(":") : ["vice", key];
+  if (kind === "vice") {
+    const v = VICE_BY_ID[id as ViceId];
+    return v ? { menu: "vice", cardId: id, name: v.name } : null;
+  }
+  if (kind === "group") {
+    const grp = LAW_GROUP_BY_ID[id];
+    return grp ? { menu: grp.menu, cardId: id, name: grp.name } : null;
+  }
+  return null;
+}
+
+function openReqLaw(req: string[] | undefined) {
+  const target = reqLawTarget(req);
+  if (!target) return;
+  setDrawerCat("laws", target.menu);
+  setTab("laws");
+  queueDrawerLawScroll(target.cardId);
 }
 
 function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
@@ -205,18 +235,39 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
   const avail = taxAvailable(t, G.draft);
 
   if (!avail) {
+    const target = reqLawTarget(t.req);
     return (
-      <div className="border-b border-edge px-3 py-2 opacity-50 last:border-b-0">
+      <div className="border-b border-edge px-3 py-2 last:border-b-0">
         <div className="flex items-baseline gap-2 text-sm">
-          <span>{t.name}</span>
-          <span className="ml-auto text-sm font-[650] tracking-[-.02em] text-ink-faint">
-            unavailable
-          </span>
+          <span className="text-ink-soft">{t.name}</span>
+          {target ? (
+            <button
+              type="button"
+              className="ml-auto cursor-pointer border-none bg-transparent p-0 text-sm font-[650] tracking-[-.02em] text-ink-faint underline decoration-white/20 underline-offset-4 hover:text-ink-soft hover:decoration-white/45 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              title={`Open the law on ${target.name.toLowerCase()}`}
+              onClick={() => openReqLaw(t.req)}
+            >
+              Unavailable
+            </button>
+          ) : (
+            <span className="ml-auto text-sm font-[650] tracking-[-.02em] text-ink-faint">
+              Unavailable
+            </span>
+          )}
         </div>
-        <div className="mt-0.5 text-xs text-ink-faint">
-          Requires a change to the law on{" "}
-          {VICE_BY_ID[t.req![0] as ViceId].name.toLowerCase()}.
-        </div>
+        {target ? (
+          <div className="mt-0.5 text-xs text-ink-faint">
+            Requires a change to the law on{" "}
+            <button
+              type="button"
+              className="cursor-pointer border-none bg-transparent p-0 text-inherit underline decoration-white/20 underline-offset-2 hover:text-ink-soft hover:decoration-white/45 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              onClick={() => openReqLaw(t.req)}
+            >
+              {target.name.toLowerCase()}
+            </button>
+            .
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -225,10 +276,7 @@ function TaxLever({ t, G, E, rev }: { t: Tax; G: any; E: any; rev: any }) {
       <div className="border-b border-edge px-3 py-2 last:border-b-0">
         <div className="flex items-baseline gap-2 text-sm">
           <span className="text-ink-soft">{t.name}</span>
-          <span className="ml-auto text-sm font-[650] tracking-[-.02em] text-ink-faint">
-            not levied
-          </span>
-          <Button className="ml-2" onClick={() => introduceTax(t.id)}>
+          <Button className="ml-auto" onClick={() => introduceTax(t.id)}>
             Introduce
           </Button>
         </div>
@@ -315,6 +363,56 @@ function TaxGroupPanel({
   );
 }
 
+function NiSide({
+  name,
+  on,
+  yieldPct,
+  rate,
+  rateKey,
+  onKey,
+  note,
+  step,
+}: {
+  name: string;
+  on: boolean;
+  yieldPct: number;
+  rate: number;
+  rateKey: "empRate" | "erRate";
+  onKey: "empOn" | "erOn";
+  note: ReactNode;
+  step: number;
+}) {
+  return (
+    <div className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25">
+      <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
+        <b>{name}</b>
+        {on ? <span>{yieldPct.toFixed(2)}% of GDP</span> : null}
+        <Button
+          danger={on}
+          tiny
+          className="ml-auto"
+          onClick={() => setNiOn(onKey, !on)}
+        >
+          {on ? "Abolish" : "Introduce"}
+        </Button>
+      </div>
+      {on ? (
+        <CtrlRow
+          name={`${name} rate`}
+          value={rate}
+          min={0}
+          max={30}
+          step={step}
+          disp={`${rate.toFixed(1)}%`}
+          note={note}
+          onInput={(v) => setNiRate(rateKey, v)}
+          onCommit={(v) => setNiRate(rateKey, v)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function IncomeNiPanel({ G }: { G: any }) {
   const I = G.draft.income;
   const N = G.draft.ni;
@@ -332,8 +430,7 @@ function IncomeNiPanel({ G }: { G: any }) {
   return (
     <>
       <Eyebrow className="mt-5">
-        Income tax{" "}
-        <b>{incomeOn ? `${y.income.toFixed(2)}% of GDP` : "abolished"}</b>
+        Income tax {incomeOn ? <b>{y.income.toFixed(2)}% of GDP</b> : null}
         {incomeOn && y.capital != null ? (
           <span className="text-ink-faint">
             {" "}
@@ -342,13 +439,13 @@ function IncomeNiPanel({ G }: { G: any }) {
         ) : null}{" "}
         {!incomeOn ? (
           <Button tiny className="ml-2" onClick={() => setIncomeOn(true)}>
-            Reintroduce
+            Introduce
           </Button>
         ) : null}
       </Eyebrow>
-      <Hint>
-        {incomeOn ? (
-          <>
+      {incomeOn ? (
+        <>
+          <Hint>
             Labour rates apply only above their own threshold, and only to wages
             and salaries.
             {flat
@@ -357,27 +454,7 @@ function IncomeNiPanel({ G }: { G: any }) {
             {G.sandbox
               ? " Sandbox note: cutting the additional rate puts money where the MPC is low; with deficit finance the yield/FX channel can make the demand effect weakly negative — incidence is calibrated against relative demand from transfers and rate cuts."
               : ""}
-          </>
-        ) : (
-          <>
-            Scrapped. About{" "}
-            {incomeYield(withIncomeOn(G.draft, true), E, G.econ).income.toFixed(
-              2,
-            )}
-            % of GDP forgone. National insurance still starts at the personal
-            allowance.
-          </>
-        )}
-      </Hint>
-      {!incomeOn ? (
-        <Panel>
-          <Hint className="p-2">
-            The schedule is preserved so you can reintroduce it later.
-            Abolishing costs 32 capital; bringing it back costs 28.
           </Hint>
-        </Panel>
-      ) : (
-        <>
           <div className="mb-2 overflow-hidden rounded-md border border-edge bg-g-1">
             <CtrlRow
               name="Personal allowance"
@@ -543,9 +620,12 @@ function IncomeNiPanel({ G }: { G: any }) {
             />
           </div>
         </>
-      )}
+      ) : null}
       <Eyebrow className="mt-5">
-        National insurance <b>{(y.employee + y.employer).toFixed(2)}% of GDP</b>
+        National insurance{" "}
+        {N.empOn || N.erOn ? (
+          <b>{(y.employee + y.employer).toFixed(2)}% of GDP</b>
+        ) : null}
       </Eyebrow>
       <Hint>
         Two separate taxes wearing one name, and the difference is who really
@@ -553,91 +633,26 @@ function IncomeNiPanel({ G }: { G: any }) {
         the floor for all three.
       </Hint>
       <div className="overflow-hidden rounded-md border border-edge bg-g-1">
-        <div
-          className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.empOn ? "" : "opacity-50"}`}
-        >
-          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
-            <b>Employee</b>
-            <span>
-              {N.empOn ? `${y.employee.toFixed(2)}% of GDP` : "abolished"}
-            </span>
-            <Button
-              danger={N.empOn}
-              tiny
-              className="ml-auto"
-              onClick={() => setNiOn("empOn", !N.empOn)}
-            >
-              {N.empOn ? "Abolish" : "Reintroduce"}
-            </Button>
-          </div>
-          {N.empOn ? (
-            <CtrlRow
-              name="Employee rate"
-              value={N.empRate}
-              min={0}
-              max={30}
-              step={0.5}
-              disp={`${N.empRate.toFixed(1)}%`}
-              note={
-                <>on earnings above {floorTxt} · comes out of the pay packet</>
-              }
-              onInput={(v) => setNiRate("empRate", v)}
-              onCommit={(v) => setNiRate("empRate", v)}
-            />
-          ) : (
-            <div className="mt-0.5 text-xs leading-[1.4] text-ink-soft">
-              Scrapped. About{" "}
-              {incomeYield(
-                withNi(G.draft, "empOn", true),
-                aggregate(G.draft),
-                G.econ,
-              ).employee.toFixed(2)}
-              % of GDP forgone, and every earner above the allowance keeps it.
-            </div>
-          )}
-        </div>
-        <div
-          className={`mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25 ${N.erOn ? "" : "opacity-50"}`}
-        >
-          <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
-            <b>Employer</b>
-            <span>
-              {N.erOn ? `${y.employer.toFixed(2)}% of GDP` : "abolished"}
-            </span>
-            <Button
-              danger={N.erOn}
-              tiny
-              className="ml-auto"
-              onClick={() => setNiOn("erOn", !N.erOn)}
-            >
-              {N.erOn ? "Abolish" : "Reintroduce"}
-            </Button>
-          </div>
-          {N.erOn ? (
-            <CtrlRow
-              name="Employer rate"
-              value={N.erRate}
-              min={0}
-              max={30}
-              step={0.1}
-              disp={`${N.erRate.toFixed(1)}%`}
-              note="a tax on the job, not the pay · every point adds roughly 0.06 to structural unemployment"
-              onInput={(v) => setNiRate("erRate", v)}
-              onCommit={(v) => setNiRate("erRate", v)}
-            />
-          ) : (
-            <div className="mt-0.5 text-xs leading-[1.4] text-ink-soft">
-              Scrapped. About{" "}
-              {incomeYield(
-                withNi(G.draft, "erOn", true),
-                aggregate(G.draft),
-                G.econ,
-              ).employer.toFixed(2)}
-              % of GDP forgone, but hiring gets cheaper and structural
-              unemployment falls.
-            </div>
-          )}
-        </div>
+        <NiSide
+          name="Employee"
+          on={!!N.empOn}
+          yieldPct={y.employee}
+          rate={N.empRate}
+          rateKey="empRate"
+          onKey="empOn"
+          step={0.5}
+          note={<>on earnings above {floorTxt} · comes out of the pay packet</>}
+        />
+        <NiSide
+          name="Employer"
+          on={!!N.erOn}
+          yieldPct={y.employer}
+          rate={N.erRate}
+          rateKey="erRate"
+          onKey="erOn"
+          step={0.1}
+          note="a tax on the job, not the pay · every point adds roughly 0.06 to structural unemployment"
+        />
       </div>
     </>
   );

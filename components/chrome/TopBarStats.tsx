@@ -77,7 +77,7 @@ export function TopBarStats() {
     },
     {
       label: "Capital",
-      value: String(Math.round(G.capital)),
+      value: G.capital.toFixed(1),
       state: G.capital < 12 ? "alert" : "",
     },
   ];

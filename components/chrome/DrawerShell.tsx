@@ -54,7 +54,7 @@ export function DrawerShell() {
   if (tab === "bill") {
     name = "The Programme";
     sub = cl.length
-      ? `${cost} of ${Math.round(G.capital)} capital`
+      ? `${cost} of ${G.capital.toFixed(1)} capital`
       : "no clauses";
   } else if (tab === "trade") {
     name = "Trade";

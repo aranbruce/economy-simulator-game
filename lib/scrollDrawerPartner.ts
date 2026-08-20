@@ -1,4 +1,4 @@
-/** Scroll the policy drawer to a partner card (trade or diplomacy). */
+/** Scroll the policy drawer to a card after a tab/pill change. */
 
 /** Live drawer body — never use a stale cached ref from registerEl. */
 export function drawerBodyEl(): HTMLElement | null {
@@ -36,8 +36,8 @@ interface QueueScrollOpts {
 }
 
 /** Retry until the card exists and layout has settled (drawer animation, React paint). */
-export function queueDrawerPartnerScroll(
-  partnerId: string,
+export function queueDrawerQueryScroll(
+  selector: string,
   opts?: QueueScrollOpts,
 ) {
   const maxTries = (opts && opts.maxTries) || 30;
@@ -45,11 +45,35 @@ export function queueDrawerPartnerScroll(
   let tries = 0;
   const run = () => {
     tries += 1;
-    if (scrollDrawerPartnerCard(partnerId)) return;
+    const root = drawerBodyEl();
+    if (root && selector) {
+      const el = root.querySelector(selector);
+      if (el) {
+        const y =
+          el.getBoundingClientRect().top -
+          root.getBoundingClientRect().top +
+          root.scrollTop -
+          56;
+        root.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+        return;
+      }
+    }
     if (tries < maxTries) window.setTimeout(run, delay);
   };
   window.setTimeout(
     () => window.requestAnimationFrame(() => window.requestAnimationFrame(run)),
     120,
   );
+}
+
+export function queueDrawerPartnerScroll(
+  partnerId: string,
+  opts?: QueueScrollOpts,
+) {
+  queueDrawerQueryScroll('[data-partner-card="' + partnerId + '"]', opts);
+}
+
+/** A vice or law-group card in the Laws drawer (`data-law-card`). */
+export function queueDrawerLawScroll(cardId: string, opts?: QueueScrollOpts) {
+  queueDrawerQueryScroll('[data-law-card="' + cardId + '"]', opts);
 }

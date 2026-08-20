@@ -11894,7 +11894,7 @@ function billClauses() {
   if ((L.income.on !== false) !== (D.income.on !== false)) {
     const abolishing = D.income.on === false;
     out.push({
-      label: (abolishing ? "Abolish " : "Reintroduce ") + "income tax",
+      label: (abolishing ? "Abolish " : "Introduce ") + "income tax",
       pc: abolishing ? 32 : 28,
       undo: () => {
         D.income.on = L.income.on;
@@ -12024,7 +12024,7 @@ function billClauses() {
     if (L.ni[k] === D.ni[k]) return;
     const abolishing = !D.ni[k];
     out.push({
-      label: (abolishing ? "Abolish " : "Reintroduce ") + name.toLowerCase(),
+      label: (abolishing ? "Abolish " : "Introduce ") + name.toLowerCase(),
       pc: abolishing ? 26 : 20,
       undo: () => {
         D.ni[k] = L.ni[k];
@@ -13252,21 +13252,6 @@ function clausesIn(tabId: any, cl: any) {
   const wage = (G && G.econ && G.econ.wageIndex) || 1;
   const ceil = Math.max(baseMax * wage, (current || 0) * 1.15);
   return Math.ceil(ceil / step) * step;
-}
-/* A throwaway copy of the law with one NI side switched back on, so the panel
-   can quote what abolition actually costs. */ function withNi(
-  law: any,
-  key: any,
-  val: any,
-) {
-  const c = clone(law);
-  c.ni[key] = val;
-  return c;
-}
-function withIncomeOn(law: any, on: any) {
-  const c = clone(law);
-  c.income.on = on;
-  return c;
 }
 /**
  * Same scales and layout as the SVG chart the drawers render, returned as
@@ -20932,8 +20917,6 @@ export {
   taxGroup,
   dp,
   money,
-  withNi,
-  withIncomeOn,
   researchEffort,
   knowledgeTfp,
   R0,

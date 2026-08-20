@@ -249,7 +249,7 @@ function GroupCard({ grp }: { grp: LawGroup }) {
     ? fullEffectsData(current.imp, current.fac, 0, current.ch)
     : qualEffectsData(current.imp, current.fac, 0, current.ch);
   return (
-    <Card staged={draftId !== lawId} hoverable={false}>
+    <Card staged={draftId !== lawId} hoverable={false} data-law-card={grp.id}>
       <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
         {grp.name}
         <CardCat>{current.pc} capital</CardCat>
@@ -366,7 +366,12 @@ function ViceCardGrid() {
           ? fullEffectsData(st.imp, st.fac, 0)
           : qualEffectsData(st.imp, st.fac, 0);
         return (
-          <Card key={v.id} staged={cur !== inLaw} hoverable={false}>
+          <Card
+            key={v.id}
+            staged={cur !== inLaw}
+            hoverable={false}
+            data-law-card={v.id}
+          >
             <h4 className="m-0 flex items-baseline gap-2 text-sm font-[650] tracking-[-.02em]">
               {v.name}
               <CardCat>{v.pc} capital</CardCat>

@@ -152,6 +152,121 @@ function RateImpact() {
   );
 }
 
+function round1(n: number) {
+  return Math.round(n * 10) / 10;
+}
+
+/** One-decimal ledger so the visible rows always sum to Next turn.
+ *  Start/next used to be whole numbers while envoy upkeep and popularity
+ *  regen were tenths, which is why 23 − 1.0 + 7.0 could land on 28 or 30. */
+function CapitalForecast({
+  outlook,
+}: {
+  outlook: NonNullable<ReturnType<typeof capitalOutlook>>;
+}) {
+  const start = round1(outlook.current);
+  const bill = outlook.cost > 0 ? round1(outlook.billCost ?? outlook.cost) : 0;
+  const whip = outlook.whipSpend > 0 ? round1(outlook.whipSpend) : 0;
+  const upkeep = outlook.envoyCount > 0 ? round1(outlook.envoyUpkeep) : 0;
+  const fiscal = outlook.fiscalRuleHit > 0 ? round1(outlook.fiscalRuleHit) : 0;
+  const pop = round1(outlook.gain);
+  const rawNext = start - bill - whip - upkeep - fiscal + pop;
+  const next = clamp(rawNext, 0, 100);
+  const clip = round1(rawNext - next);
+
+  return (
+    <div className="mt-3 border-t border-edge pt-2.5 text-sm">
+      <div className="mb-1 text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
+        Political capital
+      </div>
+      <div className="flex py-0.75 text-ink-soft">
+        <span>Capital at start of turn</span>
+        <span className="ml-auto font-[650] text-white">
+          {start.toFixed(1)}
+        </span>
+      </div>
+      {bill > 0 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>For this bill</span>
+          <span className="ml-auto font-[650] text-red-lt">
+            −{bill.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      {whip > 0 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>Whip</span>
+          <span className="ml-auto font-[650] text-red-lt">
+            −{whip.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      {outlook.envoyCount > 0 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>
+            Envoy upkeep ({outlook.envoyCount} × −{ENVOY_UPKEEP_PC})
+          </span>
+          <span className="ml-auto font-[650] text-red-lt">
+            −{upkeep.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      {fiscal > 0 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>Fiscal rule (deficit above 4% of GDP)</span>
+          <span className="ml-auto font-[650] text-red-lt">
+            −{fiscal.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      <div className="flex py-0.75 text-ink-soft">
+        <span>From popularity ({Math.round(outlook.approval)}% approval)</span>
+        <span
+          className={`ml-auto font-[650] ${pop >= 0 ? "text-green-lt" : "text-red-lt"}`}
+        >
+          {pop >= 0 ? "+" : ""}
+          {pop.toFixed(1)}
+        </span>
+      </div>
+      {clip > 0.05 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>Capped at 100</span>
+          <span className="ml-auto font-[650] text-red-lt">
+            −{clip.toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      {clip < -0.05 ? (
+        <div className="flex py-0.75 text-ink-soft">
+          <span>Floor at 0</span>
+          <span className="ml-auto font-[650] text-green-lt">
+            +{(-clip).toFixed(1)}
+          </span>
+        </div>
+      ) : null}
+      <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-sm font-bold text-white">
+        <span>Next turn</span>
+        <span
+          className={`ml-auto ${next >= start ? "text-green-lt" : "text-red-lt"}`}
+        >
+          {next.toFixed(1)}
+        </span>
+      </div>
+      <Hint className="mt-1.5">
+        Capital regenerates every quarter, faster the more popular you are.
+        Below about {Math.round(outlook.breakeven)}% approval it goes into
+        reverse and capital falls instead of growing.
+        {outlook.envoyCount > 0
+          ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
+          : ""}
+        {fiscal > 0
+          ? ` A fiscal rule docks ${fiscal.toFixed(0)} whenever the deficit is above 4% of GDP.`
+          : ""}
+      </Hint>
+    </div>
+  );
+}
+
 export function BillDrawer() {
   const G = useGame();
   const cl = billClauses();
@@ -286,83 +401,7 @@ export function BillDrawer() {
           </div>
         ) : null}
       </div>
-      {capOutlook ? (
-        <div className="mt-3 border-t border-edge pt-2.5 text-sm">
-          <div className="mb-1 text-xs font-bold tracking-[.06em] text-ink-faint uppercase">
-            Political capital
-          </div>
-          <div className="flex py-0.75 text-ink-soft">
-            <span>Capital at start of turn</span>
-            <span className="ml-auto font-[650] text-white">
-              {Math.round(capOutlook.current)}
-            </span>
-          </div>
-          {capOutlook.cost > 0 ? (
-            <div className="flex py-0.75 text-ink-soft">
-              <span>For this bill</span>
-              <span className="ml-auto font-[650] text-red-lt">
-                −{capOutlook.billCost ?? capOutlook.cost}
-              </span>
-            </div>
-          ) : null}
-          {capOutlook.whipSpend > 0 ? (
-            <div className="flex py-0.75 text-ink-soft">
-              <span>Whip</span>
-              <span className="ml-auto font-[650] text-red-lt">
-                −{capOutlook.whipSpend}
-              </span>
-            </div>
-          ) : null}
-          {capOutlook.envoyCount > 0 ? (
-            <div className="flex py-0.75 text-ink-soft">
-              <span>
-                Envoy upkeep ({capOutlook.envoyCount} × −{ENVOY_UPKEEP_PC})
-              </span>
-              <span className="ml-auto font-[650] text-red-lt">
-                −{capOutlook.envoyUpkeep.toFixed(1)}
-              </span>
-            </div>
-          ) : null}
-          {capOutlook.fiscalRuleHit > 0 ? (
-            <div className="flex py-0.75 text-ink-soft">
-              <span>Fiscal rule (deficit above 4% of GDP)</span>
-              <span className="ml-auto font-[650] text-red-lt">
-                −{capOutlook.fiscalRuleHit}
-              </span>
-            </div>
-          ) : null}
-          <div className="flex py-0.75 text-ink-soft">
-            <span>
-              From popularity ({Math.round(capOutlook.approval)}% approval)
-            </span>
-            <span
-              className={`ml-auto font-[650] ${capOutlook.gain >= 0 ? "text-green-lt" : "text-red-lt"}`}
-            >
-              {capOutlook.gain >= 0 ? "+" : ""}
-              {capOutlook.gain.toFixed(1)}
-            </span>
-          </div>
-          <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-sm font-bold text-white">
-            <span>Next turn</span>
-            <span
-              className={`ml-auto ${capOutlook.nextQuarter >= capOutlook.current ? "text-green-lt" : "text-red-lt"}`}
-            >
-              {Math.round(capOutlook.nextQuarter)}
-            </span>
-          </div>
-          <Hint className="mt-1.5">
-            Capital regenerates every quarter, faster the more popular you are.
-            Below about {Math.round(capOutlook.breakeven)}% approval it goes
-            into reverse and capital falls instead of growing.
-            {capOutlook.envoyCount > 0
-              ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
-              : ""}
-            {capOutlook.fiscalRuleHit > 0
-              ? ` A fiscal rule docks ${capOutlook.fiscalRuleHit} whenever the deficit is above 4% of GDP.`
-              : ""}
-          </Hint>
-        </div>
-      ) : null}
+      {capOutlook ? <CapitalForecast outlook={capOutlook} /> : null}
       {G.sandbox ? <ImpactPanel cl={cl} /> : null}
       <Eyebrow className="mt-5">Rules</Eyebrow>
       <Panel padded className="mt-0">
