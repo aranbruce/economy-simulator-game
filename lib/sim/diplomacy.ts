@@ -26,7 +26,7 @@ export const ENVOY_DRIFT = 0.5;
 /** Cap on accumulated envoy-built goodwill per partner. */
 export const ENVOY_BUILD_CAP = 8;
 export const ENVOY_ASSIGN_PC = 0.5;
-export const ENVOY_UPKEEP_PC = 0.5;
+export const ENVOY_UPKEEP_PC = 1;
 export const ENVOY_RECALL_PC = 0;
 export const ULTIMATUM_PC = 10;
 export const ULTIMATUM_CD = 6;
