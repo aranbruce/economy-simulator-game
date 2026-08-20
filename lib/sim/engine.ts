@@ -2370,8 +2370,7 @@ function withdrawUltimatum(partnerId: any) {
     g.fac.patriots = clamp((g.fac.patriots || 50) - 3, 2, 96);
     g.fac.business = clamp((g.fac.business || 50) + 2, 2, 96);
   }
-  const ledger =
-    g.econ && g.econ.diploLedger && g.econ.diploLedger[partnerId];
+  const ledger = g.econ && g.econ.diploLedger && g.econ.diploLedger[partnerId];
   if (Array.isArray(ledger)) {
     const id = "ultimatum_issued_" + (g.q || 0);
     const i = ledger.findIndex((x: any) => x && x.id === id);
@@ -8268,6 +8267,11 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   row.rev = bal.rev.total;
   row.spend = bal.sp.prog;
   row.interest = bal.sp.interest;
+  /* Cycle-adjusted twins of the two above, so the finances chart can plot the
+     same figures the Balance chip reports. The run-up settles at a closed
+     output gap, so here they coincide with the statutory ratios. */ row.revEff =
+    bal.rev.total;
+  row.spendEff = bal.sp.prog + bal.sp.interest;
   row.trend = e.trendGrowth;
   row.K = e.K;
   row.C = e.C;
@@ -9385,9 +9389,30 @@ function stepHumanCapital(law: any, E: any, econ: any) {
   const spill = EDU_RND_SPILL * Math.max(0, edu - 4.1);
   return spend + spill + ((E && E.rndEffort) || 0);
 }
-function knowledgeTfp(econ: any) {
+/* Knowledge enters TFP growth as research *intensity*, not as an absolute
+   stock. `researchEffort` is a share of GDP, so R accumulates in proportion to
+   output; measuring it against a fixed R0 therefore made the contribution grow
+   with the sheer size of the economy. TFP growth then accelerated without
+   bound and output went super-exponential — over 400 quarters the player's
+   knowledge term drifted from 0.0 to +1.3pp of trend, and an AI seat's GDP
+   reached 1e29 before overflowing to NaN. There is no such scale effect in the
+   data: growth tracks the share of output going into research, not how large
+   the stock happens to be (Jones 1995 on scale effects). So the reference
+   scales with the economy, which leaves the opening position (R = R0 at
+   potential 100) contributing exactly zero as before.
+
+   Scaled on potential rather than actual output, to keep the cycle out of the
+   supply side — though note a persistently depressed economy still gets a
+   penalty here, since R accrues off actual GDP: it really is doing less
+   research relative to its capacity. */ function knowledgeTfp(econ: any) {
   const R = econ && econ.R != null ? econ.R : R0;
-  return R_TFP * (R / R0 - 1);
+  const y =
+    econ && econ.potential > 0
+      ? econ.potential
+      : econ && econ.gdp > 0
+        ? econ.gdp
+        : 100;
+  return R_TFP * (R / (R0 * (y / 100)) - 1);
 }
 /* Relative income vs the frontier (federated ≈ 1). Catch-up TFP growth for
    seats below the frontier — Barro-style log gap, not a per-realm tfpTrend. */ function tfpCatchupRate(
@@ -9519,14 +9544,17 @@ function potentialLevel(law: any, E: any, econ: any) {
     Math.pow(Math.max(1, labourInput(law, E, econ)), 1 - ALPHA - ALPHA_G)
   );
 }
-/* Annualised trend growth, reported for display and used by the investment
-   block. Derived from the production function rather than asserted. */ function potentialGrowth(
+/* Growth accounting, term by term:
+     g(Y*) = g(A) + alpha*g(K) + alpha_G*g(KG) + (1-alpha-alpha_G)*g(L)
+   Split out so callers that need the individual contributions (the growth
+   diagnostic; anything that must distinguish capital deepening from the rest)
+   read the same arithmetic potentialGrowth reports rather than a copy of it. */ function potentialGrowthParts(
   law: any,
   E: any,
   econ: any,
 ) {
   const e = econ || (typeof G !== "undefined" && G ? G.econ : null);
-  if (!e || !e.K) return 1.2;
+  if (!e || !e.K) return null;
   const gL = labourGrowthRate(e, E);
   const gA =
     baselineTfpGrowth(e) +
@@ -9537,14 +9565,26 @@ function potentialLevel(law: any, E: any, econ: any) {
   const gK = ((e.I - (DEPREC / 100) * e.K) / e.K) * 100;
   const gKG =
     (((law.spend.infra / 100) * e.gdp - (DEPREC_G / 100) * e.KG) / e.KG) * 100;
-  /* Upper bound is a runaway-prevention backstop, not a design ceiling — the
-     baseline sits near 1.3-1.5%, so 20 is far above anything reachable short
-     of a pathological stack of capital/knowledge shocks. */
-  return clamp(
-    gA + ALPHA * gK + ALPHA_G * gKG + (1 - ALPHA - ALPHA_G) * gL,
-    -2.5,
-    20,
-  );
+  return {
+    gA,
+    gK,
+    gKG,
+    gL,
+    /* Weighted contributions, so the parts sum to the total. */ cA: gA,
+    cK: ALPHA * gK,
+    cKG: ALPHA_G * gKG,
+    cL: (1 - ALPHA - ALPHA_G) * gL,
+    total: gA + ALPHA * gK + ALPHA_G * gKG + (1 - ALPHA - ALPHA_G) * gL,
+  };
+}
+/* Annualised trend growth, reported for display and used by the investment
+   block. Derived from the production function rather than asserted. */ function potentialGrowth(
+  law: any,
+  E: any,
+  econ: any,
+) {
+  const parts = potentialGrowthParts(law, E, econ);
+  return parts ? parts.total : 1.2;
 }
 function approvalOf(fac: any) {
   return FACTIONS.reduce((a, f) => a + fac[f.id] * f.w, 0);
@@ -10406,14 +10446,7 @@ function govDemandShares(law: any, econ: any) {
   acct.C = e.C;
   acct.Y = e.C + acct.I + acct.G + acct.X - acct.M;
   e.gdp = Math.max(5, acct.Y);
-  const growth = clamp((e.gdp / prevY - 1) * 400, -18, 18);
-  e.gdp = prevY * (1 + growth / 400);
-  if (acct.Y > 0) {
-    const kY = e.gdp / acct.Y;
-    e.C *= kY;
-    acct.C = e.C;
-    acct.Y = e.gdp;
-  }
+  const growth = (e.gdp / prevY - 1) * 400;
   e.acct = acct;
   /* Potential is the production function evaluated on the current stocks, not a
      compounding growth rate. TFP is the only piece that trends on its own. */ /* Hysteresis. A sustained gap does not simply close on its own: a boom pulls
@@ -10816,13 +10849,13 @@ function govDemandShares(law: any, econ: any) {
       const want = (law.hold || {})[d.id] || serviceScore(d.id, law, e);
       law.spend[d.id] = spendForScore(d.id, want, e);
     } else if (mode === "real") {
-      // hold the cash constant in real terms: the share moves with real growth
-      const realGrowth = Math.max(-8, growth);
-      law.spend[d.id] = clamp(
-        law.spend[d.id] * (1 - realGrowth / 400),
-        d.min,
-        d.max,
-      );
+      /* Hold the cash constant in real terms, so the share moves inversely with
+         real output. This is the exact ratio rather than the (1 - g/400)
+         linearisation it replaced, which is indistinguishable at ordinary
+         growth but diverges badly once a quarter's growth is large. Still
+         capped, so a collapse in output cannot blow the share up in one step. */ const shareShift =
+        Math.min(prevY / Math.max(1e-6, e.gdp), 1.02);
+      law.spend[d.id] = clamp(law.spend[d.id] * shareShift, d.min, d.max);
     }
   }
   const hSpend = law.spend.health + law.spend.education * 0.55;
@@ -11121,6 +11154,11 @@ function govDemandShares(law: any, econ: any) {
     rev: rev.total,
     spend: sp.prog + mS,
     interest: sp.interest,
+    /* Statutory ratios above; the cycle-adjusted pair the deficit is actually
+       computed from below. `balance` is revEff - spendEff by construction, so
+       the finances chart can show a gap that matches the Balance chip instead
+       of a raw-ratio gap that disagrees with it. */ revEff: revShareEff,
+    spendEff: progShare + sp.interest,
     partnerTariffs: snapshotPartnerTariffs(g),
     partnerTrade: snapshotPartnerTrade(g),
   });
@@ -20911,6 +20949,7 @@ export {
   FERTILITY_CH,
   potentialLevel,
   potentialGrowth,
+  potentialGrowthParts,
   humanCapital,
   H_CAP0,
   DEPREC_H,

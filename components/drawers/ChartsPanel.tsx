@@ -142,6 +142,15 @@ export function ChartsPanel() {
 
   const hasLog = G.log.length >= 2;
   const col = (k: string) => G.log.map((r: any) => r[k]);
+  /* Cycle-adjusted receipts and total managed expenditure. Saves written before
+     these were logged fall back to the statutory ratios, which is what the
+     chart used to plot throughout. */
+  const revEffCol = G.log.map((r: any) =>
+    r.revEff != null ? r.revEff : r.rev,
+  );
+  const spendEffCol = G.log.map((r: any) =>
+    r.spendEff != null ? r.spendEff : (r.spend || 0) + (r.interest || 0),
+  );
   const preN = G.log.filter((r: any) => r.pre).length;
   const tr = G.econ.trendGrowth;
   const gapPts = G.econ.potential
@@ -418,20 +427,20 @@ export function ChartsPanel() {
     <>
       <ChartBox
         title="Receipts and spending"
-        caption="Points of GDP. The distance between the lines is the deficit."
+        caption="Points of GDP, adjusted for the cycle the same way the Balance figure is: spending plans are real, so their share rises in a slump, and receipts swing harder than output. The gap between receipts and total spending is the deficit."
       >
         <LineChartSvg
           spec={lineChartSpec([
             {
               label: "Receipts",
               color: COL.green,
-              data: col("rev"),
+              data: revEffCol,
               wide: true,
             },
             {
-              label: "Departmental spending",
+              label: "Total spending",
               color: COL.ox,
-              data: col("spend"),
+              data: spendEffCol,
               wide: true,
             },
             { label: "Debt interest", color: COL.brass, data: col("interest") },

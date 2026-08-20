@@ -204,21 +204,21 @@ a Tailwind class, never a hardcoded inline style.
 
 ## Architecture
 
-| Path                              | Contains                                                                                                                                                                                                                                                      |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`                            | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                                                                                                      |
-| `lib/sim/engine.ts`               | State, aggregate, step, project, bill, map, events, panel data                                                                                                                                                                                                |
-| `lib/sim/statuteBook.ts`          | Pure content data split out of engine.ts: `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                                                                                                        |
-| `lib/sim/parties.ts`              | Pure parties, chamber votes and election seat allocation. Party taste is derived from the same faction `fac` bags content already carries — there is no second authored stance table. Engine glue (seeding, the enact gate, term review) stays in `engine.ts` |
-| `lib/sim/worldTrade.ts`           | Bilateral trade clearing across seats. `flows`/`totals` are keyed by real country ids (`playerCountryId(homeRole)`), not the raw role string — see "The map" below                                                                                            |
-| `lib/sim/fxAreas.ts`              | Currency-area Taylor rules and FX vs USD                                                                                                                                                                                                                      |
-| `lib/sim/partners.ts`             | Partner id → ISO country sets for the world map                                                                                                                                                                                                               |
-| `lib/map/projection.ts`           | Pure board math every 3D layer shares: `boardToWorld()`/`worldToBoard()`, `BOARD_W`, `WRAP_OFFSETS` and the land heights (`LAND_HEIGHT`, `landLift()`), so no two layers can drift apart                                                                       |
-| `components/game/GameApp.tsx`     | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                                                                                                       |
-| `lib/map/seaRoutes.ts`            | Authored shipping lanes through open water, with canal transits from `lib/map/canals.ts`, so routes go round landmasses rather than through them                                                                                                               |
-| `components/map3d/`               | The whole 3D board: `WorldMap3D.tsx` scene shell · `terrain.ts` country slabs · `sea.ts`/`sky.ts`/`boardGrid.ts` the plate · `scenery.ts` trees, mountains, cities, clouds · `routes.ts`/`fleet.ts` lanes and boats · `camera.ts` pan/zoom · `overlay.ts` DOM chrome |
-| `public/geo/`                     | Natural Earth topojson, plus the NASA forest-cover and SRTM elevation rasters scenery is planted from                                                                                                                                                         |
-| `public/models/`                  | Boat, tree, mountain, city, cloud and diplo GLTFs — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                                                                                                      |
+| Path                          | Contains                                                                                                                                                                                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`                        | Next.js layout, page (client dynamic GameApp), glass CSS                                                                                                                                                                                                             |
+| `lib/sim/engine.ts`           | State, aggregate, step, project, bill, map, events, panel data                                                                                                                                                                                                       |
+| `lib/sim/statuteBook.ts`      | Pure content data split out of engine.ts: `TAXES`, `POLICIES`, `VICE`, `PARTNERS`, `DEPTS`, `FACTIONS`, `MISSIONS` and their macro-constant neighbours                                                                                                               |
+| `lib/sim/parties.ts`          | Pure parties, chamber votes and election seat allocation. Party taste is derived from the same faction `fac` bags content already carries — there is no second authored stance table. Engine glue (seeding, the enact gate, term review) stays in `engine.ts`        |
+| `lib/sim/worldTrade.ts`       | Bilateral trade clearing across seats. `flows`/`totals` are keyed by real country ids (`playerCountryId(homeRole)`), not the raw role string — see "The map" below                                                                                                   |
+| `lib/sim/fxAreas.ts`          | Currency-area Taylor rules and FX vs USD                                                                                                                                                                                                                             |
+| `lib/sim/partners.ts`         | Partner id → ISO country sets for the world map                                                                                                                                                                                                                      |
+| `lib/map/projection.ts`       | Pure board math every 3D layer shares: `boardToWorld()`/`worldToBoard()`, `BOARD_W`, `WRAP_OFFSETS` and the land heights (`LAND_HEIGHT`, `landLift()`), so no two layers can drift apart                                                                             |
+| `components/game/GameApp.tsx` | Shell: topbar, dock, drawer, despatch; wires the engine                                                                                                                                                                                                              |
+| `lib/map/seaRoutes.ts`        | Authored shipping lanes through open water, with canal transits from `lib/map/canals.ts`, so routes go round landmasses rather than through them                                                                                                                     |
+| `components/map3d/`           | The whole 3D board: `WorldMap3D.tsx` scene shell · `terrain.ts` country slabs · `sea.ts`/`sky.ts`/`boardGrid.ts` the plate · `scenery.ts` trees, mountains, cities, clouds · `routes.ts`/`fleet.ts` lanes and boats · `camera.ts` pan/zoom · `overlay.ts` DOM chrome |
+| `public/geo/`                 | Natural Earth topojson, plus the NASA forest-cover and SRTM elevation rasters scenery is planted from                                                                                                                                                                |
+| `public/models/`              | Boat, tree, mountain, city, cloud and diplo GLTFs — see `public/models/NOTICE.md` for licensing, orientation and asset-optimisation notes                                                                                                                            |
 
 Engine sections still follow the numbered banners. Section 1's pure content
 data now lives in `lib/sim/statuteBook.ts` (see "TypeScript migration"
@@ -640,6 +640,12 @@ Breaking any of these will fail the suite, and should.
 - **Every content item needs a nonzero measurable effect.** The suite asserts
   each policy moves debt, approval or potential. A policy with an empty `imp`
   and `fac` is a bug.
+- **Growth must be bounded by the model, not by a clamp.** The suite runs 600
+  quarters on the default law and asserts trend growth, headline growth and
+  every tracked stock stay finite and inside plausible bands with no lid
+  applied. Clamping a reported rate hides the defect that produced it; see
+  "Knowledge stock feeds TFP growth" for the one this invariant was written
+  after, and use `pnpm growth-diag` to attribute a divergence to a channel.
 - **The map must never be load-bearing.** A WebGL or geometry failure calls
   `onFail`, and the shell renders a plain "could not load" message rather
   than blocking play. Individual layers fail soft the same way: a model that
@@ -726,6 +732,22 @@ the build if ready-reckoners drift beyond band.
 For a fuller long-run check, run `pnpm balance` (`scripts/balance-30y.mjs`):
 ten playstyles over 120 quarters (30 years). For all-AI vs all-human world
 modes, run `pnpm world-modes`.
+
+**`pnpm growth-diag` (`scripts/growth-diag.mjs`) is the tool for anything that
+looks like runaway or collapsing growth.** It walks the default law 700
+quarters deterministically and decomposes trend into its four accounting terms
+every quarter — `cA + cK + cKG + cL = trend`, weighted so they sum — alongside
+the output gap, `I/K`, and the capital stocks, then names the first quarter and
+the first _field_ to stop being finite. Attributing a divergence to a channel
+beats guessing at it: the knowledge scale effect above was found this way in
+one run, after a plausible-sounding hypothesis about the investment
+accelerator turned out to be wrong. `potentialGrowthParts()` in `engine.ts` is
+what it reads, and `potentialGrowth()` delegates to the same function, so the
+decomposition cannot drift from the number the game reports.
+
+Note the horizon gap this exposed, and mind it when adding model code: 20
+quarters (smoke) and 120 (balance) both passed throughout, while the model was
+broken from about Q250 and dead by Q402. Live saves reach 600+.
 
 ## Design
 
@@ -932,12 +954,44 @@ at 0.5%, and the difference shows up in potential output.
 
 The **Research & innovation** budget line accumulates into `econ.R` the way
 infra builds `KG`. Ideas obsolete at `DEPREC_R` (~4%/year). TFP growth picks up
-`R_TFP * (R/R0 - 1)`, so underfunding research slowly scars productivity and
-overfunding compounds. A small share of education above baseline spills into R
-(universities). The **Research credits** policy no longer adds a flat `tfp`
-while on: it adds `rndEffort` (private labs pulled in by the credit) into the
-same accumulation. Education still lifts potential separately through `h` and
-the NAIRU.
+`R_TFP * (R/(R0 * potential/100) - 1)`, so underfunding research slowly scars
+productivity and overfunding compounds. A small share of education above
+baseline spills into R (universities). The **Research credits** policy no longer
+adds a flat `tfp` while on: it adds `rndEffort` (private labs pulled in by the
+credit) into the same accumulation. Education still lifts potential separately
+through `h` and the NAIRU.
+
+**The reference scales with the economy, and that is load-bearing.** This term
+used to be `R_TFP * (R/R0 - 1)` against a fixed `R0`. But `researchEffort` is a
+_share of GDP_, so `R` accumulates in proportion to output — measuring it
+against a constant made the contribution grow with the sheer _size_ of the
+economy. That is a scale effect, and there is no such thing in the data: growth
+tracks research intensity, not how big the stock happens to be (Jones 1995).
+Left in, TFP growth accelerated without bound and output went
+super-exponential. It was invisible at the horizons anything actually tested —
+about +0.08pp of trend at Q120, well inside every calibration band — and fatal
+later: by Q400 it was worth +1.3pp on the player's trend, and an AI seat's GDP
+reached 1e29 and overflowed, turning `worldY` and then most of `econ` into
+`NaN` around Q402. Dividing by `potential/100` leaves the opening position
+(`R = R0` at potential 100) contributing exactly zero, so calibration is
+untouched. Scaled on potential rather than actual output to keep the cycle out
+of the supply side — a persistently depressed economy is still penalised, since
+`R` accrues off actual GDP and it really is doing less research relative to
+capacity.
+
+Two clamps existed to contain the resulting runaway and have been removed as
+part of the same fix, because a lid on a reported number is not a model: a
+±18% rewrite of headline GDP growth (which also silently rescaled `C`) and a
+`-2.5`/`20` clamp on `potentialGrowth()`. Neither is needed now —
+`test/sim.js` runs 600 quarters and asserts trend, headline growth and every
+tracked stock stay finite and in band with nothing propping them up. If you
+find yourself wanting to clamp a growth rate, find the unbounded quantity
+instead; `pnpm growth-diag` exists for exactly that.
+
+Related gotcha in the same family: anything that accumulates in proportion to
+GDP must be compared against a reference that scales too. `K` and `KG` are safe
+because each appears in its own growth denominator (`(I - dK)/K`), which
+self-normalises. `R` was the one that did not.
 
 ### Wages, then unit labour costs, then prices
 
