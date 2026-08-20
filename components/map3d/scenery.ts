@@ -10,13 +10,14 @@
  * frustum-cull. A cloned Object3D per tree would collapse the frame rate
  * the way the old 1,295-node capital scene did. Capitals are a landmark
  * tower on a raised stone plinth, ringed by a dense crowd of low Kenney
- * buildings — 26 cloned Object3Ds per capital, not instanced, measured at
- * ~69fps average (18.5ms p95) with all 28 sovereign capitals on screen at
- * once on the country picker; revisit with an InstancedMesh per
- * (BUILDING_KEYS, wrap-tile) bucket, the way trees are bucketed by kind,
- * if that stops holding as more building variants or rings are added.
- * Clouds are Quaternius meshes instanced the same way as the trees,
- * drifting on a shared wind.
+ * buildings — each BUILDING_KEY is instanced per wrap tile too (the plinth
+ * itself stays a small per-capital Group; it was never the expensive part).
+ * A capital's own lift still needs a genuine per-instance world matrix
+ * (not just a shared group transform), so each piece's local transform is
+ * cached at build time and recomposed through a scratch Object3D hierarchy
+ * on a lift-only hover update — see applyCapitalLift(). Clouds are
+ * Quaternius meshes instanced the same way as the trees, drifting on a
+ * shared wind.
  */
 
 import {
@@ -88,7 +89,7 @@ export interface SceneryLabelClear {
 }
 
 /** Bump when capital tokens or scenery look change so WorldMap3D remounts. */
-export const SCENERY_REV = 8;
+export const SCENERY_REV = 9;
 
 export interface Scenery {
   group: Group;
@@ -166,6 +167,25 @@ interface CityPiece {
   /** The centre tower — gets a brighter, less-tinted material so it still
    *  reads as the landmark against a dense crowd. */
   landmark?: boolean;
+}
+
+/** Which InstancedMesh a (BUILDING_KEY, wrap-tile) pair lives in — one
+ *  bucket per combination, mirroring how trees are bucketed by kind. */
+function bucketKey(model: ModelKey, tile: number): string {
+  return model + ":" + tile;
+}
+
+/** One capital building piece's cached local transform (recentred, scaled,
+ *  yawed by its own `rot` — everything except the capital's own world
+ *  position/lift/capitalYaw, which vary independently) plus where each of
+ *  its wrap-tile copies live in the InstancedMesh buckets. Lets a lift-only
+ *  hover update recompose just this piece's world matrix from cached data
+ *  instead of re-measuring its bounding box. */
+interface CapitalPieceInstance {
+  localPos: Vector3;
+  localRot: number;
+  localScale: Vector3;
+  slots: { bucketKey: string; tile: number; index: number }[];
 }
 
 /** Support-ring layout for the plaza, shared with `makePlazaTexture()`
@@ -503,14 +523,14 @@ function muteMountain(root: Object3D) {
  *  near-white version of the same tint so it still reads as the hero
  *  piece against a dense, evenly-toned crowd.
  *
- *  Every shipped building glb uses plain pbrMetallicRoughness (no
- *  KHR_materials_unlit), so GLTFLoader always hands back a
- *  MeshStandardMaterial here — this intentionally does not style any
- *  other material type. */
-function tintCapitalBuilding(material: Material, tint: number, landmark: boolean) {
-  if (!(material instanceof MeshStandardMaterial)) return;
-  material.color.setHex(landmark ? 0xf1e6c4 : 0xe0cf9e);
-  material.color.offsetHSL((tint - 0.5) * 0.05, 0, (tint - 0.5) * 0.14);
+ *  Returns an absolute RGB colour (rather than mutating a material) for
+ *  InstancedMesh's setColorAt — instance colour multiplies the mesh
+ *  material's own base colour, so the bucket material is flat white and
+ *  this is the only place the actual tint lives. */
+function capitalBuildingTint(tint: number, landmark: boolean, out: Color): Color {
+  out.set(landmark ? 0xf1e6c4 : 0xe0cf9e);
+  out.offsetHSL((tint - 0.5) * 0.05, 0, (tint - 0.5) * 0.14);
+  return out;
 }
 
 function fitHeight(obj: Object3D, height: number): number {
@@ -589,7 +609,26 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
   let mountainGen = 0;
   let cloudGen = 0;
   let capitalGen = 0;
-  let capitalNodes: Object3D[] = [];
+  /** One Group per capital per wrap tile, holding only the plaza plinth —
+   *  the buildings on it live in capitalBuckets below. */
+  let platformNodes: Object3D[] = [];
+  /** (BUILDING_KEY, wrap-tile) -> its InstancedMesh. Rebuilt from scratch
+   *  whenever the capital key-set changes, sized to the exact instance
+   *  count that set needs (cityPieces() is cheap enough to run once up
+   *  front purely to tally). */
+  const capitalBuckets = new Map<string, InstancedMesh>();
+  /** Capital role -> its 26 pieces' cached local transforms + instance
+   *  slots, for the lift-only fast path below. */
+  const capitalInstanceRefs = new Map<string, CapitalPieceInstance[]>();
+  /** Scratch hierarchy mirroring the capital's real transform chain
+   *  (city -> block -> piece) purely for matrix composition; never added
+   *  to the scene. */
+  const capDummyCity = new Object3D();
+  const capDummyBlock = new Object3D();
+  const capDummyPiece = new Object3D();
+  capDummyCity.add(capDummyBlock);
+  capDummyBlock.add(capDummyPiece);
+  capDummyCity.scale.setScalar(CITY_SCALE);
   let capitalKey = "";
   const capitalLift = new Map<string, number>();
   let isoLift = new Map<string, number>();
@@ -767,13 +806,12 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     color: BORDER_INK,
     shadowSide: DoubleSide,
   });
-  const platformShared = new Set([platformTopMat, platformSideMat]);
-
   /* A raised cylinder plinth — ink side wall, stone top — the centred
      tower stands on. Buildings stand on its top face, so PLATFORM_BASE_Y
-     (the plinth's own foot) and the block group's y at the call site
-     below must move together. */
+     (the plinth's own foot) and capDummyBlock's y below must move
+     together. */
   const PLATFORM_BASE_Y = LAND_PLANT_SINK / CITY_SCALE + 0.02;
+  capDummyBlock.position.y = PLATFORM_BASE_Y + PLATFORM_H;
   const platformGeom = new CylinderGeometry(
     PLATFORM_R,
     PLATFORM_R,
@@ -803,24 +841,64 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     return platform;
   };
 
-  const dropCapitals = () => {
-    const seen = new Set<object>();
-    for (const node of capitalNodes) {
-      node.removeFromParent();
-      node.traverse((child) => {
-        if (!(child instanceof Mesh)) return;
-        child.customDepthMaterial?.dispose();
-        const mats = Array.isArray(child.material)
-          ? child.material
-          : [child.material];
-        for (const m of mats) {
-          if (platformShared.has(m) || seen.has(m)) continue;
-          seen.add(m);
-          m.dispose();
-        }
-      });
+  /* Platform materials (platformTopMat/platformSideMat) are shared across
+     every capital for the platform's whole lifetime — nothing per-node to
+     dispose here, unlike the old per-piece cloned building materials this
+     used to also tear down. */
+  const dropPlatforms = () => {
+    for (const node of platformNodes) node.removeFromParent();
+    platformNodes = [];
+  };
+
+  const dropCapitalBuckets = () => {
+    for (const mesh of capitalBuckets.values()) {
+      mesh.removeFromParent();
+      (mesh.material as Material).dispose();
+      mesh.customDepthMaterial?.dispose();
+      mesh.dispose();
     }
-    capitalNodes = [];
+    capitalBuckets.clear();
+    capitalInstanceRefs.clear();
+  };
+
+  /** Recompose and rewrite every instance belonging to the given capitals
+   *  from their cached local transforms — the lift-only fast path, called
+   *  whenever a capital's lift changes but the active capital set doesn't.
+   *  Mirrors rewriteLand's changed-set selective rewrite for trees. */
+  const applyCapitalLift = (changedKeys: Set<string>) => {
+    const touchedBuckets = new Set<string>();
+    for (const key of changedKeys) {
+      const spec = liveCaps.find((s) => s.key === key);
+      const pieces = capitalInstanceRefs.get(key);
+      if (!spec || !pieces) continue;
+      const lift = capitalLift.get(key) ?? 0;
+      for (const node of platformNodes) {
+        if ((node.userData.capitalKey as string) === key) {
+          node.position.y = plantY(lift);
+        }
+      }
+      capDummyBlock.rotation.y = capitalYaw(key);
+      for (const piece of pieces) {
+        capDummyPiece.position.copy(piece.localPos);
+        capDummyPiece.rotation.set(0, piece.localRot, 0);
+        capDummyPiece.scale.copy(piece.localScale);
+        for (const slot of piece.slots) {
+          const mesh = capitalBuckets.get(slot.bucketKey);
+          if (!mesh) continue;
+          capDummyCity.position.set(
+            spec.x + WRAP_OFFSETS[slot.tile]!,
+            plantY(lift),
+            spec.z,
+          );
+          capDummyCity.updateMatrixWorld(true);
+          mesh.setMatrixAt(slot.index, capDummyPiece.matrixWorld);
+          touchedBuckets.add(slot.bucketKey);
+        }
+      }
+    }
+    for (const bk of touchedBuckets) {
+      capitalBuckets.get(bk)!.instanceMatrix.needsUpdate = true;
+    }
   };
 
   const setHot = (next: Map<string, number>) => {
@@ -836,10 +914,10 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
       rewriteTrees(changed);
       rewriteMountains(changed);
     }
-    for (const node of capitalNodes) {
-      const key = node.userData.capitalKey as string;
-      node.position.y = plantY(capitalLift.get(key) ?? 0);
-    }
+    /* Capital lift is keyed by role, not iso, and is applied by
+       setCapitals's own fast path (called every tick right after this one,
+       from the same syncPaint) — see applyCapitalLift. Doing it again here
+       would be the same work twice. */
   };
 
   void (async () => {
@@ -993,7 +1071,11 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
 
   const setCapitals = (specs: SceneryCapital[]) => {
     const key = specs.map((s) => s.key).join("|");
-    for (const spec of specs) capitalLift.set(spec.key, spec.lift);
+    const changedLift = new Set<string>();
+    for (const spec of specs) {
+      if (capitalLift.get(spec.key) !== spec.lift) changedLift.add(spec.key);
+      capitalLift.set(spec.key, spec.lift);
+    }
     liveCaps = specs;
     const sig = specs.map((s) => s.key + "," + s.x + "," + s.z).join("|");
     if (sig !== capSig) {
@@ -1002,17 +1084,13 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
       rewriteMountains();
     }
     if (key === capitalKey) {
-      for (const node of capitalNodes) {
-        const k = node.userData.capitalKey as string;
-        const lift = capitalLift.get(k) ?? 0;
-        node.userData.hot = specs.find((s) => s.key === k)?.hot ?? false;
-        node.position.y = plantY(lift);
-      }
+      if (changedLift.size) applyCapitalLift(changedLift);
       return;
     }
     capitalKey = key;
     const gen = ++capitalGen;
-    dropCapitals();
+    dropPlatforms();
+    dropCapitalBuckets();
     void (async () => {
       const templates = new Map<
         ModelKey,
@@ -1039,49 +1117,17 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
         console.warn("WorldMap3D: capital building failed to load", err);
         return;
       }
+
+      /* The plaza plinth stays a Group per capital per wrap tile — it's
+         already cheap (two meshes, shared materials/geometry) and isn't
+         part of the draw-call debt the buildings on it are. */
       for (const spec of specs) {
-        if (disposed || gen !== capitalGen) return;
+        if (disposed || gen !== capitalGen) {
+          for (const tmpl of templates.values()) disposeObject(tmpl.root);
+          return;
+        }
         const city = new Group();
         city.add(makePlatform());
-        const block = new Group();
-        block.position.y = PLATFORM_BASE_Y + PLATFORM_H;
-        block.rotation.y = capitalYaw(spec.key);
-        const box = new Box3();
-        const center = new Vector3();
-        for (const piece of cityPieces(spec.key)) {
-          const tmpl = templates.get(piece.model)!;
-          const b = instantiateClone(tmpl.root);
-          b.scale.set(
-            tmpl.xz * piece.footprint,
-            tmpl.sy * piece.height,
-            tmpl.xz * piece.footprint,
-          );
-          b.rotation.y = piece.rot;
-          b.position.set(0, 0, 0);
-          b.updateMatrixWorld(true);
-          box.setFromObject(b);
-          box.getCenter(center);
-          b.position.set(piece.dx - center.x, -box.min.y, piece.dz - center.z);
-          b.traverse((child) => {
-            if (!(child instanceof Mesh)) return;
-            child.castShadow = true;
-            child.receiveShadow = true;
-            child.geometry.computeBoundingBox();
-            const geomBox = child.geometry.boundingBox;
-            const spanY = geomBox ? geomBox.max.y - geomBox.min.y : 1;
-            const footY = geomBox ? Math.min(0, geomBox.min.y) : 0;
-            child.customDepthMaterial = footDepthMaterial(footY, spanY);
-            const mats = Array.isArray(child.material)
-              ? child.material
-              : [child.material];
-            for (const m of mats) {
-              m.shadowSide = DoubleSide;
-              tintCapitalBuilding(m, piece.tint, !!piece.landmark);
-            }
-          });
-          block.add(b);
-        }
-        city.add(block);
         city.scale.setScalar(CITY_SCALE);
         for (let t = 0; t < WRAP_OFFSETS.length; t++) {
           const inst = t === 0 ? city : city.clone(true);
@@ -1091,11 +1137,137 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
             spec.z,
           );
           inst.userData.capitalKey = spec.key;
-          inst.userData.hot = spec.hot;
           group.add(inst);
-          capitalNodes.push(inst);
+          platformNodes.push(inst);
         }
       }
+
+      /* cityPieces() is a pure, cheap, seeded generator — run it once up
+         front for every capital so each BUILDING_KEY's InstancedMesh can
+         be sized exactly, with no worst-case over-allocation. */
+      const piecesByCapital = new Map<string, CityPiece[]>();
+      const countByModel = new Map<ModelKey, number>();
+      for (const spec of specs) {
+        const pieces = cityPieces(spec.key);
+        piecesByCapital.set(spec.key, pieces);
+        for (const piece of pieces) {
+          countByModel.set(piece.model, (countByModel.get(piece.model) ?? 0) + 1);
+        }
+      }
+
+      const nextIndex = new Map<string, number>();
+      for (const modelKey of BUILDING_KEYS) {
+        const tmpl = templates.get(modelKey)!;
+        const srcMesh = collectMeshes(tmpl.root)[0];
+        const count = countByModel.get(modelKey) ?? 0;
+        if (!srcMesh || count === 0) continue;
+        const srcMat = Array.isArray(srcMesh.material)
+          ? srcMesh.material[0]!
+          : srcMesh.material;
+        /* All instances in a bucket share this geometry, so its footY/spanY
+           (used to fatten the shadow-map depth at the mesh's own foot,
+           matching what the old per-piece build set on every building) are
+           the same in every instance's local space regardless of its own
+           per-instance scale/position — one depth material per bucket,
+           not per instance. */
+        srcMesh.geometry.computeBoundingBox();
+        const geomBox = srcMesh.geometry.boundingBox;
+        const spanY = geomBox ? geomBox.max.y - geomBox.min.y : 1;
+        const footY = geomBox ? Math.min(0, geomBox.min.y) : 0;
+        for (let t = 0; t < WRAP_OFFSETS.length; t++) {
+          const bk = bucketKey(modelKey, t);
+          /* Flat white: instance colour multiplies the material's own
+             base colour, so this material contributes nothing and the
+             per-instance tint (setColorAt below) is the whole story. */
+          const material = (srcMat as MeshStandardMaterial).clone();
+          material.color.set(0xffffff);
+          material.shadowSide = DoubleSide;
+          const inst = new InstancedMesh(srcMesh.geometry, material, count);
+          inst.castShadow = true;
+          inst.receiveShadow = true;
+          inst.frustumCulled = true;
+          inst.customDepthMaterial = footDepthMaterial(footY, spanY);
+          capitalBuckets.set(bk, inst);
+          nextIndex.set(bk, 0);
+          group.add(inst);
+        }
+      }
+
+      const box = new Box3();
+      const center = new Vector3();
+      const tintColor = new Color();
+      for (const spec of specs) {
+        const pieces = piecesByCapital.get(spec.key)!;
+        const instances: CapitalPieceInstance[] = [];
+        capDummyBlock.rotation.y = capitalYaw(spec.key);
+        for (const piece of pieces) {
+          const tmpl = templates.get(piece.model)!;
+          /* Measure the piece's footprint exactly as the old per-piece
+             mesh did — scale + yaw the (shared, temporarily borrowed)
+             template root, then read its own bounding box — rather than
+             a precomputed per-BUILDING_KEY fraction: rotating a
+             non-square footprint moves its axis-aligned box centre in a
+             way that doesn't reduce to "rotate the unrotated centre", so
+             this is the only way to stay exact. It's a one-time cost per
+             piece per full rebuild, not a per-frame one. */
+          tmpl.root.scale.set(
+            tmpl.xz * piece.footprint,
+            tmpl.sy * piece.height,
+            tmpl.xz * piece.footprint,
+          );
+          tmpl.root.rotation.y = piece.rot;
+          tmpl.root.position.set(0, 0, 0);
+          tmpl.root.updateMatrixWorld(true);
+          box.setFromObject(tmpl.root);
+          box.getCenter(center);
+          const localPos = new Vector3(
+            piece.dx - center.x,
+            -box.min.y,
+            piece.dz - center.z,
+          );
+          const localScale = new Vector3(
+            tmpl.xz * piece.footprint,
+            tmpl.sy * piece.height,
+            tmpl.xz * piece.footprint,
+          );
+          capDummyPiece.position.copy(localPos);
+          capDummyPiece.rotation.set(0, piece.rot, 0);
+          capDummyPiece.scale.copy(localScale);
+          capitalBuildingTint(piece.tint, !!piece.landmark, tintColor);
+
+          const slots: CapitalPieceInstance["slots"] = [];
+          for (let t = 0; t < WRAP_OFFSETS.length; t++) {
+            const bk = bucketKey(piece.model, t);
+            const mesh = capitalBuckets.get(bk);
+            if (!mesh) continue;
+            const index = nextIndex.get(bk)!;
+            nextIndex.set(bk, index + 1);
+            capDummyCity.position.set(
+              spec.x + WRAP_OFFSETS[t]!,
+              plantY(spec.lift),
+              spec.z,
+            );
+            capDummyCity.updateMatrixWorld(true);
+            mesh.setMatrixAt(index, capDummyPiece.matrixWorld);
+            mesh.setColorAt(index, tintColor);
+            slots.push({ bucketKey: bk, tile: t, index });
+          }
+          instances.push({
+            localPos,
+            localRot: piece.rot,
+            localScale,
+            slots,
+          });
+        }
+        capitalInstanceRefs.set(spec.key, instances);
+      }
+
+      for (const mesh of capitalBuckets.values()) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        mesh.computeBoundingSphere();
+      }
+
       for (const tmpl of templates.values()) disposeObject(tmpl.root);
     })();
   };
@@ -1110,7 +1282,8 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     mountainGen++;
     cloudGen++;
     capitalGen++;
-    dropCapitals();
+    dropPlatforms();
+    dropCapitalBuckets();
     for (const batch of treeBatches) {
       batch.mesh.removeFromParent();
       (batch.mesh.material as MeshLambertMaterial).dispose();
@@ -1137,17 +1310,4 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
   };
 
   return { group, setHot, setCapitals, setLabelClear, update, dispose };
-}
-
-/** Cheap second-and-later wrap copy: clone an already-fitted instance,
- *  sharing geometry, with its own materials. */
-function instantiateClone(src: Object3D): Object3D {
-  const copy = src.clone(true);
-  copy.traverse((child) => {
-    if (!(child instanceof Mesh)) return;
-    child.material = Array.isArray(child.material)
-      ? child.material.map((m) => m.clone())
-      : child.material.clone();
-  });
-  return copy;
 }

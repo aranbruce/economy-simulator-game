@@ -127,6 +127,10 @@ function tintMesh(obj: Object3D, factor: number) {
 
 function setOpacity(obj: Object3D, opacity: number) {
   const o = opacity >= 0.999 ? 1 : Math.max(0, opacity);
+  /* Most of a lap sits at opacity 1 (FADE_FRAC_MAX is a small clamp at each
+     end) — skip the mesh-tree traverse when nothing actually changed. */
+  if (obj.userData.lastOpacity === o) return;
+  obj.userData.lastOpacity = o;
   obj.traverse((child) => {
     if (!(child instanceof Mesh)) return;
     const mats = Array.isArray(child.material)

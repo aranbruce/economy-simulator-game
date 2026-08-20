@@ -25,6 +25,10 @@ const ROUTE_GAP = 0.32;
 /** Hair above the local sea so the stroke sits on the water with the
  *  boats rather than on a flat plane they then parallax off. */
 const ROUTE_LIFT = 0.05;
+/** Rate the drape resamples the sea swell at — well below 60fps since the
+ *  swell itself moves slowly; keeps per-frame trig/vertex-write cost down
+ *  without a visible step in the drape animation. */
+const DRAPE_HZ = 12;
 /** Bump so WorldMap3D remounts when lane look changes. */
 export const ROUTES_REV = 69;
 /** Shared ink for every dashed lane — highways and on-ramps. */
@@ -208,7 +212,6 @@ export function buildRouteLayer(): RouteLayer {
         const line = new Line2(geometry, laneMat);
         line.computeLineDistances();
         line.renderOrder = 2;
-        line.frustumCulled = false;
         tile.add(line);
         geometries.push(geometry);
         return line;
@@ -231,13 +234,19 @@ export function buildRouteLayer(): RouteLayer {
   };
 
   const update = (nowS: number) => {
+    /* The drape's swell is slow (seaHeight's periods are on the order of
+       seconds), so sampling it at the full render rate is wasted trig +
+       vertex writes across every route's resampled points. Boats sample
+       seaHeight independently at full rate (fleet.ts), so this only steps
+       down the lane stroke's own drape, not boat motion. */
+    const drapeS = Math.floor(nowS * DRAPE_HZ) / DRAPE_HZ;
     for (const route of routes) {
       for (let t = 0; t < route.geometries.length; t++) {
         writeDrapedLane(
           route.geometries[t]!,
           route.pts,
           tiles[t]!.position.x,
-          nowS,
+          drapeS,
         );
       }
     }

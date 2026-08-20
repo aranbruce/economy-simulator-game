@@ -72,7 +72,6 @@ export function createBoardGrid(): BoardGrid {
     const line = new LineSegments2(geom, mat);
     line.position.x = dx;
     line.renderOrder = 0;
-    line.frustumCulled = false;
     group.add(line);
   }
 
