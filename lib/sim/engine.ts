@@ -4906,7 +4906,38 @@ function worldRoleForSeat(seatId: any) {
   mirrorPlayerToWorld(g);
   syncNationsFromWorld(g);
   refreshWorldTrade(g);
+  unifyOpeningCurrencyAreas(g);
   replugWorldOpeningDeficits(g);
+  syncNationsFromWorld(g);
+}
+/** Settle each seat alone and a currency union opens without one.
+ *
+ *  settleOpeningEcon() runs per role and caches per role, so there is no world
+ *  while it runs and stepCurrencyAreas() never fires — every seat leaves the
+ *  run-up on a private Taylor rate off its own pinned inflation. The five euro
+ *  seats therefore opened 0.96 points apart, which is not a spread a single
+ *  central bank can post. Run one area pass here, the first moment a world
+ *  exists, so each union opens on one rate. The player is skipped by
+ *  stepCurrencyAreas itself, so their published opening rate is untouched. */
+function unifyOpeningCurrencyAreas(g: any) {
+  if (!g || !g.world) return;
+  const bags: Record<string, any> = {};
+  for (const id of Object.keys(g.world)) bags[id] = g.world[id];
+  const playerId = playerCountryId(g.homeRole);
+  stepCurrencyAreas(bags, worldSeatIds(), {
+    playerId,
+    playerEcon: g.econ,
+  });
+  /* The area pass nudges each seat's fx, which would otherwise leave it off the
+     fx0 settle pinned it to — and fx/fx0 is exactly what values a seat's GDP in
+     USD, so partners would no longer open at their profile gdp0. Re-pin, the
+     same way settleOpeningEcon does after its own run. The player is left alone:
+     stepCurrencyAreas never moves their fx, and their fx0 is already pinned. */
+  for (const id of Object.keys(bags)) {
+    if (id === playerId) continue;
+    const econ = bags[id] && bags[id].econ;
+    if (econ && econ.fx != null) econ.fx0 = econ.fx;
+  }
 }
 /** Re-zero every seat's opening deficit now that live bilateral trade exists.
  *

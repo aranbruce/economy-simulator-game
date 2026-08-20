@@ -59,7 +59,8 @@ export function stepCurrencyAreas(
     const members = areas[ccy];
     let infl = 0,
       gap = 0,
-      n = 0;
+      n = 0,
+      wsum = 0;
     let leadRate = null;
     for (const id of members) {
       const econ =
@@ -67,27 +68,58 @@ export function stepCurrencyAreas(
           ? o.playerEcon
           : bags[id] && bags[id].econ;
       if (!econ) continue;
-      infl += econ.inflation != null ? econ.inflation : PI_TARGET;
+      /* Weight the area aggregate by economy size, not by seat count. A union's
+         central bank reads area-wide inflation and slack, in which the largest
+         member dominates; a headcount average gave the Netherlands the same say
+         as Germany and set a rate no large member's economy called for. Opening
+         GDP is the weight — a live one would let a member that is spiralling
+         progressively lose the vote that would correct it. */
+      const p = PROFILES[id];
+      const w = p && p.gdp0 > 0 ? p.gdp0 : 1;
+      infl += (econ.inflation != null ? econ.inflation : PI_TARGET) * w;
       const pot = econ.potential || 100;
       const gdp = econ.gdp != null ? econ.gdp : 100;
-      gap += (gdp / pot - 1) * 100;
+      gap += (gdp / pot - 1) * 100 * w;
+      wsum += w;
       n++;
       if (id === o.playerId && econ.rate != null) leadRate = econ.rate;
     }
-    if (!n) continue;
-    infl /= n;
-    gap /= n;
+    if (!n || wsum <= 0) continue;
+    infl /= wsum;
+    gap /= wsum;
     const underlying = infl;
     const target =
       R_NEUTRAL_REAL +
       underlying +
       TAYLOR_PI * (underlying - PI_TARGET) +
       TAYLOR_Y * gap;
-    let rate = leadRate != null ? leadRate : target;
-    if (leadRate == null) {
-      /* Pure area Taylor when player is not in this currency. */ rate =
-        Math.max(RATE_FLOOR, Math.min(20, target));
+    /* Smooth the *area's* rate, carried on its members as ccyAreaRate, rather
+       than smoothing each member toward an unsmoothed target below. Each seat's
+       own step() has already run a private Taylor rule on its own inflation and
+       gap by the time we get here; crawling only TAYLOR_SMOOTH of the way to
+       the area rate from there let the private rule out-pull the shared one, so
+       a currency union drifted apart instead of converging — the five euro
+       seats opened 0.96 points apart and were 2.66 apart by Q12. One smoothing
+       pass, on one rate, which every member then takes verbatim. */
+    let prevArea: number | null = null;
+    for (const id of members) {
+      const econ =
+        id === o.playerId && o.playerEcon
+          ? o.playerEcon
+          : bags[id] && bags[id].econ;
+      if (econ && econ.ccyAreaRate != null) {
+        prevArea = econ.ccyAreaRate;
+        break;
+      }
     }
+    if (prevArea == null) prevArea = target;
+    const rate =
+      leadRate != null
+        ? leadRate
+        : Math.max(
+            RATE_FLOOR,
+            Math.min(20, prevArea + (target - prevArea) * TAYLOR_SMOOTH),
+          );
     areaRate[ccy] = rate;
   }
 
@@ -152,9 +184,15 @@ export function stepCurrencyAreas(
         ? o.playerEcon
         : bags[id] && bags[id].econ;
     if (!econ) continue;
-    if (id !== o.playerId && areaRate[ccy] != null) {
-      const cur = econ.rate != null ? econ.rate : areaRate[ccy];
-      econ.rate = cur + (areaRate[ccy] - cur) * TAYLOR_SMOOTH;
+    if (areaRate[ccy] != null) {
+      /* Carried by every member (the player included, so the area keeps its
+         history when the player is the one leading it) — see the smoothing
+         note in pass 1. */
+      econ.ccyAreaRate = areaRate[ccy];
+      /* One rate per currency, taken verbatim: members of a union do not each
+         hold their own policy rate. The player still sets their own in step(),
+         and leads the area through leadRate. */
+      if (id !== o.playerId) econ.rate = areaRate[ccy];
     }
     const fxT = areaFx[ccy] != null ? areaFx[ccy] : 1;
     if (econ.fx == null) econ.fx = 1;
