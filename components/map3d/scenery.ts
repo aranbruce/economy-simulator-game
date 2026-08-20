@@ -22,6 +22,7 @@ import {
   DoubleSide,
   Group,
   InstancedMesh,
+  Material,
   Mesh,
   MeshDepthMaterial,
   MeshLambertMaterial,
@@ -59,6 +60,7 @@ import {
   type ModelKey,
 } from "./models.ts";
 import { capitalYaw } from "./routes.ts";
+import { BORDER_INK } from "./terrain.ts";
 
 export interface SceneryCountry {
   iso: string;
@@ -81,7 +83,7 @@ export interface SceneryLabelClear {
 }
 
 /** Bump when capital tokens or scenery look change so WorldMap3D remounts. */
-export const SCENERY_REV = 7;
+export const SCENERY_REV = 8;
 
 export interface Scenery {
   group: Group;
@@ -484,6 +486,23 @@ function muteMountain(root: Object3D) {
   });
 }
 
+/** Kenney's colormap reads as a bright modern render next to the sepia
+ *  board — multiply it toward the same warm parchment range the terrain
+ *  caps use (terrain.ts' 0xa48b62), lighter than a full crush so window
+ *  and facade detail still shows through. The landmark tower gets a
+ *  near-white version of the same tint so it still reads as the hero
+ *  piece against a dense, evenly-toned crowd.
+ *
+ *  Every shipped building glb uses plain pbrMetallicRoughness (no
+ *  KHR_materials_unlit), so GLTFLoader always hands back a
+ *  MeshStandardMaterial here — this intentionally does not style any
+ *  other material type. */
+function tintCapitalBuilding(material: Material, tint: number, landmark: boolean) {
+  if (!(material instanceof MeshStandardMaterial)) return;
+  material.color.setHex(landmark ? 0xf1e6c4 : 0xe0cf9e);
+  material.color.offsetHSL((tint - 0.5) * 0.05, 0, (tint - 0.5) * 0.14);
+}
+
 function fitHeight(obj: Object3D, height: number): number {
   const size = new Box3().setFromObject(obj).getSize(new Vector3());
   return size.y > 1e-6 ? height / size.y : 1;
@@ -731,11 +750,11 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
     emissiveIntensity: 0.15,
     shadowSide: DoubleSide,
   });
-  /* Country borders on the map use BORDER_INK (terrain.ts, 0x1e1810) —
-     match that for the plinth's side wall and rim so the edge reads as
-     part of the same map, not a sticker stamped onto it. */
+  /* Match the country borders' own ink colour for the plinth's side wall
+     and rim, so the edge reads as part of the same map, not a sticker
+     stamped onto it. */
   const platformSideMat = new MeshLambertMaterial({
-    color: 0x1e1810,
+    color: BORDER_INK,
     shadowSide: DoubleSide,
   });
   const platformShared = new Set([platformTopMat, platformSideMat]);
@@ -990,14 +1009,17 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
         { root: Object3D; sy: number; xz: number }
       >();
       try {
-        for (const k of BUILDING_KEYS) {
-          const root = await instantiateModel(k);
-          if (disposed || gen !== capitalGen) {
-            disposeObject(root);
-            return;
-          }
+        const roots = await Promise.all(
+          BUILDING_KEYS.map((k) => instantiateModel(k)),
+        );
+        if (disposed || gen !== capitalGen) {
+          for (const root of roots) disposeObject(root);
+          return;
+        }
+        for (let i = 0; i < BUILDING_KEYS.length; i++) {
+          const root = roots[i]!;
           const size = new Box3().setFromObject(root).getSize(new Vector3());
-          templates.set(k, {
+          templates.set(BUILDING_KEYS[i]!, {
             root,
             sy: size.y > 1e-6 ? 1 / size.y : 1,
             xz: 1 / Math.max(size.x, size.z, 1e-6),
@@ -1044,29 +1066,7 @@ export function createScenery(countries: SceneryCountry[]): Scenery {
               : [child.material];
             for (const m of mats) {
               m.shadowSide = DoubleSide;
-              if (m instanceof MeshStandardMaterial) {
-                /* Kenney's colormap reads as a bright modern render next
-                   to the sepia board — multiply it toward the same warm
-                   parchment range the terrain caps use (terrain.ts'
-                   0xa48b62), lighter than a full crush so window and
-                   facade detail still shows through. The landmark tower
-                   gets a near-white version of the same tint so it still
-                   reads as the hero piece against a dense, evenly-toned
-                   crowd. */
-                m.color.setHex(piece.landmark ? 0xf1e6c4 : 0xe0cf9e);
-                m.color.offsetHSL(
-                  (piece.tint - 0.5) * 0.05,
-                  0,
-                  (piece.tint - 0.5) * 0.14,
-                );
-                continue;
-              }
-              if (!(m instanceof MeshLambertMaterial)) continue;
-              m.color.offsetHSL(
-                (piece.tint - 0.5) * 0.04,
-                0,
-                (piece.tint - 0.5) * 0.07,
-              );
+              tintCapitalBuilding(m, piece.tint, !!piece.landmark);
             }
           });
           block.add(b);

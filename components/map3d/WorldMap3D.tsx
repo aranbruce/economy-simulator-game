@@ -191,7 +191,7 @@ const MAP_LIGHT_REV = 5;
 const SUN_OFF_X = -280;
 const SUN_OFF_Y = 300;
 const SUN_OFF_Z = -210;
-/** Kenney tokens sit just off the capital star so they do not cover it. */
+/** Kenney tokens sit just off the capital plinth so they do not cover it. */
 const DIPLO_OFFSET: Record<DiploKind, [number, number]> = {
   envoy: [1.45, 0.2],
   summit: [0.2, 1.5],
