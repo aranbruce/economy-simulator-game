@@ -368,8 +368,8 @@ function NiSide({
   on,
   yieldPct,
   rate,
-  rateKey,
-  onKey,
+  onToggle,
+  onRate,
   note,
   step,
 }: {
@@ -377,37 +377,46 @@ function NiSide({
   on: boolean;
   yieldPct: number;
   rate: number;
-  rateKey: "empRate" | "erRate";
-  onKey: "empOn" | "erOn";
+  onToggle: () => void;
+  onRate: (v: number) => void;
   note: ReactNode;
   step: number;
 }) {
   return (
-    <div className="mb-1.75 rounded-md border border-edge bg-g-1 px-2.75 py-2.25">
-      <div className="mb-1.25 flex items-baseline gap-2 text-sm font-[650]">
-        <b>{name}</b>
-        {on ? <span>{yieldPct.toFixed(2)}% of GDP</span> : null}
+    <div className="flex flex-col items-stretch gap-0.5 border-b border-edge px-3 py-1.75 text-sm last:border-b-0">
+      <div className="flex w-full items-baseline gap-2">
+        <span className="font-[550]">{name}</span>
+        {on ? (
+          <span className="ml-auto text-sm font-[650] tracking-[-.02em]">
+            {rate.toFixed(1)}%
+          </span>
+        ) : null}
         <Button
           danger={on}
           tiny
-          className="ml-auto"
-          onClick={() => setNiOn(onKey, !on)}
+          className={on ? "ml-2" : "ml-auto"}
+          onClick={onToggle}
         >
           {on ? "Abolish" : "Introduce"}
         </Button>
       </div>
       {on ? (
-        <CtrlRow
-          name={`${name} rate`}
-          value={rate}
+        <input
+          type="range"
           min={0}
           max={30}
           step={step}
-          disp={`${rate.toFixed(1)}%`}
-          note={note}
-          onInput={(v) => setNiRate(rateKey, v)}
-          onCommit={(v) => setNiRate(rateKey, v)}
+          value={rate}
+          aria-label={name}
+          onInput={(e) => onRate(parseFloat(e.currentTarget.value))}
+          onPointerUp={(e) => onRate(parseFloat(e.currentTarget.value))}
+          onKeyUp={(e) => onRate(parseFloat(e.currentTarget.value))}
         />
+      ) : null}
+      {on ? (
+        <div className="mt-0.5 text-xs text-ink-faint">
+          {note} · raises {yieldPct.toFixed(2)}% of GDP
+        </div>
       ) : null}
     </div>
   );
@@ -638,8 +647,8 @@ function IncomeNiPanel({ G }: { G: any }) {
           on={!!N.empOn}
           yieldPct={y.employee}
           rate={N.empRate}
-          rateKey="empRate"
-          onKey="empOn"
+          onToggle={() => setNiOn("empOn", !N.empOn)}
+          onRate={(v) => setNiRate("empRate", v)}
           step={0.5}
           note={<>on earnings above {floorTxt} · comes out of the pay packet</>}
         />
@@ -648,8 +657,8 @@ function IncomeNiPanel({ G }: { G: any }) {
           on={!!N.erOn}
           yieldPct={y.employer}
           rate={N.erRate}
-          rateKey="erRate"
-          onKey="erOn"
+          onToggle={() => setNiOn("erOn", !N.erOn)}
+          onRate={(v) => setNiRate("erRate", v)}
           step={0.1}
           note="a tax on the job, not the pay · every point adds roughly 0.06 to structural unemployment"
         />
