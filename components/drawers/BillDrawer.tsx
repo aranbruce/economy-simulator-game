@@ -152,27 +152,22 @@ function RateImpact() {
   );
 }
 
-function round1(n: number) {
-  return Math.round(n * 10) / 10;
-}
-
-/** One-decimal ledger so the visible rows always sum to Next turn.
- *  Start/next used to be whole numbers while envoy upkeep and popularity
- *  regen were tenths, which is why 23 − 1.0 + 7.0 could land on 28 or 30. */
+/** Integer ledger: each term is rounded in capitalRegenGain / capitalOutlook
+ *  before it is summed, so Next turn is always a whole number. */
 function CapitalForecast({
   outlook,
 }: {
   outlook: NonNullable<ReturnType<typeof capitalOutlook>>;
 }) {
-  const start = round1(outlook.current);
-  const bill = outlook.cost > 0 ? round1(outlook.billCost ?? outlook.cost) : 0;
-  const whip = outlook.whipSpend > 0 ? round1(outlook.whipSpend) : 0;
-  const upkeep = outlook.envoyCount > 0 ? round1(outlook.envoyUpkeep) : 0;
-  const fiscal = outlook.fiscalRuleHit > 0 ? round1(outlook.fiscalRuleHit) : 0;
-  const pop = round1(outlook.gain);
+  const start = outlook.current;
+  const bill = outlook.cost > 0 ? (outlook.billCost ?? outlook.cost) : 0;
+  const whip = outlook.whipSpend > 0 ? outlook.whipSpend : 0;
+  const upkeep = outlook.envoyCount > 0 ? outlook.envoyUpkeep : 0;
+  const fiscal = outlook.fiscalRuleHit > 0 ? outlook.fiscalRuleHit : 0;
+  const pop = outlook.gain;
   const rawNext = start - bill - whip - upkeep - fiscal + pop;
   const next = clamp(rawNext, 0, 100);
-  const clip = round1(rawNext - next);
+  const clip = rawNext - next;
 
   return (
     <div className="mt-3 border-t border-edge pt-2.5 text-sm">
@@ -181,24 +176,18 @@ function CapitalForecast({
       </div>
       <div className="flex py-0.75 text-ink-soft">
         <span>Capital at start of turn</span>
-        <span className="ml-auto font-[650] text-white">
-          {start.toFixed(1)}
-        </span>
+        <span className="ml-auto font-[650] text-white">{start}</span>
       </div>
       {bill > 0 ? (
         <div className="flex py-0.75 text-ink-soft">
           <span>For this bill</span>
-          <span className="ml-auto font-[650] text-red-lt">
-            −{bill.toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-red-lt">−{bill}</span>
         </div>
       ) : null}
       {whip > 0 ? (
         <div className="flex py-0.75 text-ink-soft">
           <span>Whip</span>
-          <span className="ml-auto font-[650] text-red-lt">
-            −{whip.toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-red-lt">−{whip}</span>
         </div>
       ) : null}
       {outlook.envoyCount > 0 ? (
@@ -206,17 +195,13 @@ function CapitalForecast({
           <span>
             Envoy upkeep ({outlook.envoyCount} × −{ENVOY_UPKEEP_PC})
           </span>
-          <span className="ml-auto font-[650] text-red-lt">
-            −{upkeep.toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-red-lt">−{upkeep}</span>
         </div>
       ) : null}
       {fiscal > 0 ? (
         <div className="flex py-0.75 text-ink-soft">
           <span>Fiscal rule (deficit above 4% of GDP)</span>
-          <span className="ml-auto font-[650] text-red-lt">
-            −{fiscal.toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-red-lt">−{fiscal}</span>
         </div>
       ) : null}
       <div className="flex py-0.75 text-ink-soft">
@@ -225,23 +210,19 @@ function CapitalForecast({
           className={`ml-auto font-[650] ${pop >= 0 ? "text-green-lt" : "text-red-lt"}`}
         >
           {pop >= 0 ? "+" : ""}
-          {pop.toFixed(1)}
+          {pop}
         </span>
       </div>
-      {clip > 0.05 ? (
+      {clip > 0 ? (
         <div className="flex py-0.75 text-ink-soft">
           <span>Capped at 100</span>
-          <span className="ml-auto font-[650] text-red-lt">
-            −{clip.toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-red-lt">−{clip}</span>
         </div>
       ) : null}
-      {clip < -0.05 ? (
+      {clip < 0 ? (
         <div className="flex py-0.75 text-ink-soft">
           <span>Floor at 0</span>
-          <span className="ml-auto font-[650] text-green-lt">
-            +{(-clip).toFixed(1)}
-          </span>
+          <span className="ml-auto font-[650] text-green-lt">+{-clip}</span>
         </div>
       ) : null}
       <div className="mt-1.5 flex border-t border-edge py-0.75 pt-2 text-sm font-bold text-white">
@@ -249,7 +230,7 @@ function CapitalForecast({
         <span
           className={`ml-auto ${next >= start ? "text-green-lt" : "text-red-lt"}`}
         >
-          {next.toFixed(1)}
+          {next}
         </span>
       </div>
       <Hint className="mt-1.5">
@@ -260,7 +241,7 @@ function CapitalForecast({
           ? ` Each posted envoy costs ${ENVOY_UPKEEP_PC} a quarter to maintain.`
           : ""}
         {fiscal > 0
-          ? ` A fiscal rule docks ${fiscal.toFixed(0)} whenever the deficit is above 4% of GDP.`
+          ? ` A fiscal rule docks ${fiscal} whenever the deficit is above 4% of GDP.`
           : ""}
       </Hint>
     </div>

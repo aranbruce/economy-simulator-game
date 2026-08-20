@@ -11103,7 +11103,7 @@ function govDemandShares(law: any, econ: any) {
   driftSeatParties(g);
   const appr = approvalOf(g.fac);
   const { gain, envoyUpkeep } = capitalRegenGain(g, law, appr);
-  g.capital = clamp(g.capital + gain - envoyUpkeep, 0, 100);
+  g.capital = clamp(Math.round(g.capital) + gain - envoyUpkeep, 0, 100);
   const ruleHit = fiscalRuleCapitalHit(law, deficit);
   if (ruleHit) {
     g.ruleBreaches++;
@@ -12738,9 +12738,11 @@ function displayParties(g?: any) {
 function capitalRegenGain(g: any, law: any, approval: number) {
   const regen =
     polityOf(g.homeRole).capitalRegen * stateFormCapitalRegenMult(law);
-  const gain = (3.2 + (approval - 45) * 0.1) * regen;
+  /* Round each term before it hits the stock, so capital is always a whole
+     number (the Programme ledger sums the same integers). */
+  const gain = Math.round((3.2 + (approval - 45) * 0.1) * regen);
   const envoyCount = (g.envoys || []).filter(Boolean).length;
-  const envoyUpkeep = envoyCount * ENVOY_UPKEEP_PC;
+  const envoyUpkeep = Math.round(envoyCount * ENVOY_UPKEEP_PC);
   return { regen, gain, envoyCount, envoyUpkeep, breakeven: 45 - 3.2 / 0.1 };
 }
 /** Next-quarter capital preview for the Programme drawer, evaluated against
@@ -12761,14 +12763,15 @@ function capitalOutlook(cost?: number) {
   );
   const whip = legislativeClauses().length ? whipSpendOf() : 0;
   const billOnly = cost - whip;
-  const afterBill = clamp(G.capital - cost, 0, 100);
+  const current = Math.round(G.capital);
+  const afterBill = clamp(current - cost, 0, 100);
   const books = balanceOf(G.draft, G.econ);
   const fiscalRuleHit = fiscalRuleCapitalHit(G.draft, -books.balance);
   return {
     cost,
     billCost: billOnly,
     whipSpend: whip,
-    current: G.capital,
+    current,
     afterBill,
     gain,
     envoyCount,
