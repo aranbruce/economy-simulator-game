@@ -51,7 +51,10 @@ const BORDER_LIFT = 0.04;
 /** Screen-space so the outline stays a hairline at every zoom — world-unit
  *  width would vanish from the far, near-plan view where it is most needed. */
 const BORDER_WIDTH = 2.15;
-const BORDER_INK = 0x1e1810;
+/** Country-border ink colour — exported so other layers (the capital
+ *  plinth's rim in scenery.ts) can match it exactly instead of copying
+ *  the literal, which would silently drift if this is ever retuned. */
+export const BORDER_INK = 0x1e1810;
 /** Bump so WorldMap3D remounts the WebGL scene when outlines change. */
 export const TERRAIN_REV = 21;
 

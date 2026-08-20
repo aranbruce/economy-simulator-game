@@ -20,9 +20,13 @@ unchanged.
   so a large country is not a uniform thicket: Amazon and Atlantic forest,
   not the sertão; taiga, not the steppe. Kind follows the cell's dominant
   class (needleleaf → cone, rainforest → oak/default). No external texture.
-- `cities/building-{a,c,e}.glb` — Kenney City Kit Commercial 2.1
-  (`low-detail-building-*`). Clustered as a small city around each capital.
-  Texture at `cities/Textures/colormap.png`.
+- `cities/building-{a,c,e,j,n,wide-a,wide-b}.glb` — Kenney City Kit
+  Commercial 2.1 (`low-detail-building-*`, `wide-a`/`wide-b` from
+  `low-detail-building-wide-*`). Clustered as a small city around each
+  capital, rendered with their shipped `cities/Textures/colormap.png`
+  colormap rather than a flat tint — the one building-cluster exception to
+  the flat-tinted treatment trees and mountains get, matching how boats and
+  diplo props already keep their real textures.
 - `clouds/cloud-{a,e}.glb` — Quaternius (CC0) via Poly Pizza: Cloud1
   and Cloud4. Lumpy elongated and wide banks (the spiral Cloud5 was
   dropped). Instanced as drifting weather. No external texture.
