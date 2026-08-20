@@ -2658,6 +2658,29 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
     `China capital gain ~55% of Kingdom (got ${(cg / kg).toFixed(3)})`,
   );
 
+  /* An overspent Programme still floors the payment at 0, then applies regen —
+     Next turn is not clamped to 0 before popularity. */
+  {
+    newGame({ sandbox: true, silent: true });
+    G = getG();
+    G.capital = 20;
+    G.envoys = [];
+    const over = capitalOutlook(G.capital + 25);
+    assert(over.afterBill === 0, "overspent bill floors payment at 0");
+    const fromZero = Math.max(
+      0,
+      Math.min(100, over.gain - over.envoyUpkeep - over.fiscalRuleHit),
+    );
+    assert(
+      over.nextQuarter === fromZero,
+      "overspent next-turn is regen from a zeroed balance (got " +
+        over.nextQuarter +
+        " vs " +
+        fromZero +
+        ")",
+    );
+  }
+
   /* Elite coup: three quarters of low patriots ends China Career. */
   newGame({
     sandbox: false,
