@@ -4924,6 +4924,14 @@ function unifyOpeningCurrencyAreas(g: any) {
   const bags: Record<string, any> = {};
   for (const id of Object.keys(g.world)) bags[id] = g.world[id];
   const playerId = playerCountryId(g.homeRole);
+  /* One pass, deliberately. The rate converges on it regardless (an area with
+     no stored ccyAreaRate seeds prevArea from the target, so the first call
+     lands on it), which is the part that matters here. FX only moves FX_ADJ of
+     the way, and iterating it to the area fixed point was tried and reverted:
+     it shifts every partner's opening competitiveness enough to matter — far
+     enough that a -8 world demand shock stopped being able to push Germany's
+     GDP down in Q1. Converging opening FX may well be right, but it is a
+     recalibration of the trade block, not a side effect of unifying rates. */
   stepCurrencyAreas(bags, worldSeatIds(), {
     playerId,
     playerEcon: g.econ,
