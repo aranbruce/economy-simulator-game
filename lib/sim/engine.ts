@@ -64,6 +64,7 @@ import {
   ENVOY_ASSIGN_PC,
   ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
+  CAPITAL_MAX,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
   ULTIMATUM_WAIT,
@@ -1938,7 +1939,7 @@ function assignEnvoy(partnerId: any) {
   if ((g.capital || 0) < ENVOY_ASSIGN_PC) return false;
   const slot = g.envoys.indexOf(null);
   if (slot < 0) return false;
-  g.capital = clamp(g.capital - ENVOY_ASSIGN_PC, 0, 100);
+  g.capital = clamp(g.capital - ENVOY_ASSIGN_PC, 0, CAPITAL_MAX);
   g.envoys[slot] = partnerId;
   if (!g.envoySpend) g.envoySpend = {};
   g.envoySpend[partnerId] = ENVOY_ASSIGN_PC;
@@ -1954,12 +1955,12 @@ function recallEnvoy(partnerId: any) {
   if (i < 0) return true;
   if (ENVOY_RECALL_PC > 0) {
     if ((g.capital || 0) < ENVOY_RECALL_PC) return false;
-    g.capital = clamp(g.capital - ENVOY_RECALL_PC, 0, 100);
+    g.capital = clamp(g.capital - ENVOY_RECALL_PC, 0, CAPITAL_MAX);
   }
   g.envoys[i] = null;
   /* Same-quarter assign can be undone — refund the capital that was spent. */
   if (g.envoySpend && g.envoySpend[partnerId]) {
-    g.capital = clamp((g.capital || 0) + g.envoySpend[partnerId], 0, 100);
+    g.capital = clamp((g.capital || 0) + g.envoySpend[partnerId], 0, CAPITAL_MAX);
     delete g.envoySpend[partnerId];
   }
   return true;
@@ -2310,7 +2311,7 @@ function issueUltimatum(partnerId: any, demandId: any) {
       }
     : demands[0];
   if (!pick) return false;
-  g.capital = clamp(g.capital - ULTIMATUM_PC, 0, 100);
+  g.capital = clamp(g.capital - ULTIMATUM_PC, 0, CAPITAL_MAX);
   if (!g.ultimatums) g.ultimatums = {};
   const awaitHuman = isHumanMpSeat(g, partnerId);
   g.ultimatums[partnerId] = {
@@ -2365,7 +2366,7 @@ function withdrawUltimatum(partnerId: any) {
   /* Idempotent: already gone is the desired state. */
   if (!existing || existing.status !== "pending") return true;
   if (ultimatumSentQ(g, existing) !== (g.q || 0)) return false;
-  g.capital = clamp((g.capital || 0) + ULTIMATUM_PC, 0, 100);
+  g.capital = clamp((g.capital || 0) + ULTIMATUM_PC, 0, CAPITAL_MAX);
   if (g.fac) {
     g.fac.patriots = clamp((g.fac.patriots || 50) - 3, 2, 96);
     g.fac.business = clamp((g.fac.business || 50) + 2, 2, 96);
@@ -2621,7 +2622,7 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
         getG().fac.patriots = clamp((getG().fac.patriots || 50) + 3, 2, 96);
         getG().fac.business = clamp((getG().fac.business || 50) - 2, 2, 96);
       }
-      getG().capital = clamp((getG().capital || 0) - 2, 0, 100);
+      getG().capital = clamp((getG().capital || 0) - 2, 0, CAPITAL_MAX);
       if (fromId && getG().rel) {
         getG().rel[fromId] = clamp(
           (getG().rel[fromId] != null ? getG().rel[fromId] : 50) - 2,
@@ -2957,7 +2958,7 @@ function applyMissionEventOption(opt: any, ctx: any) {
     g.econ.relImpulse[partnerId] =
       (g.econ.relImpulse[partnerId] || 0) + opt.relImpulse;
   }
-  if (opt.capital) g.capital = clamp(g.capital + opt.capital, 0, 100);
+  if (opt.capital) g.capital = clamp(g.capital + opt.capital, 0, CAPITAL_MAX);
   if (opt.ledger && partnerId) {
     addDiploLedger(g, partnerId, {
       id:
@@ -6874,7 +6875,7 @@ function enactHumanSeatOnSnapshot(
     /* totalCost = bill + diplo delta vs politics. Live diplo commits already
          charged capital / ledger, so identical pending envoys/ultimatums cost 0. */
     const spend = check.totalCost != null ? check.totalCost : check.cost;
-    pol.capital = clamp(pol.capital - spend, 0, 100);
+    pol.capital = clamp(pol.capital - spend, 0, CAPITAL_MAX);
     g.capital = pol.capital;
     syncServiceHolds(g.draft, seat.econ);
     seat.prevLaw = clone(seat.law);
@@ -7957,6 +7958,11 @@ const SETTLE_QUARTERS = 48;
    riskPremium/expectations pin instead of resetting it outright — see the
    comment in settleOpeningEcon(). */ const SETTLE_TAPER_QUARTERS = 12;
 let _openingByRole: Record<string, any> = {};
+/* Post-run-in world, cached per seat exactly as _openingByRole caches the
+   per-role settle it extends. The run-in is deterministic for a role, and
+   newGame runs it on 27 seats — without this the suite's 261 newGame calls
+   roughly double in wall time, and so does starting a game. */
+let _openingWorldByRole: Record<string, any> = {};
 /** Steady-state Taylor guess at zero gap — seed for non-home settle only. */ function taylorRateForInflation(
   pi: any,
 ) {
@@ -8368,6 +8374,315 @@ function freshEcon(pins: any) {
   if (e.yRel0 == null) e.yRel0 = e.yRel != null ? e.yRel : 0.88;
   e.gdp = 100;
 }
+/** Snap one seat's econ back onto its published opening: world demand rebased,
+ *  the production function re-normalised so potential and GDP index at 100,
+ *  trend recomputed off the settled stocks, and otherRevAdj re-plugged to the
+ *  profile deficit. Extracted from settleOpeningEcon so anything that advances
+ *  a seat before term start can land it in the same state — running quarters
+ *  and then *not* re-running this is what leaves an opening out of equilibrium. */
+function finaliseOpeningEcon(
+  e: any,
+  law: any,
+  pin: any,
+  homeRole: any,
+  g: any,
+) {
+  const bm = (g && g.blocMember) || {};
+  e.worldRestY = 100;
+  e.worldDemand0 = 0;
+  refreshWorldY(e, homeRole);
+  e.A = 1;
+  e.A = 100 / potentialLevel(law, aggregate(law, homeRole, bm), e);
+  e.potential = 100;
+  e.gdp = 100;
+  e.R = R0;
+  e.labourGrowth = impliedLabourGrowth(e, aggregate(law, homeRole, bm));
+  e.trendGrowth = potentialGrowth(law, aggregate(law, homeRole, bm), e);
+  plugOpeningDeficit(e, law, pin.deficit0, g);
+}
+/* Quarters every seat runs *together*, with a live world, before term start.
+   settleOpeningEcon converges each seat's stocks alone and caches per role, so
+   nothing depending on a counterparty can settle there: bilateral trade,
+   currency areas, the tariff a partner charges us. Each has needed its own
+   after-the-fact patch, which is the sign the run-up had outgrown running one
+   seat at a time. Twelve quarters lets the cleared-trade blend (q/4) reach full
+   weight and the area rates settle, while staying short enough that the pins
+   hold the published opening exactly. */ const JOINT_RUN_IN_QUARTERS = 48;
+
+/** Advance every seat together, headlines pinned each quarter and every seat
+ *  finalised back onto its published opening at the end, so world-dependent
+ *  state opens converged against real counterparties instead of against a
+ *  single-seat approximation. */
+function jointOpeningRunIn(g: any, quarters: number) {
+  if (!g || !g.world) return;
+  const pinsById: Record<string, any> = {};
+  /* The statute as published, captured before the first step. pinOpeningHeadlines
+     restores law.income/law.ni from this every quarter — step() uprates cash
+     thresholds with inflation, so without a pristine reference the allowance
+     would drift a quarter at a time and the seat would open off its published
+     schedule. Passing the live law as its own reference makes that restore a
+     no-op, which is exactly the bug this guards. */
+  const statuteById: Record<string, any> = {};
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (bag && bag.econ && bag.law) {
+      pinsById[id] = pinsForRole(bag.role);
+      statuteById[id] = clone(bag.law);
+    }
+  }
+  const seatCtx = (bag: any) => ({
+    homeRole: bag.role,
+    econ: bag.econ,
+    blocMember: g.blocMember,
+    customBlocs: g.customBlocs,
+    worldTrade: g.worldTrade,
+  });
+  const startLen = (g.log || []).length;
+  /* The run-up settles the *economy*. Everything political, diplomatic or
+     player-flow is authored for the opening and must survive it untouched:
+     relations are openingRel, capital is 42 (step regenerates it, and over a
+     run-in it pegs to its 100 clamp), factions are openingFac, and the event
+     bookkeeping schedules the first major from term start. Snapshot the lot
+     and put it back. */
+  const OPENING_STATE_KEYS = [
+    "rel",
+    "capital",
+    "fac",
+    "parties",
+    "mods",
+    "press",
+    "brief",
+    "lowRun",
+    "ruleBreaches",
+    "over",
+    "whipSpend",
+    "polityShift",
+    "lastEventQ",
+    "lastEventId",
+    "setPiece8",
+    "setPiece16",
+    "episode",
+    "nextMajorQ",
+  ];
+  /* Supply-side stocks the per-role settle already converged. The run-in is
+     for world-dependent state — trade, currency areas, partner tariffs — not
+     for re-accumulating capital, and it actively corrodes these: each quarter
+     renormaliseOpeningLevel rescales K/KG to hold output at 100, so a seat
+     that wants to grow has its stocks shaved a little every quarter. Over 32
+     quarters that compounds (K -6.5%, KG -12.9%), and since trend reads
+     gK = (I - dK)/K, a stock shrunk against unchanged investment lifts
+     measured trend permanently — +0.24pp at open, and the whole world hot for
+     thirty years after. Carry them across the run-in untouched.
+     fuelVolume rides along for the same reason from the other direction: it is
+     a stock that *decays* with time (engines improve, ~1.6%/yr), so the run-in
+     aged the fuel-duty base by its own eight years and the player opened with
+     13.8% less of it than the published schedule raises. Nothing here is a
+     flow the run-in is meant to settle; they are all levels the per-role
+     settle already placed. */
+  const SUPPLY_STOCK_KEYS = ["K", "KG", "R", "hCap", "fuelVolume"];
+  const stocksAtOpen: Record<string, Record<string, any>> = {};
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (!bag || !bag.econ) continue;
+    const keep: Record<string, any> = {};
+    for (const k of SUPPLY_STOCK_KEYS) keep[k] = bag.econ[k];
+    stocksAtOpen[id] = keep;
+  }
+  const stateAtOpen: Record<string, any> = {};
+  for (const k of OPENING_STATE_KEYS) {
+    stateAtOpen[k] = g[k] === undefined ? undefined : clone(g[k]);
+  }
+  /* relBase is the structural half of each relation, seeded lazily off the
+     live map — restoring rel without it would leave the two disagreeing. */
+  const relBaseAtOpen = clone((g.econ && g.econ.relBase) || {});
+  /* Seats keep the statute they published; the run-up is not where an AI
+     rewrites its own budget. */ const prevAiFiscal = g.disableAiFiscal;
+  g.disableAiFiscal = true;
+  try {
+    for (let i = 0; i < quarters; i++) {
+      step(g, g.law, g.law, true);
+      /* Ease the pin's grip over the tail, exactly as settle does: pinning
+         hard right up to term start leaves the underlying state (expectations,
+         credibility, the wage/price loop) still fighting the headline, and the
+         first free quarter jumps. Let those five converge organically while the
+         fiscal headlines stay pinned; the finalise pass below still snaps
+         everything to the published figures. */
+      /* The pin releases across the *whole* run-in rather than over a tail of
+         it: fully pinned in the first quarter, when the seat has just come off
+         a settle that held it there, and fully free in the last, so term start
+         is a continuation rather than a handover. Tried as a tail of 8, 16, 24
+         and 30 quarters out of 32 — the opening growth swing falls the whole
+         way, 1.65pp to 1.24 to 1.06 to 0.99, and spanning the full run-in is
+         both the best of them (0.97) and the one shape with no free parameter
+         to drift against the run-in's length. */
+      const taper = quarters > 0 ? (i + 1) / quarters : 1;
+      for (const id of Object.keys(g.world)) {
+        const bag = g.world[id];
+        const pin = pinsById[id];
+        if (!bag || !bag.econ || !bag.law || !pin) continue;
+        const organic = taper
+          ? {
+              rate: bag.econ.rate,
+              inflation: bag.econ.inflation,
+              riskPremium: bag.econ.riskPremium,
+              expect: bag.econ.expect,
+              credibility: bag.econ.credibility,
+            }
+          : null;
+        /* Settle's own per-quarter pin, minus the two pieces the world now
+           owns: no applySettleTaylor (currency areas set the rate) and no
+           supply re-assign (already converged). Only "home" pins its Bank
+           rate, matching settleOpeningEcon's freeRate rule. */
+        pinOpeningHeadlines(bag.econ, bag.law, pin, statuteById[id], {
+          freeRate: bag.role !== "home",
+        });
+        if (organic) {
+          for (const k of [
+            "rate",
+            "inflation",
+            "riskPremium",
+            "expect",
+            "credibility",
+          ] as const) {
+            bag.econ[k] += (organic[k] - bag.econ[k]) * taper;
+          }
+        }
+        renormaliseOpeningLevel(bag.econ, bag.law);
+        plugOpeningDeficit(bag.econ, bag.law, pin.deficit0, seatCtx(bag));
+      }
+    }
+  } finally {
+    g.disableAiFiscal = prevAiFiscal;
+  }
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    const pin = pinsById[id];
+    if (!bag || !bag.econ || !bag.law || !pin) continue;
+    /* Restore the settled supply stocks before finalising, so trend is
+       recomputed off them rather than off the run-in's eroded copies. */
+    const keep = stocksAtOpen[id];
+    if (keep) {
+      for (const k of SUPPLY_STOCK_KEYS) {
+        if (keep[k] !== undefined) bag.econ[k] = keep[k];
+      }
+    }
+    /* Snap the tapered headlines back to the published figures before
+       finalising off them. */
+    const freeRate = bag.role !== "home";
+    pinOpeningHeadlines(bag.econ, bag.law, pin, statuteById[id], { freeRate });
+    /* A free-rate seat's policy rate has to answer to the inflation just
+       pinned, not to the drifted path the taper let it follow — the same
+       correction the area pass below makes for union members, which a seat
+       with its own currency never reaches. settleOpeningEcon runs exactly this
+       after its own loop for the same reason; without it Nigeria opened at
+       7.91 against a profile inflation calling for over 8. Union members are
+       overwritten by the area rate a few lines down, which is the intended
+       precedence. */
+    if (freeRate) applySettleTaylor(bag.econ, pin);
+    finaliseOpeningEcon(bag.econ, bag.law, pin, bag.role, seatCtx(bag));
+    /* Term starts at currency strength 100 for every seat, as after settle. */
+    bag.econ.fx0 = bag.econ.fx;
+  }
+  /* The area rate has to follow from the *published* opening, not from the
+     run-in's own inflation path. Every seat's inflation was just pinned back
+     to its profile, but each area's rate is still the value its 32 quarters
+     converged to, smoothed off a history that no longer exists — the euro
+     opened at 3.56 against a pinned inflation that implies 3.19. Clearing the
+     carried rate makes the next pass seed from the Taylor target instead of
+     that history, so the rate and the inflation it is supposed to answer to
+     agree. Left disagreeing it is not cosmetic: a rate a third of a point too
+     high disinflates the smaller members, and a euro seat frozen at its
+     opening statute tips into r > g and runs to the debt clamp. */
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (bag && bag.econ) bag.econ.ccyAreaRate = null;
+  }
+  unifyOpeningCurrencyAreas(g);
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (bag && bag.econ && bag.econ.fx != null) bag.econ.fx0 = bag.econ.fx;
+  }
+  for (const k of OPENING_STATE_KEYS) g[k] = stateAtOpen[k];
+  if (g.econ) g.econ.relBase = relBaseAtOpen;
+  g.q = 0;
+  g.term = 1;
+  g.termStartQ = 0;
+  /* The run-in is pre-term like the rest of the run-up; keep the visible
+     history one settle long so the charts' x-axis does not grow. */
+  for (let i = startLen; i < (g.log || []).length; i++) {
+    if (g.log[i]) g.log[i].pre = true;
+  }
+  if (g.log && g.log.length > SETTLE_QUARTERS) {
+    g.log = g.log.slice(g.log.length - SETTLE_QUARTERS);
+  }
+  for (let i = 0; i < (g.log || []).length; i++) {
+    if (g.log[i]) g.log[i].label = settleLabel(i);
+  }
+  /* Rebase the logged cross-rates onto the term-start baseline. Each seat's
+     fx0 was just re-pinned to its current fx so currency strength opens at
+     100, but the rows were written against the *old* fx0 — leaving the series
+     to run to one level and term start to begin at another, a step of several
+     percent on the currency chart. Scale every pre-term row by the same
+     per-currency factor that carries its final value onto the opening rate:
+     relative movement within the run-up is preserved, and the history now
+     leads into term start instead of jumping at it. */
+  /* Rebuild the logged *level* series from the growth the model actually
+     produced. renormaliseOpeningLevel re-indexes every seat to 100 each
+     quarter — load-bearing, since the stocks are measured against that index
+     and letting it drift blows the trend bands — so row.gdp recorded the
+     within-quarter overshoot off a base that had just been reset, not a path.
+     The log ended up asserting both ~3.3%/yr of growth and a level that never
+     left 100, and the two charts reading those disagreed: output sat *above*
+     its own term-start index for the whole run-up and fell to it on the last
+     point, while cash GDP rose into the same point. Neither move was economics.
+     The growth rate is the real output here, so integrate it: chain the
+     quarterly rates into a level, normalise so term start is exactly 100, and
+     carry each row's own output gap across as a ratio. History now climbs
+     toward 100 from below when the economy grew into your term, which is what
+     the caption has always claimed. */
+  const rows: any[] = (g.log || []).filter(Boolean);
+  if (rows.length) {
+    const levels: number[] = [];
+    let lvl = 1;
+    for (const r of rows as any[]) {
+      lvl *= 1 + (r.growth || 0) / 400;
+      levels.push(lvl);
+    }
+    const endLvl = levels[levels.length - 1] || 1;
+    rows.forEach((r: any, i: number) => {
+      const gapRatio =
+        r.gdp > 0 && r.potential > 0 ? r.potential / r.gdp : 1;
+      r.gdp = (100 * levels[i]) / endLvl;
+      r.potential = r.gdp * gapRatio;
+    });
+    /* Same rebase for the currency-strength index: fx0 was re-pinned to the
+       final fx, so the rows carry an index against a baseline that no longer
+       exists and the last point jumps to 100. */
+    const fxEnd = rows[rows.length - 1].fx;
+    if (fxEnd > 0) {
+      for (const r of rows) {
+        if (r.fx != null) r.fx = (100 * r.fx) / fxEnd;
+      }
+    }
+  }
+  const lastRow = g.log[g.log.length - 1];
+  const openRates = snapshotCurrencyRates(g);
+  if (lastRow && lastRow.ccyRates) {
+    for (const code of Object.keys(lastRow.ccyRates)) {
+      const end = lastRow.ccyRates[code];
+      const target = openRates[code];
+      if (!(end > 0) || !(target > 0)) continue;
+      const k = target / end;
+      if (Math.abs(k - 1) < 1e-12) continue;
+      for (const row of g.log) {
+        if (row && row.ccyRates && row.ccyRates[code] != null) {
+          row.ccyRates[code] *= k;
+        }
+      }
+    }
+  }
+  syncLogRowToEcon(g.log[g.log.length - 1], g.econ, g, g.law);
+}
 function settleLabel(i: any) {
   const remaining = SETTLE_QUARTERS - 1 - i;
   const yearsBack = Math.floor(remaining / 4);
@@ -8607,17 +8922,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
       row.ccyRates[code] = (CURRENCY_META[code] || CURRENCY_META.USD).usdRate;
     }
   }
-  e.worldRestY = 100;
-  e.worldDemand0 = 0;
-  refreshWorldY(e, homeRole);
-  e.A = 1;
-  e.A = 100 / potentialLevel(g.law, aggregate(g.law), e);
-  e.potential = 100;
-  e.gdp = 100;
-  e.R = R0;
-  e.labourGrowth = impliedLabourGrowth(e, aggregate(g.law));
-  e.trendGrowth = potentialGrowth(g.law, aggregate(g.law), e);
-  plugOpeningDeficit(e, g.law, pin.deficit0, g);
+  finaliseOpeningEcon(e, g.law, pin, homeRole, g);
   syncLogRowToEcon(g.log[g.log.length - 1], e, g, g.law);
   return {
     econ: e,
@@ -8638,6 +8943,7 @@ function openingSnapshot(role: any) {
 }
 /** Drop cached settles (tests / recalibration after NATION_PROFILE edits). */ function clearOpeningCache() {
   _openingByRole = {};
+  _openingWorldByRole = {};
   clearIncomeDistCache();
 }
 function openingBrief(pins: any, country: any) {
@@ -8676,6 +8982,55 @@ function openingBrief(pins: any, country: any) {
       fiscal,
     "The Bank sets interest rates, not you. The statute book is yours: rates, structures, laws, treaties. All of it costs political capital, and you start with very little.",
   ];
+}
+function cloneOpeningBags(world: any) {
+  const out: Record<string, any> = {};
+  for (const id of Object.keys(world || {})) {
+    const b = world[id];
+    if (!b) continue;
+    out[id] = {
+      econ: clone(b.econ),
+      law: clone(b.law),
+      prevLaw: clone(b.prevLaw || b.law),
+      id,
+      role: b.role,
+      log: Array.isArray(b.log) ? clone(b.log) : undefined,
+    };
+  }
+  return out;
+}
+/** Build the world and run every seat in together, cached per seat. */
+function buildOpeningWorld(g: any) {
+  const key = resolveHomeRole(g.homeRole || "home");
+  const hit = _openingWorldByRole[key];
+  if (hit) {
+    g.econ = clone(hit.econ);
+    g.log = clone(hit.log);
+    g.world = cloneOpeningBags(hit.world);
+    /* Re-alias the player's bag onto the fresh econ and rebuild the derived
+       trade split; everything else travels in the cached bags. */
+    mirrorPlayerToWorld(g);
+    syncNationsFromWorld(g);
+    refreshWorldTrade(g);
+    return;
+  }
+  initWorldState(g);
+  jointOpeningRunIn(g, JOINT_RUN_IN_QUARTERS);
+  /* Re-derive the world-dependent bits against the *finalised* econ before
+     caching, so this path ends where the cache-hit path above ends. The run-in
+     leaves clearedFlows/clearedTotals/nations as its last step computed them,
+     which is one finalise out of date; the hit path recomputes them from the
+     restored bags. Without this the first game of a given seat in a session
+     differs from every later one — same seat, same inputs, slightly different
+     trade split. */
+  mirrorPlayerToWorld(g);
+  syncNationsFromWorld(g);
+  refreshWorldTrade(g);
+  _openingWorldByRole[key] = {
+    econ: clone(g.econ),
+    log: clone(g.log),
+    world: cloneOpeningBags(g.world),
+  };
 }
 function newGame(opts?: any) {
   const o = opts || {};
@@ -8768,31 +9123,30 @@ function newGame(opts?: any) {
     },
     G.draft,
   );
-  initWorldState(G);
-  const openingTariffs = snapshotPartnerTariffs(G);
-  /* Settle logged partner tariffs without world bags / CU membership, so EU
-     members sat at their standalone MFN (1–3%) instead of the CET. Flatten
-     the pre-game series to the live opening rates — same treatment as FX. */
-  for (const row of G.log || []) {
-    row.partnerTariffs = clone(openingTariffs);
-  }
-  const openingTrade = snapshotPartnerTrade(G);
-  /* Same flatten as partnerTariffs: settle ran before world bags existed, so
-     inbound flows were missing. Stamp the live opening split on every
-     pre-game row so the Net trade partner series does not jump at Q1. */
-  for (const row of G.log || []) {
-    row.partnerTrade = clone(openingTrade);
-  }
-  /* Same flatten again, for the books. initWorldState -> replugWorldOpeningDeficits
-     has just re-zeroed every seat's opening deficit against live trade (see the
-     comment there), including this one; the settle rows were written before that,
-     so restate them or the finances chart steps at Q1. */
+  buildOpeningWorld(G);
+  /* The partnerTariffs and partnerTrade flattens that used to sit here are
+     gone. They existed because settle ran with no world bags — partner
+     schedules and inbound flows simply did not exist for those quarters, so
+     every pre-term row was stamped with the opening value to stop the series
+     jumping at Q1. jointOpeningRunIn now covers the whole visible history with
+     a live world, so those rows carry real per-quarter partner tariffs and
+     real bilateral flows; stamping over them was destroying genuine history
+     (partnerTrade held exactly one distinct value across all 48 rows).
+     The books flatten went with them for the same reason. What replaces it is
+     narrower: the finalise re-plugs otherRevAdj at term start, so rebase the
+     logged receipts onto that plug rather than overwrite them, keeping the
+     shape of the run-up while landing it on the opening books. */
   const openingBal = balanceOf(G.law, G.econ, G);
-  for (const row of G.log || []) {
-    row.balance = openingBal.balance;
-    row.rev = openingBal.rev.total;
-    row.revEff = openingBal.rev.total;
-    row.spendEff = openingBal.sp.prog + openingBal.sp.interest;
+  const lastBooks = G.log && G.log[G.log.length - 1];
+  if (lastBooks && lastBooks.rev > 0) {
+    const dRev = openingBal.rev.total - lastBooks.rev;
+    const dBal = openingBal.balance - lastBooks.balance;
+    for (const row of G.log || []) {
+      if (!row) continue;
+      if (row.rev != null) row.rev += dRev;
+      if (row.revEff != null) row.revEff += dRev;
+      if (row.balance != null) row.balance += dBal;
+    }
   }
   G.parties = seedParties(G.fac, G.law, G.homeRole);
   G.brief = openingBrief(pins, country);
@@ -10424,8 +10778,14 @@ function govDemandShares(law: any, econ: any) {
       (1 + access / 200) *
       relFac;
     if (e.clearedFlows && e.clearedFlows[p.id] != null) {
-      /* Phase cleared trade in over a year so Q1 does not jump when world bags wake. */ const blend =
-        g && g.q != null ? Math.min(1, Math.max(0, g.q) / 4) : 1;
+      /* Cleared flows are authoritative as soon as they exist. This used to
+         ramp in over q/4 "so Q1 does not jump when world bags wake" — the bags
+         were asleep through settle, so at term start the cleared split was
+         cold and the gravity term had to carry the first year. jointOpeningRunIn
+         wakes them before term start instead, and with converged flows already
+         on the books the ramp *causes* the jump it was added to prevent:
+         X opens at its cleared level, then q resetting to 0 hands the first
+         live quarter back to gravity, which wants a different number. */ const blend = 1;
       const clearedXi =
         e.clearedFlows[p.id] * (1 + pulse / 100) * (1 + access / 400) * relFac;
       Xi = gravityXi * (1 - blend) + clearedXi * blend;
@@ -10440,7 +10800,7 @@ function govDemandShares(law: any, econ: any) {
     e.worldY *
     Math.pow(compBase, ELAST_X) *
     (1 + worldPulse / 100);
-  const restBlend = g && g.q != null ? Math.min(1, Math.max(0, g.q) / 4) : 1;
+  const restBlend = 1;
   const restCleared =
     e.clearedFlows && e.clearedFlows.rest != null
       ? e.clearedFlows.rest * (1 + worldPulse / 100)
@@ -11265,11 +11625,11 @@ function govDemandShares(law: any, econ: any) {
   driftSeatParties(g);
   const appr = approvalOf(g.fac);
   const { gain, envoyUpkeep } = capitalRegenGain(g, law, appr);
-  g.capital = clamp(Math.round(g.capital) + gain - envoyUpkeep, 0, 100);
+  g.capital = clamp(Math.round(g.capital) + gain - envoyUpkeep, 0, CAPITAL_MAX);
   const ruleHit = fiscalRuleCapitalHit(law, deficit);
   if (ruleHit) {
     g.ruleBreaches++;
-    g.capital = clamp(g.capital - ruleHit, 0, 100);
+    g.capital = clamp(g.capital - ruleHit, 0, CAPITAL_MAX);
   }
   g.q++;
   processBlocInvites(g);
@@ -12926,7 +13286,7 @@ function capitalOutlook(cost?: number) {
   const whip = legislativeClauses().length ? whipSpendOf() : 0;
   const billOnly = cost - whip;
   const current = Math.round(G.capital);
-  const afterBill = clamp(current - cost, 0, 100);
+  const afterBill = clamp(current - cost, 0, CAPITAL_MAX);
   const books = balanceOf(G.draft, G.econ);
   const fiscalRuleHit = fiscalRuleCapitalHit(G.draft, -books.balance);
   return {
@@ -12939,7 +13299,11 @@ function capitalOutlook(cost?: number) {
     envoyCount,
     envoyUpkeep,
     fiscalRuleHit,
-    nextQuarter: clamp(afterBill + gain - envoyUpkeep - fiscalRuleHit, 0, 100),
+    nextQuarter: clamp(
+      afterBill + gain - envoyUpkeep - fiscalRuleHit,
+      0,
+      CAPITAL_MAX,
+    ),
     approval,
     breakeven,
   };
@@ -14055,7 +14419,7 @@ function applyEventOption(opt: any) {
   if (opt.fac) {
     for (const k in opt.fac) G.fac[k] = (G.fac[k] || 0) + opt.fac[k];
   }
-  if (opt.capital != null) G.capital = clamp(G.capital + opt.capital, 0, 100);
+  if (opt.capital != null) G.capital = clamp(G.capital + opt.capital, 0, CAPITAL_MAX);
   if (opt.shocks) {
     for (const s of opt.shocks) {
       const ch = s.channel;
@@ -19640,7 +20004,7 @@ function termReview() {
     G.termStartQ = G.q;
     G.setPiece8 = false;
     G.setPiece16 = false;
-    G.capital = clamp(G.capital + 22, 0, 100);
+    G.capital = clamp(G.capital + 22, 0, CAPITAL_MAX);
     const title = held
       ? "Confirmed on a technicality"
       : "Confirmed by the congress";
@@ -19703,7 +20067,7 @@ function termReview() {
   G.termStartQ = G.q;
   G.setPiece8 = false;
   G.setPiece16 = false;
-  G.capital = clamp(G.capital + 22, 0, 100);
+  G.capital = clamp(G.capital + 22, 0, CAPITAL_MAX);
   const held = lostPlurality;
   const mine = result && rulingId ? result.seats[rulingId as PartyId] || 0 : 0;
   let title, lede;
@@ -20818,6 +21182,7 @@ export {
   ENVOY_ASSIGN_PC,
   ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
+  CAPITAL_MAX,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
   ULTIMATUM_JITTER,

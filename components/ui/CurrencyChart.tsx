@@ -18,11 +18,14 @@ function currencyLineColor(i: number, n: number): string {
  *  indexing is the only way to show them on one chart; the underlying data
  *  (row.ccyRates) is real USD-denominated values, not an abstract index —
  *  the indexing is purely a display necessity for putting wildly different
- *  face values on one axis. Every currency sits flat through the
- *  settle-phase run-up before your appointment (only the home nation is
- *  actually simulated pre-game, so there is no genuine relative movement to
- *  show yet — see settleOpeningEcon()); real movement begins at term start,
- *  same as the pre-existing single-currency strength index already did. */
+ *  face values on one axis. The run-up before your appointment carries real
+ *  relative movement now that every seat is simulated together through it
+ *  (jointOpeningRunIn()), so the base has to be term start rather than the
+ *  oldest logged quarter: index off data[0] and the line reads 100 twelve
+ *  years ago and something else on the day you take office, which is neither
+ *  what the caption promises nor what a player wants to read. Anchoring on the
+ *  last pre-term row puts 100 where your term begins, history fanning out
+ *  behind it and your own record moving away from it. */
 export function CurrencyComparisonChart({
   G,
   anchorCcy,
@@ -32,11 +35,20 @@ export function CurrencyComparisonChart({
 }) {
   const others = CCY_CODES.filter((c) => c !== anchorCcy);
   const log = G.log || [];
+  /* Term start is the last pre-term row; before the first quarter is played
+     that is simply the newest row. */
+  let baseIdx = log.length - 1;
+  for (let i = log.length - 1; i >= 0; i--) {
+    if (log[i] && log[i].pre) {
+      baseIdx = i;
+      break;
+    }
+  }
   const series = others.map((ccy, i) => {
     const data = log.map((r: any) =>
       r.ccyRates ? r.ccyRates[anchorCcy] / r.ccyRates[ccy] : 1,
     );
-    const first = data[0] || 1;
+    const first = data[baseIdx] || data[0] || 1;
     return {
       label: ccy,
       color: currencyLineColor(i, others.length),

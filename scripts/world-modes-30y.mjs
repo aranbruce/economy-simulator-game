@@ -3,6 +3,32 @@
  *   all-ai    — every seat (including the home player) runs applyAiFiscalRule
  *   all-human — every seat keeps its opening statute frozen (no AI fiscal rule)
  *
+ * This is a diagnostic, not a gate: it always exits 0 and prints a shape to be
+ * read. Nothing here fails a build, and a number moving is not by itself a
+ * regression.
+ *
+ * How to read the two modes — they are not the same bar, and reading them as
+ * one is a mistake that has been made:
+ *
+ *   all-ai is the realistic one. Every seat has a fiscal authority responding
+ *   to its debt, which is what the game actually simulates. A seat drifting far
+ *   from its anchor here means the rule is failing to hold it: an alarm.
+ *
+ *   all-human is a wind tunnel, not a forecast. Freezing every statute for
+ *   thirty years is not a state any real game reaches — a human player
+ *   legislates, and in multiplayer applyAiFiscalRule is skipped for human seats
+ *   precisely because the player is the fiscal authority. The mode exists to
+ *   strip the stabiliser out so the macro core's own behaviour is visible;
+ *   with the rule on, a genuine model bug can hide behind it. A seat running to
+ *   the debt clamp here has shown it cannot carry its inheritance passively,
+ *   which is information about the seat, not a fault in the build. A small open
+ *   economy inside a currency union — no rate of its own, no devaluation — is
+ *   exactly the profile that cannot, and the United States has run to the clamp
+ *   here for as long as the mode has existed.
+ *
+ * The two are reported on separate lines for that reason. Compare against the
+ * same run on main before concluding anything from either.
+ *
  * Usage: node scripts/world-modes-30y.mjs
  */
 import {
@@ -196,10 +222,22 @@ function realismNotes(allAi, allHuman) {
     ` • Deep creditors (debt < −30%): all-AI ${creditorAi.map((r) => r.id).join(", ") || "none"}; all-human ${creditorHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 
+  /* Debt far above anchor means different things in the two modes, so report
+     them differently. In all-AI the debt rule is running and failing to hold
+     the seat, which is an alarm. In all-human nothing is steering at all —
+     the mode freezes every statute for thirty years — so a seat running to the
+     clamp has only shown it cannot carry its inheritance passively. That is
+     worth knowing (a small open economy inside a currency union, with no rate
+     and no devaluation of its own, is exactly the profile that cannot), but it
+     is information rather than a fault: reported plainly, and named as such,
+     so it is not read as the same signal as the all-AI list. */
   const blowAi = allAi.filter((r) => r.debt > (r.anchor || 80) + 60);
   const blowHu = allHuman.filter((r) => r.debt > (r.anchor || 80) + 60);
   console.log(
-    ` • Debt > anchor+60: all-AI ${blowAi.map((r) => r.id).join(", ") || "none"}; all-human ${blowHu.map((r) => r.id).join(", ") || "none"}.`,
+    ` • Debt > anchor+60 with the fiscal rule running: ${blowAi.map((r) => r.id).join(", ") || "none"}.`,
+  );
+  console.log(
+    ` • Cannot survive passivity (frozen 30y, no fiscal response): ${blowHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 }
 

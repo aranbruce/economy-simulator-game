@@ -716,11 +716,27 @@ For a major world episode, set `major: true`, `duration`, `endTitle` /
 
 ## Testing
 
-`pnpm test` runs `test/sim.js` then `test/calibration.js`. Both import the
-modular engine from `lib/sim/` directly (no DOM harness, no `index.html`
-extract). Despatches and events are exercised through engine exports
-(`autoDespatch`, `disableEvents` / `enableEvents`, and friends) so headless
-runs can advance quarters without clicks.
+**Two kinds of check, and they are read differently.** `pnpm test` is the
+gate: `test/sim.js`, `test/calibration.js`, `test/mp-room.js`,
+`test/sp-save.js`, `test/scrollDrawerPartner.js`, in that order, stopping at
+the first failure. A non-zero exit is a broken build. Everything under
+`scripts/` — `pnpm balance`, `pnpm world-modes`, `pnpm growth-diag` — is a
+diagnostic: it always exits 0 and prints a shape to be interpreted against the
+same run on `main`. A number moving there is not by itself a regression, and
+treating a diagnostic as a gate wastes a lot of time (see the note on
+`world-modes` below, which cost exactly that).
+
+The gates import the modular engine from `lib/sim/` directly (no DOM harness,
+no `index.html` extract). Despatches and events are exercised through engine
+exports (`autoDespatch`, `disableEvents` / `enableEvents`, and friends) so
+headless runs can advance quarters without clicks.
+
+What each gate covers: `sim.js` is the broad smoke suite — opening books,
+projection purity, deterministic `step`, every event option, the structural
+invariants listed above. `calibration.js` is ready-reckoner bands.
+`mp-room.js` is lockstep multiplayer — the capital and chamber gates, per-seat
+politics, diplo actions, snapshot round trips. `sp-save.js` is the solo
+localStorage resume. `scrollDrawerPartner.js` is one UI helper.
 
 Verdicts are deliberately **not** auto-clicked: that would call `newGame()`
 and wipe the run under test. Balance A/B tests should keep events off, because
@@ -730,8 +746,24 @@ Read the smoke and calibration output after any model change. Calibration fails
 the build if ready-reckoners drift beyond band.
 
 For a fuller long-run check, run `pnpm balance` (`scripts/balance-30y.mjs`):
-ten playstyles over 120 quarters (30 years). For all-AI vs all-human world
-modes, run `pnpm world-modes`.
+ten playstyles over 120 quarters (30 years). Read the grade spread and the
+verdict lines, not the individual figures — competent play should grade well
+and reckless play should fail.
+
+`pnpm world-modes` runs the world twice, and **its two modes are not the same
+bar**. `all-ai` gives every seat a fiscal authority responding to its debt,
+which is what the game actually simulates; a seat drifting far from its anchor
+there means the rule is failing to hold it, and that is an alarm. `all-human`
+freezes every statute for thirty years, which is not a state any real game
+reaches — a human legislates, and `resolveLockstepQuarter` skips
+`applyAiFiscalRule` for human seats precisely because the player *is* the
+fiscal authority. That mode is a wind tunnel: it strips the stabiliser out so
+the macro core's own behaviour is visible, since with the rule on a genuine
+model bug can hide behind it. A seat running to the debt clamp there has shown
+only that it cannot carry its inheritance passively — information about the
+seat, not a fault. The United States has done it for as long as the mode has
+existed. The output reports the two on separate lines for this reason; do not
+collapse them back into one.
 
 **`pnpm growth-diag` (`scripts/growth-diag.mjs`) is the tool for anything that
 looks like runaway or collapsing growth.** It walks the default law 700

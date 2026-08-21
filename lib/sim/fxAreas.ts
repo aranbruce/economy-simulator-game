@@ -16,6 +16,10 @@ const FX_UIP = 0.03;
 const FX_RISK = 0.055;
 const FX_ADJ = 0.38;
 const FX_CA = 0.15; // fractional appreciation per point of net-exports/potential
+/* Per-quarter crawl of a member's weight in its currency area toward live size.
+   0.03 is a half-life near 23 quarters — the ~5-year cadence the ECB revises
+   its capital key on, without that revision landing as a step change. */
+const CCY_WEIGHT_ADJ = 0.03;
 const WORLD_RATE_USD = 2.6; // fallback proxy only if no USD-area seat is present
 
 /** Group seat ids by ISO currency code. */
@@ -68,14 +72,27 @@ export function stepCurrencyAreas(
           ? o.playerEcon
           : bags[id] && bags[id].econ;
       if (!econ) continue;
-      /* Weight the area aggregate by economy size, not by seat count. A union's
-         central bank reads area-wide inflation and slack, in which the largest
-         member dominates; a headcount average gave the Netherlands the same say
-         as Germany and set a rate no large member's economy called for. Opening
-         GDP is the weight — a live one would let a member that is spiralling
-         progressively lose the vote that would correct it. */
+      /* Weight the area aggregate by economy size, not by seat count: a union's
+         bank reads area-wide inflation and slack, in which the largest member
+         dominates, and a headcount average gave the Netherlands the same say as
+         Germany.
+         The weight tracks live size, but slowly — the ECB's own capital key is
+         revised about every five years off multi-year averages, and the pace is
+         load-bearing here in both directions. Frozen at opening GDP it goes
+         badly stale: over thirty years the Netherlands' real share of the euro
+         area halves, from 9.1% to 5.0%, while it keeps a 9.1% vote. Marked to
+         market every quarter it becomes a feedback loop, a member sliding into
+         deflation losing the very vote that would pull the rate down for it.
+         Crawling at CCY_WEIGHT_ADJ tracks the drift while leaving any
+         correction far more time to act than the slide takes.
+         Read off potential rather than output so a recession does not cost a
+         member its say for the length of the recession. */
       const p = PROFILES[id];
-      const w = p && p.gdp0 > 0 ? p.gdp0 : 1;
+      const base = p && p.gdp0 > 0 ? p.gdp0 : 1;
+      const sizeNow = base * ((econ.potential || 100) / 100);
+      if (!(econ.ccyWeight > 0)) econ.ccyWeight = base;
+      econ.ccyWeight += (sizeNow - econ.ccyWeight) * CCY_WEIGHT_ADJ;
+      const w = econ.ccyWeight;
       infl += (econ.inflation != null ? econ.inflation : PI_TARGET) * w;
       const pot = econ.potential || 100;
       const gdp = econ.gdp != null ? econ.gdp : 100;
@@ -200,7 +217,14 @@ export function stepCurrencyAreas(
     /* Player keeps their own UIP in step(); mirror area FX onto AI seats only. */ if (
       id !== o.playerId
     ) {
-      econ.fx += (fxT - econ.fx) * FX_ADJ;
+      /* Members of a shared currency hold one exchange rate, taken verbatim,
+         for the same reason they hold one policy rate. Crawling FX_ADJ toward
+         the area value left each member's own UIP — which its step() runs
+         before this pass — to pull it back out again, so euro seats sat
+         permanently apart on a rate that by definition cannot differ between
+         them. A single-currency seat still crawls: that path is its own UIP
+         and there is no area value to defer to. */
+      econ.fx = areas[ccy].length > 1 ? fxT : econ.fx + (fxT - econ.fx) * FX_ADJ;
     }
   }
 
