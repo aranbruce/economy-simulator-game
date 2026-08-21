@@ -64,6 +64,7 @@ import {
   ENVOY_ASSIGN_PC,
   ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
+  CAPITAL_MAX,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
   ULTIMATUM_WAIT,
@@ -1938,7 +1939,7 @@ function assignEnvoy(partnerId: any) {
   if ((g.capital || 0) < ENVOY_ASSIGN_PC) return false;
   const slot = g.envoys.indexOf(null);
   if (slot < 0) return false;
-  g.capital = clamp(g.capital - ENVOY_ASSIGN_PC, 0, 100);
+  g.capital = clamp(g.capital - ENVOY_ASSIGN_PC, 0, CAPITAL_MAX);
   g.envoys[slot] = partnerId;
   if (!g.envoySpend) g.envoySpend = {};
   g.envoySpend[partnerId] = ENVOY_ASSIGN_PC;
@@ -1954,12 +1955,12 @@ function recallEnvoy(partnerId: any) {
   if (i < 0) return true;
   if (ENVOY_RECALL_PC > 0) {
     if ((g.capital || 0) < ENVOY_RECALL_PC) return false;
-    g.capital = clamp(g.capital - ENVOY_RECALL_PC, 0, 100);
+    g.capital = clamp(g.capital - ENVOY_RECALL_PC, 0, CAPITAL_MAX);
   }
   g.envoys[i] = null;
   /* Same-quarter assign can be undone — refund the capital that was spent. */
   if (g.envoySpend && g.envoySpend[partnerId]) {
-    g.capital = clamp((g.capital || 0) + g.envoySpend[partnerId], 0, 100);
+    g.capital = clamp((g.capital || 0) + g.envoySpend[partnerId], 0, CAPITAL_MAX);
     delete g.envoySpend[partnerId];
   }
   return true;
@@ -2310,7 +2311,7 @@ function issueUltimatum(partnerId: any, demandId: any) {
       }
     : demands[0];
   if (!pick) return false;
-  g.capital = clamp(g.capital - ULTIMATUM_PC, 0, 100);
+  g.capital = clamp(g.capital - ULTIMATUM_PC, 0, CAPITAL_MAX);
   if (!g.ultimatums) g.ultimatums = {};
   const awaitHuman = isHumanMpSeat(g, partnerId);
   g.ultimatums[partnerId] = {
@@ -2365,7 +2366,7 @@ function withdrawUltimatum(partnerId: any) {
   /* Idempotent: already gone is the desired state. */
   if (!existing || existing.status !== "pending") return true;
   if (ultimatumSentQ(g, existing) !== (g.q || 0)) return false;
-  g.capital = clamp((g.capital || 0) + ULTIMATUM_PC, 0, 100);
+  g.capital = clamp((g.capital || 0) + ULTIMATUM_PC, 0, CAPITAL_MAX);
   if (g.fac) {
     g.fac.patriots = clamp((g.fac.patriots || 50) - 3, 2, 96);
     g.fac.business = clamp((g.fac.business || 50) + 2, 2, 96);
@@ -2621,7 +2622,7 @@ function applyMpInboundBlocInviteChoice(g: any, seatId: any, accept: any) {
         getG().fac.patriots = clamp((getG().fac.patriots || 50) + 3, 2, 96);
         getG().fac.business = clamp((getG().fac.business || 50) - 2, 2, 96);
       }
-      getG().capital = clamp((getG().capital || 0) - 2, 0, 100);
+      getG().capital = clamp((getG().capital || 0) - 2, 0, CAPITAL_MAX);
       if (fromId && getG().rel) {
         getG().rel[fromId] = clamp(
           (getG().rel[fromId] != null ? getG().rel[fromId] : 50) - 2,
@@ -2957,7 +2958,7 @@ function applyMissionEventOption(opt: any, ctx: any) {
     g.econ.relImpulse[partnerId] =
       (g.econ.relImpulse[partnerId] || 0) + opt.relImpulse;
   }
-  if (opt.capital) g.capital = clamp(g.capital + opt.capital, 0, 100);
+  if (opt.capital) g.capital = clamp(g.capital + opt.capital, 0, CAPITAL_MAX);
   if (opt.ledger && partnerId) {
     addDiploLedger(g, partnerId, {
       id:
@@ -6874,7 +6875,7 @@ function enactHumanSeatOnSnapshot(
     /* totalCost = bill + diplo delta vs politics. Live diplo commits already
          charged capital / ledger, so identical pending envoys/ultimatums cost 0. */
     const spend = check.totalCost != null ? check.totalCost : check.cost;
-    pol.capital = clamp(pol.capital - spend, 0, 100);
+    pol.capital = clamp(pol.capital - spend, 0, CAPITAL_MAX);
     g.capital = pol.capital;
     syncServiceHolds(g.draft, seat.econ);
     seat.prevLaw = clone(seat.law);
@@ -8463,6 +8464,24 @@ function jointOpeningRunIn(g: any, quarters: number) {
     "episode",
     "nextMajorQ",
   ];
+  /* Supply-side stocks the per-role settle already converged. The run-in is
+     for world-dependent state — trade, currency areas, partner tariffs — not
+     for re-accumulating capital, and it actively corrodes these: each quarter
+     renormaliseOpeningLevel rescales K/KG to hold output at 100, so a seat
+     that wants to grow has its stocks shaved a little every quarter. Over 32
+     quarters that compounds (K -6.5%, KG -12.9%), and since trend reads
+     gK = (I - dK)/K, a stock shrunk against unchanged investment lifts
+     measured trend permanently — +0.24pp at open, and the whole world hot for
+     thirty years after. Carry them across the run-in untouched. */
+  const SUPPLY_STOCK_KEYS = ["K", "KG", "R", "hCap"];
+  const stocksAtOpen: Record<string, Record<string, any>> = {};
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (!bag || !bag.econ) continue;
+    const keep: Record<string, any> = {};
+    for (const k of SUPPLY_STOCK_KEYS) keep[k] = bag.econ[k];
+    stocksAtOpen[id] = keep;
+  }
   const stateAtOpen: Record<string, any> = {};
   for (const k of OPENING_STATE_KEYS) {
     stateAtOpen[k] = g[k] === undefined ? undefined : clone(g[k]);
@@ -8527,6 +8546,14 @@ function jointOpeningRunIn(g: any, quarters: number) {
     const bag = g.world[id];
     const pin = pinsById[id];
     if (!bag || !bag.econ || !bag.law || !pin) continue;
+    /* Restore the settled supply stocks before finalising, so trend is
+       recomputed off them rather than off the run-in's eroded copies. */
+    const keep = stocksAtOpen[id];
+    if (keep) {
+      for (const k of SUPPLY_STOCK_KEYS) {
+        if (keep[k] !== undefined) bag.econ[k] = keep[k];
+      }
+    }
     /* Snap the tapered headlines back to the published figures before
        finalising off them. */
     pinOpeningHeadlines(bag.econ, bag.law, pin, statuteById[id], {
@@ -11511,11 +11538,11 @@ function govDemandShares(law: any, econ: any) {
   driftSeatParties(g);
   const appr = approvalOf(g.fac);
   const { gain, envoyUpkeep } = capitalRegenGain(g, law, appr);
-  g.capital = clamp(Math.round(g.capital) + gain - envoyUpkeep, 0, 100);
+  g.capital = clamp(Math.round(g.capital) + gain - envoyUpkeep, 0, CAPITAL_MAX);
   const ruleHit = fiscalRuleCapitalHit(law, deficit);
   if (ruleHit) {
     g.ruleBreaches++;
-    g.capital = clamp(g.capital - ruleHit, 0, 100);
+    g.capital = clamp(g.capital - ruleHit, 0, CAPITAL_MAX);
   }
   g.q++;
   processBlocInvites(g);
@@ -13172,7 +13199,7 @@ function capitalOutlook(cost?: number) {
   const whip = legislativeClauses().length ? whipSpendOf() : 0;
   const billOnly = cost - whip;
   const current = Math.round(G.capital);
-  const afterBill = clamp(current - cost, 0, 100);
+  const afterBill = clamp(current - cost, 0, CAPITAL_MAX);
   const books = balanceOf(G.draft, G.econ);
   const fiscalRuleHit = fiscalRuleCapitalHit(G.draft, -books.balance);
   return {
@@ -13185,7 +13212,11 @@ function capitalOutlook(cost?: number) {
     envoyCount,
     envoyUpkeep,
     fiscalRuleHit,
-    nextQuarter: clamp(afterBill + gain - envoyUpkeep - fiscalRuleHit, 0, 100),
+    nextQuarter: clamp(
+      afterBill + gain - envoyUpkeep - fiscalRuleHit,
+      0,
+      CAPITAL_MAX,
+    ),
     approval,
     breakeven,
   };
@@ -14301,7 +14332,7 @@ function applyEventOption(opt: any) {
   if (opt.fac) {
     for (const k in opt.fac) G.fac[k] = (G.fac[k] || 0) + opt.fac[k];
   }
-  if (opt.capital != null) G.capital = clamp(G.capital + opt.capital, 0, 100);
+  if (opt.capital != null) G.capital = clamp(G.capital + opt.capital, 0, CAPITAL_MAX);
   if (opt.shocks) {
     for (const s of opt.shocks) {
       const ch = s.channel;
@@ -19886,7 +19917,7 @@ function termReview() {
     G.termStartQ = G.q;
     G.setPiece8 = false;
     G.setPiece16 = false;
-    G.capital = clamp(G.capital + 22, 0, 100);
+    G.capital = clamp(G.capital + 22, 0, CAPITAL_MAX);
     const title = held
       ? "Confirmed on a technicality"
       : "Confirmed by the congress";
@@ -19949,7 +19980,7 @@ function termReview() {
   G.termStartQ = G.q;
   G.setPiece8 = false;
   G.setPiece16 = false;
-  G.capital = clamp(G.capital + 22, 0, 100);
+  G.capital = clamp(G.capital + 22, 0, CAPITAL_MAX);
   const held = lostPlurality;
   const mine = result && rulingId ? result.seats[rulingId as PartyId] || 0 : 0;
   let title, lede;
@@ -21064,6 +21095,7 @@ export {
   ENVOY_ASSIGN_PC,
   ENVOY_UPKEEP_PC,
   ENVOY_RECALL_PC,
+  CAPITAL_MAX,
   ULTIMATUM_PC,
   ULTIMATUM_CD,
   ULTIMATUM_JITTER,
