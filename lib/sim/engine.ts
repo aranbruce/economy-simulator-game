@@ -5838,6 +5838,66 @@ function syncMpPoliticsFromG(pol: any) {
   if (pol.country == null && g.country) pol.country = g.country;
   syncDiploPoliticsFromGame(pol, g);
 }
+/* Every top-level field a seat mount overwrites — what mountMpSeatOnSnapshot
+   assigns, plus the five mountDiploOntoGame sets through it. Mounting a seat
+   swaps all of this onto the shared game object, so anything restoring
+   afterwards has to put all of it back. That used to be two hand-written
+   save/restore lists, of 18 and 15 fields against the 25+ actually written, so
+   a mount leaked the remainder into whichever seat was mounted before it — the
+   same class of defect as the isPlayer flag, and the reason to have one list.
+   `saveSeatMount`/`restoreSeatMount` are the only sanctioned way to bracket a
+   mount; test/sim.js proxies a mount and fails if anything written is missing
+   here, so the list cannot drift from the code again. */
+const SEAT_MOUNT_FIELDS = [
+  "homeRole",
+  "econ",
+  "law",
+  "prevLaw",
+  "draft",
+  "fac",
+  "parties",
+  "rel",
+  "capital",
+  "mods",
+  "sandbox",
+  "rateManual",
+  "manualRate",
+  "lastEventQ",
+  "lastEventId",
+  "setPiece8",
+  "setPiece16",
+  "nextMajorQ",
+  "episode",
+  "polityShift",
+  "lowRun",
+  "over",
+  "country",
+  "blocAccession",
+  "log",
+  "envoys",
+  "ultimatums",
+  "activeVisits",
+  "missionEvents",
+  "diploAlerts",
+  "envoySpend",
+];
+/* Written by a mount but deliberately *not* restored by it. `politics` is the
+   room-wide map of every seat's politics: the mount only creates it when
+   absent, and enact writes each seat's results into it on purpose, so putting
+   the old value back would either be a no-op (same object, mutated in place)
+   or would throw away the map the mount just created. Kept as its own list,
+   and asserted, so "shared on purpose" stays distinguishable from "forgot to
+   save it" — which is the distinction the isPlayer bug turned on. */
+const SEAT_MOUNT_SHARED = ["politics"];
+function saveSeatMount(g: any) {
+  const saved: Record<string, any> = {};
+  for (const k of SEAT_MOUNT_FIELDS) saved[k] = g[k];
+  return saved;
+}
+function restoreSeatMount(g: any, saved: Record<string, any>) {
+  if (!g || !saved) return;
+  for (const k of SEAT_MOUNT_FIELDS) g[k] = saved[k];
+}
 function mountMpSeatOnSnapshot(g: any, seatId: any) {
   const seat = g.world[seatId];
   if (!seat) return null;
@@ -5902,26 +5962,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
     return { ok: false, error: "Missing seat politics" };
   }
   const prev = getG();
-  const saved = {
-    homeRole: g.homeRole,
-    econ: g.econ,
-    law: g.law,
-    draft: g.draft,
-    prevLaw: g.prevLaw,
-    capital: g.capital,
-    fac: g.fac,
-    rel: g.rel,
-    country: g.country,
-    envoys: g.envoys,
-    ultimatums: g.ultimatums,
-    activeVisits: g.activeVisits,
-    missionEvents: g.missionEvents,
-    diploAlerts: g.diploAlerts,
-    mods: g.mods,
-    sandbox: g.sandbox,
-    rateManual: g.rateManual,
-    manualRate: g.manualRate,
-  };
+  const saved = saveSeatMount(g);
   try {
     setG(g);
     const pol = mountMpSeatOnSnapshot(g, seatId);
@@ -5975,24 +6016,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
       blocAccessionCleared: action === "withdrawBlocAccession",
     };
   } finally {
-    g.homeRole = saved.homeRole;
-    g.econ = saved.econ;
-    g.law = saved.law;
-    g.draft = saved.draft;
-    g.prevLaw = saved.prevLaw;
-    g.capital = saved.capital;
-    g.fac = saved.fac;
-    g.rel = saved.rel;
-    g.country = saved.country;
-    g.envoys = saved.envoys;
-    g.ultimatums = saved.ultimatums;
-    g.activeVisits = saved.activeVisits;
-    g.missionEvents = saved.missionEvents;
-    g.diploAlerts = saved.diploAlerts;
-    g.mods = saved.mods;
-    g.sandbox = saved.sandbox;
-    g.rateManual = saved.rateManual;
-    g.manualRate = saved.manualRate;
+    restoreSeatMount(g, saved);
     setG(prev);
   }
 }
@@ -6780,23 +6804,7 @@ function enactHumanSeatOnSnapshot(
   const draftCopy = clone(draft);
   const prevUlt = clone(pol.ultimatums || {});
   const prev = getG();
-  const saved = {
-    homeRole: g.homeRole,
-    econ: g.econ,
-    law: g.law,
-    draft: g.draft,
-    prevLaw: g.prevLaw,
-    capital: g.capital,
-    fac: g.fac,
-    parties: g.parties,
-    rel: g.rel,
-    country: g.country,
-    envoys: g.envoys,
-    ultimatums: g.ultimatums,
-    activeVisits: g.activeVisits,
-    missionEvents: g.missionEvents,
-    diploAlerts: g.diploAlerts,
-  };
+  const saved = saveSeatMount(g);
   try {
     setG(g);
     g.homeRole = role;
@@ -6916,21 +6924,7 @@ function enactHumanSeatOnSnapshot(
       totalCost: spend,
     };
   } finally {
-    g.homeRole = saved.homeRole;
-    g.econ = saved.econ;
-    g.law = saved.law;
-    g.draft = saved.draft;
-    g.prevLaw = saved.prevLaw;
-    g.capital = saved.capital;
-    g.fac = saved.fac;
-    g.parties = saved.parties;
-    g.rel = saved.rel;
-    g.country = saved.country;
-    g.envoys = saved.envoys;
-    g.ultimatums = saved.ultimatums;
-    g.activeVisits = saved.activeVisits;
-    g.missionEvents = saved.missionEvents;
-    g.diploAlerts = saved.diploAlerts;
+    restoreSeatMount(g, saved);
     setG(prev);
   }
 }
@@ -21032,6 +21026,9 @@ export {
   FAC_0,
   MUTABLE,
   SIMULATE_OMITS,
+  SEAT_MOUNT_FIELDS,
+  SEAT_MOUNT_SHARED,
+  mountMpSeatOnSnapshot,
   IMPACT_ROWS,
   IMP_NAMES,
   clamp,
