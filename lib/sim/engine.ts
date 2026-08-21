@@ -8626,6 +8626,45 @@ function jointOpeningRunIn(g: any, quarters: number) {
      per-currency factor that carries its final value onto the opening rate:
      relative movement within the run-up is preserved, and the history now
      leads into term start instead of jumping at it. */
+  /* Rebuild the logged *level* series from the growth the model actually
+     produced. renormaliseOpeningLevel re-indexes every seat to 100 each
+     quarter — load-bearing, since the stocks are measured against that index
+     and letting it drift blows the trend bands — so row.gdp recorded the
+     within-quarter overshoot off a base that had just been reset, not a path.
+     The log ended up asserting both ~3.3%/yr of growth and a level that never
+     left 100, and the two charts reading those disagreed: output sat *above*
+     its own term-start index for the whole run-up and fell to it on the last
+     point, while cash GDP rose into the same point. Neither move was economics.
+     The growth rate is the real output here, so integrate it: chain the
+     quarterly rates into a level, normalise so term start is exactly 100, and
+     carry each row's own output gap across as a ratio. History now climbs
+     toward 100 from below when the economy grew into your term, which is what
+     the caption has always claimed. */
+  const rows: any[] = (g.log || []).filter(Boolean);
+  if (rows.length) {
+    const levels: number[] = [];
+    let lvl = 1;
+    for (const r of rows as any[]) {
+      lvl *= 1 + (r.growth || 0) / 400;
+      levels.push(lvl);
+    }
+    const endLvl = levels[levels.length - 1] || 1;
+    rows.forEach((r: any, i: number) => {
+      const gapRatio =
+        r.gdp > 0 && r.potential > 0 ? r.potential / r.gdp : 1;
+      r.gdp = (100 * levels[i]) / endLvl;
+      r.potential = r.gdp * gapRatio;
+    });
+    /* Same rebase for the currency-strength index: fx0 was re-pinned to the
+       final fx, so the rows carry an index against a baseline that no longer
+       exists and the last point jumps to 100. */
+    const fxEnd = rows[rows.length - 1].fx;
+    if (fxEnd > 0) {
+      for (const r of rows) {
+        if (r.fx != null) r.fx = (100 * r.fx) / fxEnd;
+      }
+    }
+  }
   const lastRow = g.log[g.log.length - 1];
   const openRates = snapshotCurrencyRates(g);
   if (lastRow && lastRow.ccyRates) {
