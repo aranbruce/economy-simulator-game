@@ -8407,7 +8407,7 @@ function finaliseOpeningEcon(
    after-the-fact patch, which is the sign the run-up had outgrown running one
    seat at a time. Twelve quarters lets the cleared-trade blend (q/4) reach full
    weight and the area rates settle, while staying short enough that the pins
-   hold the published opening exactly. */ const JOINT_RUN_IN_QUARTERS = 32;
+   hold the published opening exactly. */ const JOINT_RUN_IN_QUARTERS = 48;
 
 /** Advance every seat together, headlines pinned each quarter and every seat
  *  finalised back onto its published opening at the end, so world-dependent
@@ -8568,9 +8568,17 @@ function jointOpeningRunIn(g: any, quarters: number) {
     }
     /* Snap the tapered headlines back to the published figures before
        finalising off them. */
-    pinOpeningHeadlines(bag.econ, bag.law, pin, statuteById[id], {
-      freeRate: bag.role !== "home",
-    });
+    const freeRate = bag.role !== "home";
+    pinOpeningHeadlines(bag.econ, bag.law, pin, statuteById[id], { freeRate });
+    /* A free-rate seat's policy rate has to answer to the inflation just
+       pinned, not to the drifted path the taper let it follow — the same
+       correction the area pass below makes for union members, which a seat
+       with its own currency never reaches. settleOpeningEcon runs exactly this
+       after its own loop for the same reason; without it Nigeria opened at
+       7.91 against a profile inflation calling for over 8. Union members are
+       overwritten by the area rate a few lines down, which is the intended
+       precedence. */
+    if (freeRate) applySettleTaylor(bag.econ, pin);
     finaliseOpeningEcon(bag.econ, bag.law, pin, bag.role, seatCtx(bag));
     /* Term starts at currency strength 100 for every seat, as after settle. */
     bag.econ.fx0 = bag.econ.fx;
@@ -9067,30 +9075,29 @@ function newGame(opts?: any) {
     G.draft,
   );
   buildOpeningWorld(G);
-  const openingTariffs = snapshotPartnerTariffs(G);
-  /* Settle logged partner tariffs without world bags / CU membership, so EU
-     members sat at their standalone MFN (1–3%) instead of the CET. Flatten
-     the pre-game series to the live opening rates — same treatment as FX. */
-  for (const row of G.log || []) {
-    row.partnerTariffs = clone(openingTariffs);
-  }
-  const openingTrade = snapshotPartnerTrade(G);
-  /* Same flatten as partnerTariffs: settle ran before world bags existed, so
-     inbound flows were missing. Stamp the live opening split on every
-     pre-game row so the Net trade partner series does not jump at Q1. */
-  for (const row of G.log || []) {
-    row.partnerTrade = clone(openingTrade);
-  }
-  /* Same flatten again, for the books. initWorldState -> replugWorldOpeningDeficits
-     has just re-zeroed every seat's opening deficit against live trade (see the
-     comment there), including this one; the settle rows were written before that,
-     so restate them or the finances chart steps at Q1. */
+  /* The partnerTariffs and partnerTrade flattens that used to sit here are
+     gone. They existed because settle ran with no world bags — partner
+     schedules and inbound flows simply did not exist for those quarters, so
+     every pre-term row was stamped with the opening value to stop the series
+     jumping at Q1. jointOpeningRunIn now covers the whole visible history with
+     a live world, so those rows carry real per-quarter partner tariffs and
+     real bilateral flows; stamping over them was destroying genuine history
+     (partnerTrade held exactly one distinct value across all 48 rows).
+     The books flatten went with them for the same reason. What replaces it is
+     narrower: the finalise re-plugs otherRevAdj at term start, so rebase the
+     logged receipts onto that plug rather than overwrite them, keeping the
+     shape of the run-up while landing it on the opening books. */
   const openingBal = balanceOf(G.law, G.econ, G);
-  for (const row of G.log || []) {
-    row.balance = openingBal.balance;
-    row.rev = openingBal.rev.total;
-    row.revEff = openingBal.rev.total;
-    row.spendEff = openingBal.sp.prog + openingBal.sp.interest;
+  const lastBooks = G.log && G.log[G.log.length - 1];
+  if (lastBooks && lastBooks.rev > 0) {
+    const dRev = openingBal.rev.total - lastBooks.rev;
+    const dBal = openingBal.balance - lastBooks.balance;
+    for (const row of G.log || []) {
+      if (!row) continue;
+      if (row.rev != null) row.rev += dRev;
+      if (row.revEff != null) row.revEff += dRev;
+      if (row.balance != null) row.balance += dBal;
+    }
   }
   G.parties = seedParties(G.fac, G.law, G.homeRole);
   G.brief = openingBrief(pins, country);
