@@ -4982,13 +4982,19 @@ function mirrorPlayerToWorld(g: any) {
   /* Preserve per-seat quarter series — lockstep and solo both push onto g.log,
      and MP hydrate reads bag.log for the top bar. Replacing the bag wholesale
      used to orphan the series and leave guests on the host's log. */
+  /* No `isPlayer` flag. The mounted seat's bag aliases g.econ/g.law by
+     reference, so "am I the player" is answerable from g.homeRole whenever it
+     is actually needed (isPlayerSeat) and the bag is correct either way. As a
+     stored boolean it had to be re-synced on every mount, and this function is
+     called from ~30 mount sites that each swap a seat onto the global: it set
+     the flag on whichever seat it mounted and never cleared the last one, so
+     every human seat in a lockstep ended up claiming to be the player. */
   g.world[playerId] = {
     econ: g.econ,
     law: g.law,
     prevLaw: g.prevLaw || g.law,
     id: playerId,
     role: g.homeRole || "home",
-    isPlayer: true,
     log: Array.isArray(g.log) ? g.log : prev && prev.log,
   };
 }
@@ -5243,16 +5249,22 @@ function syncNationsIntoEcon(
     ensureNationFx(e.nations[id]);
   }
 }
+/* Both read the seat's own bag unconditionally. refreshWorldTrade — the only
+   caller, via seatsFromWorld — runs mirrorPlayerToWorld first, which aliases
+   the mounted player's bag onto g.econ/g.law, so the bag *is* the live object
+   for the player and every other seat alike. The branch these used to carry
+   (`bag.isPlayer ? g.law : bag.law`) could only ever differ from this when the
+   flag was stale, which is exactly when it was wrong. */
 function pairTariff(exporterId: any, partnerId: any, g: any) {
   const bag = g.world && g.world[exporterId];
-  const law = bag && bag.isPlayer ? g.law : bag && bag.law;
+  const law = bag && bag.law;
   const role = worldRoleForSeat(exporterId);
   if (!law) return BASE_TARIFF;
   return effectiveTariff(partnerId, law, role, g.blocMember);
 }
 function pairAccess(exporterId: any, partnerId: any, g: any) {
   const bag = g.world && g.world[exporterId];
-  const econ = bag && bag.isPlayer ? g.econ : bag && bag.econ;
+  const econ = bag && bag.econ;
   if (!econ || !econ.partnerAccessEff) return 0;
   return econ.partnerAccessEff[partnerId] || 0;
 }
@@ -5593,21 +5605,6 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
       if (Array.isArray(g.world[leadId].log)) g.log = g.world[leadId].log;
     }
     setG(g);
-    /* Drop every seat's player alias *before* the trade clear, not after it.
-       enactHumanSeatOnSnapshot mounts each human in turn and mirrors it into
-       the world, and mirrorPlayerToWorld only ever sets `isPlayer` on the seat
-       it mounts — it never clears the previous one. So by the time we get here
-       every human seat carries the flag, and pairTariff/pairAccess read
-       `bag.isPlayer ? g.law : bag.law`: every human's schedule resolved to the
-       lead's law. In a 2+ human room that silently threw away all but one
-       player's tariffs — a 25% wall by the guest cleared as if it were the
-       host's 3% default. The flags were already being cleared, but twenty
-       lines below this, which is after refreshWorldTrade has read them. */
-    if (g.world) {
-      for (const id of Object.keys(g.world)) {
-        if (g.world[id]) g.world[id].isPlayer = false;
-      }
-    }
     mirrorPlayerToWorld(g);
     refreshWorldTrade(g);
     g.q = (g.q || 0) + 1;
@@ -5628,13 +5625,6 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
     g.envoysBaselineQ = null;
     syncNationsFromWorld(g, true);
     if (g.world) {
-      /* Second pass: the pre-clear above is what the trade clear needs, but
-         mirrorPlayerToWorld has re-flagged the lead since. Leave the snapshot
-         with no seat claiming to be the player, so the next resolve — or a
-         client hydrating this snapshot as a different seat — starts clean. */
-      for (const id of Object.keys(g.world)) {
-        if (g.world[id]) g.world[id].isPlayer = false;
-      }
       /* Re-assert human logs after mirror/trade (mirror preserves, belt-and-braces). */
       for (const id of humans) {
         const seat = g.world[id];
@@ -7058,12 +7048,12 @@ function exportGameSnapshot(g: any, opts?: any) {
     snap.missionEvents = [];
     snap.diploAlerts = [];
   }
-  /* Detach player aliases into plain bags. */
+  /* Detach player aliases into plain bags. (Nothing to un-flag: seats no
+     longer store an isPlayer boolean — see mirrorPlayerToWorld.) */
   if (snap.world) {
     for (const id of Object.keys(snap.world)) {
       const seat = snap.world[id];
       if (!seat) continue;
-      seat.isPlayer = false;
       seat.id = id;
       seat.role = seat.role || worldRoleForSeat(id);
     }
@@ -19986,7 +19976,7 @@ function cloneWorldForSim(g: any) {
   for (const id of Object.keys(g.world)) {
     const seat = g.world[id];
     if (!seat) continue;
-    if (id === playerId || seat.isPlayer) continue;
+    if (id === playerId) continue;
     (out as any)[id] = {
       econ: clone(seat.econ),
       law: clone(seat.law),

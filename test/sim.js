@@ -968,7 +968,8 @@ newGame();
 G = getG();
 {
   assert(!!G.world, "live game has world bags");
-  const partnerId = Object.keys(G.world).find((id) => !G.world[id].isPlayer);
+  const playerSeatId = playerCountryId(G.homeRole);
+  const partnerId = Object.keys(G.world).find((id) => id !== playerSeatId);
   assert(!!partnerId, "has a non-player world seat");
   const y0 = G.world[partnerId].econ.gdp;
   applyEventOption({ shocks: [{ channel: "world", points: -8, q: 4 }] });
@@ -4671,8 +4672,8 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   );
   assert(G.world.india && G.world.india.econ, "india world bag exists");
   assert(
-    !G.world.france || G.world.france.isPlayer,
-    "player seat is mirrored, not a separate AI bag",
+    !G.world.france || G.world.france.econ === G.econ,
+    "player seat is mirrored by reference, not a separate AI bag",
   );
   const access0 =
     (G.econ.partnerAccessEff && G.econ.partnerAccessEff.india) || 0;
