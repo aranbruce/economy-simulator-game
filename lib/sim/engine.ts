@@ -8563,6 +8563,25 @@ function jointOpeningRunIn(g: any, quarters: number) {
     /* Term starts at currency strength 100 for every seat, as after settle. */
     bag.econ.fx0 = bag.econ.fx;
   }
+  /* The area rate has to follow from the *published* opening, not from the
+     run-in's own inflation path. Every seat's inflation was just pinned back
+     to its profile, but each area's rate is still the value its 32 quarters
+     converged to, smoothed off a history that no longer exists — the euro
+     opened at 3.56 against a pinned inflation that implies 3.19. Clearing the
+     carried rate makes the next pass seed from the Taylor target instead of
+     that history, so the rate and the inflation it is supposed to answer to
+     agree. Left disagreeing it is not cosmetic: a rate a third of a point too
+     high disinflates the smaller members, and a euro seat frozen at its
+     opening statute tips into r > g and runs to the debt clamp. */
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (bag && bag.econ) bag.econ.ccyAreaRate = null;
+  }
+  unifyOpeningCurrencyAreas(g);
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (bag && bag.econ && bag.econ.fx != null) bag.econ.fx0 = bag.econ.fx;
+  }
   for (const k of OPENING_STATE_KEYS) g[k] = stateAtOpen[k];
   if (g.econ) g.econ.relBase = relBaseAtOpen;
   g.q = 0;
