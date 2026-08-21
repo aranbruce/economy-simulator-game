@@ -13207,26 +13207,17 @@ function itemPartyStances(kind: string, spec: any) {
   else if (kind === "group") taste = groupTaste(spec.id, spec.from, spec.to);
   else if (kind === "fac") taste = spec.fac || {};
   else if (kind === "slider" && G && spec && spec.groupKey) {
-    /* Same split as group cards: absolute taste of the current level when
-       nothing is staged; law→draft delta once the player moves a lever. */
-    const key = spec.groupKey;
-    const SLIDER_DEFS: Record<string, any> = {
-      headOfState: DEF_HEAD_OF_STATE,
-      electoral: DEF_ELECTORAL,
-      workHours: DEF_WORK_HOURS,
-      childcare: DEF_CHILDCARE,
-      minWage: DEF_MIN_WAGE,
-      pension: DEF_PENSION,
-    };
-    const current = Object.assign({}, G.law, {
-      [key]: Object.assign({}, G.draft[key]),
-    });
-    if (spec.absolute) {
-      const baseline = Object.assign({}, G.law, {
-        [key]: Object.assign({}, SLIDER_DEFS[key] || G.law[key]),
+    /* Staged: law→draft delta (what the chamber will vote on). At rest there
+       is no authored absolute `fac` bag the way group/vice options have, and
+       scoring against DEF_* wrongly treats UK statute defaults as the
+       baseline on seats whose REALM_LAW already diverges — so unstaged
+       chips stay Split rather than inventing a UK-relative taste. */
+    if (spec.absolute) taste = {};
+    else {
+      const key = spec.groupKey;
+      const current = Object.assign({}, G.law, {
+        [key]: Object.assign({}, G.draft[key]),
       });
-      taste = lawDeltaTaste(baseline, current);
-    } else {
       taste = lawDeltaTaste(G.law, current);
     }
   }
