@@ -966,22 +966,39 @@ G = getG();
   );
 }
 
-/* Multi-country: world shock moves a named partner, not only worldRestY. */
-newGame();
-G = getG();
+/* Multi-country: world shock moves a named partner, not only worldRestY.
+   Measured against an unshocked control rather than against the opening level.
+   A partner is not at rest at open — it carries a quarter of trend and cycle
+   like any other seat — so comparing the shocked outturn to its own starting
+   GDP is really testing `momentum - shock < 0`, which sits on a knife edge:
+   the same assertion flips on any change that nudges opening momentum a
+   couple of tenths, in either direction, without the shock channel being
+   involved at all. Running the quarter twice and differencing isolates what
+   the test is named for. */
 {
-  assert(!!G.world, "live game has world bags");
-  const playerSeatId = playerCountryId(G.homeRole);
-  const partnerId = Object.keys(G.world).find((id) => id !== playerSeatId);
-  assert(!!partnerId, "has a non-player world seat");
-  const y0 = G.world[partnerId].econ.gdp;
-  applyEventOption({ shocks: [{ channel: "world", points: -8, q: 4 }] });
-  step(G, G.law, G.prevLaw, true);
+  const worldShockRun = (shock) => {
+    newGame();
+    const g = getG();
+    const partnerId = Object.keys(g.world).find(
+      (id) => id !== playerCountryId(g.homeRole),
+    );
+    if (shock) {
+      applyEventOption({ shocks: [{ channel: "world", points: -8, q: 4 }] });
+    }
+    step(g, g.law, g.prevLaw, true);
+    return { partnerId, gdp: g.world[partnerId].econ.gdp, world: !!g.world };
+  };
+  const quiet = worldShockRun(false);
+  const hit = worldShockRun(true);
+  assert(quiet.world, "live game has world bags");
+  assert(!!quiet.partnerId, "has a non-player world seat");
   assert(
-    G.world[partnerId].econ.gdp < y0,
-    `world shock hits partner GDP (${G.world[partnerId].econ.gdp.toFixed(3)} vs ${y0.toFixed(3)})`,
+    hit.gdp < quiet.gdp - 0.25,
+    `world shock hits partner GDP (${hit.gdp.toFixed(3)} vs unshocked ${quiet.gdp.toFixed(3)})`,
   );
 }
+newGame();
+G = getG();
 
 /* Major episode lifecycle: start, no second major, end schedules next. */
 newGame();
