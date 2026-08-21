@@ -9016,6 +9016,16 @@ function buildOpeningWorld(g: any) {
   }
   initWorldState(g);
   jointOpeningRunIn(g, JOINT_RUN_IN_QUARTERS);
+  /* Re-derive the world-dependent bits against the *finalised* econ before
+     caching, so this path ends where the cache-hit path above ends. The run-in
+     leaves clearedFlows/clearedTotals/nations as its last step computed them,
+     which is one finalise out of date; the hit path recomputes them from the
+     restored bags. Without this the first game of a given seat in a session
+     differs from every later one — same seat, same inputs, slightly different
+     trade split. */
+  mirrorPlayerToWorld(g);
+  syncNationsFromWorld(g);
+  refreshWorldTrade(g);
   _openingWorldByRole[key] = {
     econ: clone(g.econ),
     log: clone(g.log),
