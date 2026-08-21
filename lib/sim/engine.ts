@@ -13206,6 +13206,21 @@ function itemPartyStances(kind: string, spec: any) {
   else if (kind === "vice") taste = viceTaste(spec.id, spec.from, spec.to);
   else if (kind === "group") taste = groupTaste(spec.id, spec.from, spec.to);
   else if (kind === "fac") taste = spec.fac || {};
+  else if (kind === "slider" && G && spec && spec.groupKey) {
+    /* Staged: law→draft delta (what the chamber will vote on). At rest there
+       is no authored absolute `fac` bag the way group/vice options have, and
+       scoring against DEF_* wrongly treats UK statute defaults as the
+       baseline on seats whose REALM_LAW already diverges — so unstaged
+       chips stay Split rather than inventing a UK-relative taste. */
+    if (spec.absolute) taste = {};
+    else {
+      const key = spec.groupKey;
+      const current = Object.assign({}, G.law, {
+        [key]: Object.assign({}, G.draft[key]),
+      });
+      taste = lawDeltaTaste(G.law, current);
+    }
+  }
   return seatedStances(applyPartyLabels(partyStances(taste), G && G.homeRole));
 }
 

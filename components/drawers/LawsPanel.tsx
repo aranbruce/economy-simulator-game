@@ -104,10 +104,14 @@ interface SliderField {
   decimals?: number;
   unit?: string;
   format?: (value: number, decimals: number) => string;
+  /** Capital per unit of change — must match `sliderGroupClauses` in engine.ts. */
+  pc: number;
 }
 interface ToggleField {
   key: string;
   name: string;
+  /** Flat capital to flip — must match `sliderGroupClauses` in engine.ts. */
+  pc: number;
 }
 interface SliderSection {
   cat: string;
@@ -131,6 +135,7 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 1,
         decimals: 0,
         unit: " yr",
+        pc: 3,
       },
     ],
   },
@@ -147,9 +152,12 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 1,
         decimals: 0,
         unit: "",
+        pc: 1,
       },
     ],
-    toggles: [{ key: "mandatoryVoting", name: "Mandatory voting" }],
+    toggles: [
+      { key: "mandatoryVoting", name: "Mandatory voting", pc: 8 },
+    ],
   },
   {
     cat: "Work",
@@ -164,9 +172,12 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 0.1,
         decimals: 2,
         unit: "/hr",
+        pc: 1.2,
       },
     ],
-    toggles: [{ key: "on", name: "Statutory minimum wage in force" }],
+    toggles: [
+      { key: "on", name: "Statutory minimum wage in force", pc: 12 },
+    ],
   },
   {
     cat: "Work",
@@ -181,6 +192,7 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 1,
         decimals: 0,
         unit: " hrs",
+        pc: 1.5,
       },
       {
         key: "leaveDays",
@@ -190,6 +202,7 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 1,
         decimals: 0,
         unit: " days",
+        pc: 0.8,
       },
     ],
   },
@@ -206,6 +219,7 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 5,
         decimals: 0,
         format: (v) => (v >= 100 ? "Free" : `${Math.round(v)}%`),
+        pc: 0.15,
       },
     ],
   },
@@ -222,6 +236,7 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 1,
         decimals: 0,
         unit: " yrs",
+        pc: 1.5,
       },
       {
         key: "statePensionAnnual",
@@ -231,10 +246,51 @@ const SLIDER_SECTIONS: SliderSection[] = [
         step: 500,
         decimals: 0,
         format: (v) => `£${Math.round(v).toLocaleString()}/yr`,
+        pc: 0.001,
       },
     ],
   },
 ];
+
+/** Bill capital for this section's draft vs law — same formula as
+ *  `sliderGroupClauses` in engine.ts. */
+function sectionCapitalCost(
+  section: SliderSection,
+  draft: Record<string, any>,
+  law: Record<string, any>,
+) {
+  let cost = 0;
+  let any = false;
+  for (const t of section.toggles || []) {
+    if (!!draft[t.key] === !!law[t.key]) continue;
+    cost += t.pc;
+    any = true;
+  }
+  for (const f of section.fields || []) {
+    const d = Math.abs((draft[f.key] ?? 0) - (law[f.key] ?? 0));
+    if (d < 1e-9) continue;
+    cost += Math.max(1, Math.ceil(d * f.pc));
+    any = true;
+  }
+  return any ? cost : null;
+}
+
+/** CardCat label: live bill cost when staged; otherwise the list price of a
+ *  one-step nudge (or the flat toggle), matching option cards' always-on pc. */
+function sectionCapitalLabel(
+  section: SliderSection,
+  draft: Record<string, any>,
+  law: Record<string, any>,
+) {
+  const live = sectionCapitalCost(section, draft, law);
+  if (live != null) return `${live} capital`;
+  const toggle = section.toggles?.[0];
+  if (toggle) return `${toggle.pc} capital`;
+  const field = section.fields?.[0];
+  if (field)
+    return `${Math.max(1, Math.ceil((field.step ?? 1) * field.pc))} capital`;
+  return null;
+}
 
 function optionAllowed(law: any, o: LawGroupOption) {
   return !o.req || resolveReqState(law, o.req);
@@ -297,49 +353,81 @@ function GroupCard({ grp }: { grp: LawGroup }) {
   );
 }
 
+function sectionHasDelta(
+  draft: Record<string, any>,
+  law: Record<string, any>,
+  section: SliderSection,
+) {
+  for (const f of section.fields || []) {
+    if ((draft[f.key] ?? 0) !== (law[f.key] ?? 0)) return true;
+  }
+  for (const t of section.toggles || []) {
+    if (!!draft[t.key] !== !!law[t.key]) return true;
+  }
+  return false;
+}
+
 function SliderSectionCard({ section }: { section: SliderSection }) {
   const G = useGame();
   const draft = G.draft[section.groupKey] || {};
   const law = G.law[section.groupKey] || {};
+  const staged = sectionHasDelta(draft, law, section);
+  const capitalLabel = sectionCapitalLabel(section, draft, law);
   return (
-    <Panel padded className="mb-2">
-      <div className="mb-1 text-xs font-bold tracking-[.04em] text-ink-faint uppercase">
-        {section.title}
-      </div>
-      {section.toggles?.map((t) => (
-        <div
-          key={t.key}
-          className="mb-2 flex items-center justify-between gap-2 text-xs"
-        >
-          <span>{t.name}</span>
-          <SegControl
-            mini
-            className="w-28"
-            options={[
-              ["on", "On"],
-              ["off", "Off"],
-            ]}
-            value={draft[t.key] ? "on" : "off"}
-            onChange={(v) => setLawField(section.groupKey, t.key, v === "on")}
-          />
+    <Panel className="mb-2">
+      <div className="mb-1 flex items-baseline gap-2 px-3.25 pt-2.5">
+        <div className="text-xs font-bold tracking-[.04em] text-ink-faint uppercase">
+          {section.title}
         </div>
-      ))}
-      {section.fields?.map((f) => (
-        <Lever
-          key={f.key}
-          id={`${section.groupKey}.${f.key}`}
-          name={f.name}
-          value={draft[f.key] ?? 0}
-          min={f.min}
-          max={f.max}
-          step={f.step ?? 1}
-          decimals={f.decimals ?? 0}
-          unit={f.unit}
-          format={f.format}
-          base={law[f.key] ?? null}
-          onCommit={(_, v) => setLawField(section.groupKey, f.key, v)}
+        {capitalLabel ? <CardCat>{capitalLabel}</CardCat> : null}
+      </div>
+      {/* Levers need to be the last siblings of their wrapper so
+          Lever's last:border-b-0 still fires — chips sit outside. */}
+      <div>
+        {section.toggles?.map((t) => (
+          <div
+            key={t.key}
+            className="mb-2 flex items-center justify-between gap-2 px-3 text-xs"
+          >
+            <span>{t.name}</span>
+            <SegControl
+              mini
+              className="w-28"
+              options={[
+                ["on", "On"],
+                ["off", "Off"],
+              ]}
+              value={draft[t.key] ? "on" : "off"}
+              onChange={(v) => setLawField(section.groupKey, t.key, v === "on")}
+            />
+          </div>
+        ))}
+        {section.fields?.map((f) => (
+          <Lever
+            key={f.key}
+            id={`${section.groupKey}.${f.key}`}
+            name={f.name}
+            value={draft[f.key] ?? 0}
+            min={f.min}
+            max={f.max}
+            step={f.step ?? 1}
+            decimals={f.decimals ?? 0}
+            unit={f.unit}
+            format={f.format}
+            base={law[f.key] ?? null}
+            onCommit={(_, v) => setLawField(section.groupKey, f.key, v)}
+          />
+        ))}
+      </div>
+      <div className="px-3.25 pb-2.5">
+        <PartyStanceChips
+          stances={itemPartyStances("slider", {
+            groupKey: section.groupKey,
+            absolute: !staged,
+          })}
+          sandbox={!!G.sandbox}
         />
-      ))}
+      </div>
     </Panel>
   );
 }

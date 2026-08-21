@@ -18,6 +18,7 @@ import {
   DEAL_BY_ID,
   DEF_CHILDCARE,
   DEF_ELECTORAL,
+  DEF_HEAD_OF_STATE,
   DEF_MIN_WAGE,
   DEF_PENSION,
   DEF_WORK_HOURS,
@@ -990,6 +991,15 @@ function incomeNiTaste(prev: any, next: any) {
 
 function sliderTaste(prev: any, next: any) {
   const bag = emptyFac();
+  const hosA = (prev && prev.headOfState) || DEF_HEAD_OF_STATE;
+  const hosB = (next && next.headOfState) || DEF_HEAD_OF_STATE;
+  const dMandate = (hosB.mandateYears || 0) - (hosA.mandateYears || 0);
+  /* Longer terms read as executive stability; shorter as more frequent
+     accountability. Mild — mandate length is institutional, not bread-and-
+     butter. */
+  bag.patriots += 0.5 * dMandate;
+  bag.urban += -0.35 * dMandate;
+
   const whA = (prev && prev.workHours) || DEF_WORK_HOURS;
   const whB = (next && next.workHours) || DEF_WORK_HOURS;
   const dHours = (whB.weeklyHours || 0) - (whA.weeklyHours || 0);
@@ -1030,6 +1040,11 @@ function sliderTaste(prev: any, next: any) {
   const dRet = (pB.retirementAge || 0) - (pA.retirementAge || 0);
   bag.pensioners += -0.6 * dRet;
   bag.workers += 0.15 * dRet;
+  const dPen =
+    ((pB.statePensionAnnual || 0) - (pA.statePensionAnnual || 0)) / 1000;
+  bag.pensioners += 0.85 * dPen;
+  bag.workers += 0.2 * dPen;
+  bag.business += -0.35 * dPen;
   return bag;
 }
 
