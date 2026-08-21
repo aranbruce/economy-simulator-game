@@ -8472,8 +8472,14 @@ function jointOpeningRunIn(g: any, quarters: number) {
      quarters that compounds (K -6.5%, KG -12.9%), and since trend reads
      gK = (I - dK)/K, a stock shrunk against unchanged investment lifts
      measured trend permanently — +0.24pp at open, and the whole world hot for
-     thirty years after. Carry them across the run-in untouched. */
-  const SUPPLY_STOCK_KEYS = ["K", "KG", "R", "hCap"];
+     thirty years after. Carry them across the run-in untouched.
+     fuelVolume rides along for the same reason from the other direction: it is
+     a stock that *decays* with time (engines improve, ~1.6%/yr), so the run-in
+     aged the fuel-duty base by its own eight years and the player opened with
+     13.8% less of it than the published schedule raises. Nothing here is a
+     flow the run-in is meant to settle; they are all levels the per-role
+     settle already placed. */
+  const SUPPLY_STOCK_KEYS = ["K", "KG", "R", "hCap", "fuelVolume"];
   const stocksAtOpen: Record<string, Record<string, any>> = {};
   for (const id of Object.keys(g.world)) {
     const bag = g.world[id];
