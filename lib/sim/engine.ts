@@ -3683,6 +3683,56 @@ function tariffScheduleAverage(law: any, homeRole?: any, blocMember?: any) {
   }
   return out;
 }
+/* Per-partner deal tariff cuts, mirroring partnerAccessTargets() above but for
+   ch.tariffCut — needed so tariff revenue can net a deal's cut against the
+   specific partner it applies to rather than the pooled global E.dealTariffCut
+   the trade-volume side uses. */ function dealTariffCutByPartner(
+  law: any,
+  homeRole: any,
+  blocMember: any,
+) {
+  const g = getG();
+  const role = homeRole != null ? homeRole : (g && g.homeRole) || "home";
+  const bm = blocMember != null ? blocMember : (g && g.blocMember) || {};
+  const player = playerCountryId(role);
+  const out: Record<string, any> = {};
+  for (const id in law.deals || {}) {
+    if (!law.deals[id]) continue;
+    const d = dealById(id);
+    if (!d || !d.ch || !d.ch.tariffCut) continue;
+    if (d.blocId) {
+      for (const m of countriesInBloc(d.blocId, bm)) {
+        if (m === player) continue;
+        (out as any)[m] = ((out as any)[m] || 0) + d.ch.tariffCut;
+      }
+    } else if (d.partner) {
+      (out as any)[d.partner] =
+        ((out as any)[d.partner] || 0) + d.ch.tariffCut;
+    }
+  }
+  return out;
+}
+/** Per-partner tariff revenue: each active partner's effective rate (net of
+ *  that partner's phased-in deal cut) times their actual simulated import
+ *  volume, plus the rest-of-world residual priced at the schedule default. */
+function partnerTariffRevenue(law: any, g: any) {
+  const role = (g && g.homeRole) || "home";
+  const bm = (g && g.blocMember) || {};
+  const e = g && g.econ;
+  const cuts = (e && e.tariffCutEffByPartner) || {};
+  const trade = snapshotPartnerTrade(g || {});
+  let rev = 0;
+  for (const p of activePartners(role)) {
+    const rate = Math.max(
+      0,
+      effectiveTariff(p.id, law, role, bm) - ((cuts as any)[p.id] || 0),
+    );
+    rev += (rate / 100) * (((trade as any)[p.id] && (trade as any)[p.id].M) || 0);
+  }
+  const restRate = ensureTariffSchedule(law).default;
+  rev += (restRate / 100) * ((trade.rest && trade.rest.M) || 0);
+  return rev;
+}
 /* Phased trade-depth target: partner access plus tariff integration vs opening. */ function tradeExposureTarget(
   law: any,
   E: any,
@@ -4856,6 +4906,73 @@ function worldRoleForSeat(seatId: any) {
   mirrorPlayerToWorld(g);
   syncNationsFromWorld(g);
   refreshWorldTrade(g);
+  unifyOpeningCurrencyAreas(g);
+  replugWorldOpeningDeficits(g);
+  syncNationsFromWorld(g);
+}
+/** Settle each seat alone and a currency union opens without one.
+ *
+ *  settleOpeningEcon() runs per role and caches per role, so there is no world
+ *  while it runs and stepCurrencyAreas() never fires — every seat leaves the
+ *  run-up on a private Taylor rate off its own pinned inflation. The five euro
+ *  seats therefore opened 0.96 points apart, which is not a spread a single
+ *  central bank can post. Run one area pass here, the first moment a world
+ *  exists, so each union opens on one rate. The player is skipped by
+ *  stepCurrencyAreas itself, so their published opening rate is untouched. */
+function unifyOpeningCurrencyAreas(g: any) {
+  if (!g || !g.world) return;
+  const bags: Record<string, any> = {};
+  for (const id of Object.keys(g.world)) bags[id] = g.world[id];
+  const playerId = playerCountryId(g.homeRole);
+  /* One pass, deliberately. The rate converges on it regardless (an area with
+     no stored ccyAreaRate seeds prevArea from the target, so the first call
+     lands on it), which is the part that matters here. FX only moves FX_ADJ of
+     the way, and iterating it to the area fixed point was tried and reverted:
+     it shifts every partner's opening competitiveness enough to matter — far
+     enough that a -8 world demand shock stopped being able to push Germany's
+     GDP down in Q1. Converging opening FX may well be right, but it is a
+     recalibration of the trade block, not a side effect of unifying rates. */
+  stepCurrencyAreas(bags, worldSeatIds(), {
+    playerId,
+    playerEcon: g.econ,
+  });
+  /* The area pass nudges each seat's fx, which would otherwise leave it off the
+     fx0 settle pinned it to — and fx/fx0 is exactly what values a seat's GDP in
+     USD, so partners would no longer open at their profile gdp0. Re-pin, the
+     same way settleOpeningEcon does after its own run. The player is left alone:
+     stepCurrencyAreas never moves their fx, and their fx0 is already pinned. */
+  for (const id of Object.keys(bags)) {
+    if (id === playerId) continue;
+    const econ = bags[id] && bags[id].econ;
+    if (econ && econ.fx != null) econ.fx0 = econ.fx;
+  }
+}
+/** Re-zero every seat's opening deficit now that live bilateral trade exists.
+ *
+ *  settleOpeningEcon() runs with `_settling`, so stepWorldPartners (and with it
+ *  refreshWorldTrade) never fires during the 48-quarter run-up — snapshotPartnerTrade()
+ *  falls back to its M≈X approximation throughout. Tariff receipts are priced off
+ *  real per-partner import volume (partnerTariffRevenue), so a settle-time plug
+ *  calibrates otherRevAdj against import volumes that are not the ones the seat
+ *  will actually trade at. Left alone that is a fixed bias per seat, not noise:
+ *  _openingByRole caches each role's settle for the life of the process, and in
+ *  multiplayer every seat is one a human can claim. Re-plug once here, against
+ *  the live bags, so each seat opens on its profile's published deficit. */
+function replugWorldOpeningDeficits(g: any) {
+  if (!g || !g.world) return;
+  for (const id of Object.keys(g.world)) {
+    const bag = g.world[id];
+    if (!bag || !bag.econ || !bag.law) continue;
+    const deficit0 = pinsForRole(bag.role).deficit0;
+    if (deficit0 == null) continue;
+    plugOpeningDeficit(bag.econ, bag.law, deficit0, {
+      homeRole: bag.role,
+      econ: bag.econ,
+      blocMember: g.blocMember,
+      customBlocs: g.customBlocs,
+      worldTrade: g.worldTrade,
+    });
+  }
 }
 function mirrorPlayerToWorld(g: any) {
   if (!g || !g.econ) return;
@@ -4865,13 +4982,19 @@ function mirrorPlayerToWorld(g: any) {
   /* Preserve per-seat quarter series — lockstep and solo both push onto g.log,
      and MP hydrate reads bag.log for the top bar. Replacing the bag wholesale
      used to orphan the series and leave guests on the host's log. */
+  /* No `isPlayer` flag. The mounted seat's bag aliases g.econ/g.law by
+     reference, so "am I the player" is answerable from g.homeRole whenever it
+     is actually needed (isPlayerSeat) and the bag is correct either way. As a
+     stored boolean it had to be re-synced on every mount, and this function is
+     called from ~30 mount sites that each swap a seat onto the global: it set
+     the flag on whichever seat it mounted and never cleared the last one, so
+     every human seat in a lockstep ended up claiming to be the player. */
   g.world[playerId] = {
     econ: g.econ,
     law: g.law,
     prevLaw: g.prevLaw || g.law,
     id: playerId,
     role: g.homeRole || "home",
-    isPlayer: true,
     log: Array.isArray(g.log) ? g.log : prev && prev.log,
   };
 }
@@ -5126,16 +5249,22 @@ function syncNationsIntoEcon(
     ensureNationFx(e.nations[id]);
   }
 }
+/* Both read the seat's own bag unconditionally. refreshWorldTrade — the only
+   caller, via seatsFromWorld — runs mirrorPlayerToWorld first, which aliases
+   the mounted player's bag onto g.econ/g.law, so the bag *is* the live object
+   for the player and every other seat alike. The branch these used to carry
+   (`bag.isPlayer ? g.law : bag.law`) could only ever differ from this when the
+   flag was stale, which is exactly when it was wrong. */
 function pairTariff(exporterId: any, partnerId: any, g: any) {
   const bag = g.world && g.world[exporterId];
-  const law = bag && bag.isPlayer ? g.law : bag && bag.law;
+  const law = bag && bag.law;
   const role = worldRoleForSeat(exporterId);
   if (!law) return BASE_TARIFF;
   return effectiveTariff(partnerId, law, role, g.blocMember);
 }
 function pairAccess(exporterId: any, partnerId: any, g: any) {
   const bag = g.world && g.world[exporterId];
-  const econ = bag && bag.isPlayer ? g.econ : bag && bag.econ;
+  const econ = bag && bag.econ;
   if (!econ || !econ.partnerAccessEff) return 0;
   return econ.partnerAccessEff[partnerId] || 0;
 }
@@ -5496,9 +5625,6 @@ function resolveLockstepQuarter(g: any, humanSeatIds: any, submissions: any) {
     g.envoysBaselineQ = null;
     syncNationsFromWorld(g, true);
     if (g.world) {
-      for (const id of Object.keys(g.world)) {
-        if (g.world[id]) g.world[id].isPlayer = false;
-      }
       /* Re-assert human logs after mirror/trade (mirror preserves, belt-and-braces). */
       for (const id of humans) {
         const seat = g.world[id];
@@ -5712,6 +5838,66 @@ function syncMpPoliticsFromG(pol: any) {
   if (pol.country == null && g.country) pol.country = g.country;
   syncDiploPoliticsFromGame(pol, g);
 }
+/* Every top-level field a seat mount overwrites — what mountMpSeatOnSnapshot
+   assigns, plus the five mountDiploOntoGame sets through it. Mounting a seat
+   swaps all of this onto the shared game object, so anything restoring
+   afterwards has to put all of it back. That used to be two hand-written
+   save/restore lists, of 18 and 15 fields against the 25+ actually written, so
+   a mount leaked the remainder into whichever seat was mounted before it — the
+   same class of defect as the isPlayer flag, and the reason to have one list.
+   `saveSeatMount`/`restoreSeatMount` are the only sanctioned way to bracket a
+   mount; test/sim.js proxies a mount and fails if anything written is missing
+   here, so the list cannot drift from the code again. */
+const SEAT_MOUNT_FIELDS = [
+  "homeRole",
+  "econ",
+  "law",
+  "prevLaw",
+  "draft",
+  "fac",
+  "parties",
+  "rel",
+  "capital",
+  "mods",
+  "sandbox",
+  "rateManual",
+  "manualRate",
+  "lastEventQ",
+  "lastEventId",
+  "setPiece8",
+  "setPiece16",
+  "nextMajorQ",
+  "episode",
+  "polityShift",
+  "lowRun",
+  "over",
+  "country",
+  "blocAccession",
+  "log",
+  "envoys",
+  "ultimatums",
+  "activeVisits",
+  "missionEvents",
+  "diploAlerts",
+  "envoySpend",
+];
+/* Written by a mount but deliberately *not* restored by it. `politics` is the
+   room-wide map of every seat's politics: the mount only creates it when
+   absent, and enact writes each seat's results into it on purpose, so putting
+   the old value back would either be a no-op (same object, mutated in place)
+   or would throw away the map the mount just created. Kept as its own list,
+   and asserted, so "shared on purpose" stays distinguishable from "forgot to
+   save it" — which is the distinction the isPlayer bug turned on. */
+const SEAT_MOUNT_SHARED = ["politics"];
+function saveSeatMount(g: any) {
+  const saved: Record<string, any> = {};
+  for (const k of SEAT_MOUNT_FIELDS) saved[k] = g[k];
+  return saved;
+}
+function restoreSeatMount(g: any, saved: Record<string, any>) {
+  if (!g || !saved) return;
+  for (const k of SEAT_MOUNT_FIELDS) g[k] = saved[k];
+}
 function mountMpSeatOnSnapshot(g: any, seatId: any) {
   const seat = g.world[seatId];
   if (!seat) return null;
@@ -5776,26 +5962,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
     return { ok: false, error: "Missing seat politics" };
   }
   const prev = getG();
-  const saved = {
-    homeRole: g.homeRole,
-    econ: g.econ,
-    law: g.law,
-    draft: g.draft,
-    prevLaw: g.prevLaw,
-    capital: g.capital,
-    fac: g.fac,
-    rel: g.rel,
-    country: g.country,
-    envoys: g.envoys,
-    ultimatums: g.ultimatums,
-    activeVisits: g.activeVisits,
-    missionEvents: g.missionEvents,
-    diploAlerts: g.diploAlerts,
-    mods: g.mods,
-    sandbox: g.sandbox,
-    rateManual: g.rateManual,
-    manualRate: g.manualRate,
-  };
+  const saved = saveSeatMount(g);
   try {
     setG(g);
     const pol = mountMpSeatOnSnapshot(g, seatId);
@@ -5849,24 +6016,7 @@ function applyMpDiploAction(g: any, seatId: any, action: any, opts: any) {
       blocAccessionCleared: action === "withdrawBlocAccession",
     };
   } finally {
-    g.homeRole = saved.homeRole;
-    g.econ = saved.econ;
-    g.law = saved.law;
-    g.draft = saved.draft;
-    g.prevLaw = saved.prevLaw;
-    g.capital = saved.capital;
-    g.fac = saved.fac;
-    g.rel = saved.rel;
-    g.country = saved.country;
-    g.envoys = saved.envoys;
-    g.ultimatums = saved.ultimatums;
-    g.activeVisits = saved.activeVisits;
-    g.missionEvents = saved.missionEvents;
-    g.diploAlerts = saved.diploAlerts;
-    g.mods = saved.mods;
-    g.sandbox = saved.sandbox;
-    g.rateManual = saved.rateManual;
-    g.manualRate = saved.manualRate;
+    restoreSeatMount(g, saved);
     setG(prev);
   }
 }
@@ -6654,23 +6804,7 @@ function enactHumanSeatOnSnapshot(
   const draftCopy = clone(draft);
   const prevUlt = clone(pol.ultimatums || {});
   const prev = getG();
-  const saved = {
-    homeRole: g.homeRole,
-    econ: g.econ,
-    law: g.law,
-    draft: g.draft,
-    prevLaw: g.prevLaw,
-    capital: g.capital,
-    fac: g.fac,
-    parties: g.parties,
-    rel: g.rel,
-    country: g.country,
-    envoys: g.envoys,
-    ultimatums: g.ultimatums,
-    activeVisits: g.activeVisits,
-    missionEvents: g.missionEvents,
-    diploAlerts: g.diploAlerts,
-  };
+  const saved = saveSeatMount(g);
   try {
     setG(g);
     g.homeRole = role;
@@ -6776,8 +6910,8 @@ function enactHumanSeatOnSnapshot(
             passage: check.passage || pressPassageFromClauses(clauses),
             cost: check.cost || 0,
             balDelta:
-              balanceOf(g.draft, g.econ).balance -
-              balanceOf(g.law, g.econ).balance,
+              balanceOf(g.draft, g.econ, g).balance -
+              balanceOf(g.law, g.econ, g).balance,
             q: g.q != null ? g.q : 0,
           }
         : null;
@@ -6790,21 +6924,7 @@ function enactHumanSeatOnSnapshot(
       totalCost: spend,
     };
   } finally {
-    g.homeRole = saved.homeRole;
-    g.econ = saved.econ;
-    g.law = saved.law;
-    g.draft = saved.draft;
-    g.prevLaw = saved.prevLaw;
-    g.capital = saved.capital;
-    g.fac = saved.fac;
-    g.parties = saved.parties;
-    g.rel = saved.rel;
-    g.country = saved.country;
-    g.envoys = saved.envoys;
-    g.ultimatums = saved.ultimatums;
-    g.activeVisits = saved.activeVisits;
-    g.missionEvents = saved.missionEvents;
-    g.diploAlerts = saved.diploAlerts;
+    restoreSeatMount(g, saved);
     setG(prev);
   }
 }
@@ -6922,12 +7042,12 @@ function exportGameSnapshot(g: any, opts?: any) {
     snap.missionEvents = [];
     snap.diploAlerts = [];
   }
-  /* Detach player aliases into plain bags. */
+  /* Detach player aliases into plain bags. (Nothing to un-flag: seats no
+     longer store an isPlayer boolean — see mirrorPlayerToWorld.) */
   if (snap.world) {
     for (const id of Object.keys(snap.world)) {
       const seat = snap.world[id];
       if (!seat) continue;
-      seat.isPlayer = false;
       seat.id = id;
       seat.role = seat.role || worldRoleForSeat(id);
     }
@@ -8072,13 +8192,14 @@ let _openingByRole: Record<string, any> = {};
   e: any,
   law: any,
   deficit0: any,
+  g?: any,
 ) {
   if (deficit0 == null) {
     e.otherRevAdj = 0;
     return;
   }
   e.otherRevAdj = 0;
-  const measured = -balanceOf(law, e).balance;
+  const measured = -balanceOf(law, e, g).balance;
   e.otherRevAdj = measured - deficit0;
 }
 function freshEcon(pins: any) {
@@ -8255,7 +8376,7 @@ function settleLabel(i: any) {
 }
 function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   if (!row) return;
-  const bal = balanceOf(law, e);
+  const bal = balanceOf(law, e, g);
   row.debt = e.debt;
   row.inflation = e.inflation;
   row.unemployment = e.unemployment;
@@ -8358,7 +8479,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   }
   g.prevLaw = clone(g.law);
   g.draft = clone(g.law);
-  plugOpeningDeficit(g.econ, g.law, pin.deficit0);
+  plugOpeningDeficit(g.econ, g.law, pin.deficit0, g);
   for (let i = 0; i < SETTLE_QUARTERS; i++) {
     step(g, g.law, g.law, true);
     const row = g.log[g.log.length - 1];
@@ -8412,7 +8533,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
       g.manualRate = g.econ.rate;
     }
     renormaliseOpeningLevel(g.econ, g.law);
-    plugOpeningDeficit(g.econ, g.law, pin.deficit0);
+    plugOpeningDeficit(g.econ, g.law, pin.deficit0, g);
   }
   const e = g.econ;
   /* Leave FX at its UIP level under the (possibly Taylor-set) Bank rate. Forcing
@@ -8496,7 +8617,7 @@ function syncLogRowToEcon(row: any, e: any, g: any, law: any) {
   e.R = R0;
   e.labourGrowth = impliedLabourGrowth(e, aggregate(g.law));
   e.trendGrowth = potentialGrowth(g.law, aggregate(g.law), e);
-  plugOpeningDeficit(e, g.law, pin.deficit0);
+  plugOpeningDeficit(e, g.law, pin.deficit0, g);
   syncLogRowToEcon(g.log[g.log.length - 1], e, g, g.law);
   return {
     econ: e,
@@ -8661,6 +8782,17 @@ function newGame(opts?: any) {
      pre-game row so the Net trade partner series does not jump at Q1. */
   for (const row of G.log || []) {
     row.partnerTrade = clone(openingTrade);
+  }
+  /* Same flatten again, for the books. initWorldState -> replugWorldOpeningDeficits
+     has just re-zeroed every seat's opening deficit against live trade (see the
+     comment there), including this one; the settle rows were written before that,
+     so restate them or the finances chart steps at Q1. */
+  const openingBal = balanceOf(G.law, G.econ, G);
+  for (const row of G.log || []) {
+    row.balance = openingBal.balance;
+    row.rev = openingBal.rev.total;
+    row.revEff = openingBal.rev.total;
+    row.spendEff = openingBal.sp.prog + openingBal.sp.interest;
   }
   G.parties = seedParties(G.fac, G.law, G.homeRole);
   G.brief = openingBrief(pins, country);
@@ -9094,6 +9226,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
   const pat = partnerAccessTargets(law, role, bm);
   E.partnerAccess = pat;
   E.access = Object.values(pat).reduce((s, v) => s + v, 0);
+  E.partnerTariffCut = dealTariffCutByPartner(law, role, bm);
   E.blackLevel = clamp(10 + E.blk, 0, 78);
   return E;
 }
@@ -9117,7 +9250,7 @@ function aggregate(law: any, homeRole?: any, blocMember?: any): any {
       return 1;
   }
 }
-function revenue(law: any, E: any, econ?: any) {
+function revenue(law: any, E: any, econ?: any, g?: any) {
   const mult = regimeMultipliers(law);
   const by: Record<string, any> = {};
   let total = 0;
@@ -9147,13 +9280,14 @@ function revenue(law: any, E: any, econ?: any) {
   by.niEmployer = inc.employer;
   total += inc.total;
   const adj = (econ && econ.otherRevAdj) || 0;
-  const hr = (typeof G !== "undefined" && G && G.homeRole) || "home";
-  const avgTariff = tariffScheduleAverage(law, hr);
-  const other = OTHER_REV + adj + E.rev + avgTariff * 0.055;
+  const st = g || (typeof G !== "undefined" ? G : null);
+  const tariffs = partnerTariffRevenue(law, st);
+  const other = OTHER_REV + adj + E.rev;
   return {
-    total: total + other,
+    total: total + other + tariffs,
     by,
     other,
+    tariffs,
     inc,
   };
 }
@@ -9296,9 +9430,9 @@ function spending(law: any, E: any, econ: any) {
     total: prog + interest,
   };
 }
-function balanceOf(law: any, econ: any) {
-  const E = aggregate(law);
-  const rev = revenue(law, E, econ),
+function balanceOf(law: any, econ: any, g?: any) {
+  const E = aggregate(law, g && g.homeRole, g && g.blocMember);
+  const rev = revenue(law, E, econ, g),
     sp = spending(law, E, econ);
   return {
     E,
@@ -10212,6 +10346,14 @@ function govDemandShares(law: any, econ: any) {
     const cur = e.partnerAccessEff[p.id] || 0;
     e.partnerAccessEff[p.id] = cur + (effTarget - cur) * DEAL_PHASE;
   }
+  if (!e.tariffCutEffByPartner) e.tariffCutEffByPartner = {};
+  for (const p of activePartners(homeRole)) {
+    const target = (E.partnerTariffCut && E.partnerTariffCut[p.id]) || 0;
+    const stressed = (e.dealStress[p.id] || 0) >= 1;
+    const effTarget = stressed ? 0 : target;
+    const cur = e.tariffCutEffByPartner[p.id] || 0;
+    e.tariffCutEffByPartner[p.id] = cur + (effTarget - cur) * DEAL_PHASE;
+  }
   const exposureTarget = tradeExposureTarget(law, E, e, homeRole, bm);
   e.tradeDepth += (exposureTarget - e.tradeDepth) * DEAL_PHASE;
   /* Competitiveness is indexed to the opening settings, so a fresh game starts
@@ -10220,10 +10362,19 @@ function govDemandShares(law: any, econ: any) {
     (E.open || 0) + e.openEff;
   const cutNow = (E.tariffCut || 0) + e.tariffCutEff;
   const avgTariff = tariffScheduleAverage(law, homeRole, bm);
+  /* Real-exchange-rate competitiveness only — relative prices, openness, FX.
+     Our own tariff is deliberately *not* in here. It used to be, dividing
+     compBase, which pushed it through both trade legs with the sign inverted
+     on each: exports fell (they should be ~flat; a tariff reaches your own
+     exports through retaliation, which e.retaliation already models below and
+     which this term double-counted) and imports *rose*, since M reads
+     compBase with a negative exponent. A 25% wall raised the import bill it
+     was supposed to shut out. `ownBarrier` now carries it, on imports alone,
+     and both are indexed to BASE_TARIFF so the opening schedule stays neutral. */
   const compBase =
-    ((e.worldP / e.priceP) * (1 + openNow / 200) * (1 + BASE_TARIFF / 100)) /
-    (1 + Math.max(0, avgTariff - cutNow) / 100) /
-    Math.max(0.5, e.fx);
+    ((e.worldP / e.priceP) * (1 + openNow / 200)) / Math.max(0.5, e.fx);
+  const ownBarrier =
+    (1 + Math.max(0, avgTariff - cutNow) / 100) / (1 + BASE_TARIFF / 100);
   /* Gravity bilateral exports: X_i ∝ share_i · Y · Y_i^β · comp^ε.
      Partner shocks and partner-specific deals hit the matching bilateral term
      rather than a half-weight add to world demand. */ if (!e.nations) {
@@ -10246,10 +10397,15 @@ function govDemandShares(law: any, econ: any) {
   const shareI = e.shareI != null ? e.shareI : SHARE_I;
   for (const p of partners) {
     const Yi = (e.nations[p.id] && e.nations[p.id].y) || 100;
-    const effT = effectiveTariff(p.id, law, homeRole, bm);
+    /* What blocks this export leg is the partner's wall against us. Their
+       schedule is only visible once world bags exist, so during settle (and
+       for any seat without a live bag) this falls back to BASE_TARIFF and the
+       leg stays neutral, exactly as it did before. */
+    const theirT = livePartnerTariffOnPlayer(p.id, g);
+    const foreignT = theirT != null ? theirT : BASE_TARIFF;
     const comp =
       (compBase * (1 + BASE_TARIFF / 100)) /
-      (1 + Math.max(0, effT - cutNow) / 100);
+      (1 + Math.max(0, foreignT) / 100);
     const access = (e.partnerAccessEff && e.partnerAccessEff[p.id]) || 0;
     const beta =
       NATION_PROFILE[p.id] && NATION_PROFILE[p.id].beta != null
@@ -10300,7 +10456,8 @@ function govDemandShares(law: any, econ: any) {
      government's own purchases. */ const Mstar =
     (shareM / (shareC + shareI + SHARE_G)) *
       domestic *
-      Math.pow(compBase, -ELAST_M) +
+      Math.pow(compBase, -ELAST_M) *
+      Math.pow(ownBarrier, -ELAST_M) +
     ((leak - BASE_LEAK) / 100) * pot;
   /* Exports also grow with the country's own supply capacity, not just world
      demand: a bigger, more productive economy sells more abroad. Without this
@@ -10433,8 +10590,13 @@ function govDemandShares(law: any, econ: any) {
      Each component has its own equation in the expenditure block above. The
      fiscal multiplier is not set anywhere: it emerges from the marginal
      propensity to consume, the tax take out of income and import leakage,
-     which is where multipliers come from in the first place. */ const revShare =
-    revenue(law, E, e).total;
+     which is where multipliers come from in the first place. Tariff revenue
+     is excluded here: its demand effect is already priced in through import
+     competitiveness (compBase, below) hitting CPI directly, so routing it
+     through the same household-tax share as income tax/VAT would squeeze
+     disposable income twice for the same pound of tariff. */ const revBag =
+    revenue(law, E, e, g);
+  const revShare = revBag.total - revBag.tariffs;
   const prevY = e.gdp;
   const acct = expenditureStep(e, law, E, revShare, mS, g, det);
   /* Elevated gilt yields hit borrowers as a credit-spread shock attributed to
@@ -10659,7 +10821,7 @@ function govDemandShares(law: any, econ: any) {
        db = (r - g)/(1 + g) * b - primary balance
      the standard accumulation identity, plus a convex risk premium in the
      yield: markets ignore the debt level until they abruptly do not. */ const rev =
-      revenue(law, E, e),
+      revenue(law, E, e, g),
     sp = spending(law, E, e);
   /* ---- Growth is not fiscally neutral ----
      Spending is a plan in real terms, set against trend output, so its share of
@@ -13364,6 +13526,7 @@ function compositionBarData() {
   for (const id in rev.by) {
     (groups as any)[taxGroup(id)] += (rev.by as any)[id];
   }
+  groups.tariffs = rev.tariffs;
   groups.other = rev.other;
   const names: Record<string, string> = {
     income: "Income tax and NI",
@@ -13371,6 +13534,7 @@ function compositionBarData() {
     corporate: "Corporate",
     wealth: "Capital & land",
     vice: "Duties on regulated goods",
+    tariffs: "Tariffs",
     other: "Other receipts",
   };
   const cols: Record<string, string> = {
@@ -13379,6 +13543,7 @@ function compositionBarData() {
     corporate: COL.blue,
     wealth: COL.plum,
     vice: COL.green,
+    tariffs: COL.ox,
     other: COL.soft,
   };
   const total = Object.values(groups).reduce((a: any, b: any) => a + b, 0) || 1;
@@ -19773,7 +19938,13 @@ function impactFactionsData(im: any) {
    an explicit allowlist, checked by a test below, so a future field added to
    MUTABLE can't silently go unaccounted-for in simulate() the way CLAUDE.md
    warns about — it will either need to be threaded into `sim` or added here
-   with the same justification. */
+   with the same justification. `worldTrade` is the one exception to "no
+   effect on the numbers": tariff revenue now reads it (partnerTariffRevenue()),
+   but it's still correctly omitted from the initial clone, for a different
+   reason — stepWorldPartners() -> refreshWorldTrade() regenerates it fresh
+   every quarter inside simulate()'s own loop (step() is always called with
+   `sim` itself as `g`, so it reads sim's own freshly-cleared trade, never
+   live G's), so no t=0 clone is needed even though it now matters. */
 const SIMULATE_OMITS = [
   "over",
   "lowRun",
@@ -19799,7 +19970,7 @@ function cloneWorldForSim(g: any) {
   for (const id of Object.keys(g.world)) {
     const seat = g.world[id];
     if (!seat) continue;
-    if (id === playerId || seat.isPlayer) continue;
+    if (id === playerId) continue;
     (out as any)[id] = {
       econ: clone(seat.econ),
       law: clone(seat.law),
@@ -20855,6 +21026,9 @@ export {
   FAC_0,
   MUTABLE,
   SIMULATE_OMITS,
+  SEAT_MOUNT_FIELDS,
+  SEAT_MOUNT_SHARED,
+  mountMpSeatOnSnapshot,
   IMPACT_ROWS,
   IMP_NAMES,
   clamp,

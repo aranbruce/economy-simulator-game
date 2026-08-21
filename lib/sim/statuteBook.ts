@@ -110,9 +110,12 @@ type DeptId = (typeof DEPTS)[number]["id"];
 /* UK 2025-26: total managed expenditure 44.8% of GDP, receipts 40.4%, deficit
    about 4.4%, debt 94.3%. Programme spending here sums with the departmental
    lines to reach that total; OTHER_REV covers council tax, business rates,
-   stamp duty and the smaller duties. Research (0.7) is carved out of the
-   residual so the opening fiscal position stays put. */ const OTHER_SPEND = 7.7,
-  OTHER_REV = 12.25,
+   stamp duty and the smaller duties (tariffs are their own line via
+   partnerTariffRevenue() in engine.ts, not part of this residual — trimmed by
+   0.68pp of GDP, the amount the old flat avgTariff*0.055 term used to add
+   here, when that per-partner channel replaced it). Research (0.7) is carved
+   out of the residual so the opening fiscal position stays put. */ const OTHER_SPEND = 7.7,
+  OTHER_REV = 11.57,
   TERM_LEN = 20;
 /* Political regime per seat (democracy/hybrid/authoritarian) — unrelated to
    tax architecture (isFlatIncome/isDualCapital/landCommitment/

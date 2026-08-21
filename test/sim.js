@@ -27,6 +27,9 @@ import {
   recapitaliseBank,
   MUTABLE,
   SIMULATE_OMITS,
+  SEAT_MOUNT_FIELDS,
+  SEAT_MOUNT_SHARED,
+  mountMpSeatOnSnapshot,
   composePress,
   eventPressCopy,
   pushPress,
@@ -968,7 +971,8 @@ newGame();
 G = getG();
 {
   assert(!!G.world, "live game has world bags");
-  const partnerId = Object.keys(G.world).find((id) => !G.world[id].isPlayer);
+  const playerSeatId = playerCountryId(G.homeRole);
+  const partnerId = Object.keys(G.world).find((id) => id !== playerSeatId);
   assert(!!partnerId, "has a non-player world seat");
   const y0 = G.world[partnerId].econ.gdp;
   applyEventOption({ shocks: [{ channel: "world", points: -8, q: 4 }] });
@@ -1420,6 +1424,41 @@ assert(
   unaccounted.length === 0,
   `every MUTABLE field lands in simulate() or SIMULATE_OMITS (missing: ${unaccounted.join(", ")})`,
 );
+
+/* A seat mount swaps a whole seat onto the shared game object, and every
+   bracketing save/restore is driven off SEAT_MOUNT_FIELDS. If a mount ever
+   writes a field the list doesn't name, that field leaks out of the mount into
+   whichever seat was mounted before — which is exactly how the isPlayer flag
+   broke multiplayer tariffs. Proxy a real mount and record what it touches, so
+   the list can't drift from the code. */
+{
+  newGame({ country: "Probe", homeRole: "home", silent: true });
+  const probeG = getG();
+  const seatId = Object.keys(probeG.world).find(
+    (id) => id !== playerCountryId(probeG.homeRole),
+  );
+  const written = new Set();
+  const probe = new Proxy(probeG, {
+    set(target, key, value) {
+      if (typeof key === "string") written.add(key);
+      target[key] = value;
+      return true;
+    },
+  });
+  mountMpSeatOnSnapshot(probe, seatId);
+  const unlisted = [...written].filter(
+    (k) => !SEAT_MOUNT_FIELDS.includes(k) && !SEAT_MOUNT_SHARED.includes(k),
+  );
+  assert(
+    unlisted.length === 0,
+    `mount writes only SEAT_MOUNT_FIELDS or SEAT_MOUNT_SHARED (unlisted: ${unlisted.join(", ")})`,
+  );
+  assert(
+    SEAT_MOUNT_FIELDS.every((k) => !SEAT_MOUNT_SHARED.includes(k)),
+    "no field is both restored and shared",
+  );
+  assert(written.size > 10, `mount probe actually observed writes (${written.size})`);
+}
 
 const CALM_ECON = {
   inflation: 2.5,
@@ -4671,8 +4710,8 @@ assert(G.press.length === 20, "press inbox caps at twenty clips");
   );
   assert(G.world.india && G.world.india.econ, "india world bag exists");
   assert(
-    !G.world.france || G.world.france.isPlayer,
-    "player seat is mirrored, not a separate AI bag",
+    !G.world.france || G.world.france.econ === G.econ,
+    "player seat is mirrored by reference, not a separate AI bag",
   );
   const access0 =
     (G.econ.partnerAccessEff && G.econ.partnerAccessEff.india) || 0;
