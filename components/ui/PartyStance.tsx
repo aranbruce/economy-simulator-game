@@ -28,13 +28,17 @@ function stanceClass(stance: PartyStanceKind) {
 export function PartyStanceChips({
   stances,
   sandbox = false,
+  className = "",
 }: {
   stances: PartyStanceRow[] | null | undefined;
   sandbox?: boolean;
+  className?: string;
 }) {
   if (!stances || !stances.length) return null;
   return (
-    <div className="mt-1.25 flex flex-wrap gap-1">
+    <div
+      className={`flex flex-wrap gap-1 ${className || "mt-1.25"}`.trim()}
+    >
       {stances.map((s) => (
         <span
           key={s.id}

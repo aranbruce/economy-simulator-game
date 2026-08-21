@@ -13206,6 +13206,30 @@ function itemPartyStances(kind: string, spec: any) {
   else if (kind === "vice") taste = viceTaste(spec.id, spec.from, spec.to);
   else if (kind === "group") taste = groupTaste(spec.id, spec.from, spec.to);
   else if (kind === "fac") taste = spec.fac || {};
+  else if (kind === "slider" && G && spec && spec.groupKey) {
+    /* Same split as group cards: absolute taste of the current level when
+       nothing is staged; law→draft delta once the player moves a lever. */
+    const key = spec.groupKey;
+    const SLIDER_DEFS: Record<string, any> = {
+      headOfState: DEF_HEAD_OF_STATE,
+      electoral: DEF_ELECTORAL,
+      workHours: DEF_WORK_HOURS,
+      childcare: DEF_CHILDCARE,
+      minWage: DEF_MIN_WAGE,
+      pension: DEF_PENSION,
+    };
+    const current = Object.assign({}, G.law, {
+      [key]: Object.assign({}, G.draft[key]),
+    });
+    if (spec.absolute) {
+      const baseline = Object.assign({}, G.law, {
+        [key]: Object.assign({}, SLIDER_DEFS[key] || G.law[key]),
+      });
+      taste = lawDeltaTaste(baseline, current);
+    } else {
+      taste = lawDeltaTaste(G.law, current);
+    }
+  }
   return seatedStances(applyPartyLabels(partyStances(taste), G && G.homeRole));
 }
 
