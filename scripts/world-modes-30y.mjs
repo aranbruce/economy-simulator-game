@@ -196,10 +196,22 @@ function realismNotes(allAi, allHuman) {
     ` • Deep creditors (debt < −30%): all-AI ${creditorAi.map((r) => r.id).join(", ") || "none"}; all-human ${creditorHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 
+  /* Debt far above anchor means different things in the two modes, so report
+     them differently. In all-AI the debt rule is running and failing to hold
+     the seat, which is an alarm. In all-human nothing is steering at all —
+     the mode freezes every statute for thirty years — so a seat running to the
+     clamp has only shown it cannot carry its inheritance passively. That is
+     worth knowing (a small open economy inside a currency union, with no rate
+     and no devaluation of its own, is exactly the profile that cannot), but it
+     is information rather than a fault: reported plainly, and named as such,
+     so it is not read as the same signal as the all-AI list. */
   const blowAi = allAi.filter((r) => r.debt > (r.anchor || 80) + 60);
   const blowHu = allHuman.filter((r) => r.debt > (r.anchor || 80) + 60);
   console.log(
-    ` • Debt > anchor+60: all-AI ${blowAi.map((r) => r.id).join(", ") || "none"}; all-human ${blowHu.map((r) => r.id).join(", ") || "none"}.`,
+    ` • Debt > anchor+60 with the fiscal rule running: ${blowAi.map((r) => r.id).join(", ") || "none"}.`,
+  );
+  console.log(
+    ` • Cannot survive passivity (frozen 30y, no fiscal response): ${blowHu.map((r) => r.id).join(", ") || "none"}.`,
   );
 }
 
