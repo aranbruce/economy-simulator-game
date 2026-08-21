@@ -8408,7 +8408,7 @@ function finaliseOpeningEcon(
    seat at a time. Twelve quarters lets the cleared-trade blend (q/4) reach full
    weight and the area rates settle, while staying short enough that the pins
    hold the published opening exactly. */ const JOINT_RUN_IN_QUARTERS = 32;
-/* Tail quarters over which the pin eases off, mirroring SETTLE_TAPER_QUARTERS. */ const JOINT_RUN_IN_TAPER = 16;
+
 /** Advance every seat together, headlines pinned each quarter and every seat
  *  finalised back onto its published opening at the end, so world-dependent
  *  state opens converged against real counterparties instead of against a
@@ -8507,9 +8507,15 @@ function jointOpeningRunIn(g: any, quarters: number) {
          first free quarter jumps. Let those five converge organically while the
          fiscal headlines stay pinned; the finalise pass below still snaps
          everything to the published figures. */
-      const toEnd = quarters - 1 - i;
-      const taper =
-        toEnd < JOINT_RUN_IN_TAPER ? 1 - toEnd / JOINT_RUN_IN_TAPER : 0;
+      /* The pin releases across the *whole* run-in rather than over a tail of
+         it: fully pinned in the first quarter, when the seat has just come off
+         a settle that held it there, and fully free in the last, so term start
+         is a continuation rather than a handover. Tried as a tail of 8, 16, 24
+         and 30 quarters out of 32 — the opening growth swing falls the whole
+         way, 1.65pp to 1.24 to 1.06 to 0.99, and spanning the full run-in is
+         both the best of them (0.97) and the one shape with no free parameter
+         to drift against the run-in's length. */
+      const taper = quarters > 0 ? (i + 1) / quarters : 1;
       for (const id of Object.keys(g.world)) {
         const bag = g.world[id];
         const pin = pinsById[id];
